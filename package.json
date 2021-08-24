@@ -1,6 +1,6 @@
 {
   "name": "ar-blacklist",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Server that creates & maintains a strict adult content filter list.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
