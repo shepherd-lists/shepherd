@@ -12,7 +12,7 @@ It creates & maintains a strict adult content blacklist. This should be loaded b
 
 ## ALPHA Version Software
 
-This is marked as alpha version software, because in it's current state it is missing one key feature, the ability to load your own `RatingPlugin`s. The purpose of shepherd is to become a framework to build better content moderation systems, but this is not just be limited to specific types of adult content (as with the default `RatingPlugin`), and could in fact be used to filter anything you can build an AI classification filter for, or simpler filters such as blacklist/whitelist a particular app's content media. It's up to you as to whether you want to run it, and what you will filter.
+This is marked as alpha version software, because in it's current state it is missing one key feature, the ability to load your own `FilterPlugin`s. The purpose of shepherd is to become a framework to build better content moderation systems, but this is not just be limited to specific types of adult content (as with the default `FilterPlugin`), and could in fact be used to filter anything you can build an AI classification filter for, or simpler filters such as blacklist/whitelist a particular app's content media. It's up to you as to whether you want to run it, and what you will filter.
 
 ## Minimum System Requirements
 
