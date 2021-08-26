@@ -5,7 +5,7 @@ import * as ImageFiltering from "../filter-host"
 import { updateDb } from '../db-update-txs'
 
 
-const prefix = 'nsfwtool'
+const prefix = 'check-frames'
 
 export const checkFrames = async(frames: string[], txid: string)=> {
 	const videopath = frames.shift()
@@ -22,7 +22,8 @@ export const checkFrames = async(frames: string[], txid: string)=> {
 	for (const frame of frames) {
 		const pic = fs.readFileSync(frame)
 		const result = await ImageFiltering.checkImage(pic, 'image/png', txid)
-		if(result.flagged){
+
+		if(result.flagged !== undefined && result.flagged === true){
 			flagged = true
 
 			//TODO: remove this NsfwjsPlugin specific code later
@@ -39,9 +40,8 @@ export const checkFrames = async(frames: string[], txid: string)=> {
 	}
 	if(!flagged){ 
 		logger(txid, 'video clean', vidUrl)
-	}
-	if(process.env.NODE_ENV !== 'production'){
-		logger(txid, flagged, scores, vidUrl)
+	}else{
+		logger(txid, 'video flagged', scores, vidUrl)
 	}
 
 	return updateDb(txid,{

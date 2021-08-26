@@ -1,7 +1,7 @@
 import * as tf from '@tensorflow/tfjs-node'
 import * as nsfw from 'nsfwjs'
 import { logger } from '../utils/logger'
-import { FilterPluginInterface, FilterResult } from '../FilterPluginInterface'
+import { FilterErrorResult, FilterResult } from '../FilterPluginInterface'
 
 
 const prefix = 'nsfwjs-plugin'
@@ -43,14 +43,14 @@ export class NsfwTools {
 		return predictions
 	}
 
-	static checkGif = async(gif: Buffer, txid: string): Promise<FilterResult>=> {
+	static checkGif = async(gif: Buffer, txid: string): Promise<FilterResult | FilterErrorResult>=> {
 
 		const result: FilterResult = {
 			flagged: false,
 			valid_data: true,
 		}
 
-		try {
+		try{
 
 			const model = await NsfwTools.loadModel()
 			const framePredictions = await model.classifyGif(gif, {
@@ -67,37 +67,37 @@ export class NsfwTools {
 
 				if(class1 === 'Hentai'){
 					if(prob1 >= 0.5){
-						result.err_message = 'hentai gif detected'
+						logger(prefix, 'hentai gif detected', txid)
 						result.flagged = true
 						score.nsfw_hentai = prob1
 						break;
 					}
-					result.err_message = 'hentai < 0.5'
+					logger(prefix, 'hentai < 0.5', txid)
 				}
 				
 				if(class1 === 'Porn'){
-					result.err_message = 'porn gif detected'
+					logger(prefix, 'porn gif detected', txid)
 					result.flagged = true
 					score.nsfw_porn = prob1
 					break;
 				}
 				
 				if(class1 === 'Sexy'){
-					result.err_message = 'sexy gif detected'
+					logger(prefix, 'sexy gif detected', txid)
 					result.flagged = true
 					score.nsfw_sexy = prob1
 					break;
 				}
 			}
 
-			if(!result.flagged){ 
-				result.err_message = 'gif clean'
+			if(process.env.NODE_ENV === 'test' && !result.flagged){ 
+				logger(prefix, 'gif clean', txid)
 			}
 
 			result.scores = JSON.stringify(score)
 			return result;
 
-		} catch (e) {
+		}catch(e){
 
 			/* handle all the bad data */
 
@@ -109,28 +109,27 @@ export class NsfwTools {
 				|| e.message === 'Frame index out of range.'
 			){
 				// still not gauranteed to be corrupt, browser may be able to open these
+				logger(prefix, `gif. probable corrupt data found (${e.message})`, txid) 
 				return{
 					flagged: undefined,
-					valid_data: false,
-					data_reason: 'corrupt',
-					err_message: `gif. probable corrupt data found (${e.message})` 
+					data_reason: 'corrupt-maybe',
+					err_message: e.message,
 				}
 			}
 
 			else{
-				logger(prefix, 'Error processing gif', txid + ' ', e.name, ':', e.message)
+				logger(prefix, 'UNHANDLED error processing gif', txid + ' ', e.name, ':', e.message)
 				throw e
 			}
 		}
 	}
 
-	static checkImage = async(pic: Buffer, contentType: string, txid: string): Promise<FilterResult> => {
+	static checkImage = async(pic: Buffer, contentType: string, txid: string): Promise<FilterResult | FilterErrorResult> => {
 
 		// Currently we only support these types:
 		if( !["image/bmp", "image/jpeg", "image/png", "image/gif"].includes(contentType) ){
 			return {
 				flagged: undefined,
-				valid_data: false,
 				data_reason: 'unsupported',
 			}
 		}
@@ -175,8 +174,7 @@ export class NsfwTools {
 				logger(prefix, 'probable corrupt data found', contentType, txid)
 				return {
 					flagged: undefined, //undefined as not 100% sure, might be tfjs problem opening file
-					valid_data: false,
-					data_reason: 'corrupt',
+					data_reason: 'corrupt-maybe',
 				}
 			}
 			
@@ -193,7 +191,6 @@ export class NsfwTools {
 					logger(prefix, 'partial image found', contentType, txid)
 					return {
 						flagged: undefined,
-						valid_data: false,
 						data_reason: 'partial',
 					}
 				}
@@ -203,7 +200,6 @@ export class NsfwTools {
 					// logger(prefix, 'oversized png found', contentType, txid)
 					return {
 						flagged: undefined,
-						valid_data: false,
 						data_reason: 'oversized',
 					}
 				}
@@ -216,8 +212,7 @@ export class NsfwTools {
 					// logger(prefix, 'bad data found', contentType, url)
 					// await dbCorruptDataConfirmed(txid)
 					return{
-						flagged: false,
-						valid_data: false,
+						flagged: undefined, //error signal, this will be flagged false
 						data_reason: 'corrupt',
 					}
 				}
@@ -227,7 +222,6 @@ export class NsfwTools {
 					logger(prefix, 'treating as partial.', e.message, contentType, txid)
 					return{
 						flagged: undefined,
-						valid_data: false,
 						data_reason: 'partial',
 					}
 				}
