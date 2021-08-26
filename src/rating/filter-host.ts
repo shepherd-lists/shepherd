@@ -1,4 +1,4 @@
-import { FilterResult, FilterPluginInterface } from '../FilterPluginInterface'
+import { FilterResult, FilterPluginInterface } from '../shepherd-plugin-interfaces/FilterPluginInterface'
 
 import { logger } from '../utils/logger'
 

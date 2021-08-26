@@ -10,7 +10,7 @@
  * Supported formats: BMP, JPEG, PNG, or GIF (gif uses different api function)
  */
 
-import { FilterPluginInterface } from "../FilterPluginInterface";
+import { FilterPluginInterface } from "../shepherd-plugin-interfaces/FilterPluginInterface";
 import { NsfwTools } from "./NsfwTools";
 
 const NsfwjsPlugin: FilterPluginInterface = {

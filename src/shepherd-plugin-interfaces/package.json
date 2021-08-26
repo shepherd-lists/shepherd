@@ -1,0 +1,13 @@
+{
+  "name": "shepherd-plugin-interfaces",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "preversion": "git init && git add . && git commit -m \"interface updated\"",
+    "postversion": "git commit -am \"version updated\" && npm publish && npx rimraf .git",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Ros McMahon <rosmcmahon@gmail.com>",
+  "license": "GPL-3.0"
+}

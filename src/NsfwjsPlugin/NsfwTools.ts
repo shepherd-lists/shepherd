@@ -1,7 +1,7 @@
 import * as tf from '@tensorflow/tfjs-node'
 import * as nsfw from 'nsfwjs'
 import { logger } from '../utils/logger'
-import { FilterErrorResult, FilterResult } from '../FilterPluginInterface'
+import { FilterErrorResult, FilterResult } from '../shepherd-plugin-interfaces/FilterPluginInterface'
 
 
 const prefix = 'nsfwjs-plugin'
