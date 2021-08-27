@@ -39,19 +39,23 @@ export const createScreencaps = async(txid: string)=> {
 		
 		/* throw specific known cases */
 		if(
-			(errMsg === 'Invalid data found when processing input')
+			[
+				'Invalid data found when processing input',
+				'No such file or directory', //should not happen!
+				'Output file #0 does not contain any stream', //no video stream
+			].includes(errMsg)
 		){
 			throw err
 		}else{
 			logger(txid, 'Not throwing:', errMsg)
 		}
 		
-		/* give correct error when there is no video stream in the file */
-		const hasVideoStream = (e.message as string).match(/Stream #([0-9\:]+)([a-z0-9\(\)\[\]]*): Video/g) ? true : false
-		if(!hasVideoStream){
-			err.message = 'no video stream'
-			throw err
-		}
+		// /* give correct error when there is no video stream in the file */
+		// const hasVideoStream = (e.message as string).match(/Stream #([0-9\:]+)([a-z0-9\(\)\[\]]*): Video/g) ? true : false
+		// if(!hasVideoStream){
+		// 	err.message = 'no video stream'
+		// 	throw err
+		// }
 
 		/* get a better error mesage in certain cases */
 		const errMsgLines = errMsg.split(EOL)

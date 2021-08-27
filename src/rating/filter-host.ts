@@ -12,7 +12,7 @@ import { checkImageMime, getImageMime } from './image-filetype'
 import FilterPlugin from '../NsfwjsPlugin'
 
 
-const prefix = 'image-rating'
+const prefix = 'filter-host'
 
 const db = getDbConnection()
 
