@@ -52,6 +52,7 @@
     "nsfwjs": "^2.4.1",
     "pg": "^8.6.0",
     "rimraf": "^3.0.2",
-    "shelljs": "^0.8.4"
+    "shelljs": "^0.8.4",
+    "shepherd-plugin-nsfw": "^0.1.0"
   }
 }

@@ -13,7 +13,7 @@ export const logger = (...args: any[]) => {
 
 	//outputs a csv file
 	fs.appendFile(
-		'ar-blacklist.log', 
+		'shepherd.log', 
 		"\"" + new Date().toUTCString() + '\",' + prefix + ',' + args.join(',') + EOL,
 		()=>{}
 	)

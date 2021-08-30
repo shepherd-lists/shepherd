@@ -1,4 +1,4 @@
-import { FilterResult, FilterPluginInterface } from '../shepherd-plugin-interfaces/FilterPluginInterface'
+import { FilterResult, FilterPluginInterface } from '../shepherd-plugin-interfaces'
 
 import { logger } from '../utils/logger'
 
@@ -9,7 +9,7 @@ import { axiosDataTimeout } from '../utils/axiosDataTimeout'
 import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeType, dbOversizedPngFound, dbPartialImageFound, dbTimeoutInBatch, dbUnsupportedMimeType, dbWrongMimeType, updateDb } from './db-update-txs'
 import { checkImageMime, getImageMime } from './image-filetype'
 
-import FilterPlugin from '../NsfwjsPlugin'
+import FilterPlugin from 'shepherd-plugin-nsfw'
 
 
 const prefix = 'filter-host'
@@ -60,7 +60,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 
 			await updateDb(txid, {
 				flagged: results.flagged,
-				valid_data: results.valid_data,
+				valid_data: true,
 
 				//TODO: replace this specific NsfwjsPlugin score data in the DB
 				...(true && scores), //use some spread trickery to add non-null (or zero value) keys
