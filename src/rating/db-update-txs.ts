@@ -50,12 +50,12 @@ export const dbCorruptDataMaybe = async(txid: string)=> {
 	return updateDb(txid,{
 		// flagged: false, <= try filetype detection first
 		valid_data: false,
-		data_reason: 'corrupt',
+		data_reason: 'corrupt-maybe',
 		last_update_date: new Date(),
 	})
 }
 
-export const dbPartialDataFound = async(txid: string)=> {
+export const dbPartialImageFound = async(txid: string)=> {
 	return updateDb(txid,{
 		// flagged: <= cannot flag yet! display with puppeteer & rate again
 		valid_data: false, // this removes it from current queue
@@ -66,7 +66,7 @@ export const dbPartialDataFound = async(txid: string)=> {
 
 export const dbPartialVideoFound = async(txid: string)=> {
 	return updateDb(txid,{
-		// flagged: undefined,
+		// flagged: undefined,  // this gets set in the normal way in another call
 		// valid_data: undefined,
 		data_reason: 'partial-seed', //check later if fully seeded
 		last_update_date: new Date(),

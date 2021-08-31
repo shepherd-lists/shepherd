@@ -10,20 +10,27 @@ import { VidDownloadRecord, VidDownloads } from '../src/rating/video/VidDownload
 import { addToDownloads, videoDownload } from '../src/rating/video/downloader'
 import rimraf from 'rimraf'
 import { exec } from 'shelljs'
+import getDbConnection from '../src/utils/db-connection'
+
+const db = getDbConnection()
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
 describe('video-prepare tests', ()=> {
 
-	before(()=>{
-		rimraf('temp-screencaps/./*', (e)=>e&&console.log('error in before cleaning tempdir'))
-
-		//TODO: create the test txid entries in txs DB if they do not already exist
+	before((done)=>{
+		rimraf('temp-screencaps/./*', (e)=> {
+			if(e){ console.log('error in before cleaning tempdir', e) }
+			done()
+		}) 
 	})
 
-	afterEach(()=>{
-		rimraf('temp-screencaps/./*', (e)=>e&&console.log('error in afterEach cleaning tempdir'))
+	afterEach( (done)=>{
+		rimraf('temp-screencaps/./*', (e)=> {
+			if(e){ console.log('error in afterEach cleaning tempdir', e) }
+			done()
+		})
 	})
 
 	it('1. videoDownload: downloads a video', async()=> {
@@ -104,7 +111,14 @@ describe('video-prepare tests', ()=> {
 		const vid: TxRecord = {
 			content_size: 597283,
 			content_type: 'video/mp4',
-			txid: '5ptIH1GrUYrgzrrwCf-mVE8aWMGbiZ4vt9z4VcMYaNA',//'9rE8vXMG2T702EVMxomVBCUKvRBzeZPiCUpgryr60Eo',
+			txid: '5ptIH1GrUYrgzrrwCf-mVE8aWMGbiZ4vt9z4VcMYaNA',
+		}
+		/* set up DB data */
+		const resDb = await db<TxRecord>('txs').where({ txid: vid.txid })
+		if(resDb.length !== 1){
+			await db<TxRecord>('txs').insert({txid: vid.txid, content_type: vid.content_type, content_size: vid.content_size })
+		}else{
+			await db<TxRecord>('txs').where({ txid: vid.txid}).update({ flagged: true, valid_data: false}) //toggle the wrong way
 		}
 		await addToDownloads(vid)
 		//@ts-ignore
@@ -116,6 +130,11 @@ describe('video-prepare tests', ()=> {
 		expect(dl.complete).to.eq('TRUE')
 		await processVids()
 		expect(VidDownloads.getInstance().length()).eq(0)
+
+		const check = await db<TxRecord>('txs').where({ txid: vid.txid})
+		expect(check.length).eq(1)
+		expect(check[0].valid_data).true
+		expect(check[0].flagged).false
 		
 	}).timeout(0)
 	

@@ -30,20 +30,19 @@ export const processVids = async()=> {
 				frames = await createScreencaps(dl.txid)
 			}catch(err){
 				const e: FfmpegError = err
-				if(e.message === 'corrupt video data'){
-					logger(dl.txid, 'ffprobe: corrupt video data')
-					dbCorruptDataConfirmed(dl.txid)
-				}else if(e.message === 'no video stream'){
-					logger(dl.txid, 'ffmpeg: no video stream')
+				if(e.message === 'Output file #0 does not contain any stream'){
+					logger(dl.txid, 'ffmpeg: Output file #0 does not contain any stream')
 					dbCorruptDataConfirmed(dl.txid)
 				}else if(e.message === 'No such file or directory'){
 					//we should not be in createScreencaps if there is no video file
 					throw e
 				}else if(
-					e.message === 'Invalid data found when processing input'
-					|| e.message === 'ffout[1]:Error opening filters!'
+					[
+						'Invalid data found when processing input',
+						'ffout[1]:Error opening filters!',
+					].includes(e.message)
 				){
-					logger(dl.txid, 'ffmpeg corrupt maybe:', e.message)
+					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
 					dbCorruptDataMaybe(dl.txid)
 				}else{
 					logger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
@@ -52,7 +51,7 @@ export const processVids = async()=> {
 				}
 				//delete the temp files
 				downloads.cleanup(dl)
-				continue;
+				continue; //skip to next `dl`
 			}
 
 			//let tfjs run through the screencaps & write to db

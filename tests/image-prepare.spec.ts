@@ -9,7 +9,7 @@ import { logger } from '../src/utils/logger'
 
 const db = getDbConnection()
 
-describe('rating-plugin-host tests', ()=> {
+describe('image-prepare tests', ()=> {
 
 	const tx404 = 'gf7bi2cuBcLA5Wep7z81eQ2mqOL8SUx2vqjWuJABx-E'
 	const txCorrupt = 'pt098PDGzPlYoZW0gO_lbkC6I5XlKXa3_5qXRe4dFcg'

@@ -14,10 +14,7 @@ const downloads = VidDownloads.getInstance()
 
 export const addToDownloads = async(vid: TxRecord)=> {
 
-	/* Start downloading the next video if we have enough room */
-	// if(downloads.length() < 10 && downloads.size() < VID_TMPDIR_MAXSIZE){
-
-	let dl: VidDownloadRecord = Object.assign({complete: 'FALSE'}, vid) 
+	let dl: VidDownloadRecord = Object.assign({	complete: 'FALSE' }, vid)
 	downloads.push(dl)
 
 	try{
@@ -55,7 +52,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			/* Video size might be incorrect */
 			const contentLength = Number(headers['content-length'])
 			if(vid.content_size !== contentLength){
-				logger(vid.txid, 'content-length. gql:', vid.content_size, 'header:', contentLength)
+				logger(vid.txid, 'content-length. gql:', vid.content_size, typeof vid.content_size, 'header:', contentLength)
 				vid.content_size = contentLength
 			}
 
@@ -129,7 +126,9 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			})
 	
 			stream.on('error', (e: any)=>{
-				console.log('**DEBUG**:', JSON.stringify(e), JSON.stringify(vid))
+				if(process.env.NODE_ENV==='test'){
+					logger('** DEBUG **:', JSON.stringify(e), JSON.stringify(vid))
+				}
 				filewriter.end()
 				if(e.message && e.message === 'aborted'){
 					logger(vid.txid, 'Error: aborted')

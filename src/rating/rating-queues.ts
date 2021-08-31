@@ -6,8 +6,9 @@ import { processVids } from './video/process-files'
 import { VidDownloads } from './video/VidDownloads'
 import { addToDownloads } from './video/downloader'
 import col from 'ansi-colors'
-import * as ImageFiltering from './filter-host'
 import { performance } from 'perf_hooks'
+import loadConfig from '../utils/load-config'
+import * as FilterHost from './filter-host'
 
 const prefix = 'queue'
 const db = getDbConnection()
@@ -79,16 +80,12 @@ const getOthers = async()=> {
 // sum trues from array of booleans
 const trueCount = (results: boolean[]) => results.reduce((acc, curr)=> curr ? ++acc : acc, 0)
 
-export const rater = async()=>{
+export const rater = async(lowmem: boolean)=>{
 
-	/* initialise. load nsfw tf model */
-
-	await ImageFiltering.init()
-	
 	/* get backlog queues */
 
-	const BATCH_IMAGE = 50
-	const BATCH_GIF = 5
+	const BATCH_IMAGE = lowmem? 5 : 50
+	const BATCH_GIF = lowmem? 1 : 5
 	const BATCH_VIDEO = 1
 	const BATCH_OTHER = 1
 
@@ -113,12 +110,12 @@ export const rater = async()=>{
 		if(imagesBacklog !== 0){
 			//process a batch of images
 			logger(prefix, `processing ${images.length} images of ${imageQueue.length + images.length}`)
-			const imgRet: boolean[] = await Promise.all(images.map(image => ImageFiltering.checkImageTxid(image.txid, image.content_type)))
+			const imgRet: boolean[] = await Promise.all(images.map(image => FilterHost.checkImageTxid(image.txid, image.content_type)))
 			logger(prefix, `processed ${trueCount(imgRet)} out of ${images.length} images successfully`)
 			
 			//process a batch of gifs
 			logger(prefix, `processing ${gifs.length} gifs of ${gifQueue.length + gifs.length}`)
-			await Promise.all(gifs.map(gif => ImageFiltering.checkImageTxid(gif.txid, gif.content_type)))
+			await Promise.all(gifs.map(gif => FilterHost.checkImageTxid(gif.txid, gif.content_type)))
 			
 			// //process a batch of others
 			// logger(prefix, `processing ${others.length} others of ${otherQueue.length + others.length}`)

@@ -44,7 +44,7 @@ describe('video bad tx handling tests', ()=> {
 			const frames = await createScreencaps(badData.txid)
 			expect(true).false //err if we get here 
 		}catch(e){
-			expect(e.message).eq('no video stream')
+			expect(e.message).eq('Output file #0 does not contain any stream')
 		}
 	}).timeout(0)
 	
