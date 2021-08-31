@@ -1,7 +1,7 @@
 import fs from 'fs'
 import { HOST_URL } from '../../constants'
 import { logger } from '../../utils/logger'
-import * as ImageFiltering from "../filter-host"
+import * as FilterHost from "../filter-host"
 import { updateDb } from '../db-update-txs'
 
 
@@ -21,7 +21,7 @@ export const checkFrames = async(frames: string[], txid: string)=> {
 	//loop through caps. break if flagged image found
 	for (const frame of frames) {
 		const pic = fs.readFileSync(frame)
-		const result = await ImageFiltering.checkImage(pic, 'image/png', txid)
+		const result = await FilterHost.checkImage(pic, 'image/png', txid)
 
 		if(result.flagged !== undefined && result.flagged === true){
 			flagged = true
