@@ -1,5 +1,5 @@
 {
-  "name": "ar-blacklist",
+  "name": "shepherd",
   "version": "0.0.3",
   "description": "Server that creates & maintains a strict adult content filter list.",
   "main": "build/index.js",
@@ -17,6 +17,7 @@
     "test:img": "mocha -r ts-node/register tests/image-prepare.spec.ts",
     "test:vid": "mocha -r ts-node/register tests/video-prepare.spec.ts",
     "test:vidbad": "mocha -r ts-node/register tests/video-badtx.spec.ts",
+    "test:grep": "mocha -r ts-node/register tests/**/*.spec.ts --grep",
     "test": "mocha -r ts-node/register tests/**/*.spec.ts",
     "postversion": "git push && git push --tags"
   },
@@ -26,7 +27,6 @@
   "devDependencies": {
     "@types/chai": "^4.2.16",
     "@types/express": "^4.17.11",
-    "@types/ffmpeg": "^1.0.4",
     "@types/mocha": "^8.2.2",
     "@types/node": "^16.3.1",
     "@types/rimraf": "^3.0.1",
@@ -52,7 +52,6 @@
     "nsfwjs": "^2.4.1",
     "pg": "^8.6.0",
     "rimraf": "^3.0.2",
-    "shelljs": "^0.8.4",
-    "shepherd-plugin-nsfw": "^0.1.0"
+    "shelljs": "^0.8.4"
   }
 }

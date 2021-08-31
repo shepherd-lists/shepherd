@@ -1,4 +1,4 @@
-<img src="./shepherd-logo-github-social.png">
+<img src="./logo-github.png">
 
 # shepherd (BETA)
 
