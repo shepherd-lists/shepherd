@@ -16,7 +16,7 @@ This is marked as beta version software after the addition of one key feature, t
 
 ### shepherd-plugin-interfaces
 
-These [here](blob/master/src/shepherd-plugin-interfaces/FilterPluginInterface.ts) are the interfaces your shepherd FilterPlugin should implement to commmunicate with the shepherd host software.
+These [here](src/shepherd-plugin-interfaces/index.ts) are the interfaces your shepherd FilterPlugin should implement to commmunicate with the shepherd host software.
 
 ## Minimum System Requirements
 
