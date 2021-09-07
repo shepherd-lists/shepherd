@@ -1,16 +1,16 @@
 export interface FilterResult {
 	flagged: boolean // main output: whether the image is filtereed or not
-	scores?: string	// optional plugin scoring
+	scores?: string  // optional plugin scoring
 }
 
 /* Feedback error types to the host app. Host may process image and try submitting to plugin again. */
 export interface FilterErrorResult {
 	flagged: undefined
 	data_reason: 
-		'oversized'				// oversized compressed png files that cannot be opened by most image libraries. 
-		| 'partial' 			// partial image that library cannnot open
-		| 'unsupported' 	// unsupported file type (your plugin is expected to handle jpeg/png/gif at a minimum)
-		| 'corrupt' 			// image data is corrupt
+		'oversized'       // oversized compressed png files that cannot be opened by most image libraries. 
+		| 'partial'       // partial image that library cannnot open
+		| 'unsupported'   // unsupported file type (your plugin is expected to handle jpeg/png/gif at a minimum)
+		| 'corrupt'       // image data is corrupt
 		| 'corrupt-maybe' // image data is corrupt, but can be displayed by a browser
 		| (string & {})
 	err_message?: string // optional error message
