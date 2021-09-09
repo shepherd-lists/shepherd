@@ -55,7 +55,7 @@ describe('video-prepare tests', ()=> {
 		}
 		try {
 			const x = await videoDownload(nodata) 
-		} catch (e) {
+		} catch(e:any) {
 			expect(e.message).to.equal('aborted')//`Timeout of ${NO_STREAM_TIMEOUT}ms exceeded`)
 		}
 	}).timeout(0)
@@ -69,7 +69,7 @@ describe('video-prepare tests', ()=> {
 		}
 		try {
 			const x = await videoDownload(notvid) 
-		} catch (e) {
+		} catch(e:any) {
 			expect(e.message).to.equal('aborted')
 		}
 	}).timeout(0)

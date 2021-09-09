@@ -22,7 +22,7 @@ export const addToDownloads = async(vid: TxRecord)=> {
 		videoDownload( dl ).then( (res)=> {
 			logger(dl.txid, 'finished downloading', res)
 		})
-	}catch(e){
+	}catch(e:any){
 		logger(dl.txid, e.message)
 		throw e
 	}
@@ -147,7 +147,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				}
 			})
 			
-		}catch(e){
+		}catch(e:any){
 			if(timer){
 				clearTimeout(timer)
 			}

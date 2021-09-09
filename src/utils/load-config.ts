@@ -19,15 +19,30 @@ const config = async()=> {
 	const jsonConfig = require('../../shepherd.config.json')
 	const plugins: FilterPluginInterface[] = []
 
-	for (const pluginName of jsonConfig.plugins) {
-		logger(prefix, `installing '${pluginName}' shepherd plugin...`)
-		execSync(`npm install ${pluginName}`, { stdio: 'inherit'})
-		logger(prefix, `installed '${pluginName}' shepherd plugin complete.`)
+	for (const installString of jsonConfig.plugins as string[]) {
+		logger(prefix, `installing '${installString}' shepherd plugin...`)
+		execSync(`npm install ${installString}`, { stdio: 'inherit'})
+		logger(prefix, `installed '${installString}' shepherd plugin complete.`)
 
-		logger(prefix, `loading '${pluginName}' shepherd plugin...`)
-		const plugin: FilterPluginInterface = (await import(pluginName)).default
+		//remove org/user detail
+		const interArr = installString.split('/')
+		let packageName = ''
+		if(interArr.length === 2) packageName = interArr[1]
+		else if(interArr.length === 1) packageName = interArr[0]
+		else throw new Error('Bad plugin string: ' + installString)
+		
+		//remove version detail
+		packageName = installString.split('@')[0] 
+
+		logger(prefix, `loading '${packageName}' shepherd plugin...`)
+		const plugin: FilterPluginInterface = (await import(packageName)).default
 		plugins.push(plugin)
-		logger(prefix, `loading '${pluginName}' shepherd plugin complete.`)
+		logger(prefix, `loading '${packageName}' shepherd plugin complete.`)
+
+		logger(prefix, 'installed version:')
+		const grep = process.platform === 'win32' ? 'findstr' : 'grep'
+		execSync(`npm ls --depth=0 | ${grep} ${packageName}`, { stdio: 'inherit' })
+
 
 		//early model loading
 		plugin.init() 

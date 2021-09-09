@@ -76,12 +76,12 @@ const scanner = async()=> {
 				min = max + 1 
 				max = min + numOfBlocks - 1
 
-			} catch (e) {
+			} catch(e:any) {
 				logger('Error!', 'Scanner fell over. Waiting 30 seconds to try again.')
 				await sleep(30000)
 			}
 		}///end while(true)
-	} catch (e) {
+	} catch(e:any) {
 		logger('Error in scanner!', e.name, ':', e.message)
 	}
 }

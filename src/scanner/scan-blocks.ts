@@ -76,7 +76,7 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 
 				try{
 					const result = await db<TxScanned>('txs').insert({txid, content_type, content_size})
-				}	catch(e){
+				}	catch(e:any){
 					if(e.code && Number(e.code) === 23505){
 						logger('info', 'Duplicate key value violates unique constraint', txid, e.detail) //prob just a dataItem
 					} else if(e.code && Number(e.code) === 23502){
@@ -113,7 +113,7 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 			texts,
 		}
 
-	} catch(e){
+	} catch(e:any){
 		if(e.message === 'Request failed with status code 504'){
 			logger('gateway error', e.message)
 		}else{

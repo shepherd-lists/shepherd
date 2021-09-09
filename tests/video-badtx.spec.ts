@@ -24,7 +24,7 @@ describe('video bad tx handling tests', ()=> {
 			//we're expecting an ffmpeg error in createScreencaps
 			const frames = await createScreencaps(badData.txid) 
 			expect(true).false //err if we get here 
-		}catch(e){
+		}catch(e:any){
 			expect(e.message).eq('Invalid data found when processing input')
 		}
 	}).timeout(0)
@@ -43,7 +43,7 @@ describe('video bad tx handling tests', ()=> {
 			//we're expecting an ffmpeg error in createScreencaps
 			const frames = await createScreencaps(badData.txid)
 			expect(true).false //err if we get here 
-		}catch(e){
+		}catch(e:any){
 			expect(e.message).eq('Output file #0 does not contain any stream')
 		}
 	}).timeout(0)

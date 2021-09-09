@@ -8,7 +8,7 @@ import loadConfig from '../utils/load-config'
 const prefix = 'rating'
 
 const main = async()=> {
-	try {
+	try{
 
 		//clean up tempdir from previous run
 		rimraf(VID_TMPDIR + '*', (e)=> {
@@ -19,8 +19,12 @@ const main = async()=> {
 
 		rater(config.lowmem)
 
-	} catch (e) {
-		logger(prefix, 'Unhandled error in main!\t', e.name, ':', e.message)
+	}catch(e:any){
+		if(e instanceof Error)
+			logger(prefix, 'Unhandled error in main!\t', e.name, ':', e.message)
+		else{
+			logger(prefix, 'Unhandled in main!\t', JSON.stringify(e))
+		}
 	}
 }
 main()

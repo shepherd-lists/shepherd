@@ -28,7 +28,7 @@ export const axiosDataTimeout = async(url: string)=> {
 
 		return res.data
 
-	}catch(e){
+	}catch(e:any){
 		clearTimeout(timer)
 		if(e.response || e.code){
 			throw(e)
@@ -75,7 +75,7 @@ export const axiosStreamTimeout = async(url: string)=> {
 				reject(e)
 			})
 	
-		}catch(e){
+		}catch(e:any){
 			clearTimeout(timer)
 			reject(e)
 		}

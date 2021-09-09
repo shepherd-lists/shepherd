@@ -28,7 +28,7 @@ export const processVids = async()=> {
 			let frames: string[] = []
 			try{
 				frames = await createScreencaps(dl.txid)
-			}catch(err){
+			}catch(err: any){
 				const e: FfmpegError = err
 				if(e.message === 'Output file #0 does not contain any stream'){
 					logger(dl.txid, 'ffmpeg: Output file #0 does not contain any stream')

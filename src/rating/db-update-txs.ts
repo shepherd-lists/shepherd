@@ -12,7 +12,7 @@ export const updateDb = async(txid: string, updates: Partial<TxRecord>)=> {
 		}
 		return checkId[0];
 
-	}catch(e){
+	}catch(e:any){
 		logger(txid, 'ERROR UPDATING DATABASE!', e.name, ':', e.message)
 		logger(txid, e) // `throw e` does nothing, use the return
 	}

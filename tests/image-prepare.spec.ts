@@ -62,7 +62,7 @@ describe('image-prepare tests', ()=> {
 			}
 
 
-		}catch(e){
+		}catch(e:any){
 			console.log(col.redBright('error connecting to DB'), JSON.stringify(e))
 			process.exit(1)
 		}

@@ -36,7 +36,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		await checkImagePluginResults(pic, mime, txid)
 
 		return true;
-	} catch (e) {
+	} catch(e:any) {
 
 		/* catch network issues & no data situations */
 		let status = 0
