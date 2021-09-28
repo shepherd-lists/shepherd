@@ -64,8 +64,10 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 				let content_type = item.node.data.type
 				const content_size = item.node.data.size
 
-				if(!content_type){ //this seems to only happen to media in Bundles?
-					content_type = await getContentType(txid)
+				if(!content_type){ 
+					// this needs a quick return. previously was calling GQL again.
+					// but Content-Type gets checked in the rater anyhow
+					content_type = 'image/jpeg' //temp value
 				}
 
 				records.push({
@@ -95,7 +97,7 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 
 		/* get supported types metadata */
 
-		logger('info', `making three scans of ${((maxBlock - minBlock) + 1)} blocks, from block ${minBlock} to ${maxBlock}`)
+		logger('info', `making two scans of ${((maxBlock - minBlock) + 1)} blocks, from block ${minBlock} to ${maxBlock}`)
 		const images = await getRecords(imageTypes)
 		const videos = await getRecords(videoTypes)
 		
@@ -125,22 +127,3 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 	}
 }
 
-/* This only gets called for media found in Bundles */
-const getContentType = async (txid: string) => {
-
-	logger('info', 'grabbing missing Content-Type', txid)
-
-	const query = `query{ transactions(ids: ["${txid}"]){
-		edges{ node{ 
-			tags { name value }
-		}}
-	}}`
-
-	const {data: res} = await axios.post(`${HOST_URL}/graphql`, JSON.stringify({query}), { 
-		headers: { 'Content-Type': 'application/json'}
-	})
-	const tags = res.data.transactions.edges[0].node.tags
-	for (const tag of tags) {
-		if(tag.name === 'Content-Type') return tag.value //we know this exists
-	}
-}

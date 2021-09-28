@@ -45,7 +45,8 @@ const scanner = async()=> {
 		const calcBulkBlocks = (position: number) => {
 			if(position < 150000) return 1000
 			if(position < 350000) return 100
-			return 50
+			if(position < 776000) return 50
+			return 2
 		}
 		
 		let numOfBlocks = calcBulkBlocks(position)
