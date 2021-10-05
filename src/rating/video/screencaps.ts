@@ -16,7 +16,7 @@ export const createScreencaps = async(txid: string)=> {
 		 * - conditionally add option "-ss 00:00:01" if video longer than 2 seconds?
 		 */
 		const command = `ffmpeg -i ${folderpath}${txid} -r 1/6 ${folderpath}${txid}-%03d.png`
-		execSync(command,{ stdio: 'pipe' })
+		execSync(command,{ stdio: 'pipe', maxBuffer: Infinity })
 		
 		let list = shelljs.ls(folderpath)
 		let frames: string[] = []
