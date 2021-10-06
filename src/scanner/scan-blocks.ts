@@ -43,6 +43,10 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 							size
 							type
 						}
+						tags{ 
+              name 
+              value
+            }
 					}
 				}
 			}
@@ -64,10 +68,14 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 				let content_type = item.node.data.type
 				const content_size = item.node.data.size
 
+				// this content_type is missing for dataItems
 				if(!content_type){ 
-					// this needs a quick return. previously was calling GQL again.
-					// but Content-Type gets checked in the rater anyhow
-					content_type = 'image/jpeg' //temp value
+					for(const tag of item.node.tags){
+						if(tag.name === 'Content-Type'){
+							content_type = tag.value
+							break;
+						}
+					}
 				}
 
 				records.push({

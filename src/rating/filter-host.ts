@@ -29,7 +29,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 			await dbWrongMimeType(txid, mime)
 			return true
 		}else if(mime !== contentType){
-			logger(prefix, `updating image mime from '${contentType}' to '${mime} and resuming`, txid)
+			logger(prefix, `updating '${contentType}' to '${mime}' and resuming`, txid)
 			await dbWrongMimeType(txid, mime)
 		}
 
