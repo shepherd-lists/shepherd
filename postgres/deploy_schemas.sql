@@ -1,6 +1,3 @@
-CREATE USER dbowner WITH PASSWORD 'dbowner';
-GRANT ALL PRIVILEGES ON DATABASE arblacklist TO dbowner;
-
 -- -- Deploy fresh database tables
 -- \i '/docker-entrypoint-initdb.d/tables/txs.sql'
 
@@ -21,7 +18,6 @@ CREATE TABLE txs (
 	CONSTRAINT cc_id CHECK ((char_length(txid) = 43))
 );
 
-ALTER TABLE txs OWNER TO dbowner;
 
 CREATE TABLE states (
 	id SERIAL PRIMARY KEY,
@@ -33,6 +29,3 @@ INSERT INTO states(pname, value)
 VALUES 
 	('scanner_position', 0),
 	('rating_position', 0);
-
-ALTER TABLE states OWNER TO dbowner;
-
