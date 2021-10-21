@@ -1,0 +1,27 @@
+name: Build & push images to AWS
+
+on: [push]
+
+jobs: 
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-region: eu-west-2 # ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }} # arn value
+          # role-external-id: ${{ secrets.AWS_ROLE_EXTERNAL_ID }}
+      - name: Docker-compose Build
+        run: docker-compose build
+      - name: Docker login and push
+        run: |
+          aws ecr get-login-password | docker login --username AWS --password-stdin ${{ secrets.AWS_REPO }}
+          docker-compose push
+      - name: Docker create ecs context
+        run: docker context create ecs ecs --from-env
+      - name: Docker-compose ECS Up
+        run: docker-compose --context ecs up
