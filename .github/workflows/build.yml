@@ -10,9 +10,9 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-region: eu-west-2 # ${{ secrets.AWS_REGION }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2 # ${{ secrets.AWS_REGION }}
           # role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }} # arn value
           # role-external-id: ${{ secrets.AWS_ROLE_EXTERNAL_ID }}
       - name: Docker-compose Build
