@@ -5,8 +5,11 @@ on: [push]
 jobs: 
   build:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_REPO: ${{ secrets.IMAGE_REPO }}
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
@@ -15,13 +18,35 @@ jobs:
           aws-region: eu-west-2 # ${{ secrets.AWS_REGION }}
           # role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }} # arn value
           # role-external-id: ${{ secrets.AWS_ROLE_EXTERNAL_ID }}
+
+      # - name: Get Tool Versions
+      #   run: |
+      #     aws --version
+      #     docker --version
+      #     docker compose version
+      #     docker context ls
+      #     echo $PATH
+      #     whereis docker
+
+      - name: Install Latest Docker CLI
+        run: |
+          whereis docker
+          curl -L https://raw.githubusercontent.com/docker/compose-cli/main/scripts/install/install_linux.sh | sh
+          whereis docker
+          /usr/local/bin/docker version
+
+      - name: Docker create ecs context
+        run: /usr/local/bin/docker context create ecs ecs --from-env
+        
+      - name: Enable Docker Caching
+        uses: satackey/action-docker-layer-caching@v0.0.11
+        continue-on-error: true
       - name: Docker-compose Build
         run: docker-compose build
       - name: Docker login and push
         run: |
-          aws ecr get-login-password | docker login --username AWS --password-stdin ${{ secrets.AWS_REPO }}
+          aws ecr get-login-password | docker login --username AWS --password-stdin ${IMAGE_REPO}
           docker-compose push
-      - name: Docker create ecs context
-        run: docker context create ecs ecs --from-env
+      
       - name: Docker-compose ECS Up
-        run: docker-compose --context ecs up
+        run: /usr/local/bin/docker compose --context ecs up
