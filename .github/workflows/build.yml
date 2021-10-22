@@ -49,4 +49,4 @@ jobs:
           docker-compose push
       
       - name: Docker-compose ECS Up
-        run: /usr/local/bin/docker compose --context ecs up
+        run: /usr/local/bin/docker --context ecs compose up
