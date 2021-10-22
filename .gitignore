@@ -10,3 +10,4 @@ postgres.build/*
 temp-screencaps/*
 *.tgz
 .vscode
+aws-setup.bat

@@ -1,0 +1,48 @@
+name: Build & push images to AWS. Start a cluster.
+
+on: 
+  push:
+    branches:
+      - master
+
+jobs: 
+  build:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_REPO: ${{ secrets.IMAGE_REPO }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2 # ${{ secrets.AWS_REGION }}
+          # role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }} # arn value
+          # role-external-id: ${{ secrets.AWS_ROLE_EXTERNAL_ID }}
+        
+      - name: Enable Docker Caching
+        uses: satackey/action-docker-layer-caching@v0.0.11
+        continue-on-error: true
+
+      - name: Docker-compose Build
+        run: docker-compose build
+
+      - name: Docker login and push
+        run: |
+          aws ecr get-login-password | docker login --username AWS --password-stdin ${IMAGE_REPO}
+          docker-compose push
+
+      - name: Install Latest Docker CLI # this is probably not ideal
+        run: |
+          whereis docker
+          curl -L https://raw.githubusercontent.com/docker/compose-cli/main/scripts/install/install_linux.sh | sh
+          whereis docker
+          /usr/local/bin/docker version
+
+      - name: Docker compose ECS Up
+        run: |
+          /usr/local/bin/docker context create ecs ecs --from-env      
+          /usr/local/bin/docker --context ecs compose up

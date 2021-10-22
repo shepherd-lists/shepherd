@@ -1,4 +1,4 @@
-FROM node:15
+FROM node:14 as base
 
 # turn off the nuisance update message 
 ARG NO_UPDATE_NOTIFIER=true
@@ -12,18 +12,11 @@ RUN apt install ffmpeg -y
 # create app directory
 WORKDIR /app
 
+FROM base as prod
 COPY package*.json ./
-
-# If you are building your code for production
-# RUN npm ci --only=production
-RUN npm ci
-
-# bundle app source
+RUN npm ci --only=production
 COPY . .
-
 EXPOSE 80
-EXPOSE 3001
-
 ENV NODE_ENV=production
 ENV TF_CPP_MIN_LOG_LEVEL=2
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts

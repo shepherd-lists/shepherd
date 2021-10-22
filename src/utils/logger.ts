@@ -11,10 +11,10 @@ export const logger = (...args: any[]) => {
 
 	console.log(col.blue(prefix), ...args)
 
-	//outputs a csv file
-	fs.appendFile(
-		'shepherd.log', 
-		"\"" + new Date().toUTCString() + '\",' + prefix + ',' + args.join(',') + EOL,
-		()=>{}
-	)
+	// //outputs a csv file
+	// fs.appendFile(
+	// 	'shepherd.log', 
+	// 	"\"" + new Date().toUTCString() + '\",' + prefix + ',' + args.join(',') + EOL,
+	// 	()=>{}
+	// )
 }

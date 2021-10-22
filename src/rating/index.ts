@@ -19,7 +19,7 @@ const main = async()=> {
 
 		rater(config.lowmem)
 
-	}catch(e:any){
+	}catch(e){
 		if(e instanceof Error)
 			logger(prefix, 'Unhandled error in main!\t', e.name, ':', e.message)
 		else{

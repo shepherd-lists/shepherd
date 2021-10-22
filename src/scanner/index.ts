@@ -5,6 +5,7 @@ import { StateRecord } from "../types"
 import dbConnection from "../utils/db-connection"
 import { logger } from "../utils/logger"
 import { scanBlocks } from "./scan-blocks"
+import { performance } from 'perf_hooks'
 
 
 //leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
@@ -56,6 +57,7 @@ const scanner = async()=> {
 
 		while(true){
 			try {
+				const t0 = performance.now()
 
 				if((initialHeight - max) > 50){
 					numOfBlocks = calcBulkBlocks(max)
@@ -76,6 +78,12 @@ const scanner = async()=> {
 
 				min = max + 1 
 				max = min + numOfBlocks - 1
+
+				const tProcess = performance.now() - t0
+				let timeout = 1000 - tProcess
+				if(timeout < 0) timeout = 0
+				console.log(`scanned ${numOfBlocks} blocks in ${tProcess} ms. pausing for ${timeout}ms`)
+				await sleep(timeout) //slow down, we're getting rate-limited 
 
 			} catch(e:any) {
 				logger('Error!', 'Scanner fell over. Waiting 30 seconds to try again.')

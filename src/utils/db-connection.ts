@@ -11,7 +11,7 @@ export default () => {
   }
 	let connTimeout = 60000 //default value
 	if(process.env.NODE_ENV === 'test'){
-		connTimeout = 2000
+		connTimeout = 5000
 	}
 
 	logger("creating new db connection");
@@ -23,8 +23,8 @@ export default () => {
 		connection: {
 			host: process.env.DB_HOST,
 			port: 5432,
-			user: process.env.DB_USER,
-			password: process.env.DB_PWD,
+			user: 'postgres',
+			password: 'postgres',
 			database: 'arblacklist',
 		},
 		acquireConnectionTimeout: connTimeout
@@ -35,7 +35,7 @@ export default () => {
 			logger('db connection tested OK')
 			return
 		}
-		logger('*** ERROR IN DB CONNECTION ***', JSON.stringify(res))
+		logger('*** ERROR IN DB CONNECTION ***', JSON.stringify(res), JSON.stringify(`host: ${process.env.DB_HOST}`))
 	})
 
 	cachedConnection = connection;

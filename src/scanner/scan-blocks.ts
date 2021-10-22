@@ -85,10 +85,10 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 				})
 
 				try{
-					const result = await db<TxScanned>('txs').insert({txid, content_type, content_size})
+					await db<TxScanned>('txs').insert({txid, content_type, content_size}).onConflict('txid').ignore()
 				}	catch(e:any){
 					if(e.code && Number(e.code) === 23505){
-						logger('info', 'Duplicate key value violates unique constraint', txid, e.detail) //prob just a dataItem
+						logger('info', 'Duplicate key value violates unique constraint', txid, e.detail)
 					} else if(e.code && Number(e.code) === 23502){
 						logger('Error!', 'Null value in column violates not-null constraint', txid, e.detail) 
 						throw e
