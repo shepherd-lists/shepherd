@@ -2,7 +2,10 @@ import { IncomingWebhook } from '@slack/webhook'
 import { logger } from './logger'
 
 console.assert(process.env.SLACK_WEBHOOK, "process.env.SLACK_WEBHOOK is undefined")
-const webhook = new IncomingWebhook(process.env.SLACK_WEBHOOK!)
+let webhook: IncomingWebhook
+if(process.env.SLACK_WEBHOOK){
+	webhook = new IncomingWebhook(process.env.SLACK_WEBHOOK!)
+}
 
 
 export const slackLogger = async (...args: any[]) => {
