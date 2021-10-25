@@ -4,6 +4,7 @@ import { VID_TMPDIR } from '../constants'
 import { logger } from '../utils/logger'
 import { rater } from './rating-queues'
 import loadConfig from '../utils/load-config'
+import { slackLogger } from '../utils/slackLogger'
 
 const prefix = 'rating'
 
@@ -20,10 +21,12 @@ const main = async()=> {
 		rater(config.lowmem)
 
 	}catch(e){
-		if(e instanceof Error)
+		if(e instanceof Error){
 			logger(prefix, 'Unhandled error in main!\t', e.name, ':', e.message)
-		else{
+			slackLogger(prefix, 'Unhandled error in main!\t', e.name, ':', e.message)
+		}else{
 			logger(prefix, 'Unhandled in main!\t', JSON.stringify(e))
+			slackLogger(prefix, 'Unhandled in main!\t', JSON.stringify(e))
 		}
 	}
 }

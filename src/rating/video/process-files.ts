@@ -11,6 +11,7 @@ import { checkFrames } from './check-frames'
 import rimraf from 'rimraf'
 import { exec } from 'child_process'
 import { VidDownloadRecord, VidDownloads } from './VidDownloads'
+import { slackLogger } from '../../utils/slackLogger'
 
 /* Video download queue */
 const downloads = VidDownloads.getInstance()
@@ -46,8 +47,9 @@ export const processVids = async()=> {
 					dbCorruptDataMaybe(dl.txid)
 				}else{
 					logger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
+					slackLogger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
 					// dbCorruptDataMaybe(dl.txid)
-					throw e
+					// throw e
 				}
 				//delete the temp files
 				downloads.cleanup(dl)
