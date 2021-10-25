@@ -1,5 +1,6 @@
 import { IncomingWebhook } from '@slack/webhook'
 import { logger } from './logger'
+import os from 'os'
 
 console.assert(process.env.SLACK_WEBHOOK, "process.env.SLACK_WEBHOOK is undefined")
 let webhook: IncomingWebhook
@@ -13,7 +14,7 @@ export const slackLogger = async (...args: any[]) => {
 		return; //silently exit if no slack integration
 	}
 
-	let prefix = '🐐'
+	let prefix = os.hostname() + ' 🐐'
 	if(process.env.NODE_ENV !== 'production'){
 		prefix = '***Ignore these test posts***'
 	}
