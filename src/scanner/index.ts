@@ -92,8 +92,8 @@ const scanner = async()=> {
 			}
 		}///end while(true)
 	} catch(e:any) {
-		logger('Error in scanner!', e.name, ':', e.message)
-		slackLogger('Error in scanner!', e.name, ':', e.message)
+		logger('UNHANDLED Error in scanner!', e.name, ':', e.message)
+		slackLogger('UNHANDLED Error in scanner!', e.name, ':', e.message)
 	}
 }
 scanner()
