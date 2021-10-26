@@ -52,6 +52,7 @@ services:
     environment: 
       DB_HOST: pgdb
       PROCESS_NAME: rating
+      NODE_OPTIONS: '--max-old-space-size=8192'
     depends_on: 
       - pgdb
     restart: always
