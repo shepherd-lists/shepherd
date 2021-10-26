@@ -12,7 +12,8 @@ services:
     restart: always
   test:
     build: 
-      context: ./Dockerfile.test
+      context: .
+      dockerfile: Dockerfile.test
       target: test
     environment: 
       DB_HOST: pgdb

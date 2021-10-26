@@ -1,8 +1,5 @@
 name: Test workflow, to later be included in master before build
-on:
-  push:
-    branches:
-      - '!master'
+on: [push]
 
 jobs:
   test:
@@ -12,4 +9,4 @@ jobs:
       - uses: satackey/action-docker-layer-caching@v0.0.11
         continue-on-error: true
       - run: docker-compose -f docker-compose.test.yml build
-      - run: docker-compose -f docker-compose.test.yml run app npm test
+      - run: docker-compose -f docker-compose.test.yml run test npm test
