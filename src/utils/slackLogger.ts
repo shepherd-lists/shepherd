@@ -8,6 +8,8 @@ if(process.env.SLACK_WEBHOOK){
 	webhook = new IncomingWebhook(process.env.SLACK_WEBHOOK!)
 }
 
+let _last = { text: 'dummy', time: 0}
+const timeout = 60*60*1000 //1 hour
 
 export const slackLogger = async (...args: any[]) => {
 	if(!process.env.SLACK_WEBHOOK){
@@ -19,9 +21,15 @@ export const slackLogger = async (...args: any[]) => {
 		prefix = '***Ignore these test posts***'
 	}
 
-	try{
-		let text = args.join(' ')
+	let text = args.join(' ')
+	const time = Date.now()
 
+	if(text === _last.text && (_last.time + timeout) > time ){
+		return;
+	}
+	_last = { text, time }
+
+	try{
 		const res = await webhook.send({
 			"blocks": [
 				{
@@ -42,6 +50,6 @@ export const slackLogger = async (...args: any[]) => {
 		})
 		return res
 	}catch(e:any){
-		logger('slackLogger', 'did not write to slack', (e.code)?`${e.code}:`:'', e.message)
+		logger('slackLogger', 'DID NOT WRITE TO SLACK', (e.code)?`${e.code}:`:'', e.message)
 	}
 }
