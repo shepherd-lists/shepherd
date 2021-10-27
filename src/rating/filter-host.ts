@@ -4,6 +4,7 @@ import { axiosDataTimeout } from '../utils/axiosDataTimeout'
 import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeType, dbOversizedPngFound, dbPartialImageFound, dbTimeoutInBatch, dbUnsupportedMimeType, dbWrongMimeType, updateDb } from './db-update-txs'
 import { getImageMime } from './image-filetype'
 import loadConfig from '../utils/load-config'
+import { slackLogger } from '../utils/slackLogger'
 
 
 const prefix = 'filter-host'
@@ -60,7 +61,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		
 		else if(
 			[500,502,504].includes(status)
-			|| (e.code && e.code === 'ETIMEDOUT')
+			|| ( e.code && ['ETIMEDOUT', 'ECONNRESET'].includes(e.code) )
 		){
 			// error in the gateway somewhere, not important to us
 			logger(txid, e.message, 'image will automatically retry downloading') //do nothing, record remains in unprocessed queue
@@ -68,8 +69,8 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		
 		else{
 			logger(prefix, 'UNHANDLED Error processing', url + ' ', status, ':', e.message)
+			slackLogger(prefix, 'UNHANDLED Error processing', txid, status, ':', e.message)
 			logger(prefix, 'UNHANDLED', e)
-			throw e
 		}
 		return false;
 	}
@@ -128,6 +129,7 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 		
 			default:
 				logger(prefix, 'UNHANDLED image', txid)
+				slackLogger(prefix, `image was not handled in FilterPlugin:''\n` + JSON.stringify(results))
 				throw new Error(`image was not handled in FilterPlugin:''\n` + JSON.stringify(results))
 		}
 	}

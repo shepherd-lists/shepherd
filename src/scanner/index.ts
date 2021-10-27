@@ -6,6 +6,7 @@ import dbConnection from "../utils/db-connection"
 import { logger } from "../utils/logger"
 import { scanBlocks } from "./scan-blocks"
 import { performance } from 'perf_hooks'
+import { slackLogger } from "../utils/slackLogger"
 
 
 //leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
@@ -91,7 +92,8 @@ const scanner = async()=> {
 			}
 		}///end while(true)
 	} catch(e:any) {
-		logger('Error in scanner!', e.name, ':', e.message)
+		logger('UNHANDLED Error in scanner!', e.name, ':', e.message)
+		slackLogger('UNHANDLED Error in scanner!', e.name, ':', e.message)
 	}
 }
 scanner()

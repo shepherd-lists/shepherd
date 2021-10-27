@@ -7,8 +7,6 @@ services:
       context: ./postgres
     volumes: 
       - pgdata:/var/lib/postgresql/data
-    # ports: 
-    #   - "5432:5432"
     environment: 
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -30,6 +28,7 @@ services:
     restart: always
   scanner:
     image: ${IMAGE_REPO}/shepherd-scanner:${TARGET:-prod}
+    hostname: ${IMAGE_REPO}-shepherd-scanner
     build: 
       context: .
       target: prod
@@ -41,6 +40,7 @@ services:
     restart: always
   rating:
     image: ${IMAGE_REPO}/shepherd-rating:${TARGET:-prod}
+    hostname: ${IMAGE_REPO}-shepherd-rating
     deploy:
       resources:
         limits:
@@ -52,10 +52,9 @@ services:
     environment: 
       DB_HOST: pgdb
       PROCESS_NAME: rating
+      NODE_OPTIONS: '--max-old-space-size=8192'
     depends_on: 
       - pgdb
     restart: always
-    # volumes: 
-    #   - './temp-screencaps:/app/temp-screencaps'
 volumes:
   pgdata:

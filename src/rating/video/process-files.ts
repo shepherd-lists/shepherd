@@ -1,16 +1,10 @@
-import axios from 'axios'
-import { IncomingMessage } from 'http'
-import { NO_STREAM_TIMEOUT, VID_TMPDIR, VID_TMPDIR_MAXSIZE } from '../../constants'
-import fs from 'fs'
-import filetype, { FileTypeResult } from 'file-type'
 import { logger } from '../../utils/logger'
 import { FfmpegError, TxRecord } from '../../types'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound, dbNoDataFound404, dbNoMimeType, dbWrongMimeType } from '../db-update-txs'
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe } from '../db-update-txs'
 import { createScreencaps } from './screencaps'
 import { checkFrames } from './check-frames'
-import rimraf from 'rimraf'
-import { exec } from 'child_process'
 import { VidDownloadRecord, VidDownloads } from './VidDownloads'
+import { slackLogger } from '../../utils/slackLogger'
 
 /* Video download queue */
 const downloads = VidDownloads.getInstance()
@@ -44,10 +38,12 @@ export const processVids = async()=> {
 				){
 					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
 					dbCorruptDataMaybe(dl.txid)
+				}else if(e.message === 'spawnSync /bin/sh ENOMEM'){
+					logger(dl.txid, 'ffmpeg: spawnSync /bin/sh ENOMEM. Will retry.')
 				}else{
 					logger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
-					// dbCorruptDataMaybe(dl.txid)
-					throw e
+					slackLogger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
+					// throw e
 				}
 				//delete the temp files
 				downloads.cleanup(dl)

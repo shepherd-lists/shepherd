@@ -10,7 +10,7 @@ const port = (process.env.NODE_ENV === 'production') ? 80 : 3001
 // app.use(cors())
 
 app.get('/', (req, res)=> {
-	res.status(200).send('Welcome to nothing.')
+	res.status(200).send('Webserver operational.')
 })
 
 app.get('/blacklist.txt', async(req, res)=> {

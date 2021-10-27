@@ -8,6 +8,7 @@ import { logger } from "../../utils/logger";
 import { dbNoDataFound, dbNoDataFound404, dbNoMimeType, dbPartialVideoFound, dbWrongMimeType } from "../db-update-txs";
 import { VidDownloadRecord, VidDownloads } from "./VidDownloads";
 import { TxRecord } from "../../types";
+import { slackLogger } from "../../utils/slackLogger";
 
 
 const downloads = VidDownloads.getInstance()
@@ -169,6 +170,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				resolve('gateway error')
 			}else{
 				logger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', e.message)
+				slackLogger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', e.message)
 				reject(e)
 			}
 		}

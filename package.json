@@ -33,6 +33,7 @@
     "sinon": "^11.1.1"
   },
   "dependencies": {
+    "@slack/webhook": "^6.0.0",
     "@types/express": "^4.17.11",
     "@types/node": "^16.3.1",
     "@types/rimraf": "^3.0.1",

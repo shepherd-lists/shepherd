@@ -1,0 +1,20 @@
+FROM node:14 as base
+
+# turn off the nuisance update message 
+ARG NO_UPDATE_NOTIFIER=true
+ENV NO_UPDATE_NOTIFIER=true
+RUN npm config set update-notifier false
+
+# install ffmpeg dependency
+RUN apt update 
+RUN apt install ffmpeg -y
+
+# create app directory
+WORKDIR /app
+
+FROM base as test
+COPY package*.json ./
+RUN npm ci
+COPY . .
+ENV TF_CPP_MIN_LOG_LEVEL=2
+# ENTRYPOINT npm test

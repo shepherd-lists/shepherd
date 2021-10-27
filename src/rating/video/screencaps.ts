@@ -43,6 +43,7 @@ export const createScreencaps = async(txid: string)=> {
 				'Invalid data found when processing input',
 				'No such file or directory', //should not happen!
 				'Output file #0 does not contain any stream', //no video stream
+				'spawnSync /bin/sh ENOMEM', //try again
 			].includes(errMsg)
 		){
 			throw err
