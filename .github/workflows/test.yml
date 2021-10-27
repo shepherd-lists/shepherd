@@ -1,5 +1,8 @@
 name: Test workflow, to later be included in master before build
-on: [push]
+on:
+  push:
+    branches:
+      - '!master'
 
 jobs:
   test:
