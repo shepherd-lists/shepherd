@@ -60,7 +60,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		}
 		
 		else if(
-			[500,502,504].includes(status)
+			status >= 500
 			|| ( e.code && ['ETIMEDOUT', 'ECONNRESET'].includes(e.code) )
 		){
 			// error in the gateway somewhere, not important to us

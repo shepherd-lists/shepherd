@@ -3,7 +3,6 @@ import { HOST_URL, imageTypes, textTypes, videoTypes } from '../constants'
 import { StateRecord, TxScanned } from '../types'
 import getDbConnection from '../utils/db-connection'
 import { logger } from '../utils/logger'
-import axios from 'axios'
 
 
 const db = getDbConnection()
@@ -124,14 +123,21 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 		}
 
 	} catch(e:any){
-		if(e.message === 'Request failed with status code 504'){
-			logger('gateway error', e.message)
-		}else{
-			logger('Error!', e.name, ':', e.message)
-			e.toJSON && logger(e.toJSON())
-			logger("Error in scanBlocks. See above.")
+
+		let status = 0
+		if(e.response && e.response.status){
+			status = Number(e.response.status)
 		}
-		throw e 
+
+		if( status >= 500 ){
+			logger('GATEWAY ERROR!', e.message, 'Waiting for 30 seconds...')
+			throw e
+		}else{
+			logger('Error!', e.code, ':', e.message)
+			logger(e)
+			logger("Error in scanBlocks. See above.")
+			throw e 
+		}
 	}
 }
 
