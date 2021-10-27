@@ -15,7 +15,7 @@ const db = getDbConnection()
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const getImages = async()=> {
+const getImages = async(batch: number)=> {
 	const records = await db<TxRecord>('txs')
 	.whereNull('valid_data') //not processed yet
 	.where( function(){
@@ -24,18 +24,20 @@ const getImages = async()=> {
 		.orWhere({ content_type: 'image/png'})
 	})
 	.orderBy('last_update_date', 'desc')
+	.limit(batch)
 
 	const length = records.length
-	logger(prefix, length, 'images found')
+	logger(prefix, length, 'images retrieved')
 
 	return records
 }
 
-const getGifs = async()=> {
+const getGifs = async(batch: number)=> {
 	const records = await db<TxRecord>('txs')
 	.whereNull('valid_data') //not processed yet
 	.where({ content_type: 'image/gif'})
 	.orderBy('last_update_date', 'desc')
+	.limit(batch)
 	
 	const length = records.length
 	logger(prefix, length, 'gifs found')
@@ -43,11 +45,12 @@ const getGifs = async()=> {
 	return records
 }
 
-const getVids = async()=> {
+const getVids = async(batch: number)=> {
 	const records = await db<TxRecord>('txs')
 	.whereNull('valid_data') //not processed yet
 	.whereIn('content_type', videoTypes)
 	.orderBy('last_update_date', 'asc') //'asc' because we pop()
+	.limit(batch)
 
 	const length = records.length
 	logger(prefix, length, 'videos found')
@@ -55,19 +58,21 @@ const getVids = async()=> {
 	return records
 }
 
-const getOthers = async()=> {
+const getOthers = async(batch: number)=> {
 
 	//unsupported image types
 	const otherImages = await db<TxRecord>('txs')
 	.whereNull('valid_data') //not processed yet
 	.whereIn('content_type', unsupportedTypes)
 	.orderBy('last_update_date', 'desc')
+	.limit(batch)
 
 	//all the bad txids - partial/corrupt/oversized/timeouts
 	const badDatas = await db<TxRecord>('txs')
 	.where({valid_data: false}) //potential bad data
 	.whereNull('flagged') //not processed
 	.orderBy('last_update_date', 'desc')
+	.limit(batch)
 
 	logger(prefix, otherImages.length, 'unsupported images.', badDatas.length, '"bad" txids')
 
@@ -89,10 +94,10 @@ export const rater = async(lowmem: boolean)=>{
 	const BATCH_VIDEO = 1
 	const BATCH_OTHER = 1
 
-	let imageQueue = await getImages()
-	let gifQueue = await getGifs()
-	let vidQueue = await getVids()
-	let otherQueue = await getOthers()
+	let imageQueue = await getImages(BATCH_IMAGE)
+	let gifQueue = await getGifs(BATCH_GIF)
+	let vidQueue = await getVids(BATCH_VIDEO)
+	let otherQueue = await getOthers(BATCH_OTHER)
 
 	const vidDownloads = VidDownloads.getInstance()
 
@@ -154,10 +159,10 @@ export const rater = async(lowmem: boolean)=>{
 
 		const t0 = performance.now()
 		//refresh the queues on every single loop to keep current even with a backlog
-		imageQueue = await getImages()
-		gifQueue = await getGifs()
-		if(otherQueue.length === 0) otherQueue = await getOthers()
-		vidQueue = await getVids()
+		imageQueue = await getImages(BATCH_IMAGE)
+		gifQueue = await getGifs(BATCH_GIF)
+		if(otherQueue.length === 0) otherQueue = await getOthers(BATCH_OTHER)
+		vidQueue = await getVids(BATCH_VIDEO)
 		const t1 = performance.now()
 		logger(prefix, 'sql queries took', (t1-t0).toFixed(2), 'ms to complete')
 

@@ -42,10 +42,20 @@ export const getBlacklist = async(black: boolean)=> {
 }
 
 export const getBlacklistTestOnly = async(black: boolean)=> {
+	let html = '<html><body style="font-family:\'Courier New\',monospace;">'
+
+	//select content_type, count(*) from txs where valid_data is null group by content_type;
+	const results = await db<TxRecord>('txs').select('content_type').count('content_type').whereNull('valid_data').groupBy('content_type')
+	html += '<table>'
+	for (const res of results) {
+		html += `<tr><td>${res.content_type}</td><td>${res.count}</td><tr>`
+	}
+	html += '</table>'
+
 
 	const records = await db<TxRecord>('txs').where({flagged: black}).orderBy('id', 'desc')
 	logger('flagged txs retrieved', records.length)
-	let html = '<html><body style="font-family:\'Courier New\',monospace;"><h1>Number of records: ' + records.length + '</h1><table>\n'
+	html += '<h1>Number of records: ' + records.length + '</h1><table>\n'
 	for (const record of records) {
 		html += `<tr><td><a href="https://arweave.net/${record.txid}">${record.txid}</a></td><td>${record.content_size}</td><td>${record.content_type}</td><td>porn=${record.nsfw_porn}</td><td>sexy=${record.nsfw_sexy}</td><td>hentai=${record.nsfw_hentai}</td><td>drawings=${record.nsfw_drawings}</td><td>neutral=${record.nsfw_neutral}</td></tr>\n`
 	}
