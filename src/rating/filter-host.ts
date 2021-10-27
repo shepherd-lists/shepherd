@@ -61,7 +61,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		
 		else if(
 			[500,502,504].includes(status)
-			|| (e.code && e.code === 'ETIMEDOUT')
+			|| ( e.code && ['ETIMEDOUT', 'ECONNRESET'].includes(e.code) )
 		){
 			// error in the gateway somewhere, not important to us
 			logger(txid, e.message, 'image will automatically retry downloading') //do nothing, record remains in unprocessed queue
