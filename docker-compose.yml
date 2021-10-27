@@ -30,6 +30,7 @@ services:
     restart: always
   scanner:
     image: ${IMAGE_REPO}/shepherd-scanner:${TARGET:-prod}
+    hostname: ${IMAGE_REPO}-shepherd-scanner
     build: 
       context: .
       target: prod
@@ -41,6 +42,7 @@ services:
     restart: always
   rating:
     image: ${IMAGE_REPO}/shepherd-rating:${TARGET:-prod}
+    hostname: ${IMAGE_REPO}-shepherd-rating
     deploy:
       resources:
         limits:
