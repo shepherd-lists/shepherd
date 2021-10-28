@@ -10,6 +10,8 @@
     "docker:up": "docker-compose up --build -d && docker-compose logs -f",
     "docker:down": "docker-compose down --remove-orphans",
     "docker:rebuild": "npm run docker:down && npm run docker:up",
+    "docker:test": "docker-compose -f docker-compose.test.yml build && docker-compose -f docker-compose.test.yml run test npm test && docker-compose -f docker-compose.test.yml rm -f",
+    "docker:testconf": "docker-compose -f docker-compose.test.yml build && docker-compose -f docker-compose.test.yml run test npm run test:config && docker-compose -f docker-compose.test.yml rm -f",
     "docker:psql": "docker exec -it shepherd_pgdb_1 psql -U postgres arblacklist",
     "docker:rating": "docker-compose up --build rating",
     "docker:scanner": "docker-compose up --build scanner",
@@ -17,6 +19,7 @@
     "test:img": "mocha -r ts-node/register tests/image-prepare.spec.ts",
     "test:vid": "mocha -r ts-node/register tests/video-prepare.spec.ts",
     "test:vidbad": "mocha -r ts-node/register tests/video-badtx.spec.ts",
+    "test:config": "mocha -r ts-node/register tests/load-config.spec.ts",
     "test:grep": "mocha -r ts-node/register tests/**/*.spec.ts --grep",
     "test": "mocha -r ts-node/register tests/**/*.spec.ts",
     "postversion": "git push && git push --tags"

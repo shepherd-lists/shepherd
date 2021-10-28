@@ -32,7 +32,7 @@ const config = async()=> {
 		else throw new Error('Bad plugin string: ' + installString)
 		
 		//remove version detail
-		packageName = installString.split('@')[0] 
+		packageName = packageName.split('@')[0] 
 
 		logger(prefix, `loading '${packageName}' shepherd plugin...`)
 		const plugin: FilterPluginInterface = (await import(packageName)).default

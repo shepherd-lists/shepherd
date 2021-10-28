@@ -1,0 +1,12 @@
+{
+  "name": "tests-mock-shepherd-plugin",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "keywords": [],
+  "author": "Ros McMahon <rosmcmahon@gmail.com>",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "typescript": "^4.4.4"
+  }
+}

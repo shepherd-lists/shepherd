@@ -16,5 +16,4 @@ FROM base as test
 COPY package*.json ./
 RUN npm ci
 COPY . .
-ENV TF_CPP_MIN_LOG_LEVEL=2
-# ENTRYPOINT npm test
+COPY shepherd.config.test.json shepherd.config.json
