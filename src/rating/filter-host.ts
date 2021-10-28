@@ -1,7 +1,7 @@
 import { logger } from '../utils/logger'
 import { HOST_URL, NO_DATA_TIMEOUT } from '../constants'
 import { axiosDataTimeout } from '../utils/axiosDataTimeout'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeType, dbOversizedPngFound, dbPartialImageFound, dbTimeoutInBatch, dbUnsupportedMimeType, dbWrongMimeType, updateDb } from './db-update-txs'
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeType, dbNoop, dbOversizedPngFound, dbPartialImageFound, dbTimeoutInBatch, dbUnsupportedMimeType, dbWrongMimeType, updateDb } from './db-update-txs'
 import { getImageMime } from './image-filetype'
 import loadConfig from '../utils/load-config'
 import { slackLogger } from '../utils/slackLogger'
@@ -125,6 +125,10 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 				break;
 			case 'unsupported':
 				await dbUnsupportedMimeType(txid)
+				break;
+			case 'noop':
+				// do nothing, but we need to take it out of the processing queue
+				await dbNoop(txid)
 				break;
 		
 			default:

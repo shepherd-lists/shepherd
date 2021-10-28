@@ -5,7 +5,7 @@ on:
     branches: [mirror]
 
 jobs:
-  build:
+  gitopia:
     runs-on: ubuntu-latest
 
     steps:

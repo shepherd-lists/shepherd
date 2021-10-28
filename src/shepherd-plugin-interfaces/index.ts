@@ -12,6 +12,7 @@ export interface FilterErrorResult {
 		| 'unsupported'   // unsupported file type (your plugin is expected to handle jpeg/png/gif at a minimum)
 		| 'corrupt'       // image data is corrupt
 		| 'corrupt-maybe' // image data is corrupt, but can be displayed by a browser
+		| 'noop'					// no operation
 		| (string & {})
 	err_message?: string // optional error message
 }
