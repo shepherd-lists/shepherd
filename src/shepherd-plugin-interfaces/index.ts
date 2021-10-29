@@ -31,3 +31,8 @@ export interface FilterPluginInterface {
 	 */
 	checkImage(buffer: Buffer, mimetype: string, txid: string): Promise<FilterResult | FilterErrorResult>
 }
+
+export interface APIFilterResult {
+	txid: string
+	result: FilterResult | FilterErrorResult
+}

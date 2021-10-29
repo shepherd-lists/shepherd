@@ -1,7 +1,7 @@
 require('dotenv').config()
 import express from 'express'
 import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoop, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateDb } from '../rating/db-update-txs'
-import { FilterErrorResult, FilterResult } from '../shepherd-plugin-interfaces'
+import { APIFilterResult, FilterErrorResult, FilterResult } from '../shepherd-plugin-interfaces'
 import { logger } from '../utils/logger'
 import { slackLogger } from '../utils/slackLogger'
 
@@ -40,10 +40,6 @@ app.post('/postupdate', async(req, res)=>{
 
 app.listen(port, ()=> logger(`started on http://localhost:${port}`))
 
-interface APIFilterResult {
-	txid: string
-	result: FilterResult | FilterErrorResult
-}
 
 const pluginResultHandler = async(body: APIFilterResult)=>{
 	const txid = body.txid
