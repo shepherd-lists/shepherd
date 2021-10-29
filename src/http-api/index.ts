@@ -1,6 +1,5 @@
 require('dotenv').config()
-import assert from 'assert'
-import express, { Request } from 'express'
+import express from 'express'
 import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoop, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateDb } from '../rating/db-update-txs'
 import { FilterErrorResult, FilterResult } from '../shepherd-plugin-interfaces'
 import { logger } from '../utils/logger'
