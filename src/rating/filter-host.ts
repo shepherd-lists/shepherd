@@ -91,9 +91,15 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 	if(result.flagged !== undefined){
 
 		//TODO: remove this NsfwjsPlugin specific code later
-		let scores = {}
+		let scores: {nsfw_hentai?: number, nsfw_porn?: number, nsfw_sexy?: number, nsfw_neutral?: number, nsfw_drawings?: number } = {}
 		if(result.scores){
-			scores = JSON.parse(result.scores)
+			let s = JSON.parse(result.scores)
+			// convert what's there
+			if(s['Drawing']) scores.nsfw_drawings = s['Drawing']
+			if(s['Hentai']) scores.nsfw_hentai = s['Hentai']
+			if(s['Neutral']) scores.nsfw_neutral = s['Neutral']
+			if(s['Porn']) scores.nsfw_porn = s['Porn']
+			if(s['Sexy']) scores.nsfw_sexy = s['Sexy']
 		}
 
 		await updateDb(txid, {
