@@ -86,22 +86,18 @@ export const checkImage = async(pic: Buffer, mime: string, txid: string)=>{
 
 const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>{
 
-	const results = await checkImage(pic, mime, txid)
+	const result = await checkImage(pic, mime, txid)
 
-	if(results.flagged !== undefined){
+	if(result.flagged !== undefined){
 
 		//TODO: remove this NsfwjsPlugin specific code later
-		let scores: {nsfw_hentai?: number, nsfw_porn?: number, nsfw_sexy?: number, nsfw_neutral?: number, nsfw_drawings?: number } = {}
-		if(results.scores){
-			let s = JSON.parse(results.scores)
-			// some rough type checking
-			if('nsfw_hentai' in s || 'nsfw_porn' in s || 'nsfw_sexy' in s || 'nsfw_neutral' in s || 'nsfw_drawings' in s ){
-				scores = s
-			}
+		let scores = {}
+		if(result.scores){
+			scores = JSON.parse(result.scores)
 		}
 
 		await updateDb(txid, {
-			flagged: results.flagged,
+			flagged: result.flagged,
 			valid_data: true,
 
 			//TODO: replace this specific NsfwjsPlugin score data in the DB
@@ -110,7 +106,7 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 			last_update_date: new Date(),
 		})
 	}else{
-		switch (results.data_reason) {
+		switch (result.data_reason) {
 			case 'corrupt-maybe':
 				await dbCorruptDataMaybe(txid)
 				break;
@@ -132,9 +128,8 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 				break;
 		
 			default:
-				logger(prefix, 'UNHANDLED image', txid)
-				slackLogger(prefix, `image was not handled in FilterPlugin:''\n` + JSON.stringify(results))
-				throw new Error(`image was not handled in FilterPlugin:''\n` + JSON.stringify(results))
+				logger(prefix, 'UNHANDLED FilterResult', txid)
+				slackLogger(prefix, `UNHANDLED FilterResult:\n` + JSON.stringify(result))
 		}
 	}
 }
