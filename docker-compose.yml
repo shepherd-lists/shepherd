@@ -26,6 +26,19 @@ services:
     ports: 
       - '80:80'
     restart: always
+  http-api:
+    image: ${IMAGE_REPO}/shepherd-http-api:${TARGET:-prod}
+    build: 
+      context: .
+      target: ${TARGET:-prod}
+    environment: 
+      DB_HOST: pgdb
+      PROCESS_NAME: http-api
+    depends_on: 
+      - pgdb
+    ports: 
+      - '84:84'
+    restart: always
   scanner:
     image: ${IMAGE_REPO}/shepherd-scanner:${TARGET:-prod}
     hostname: ${IMAGE_REPO}-shepherd-scanner

@@ -5,7 +5,6 @@ import { expect } from 'chai'
 import * as imageFilter from '../src/rating/filter-host'
 import getDbConnection from '../src/utils/db-connection'
 import { TxRecord } from '../src/types'
-import { logger } from '../src/utils/logger'
 
 const db = getDbConnection()
 

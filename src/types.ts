@@ -26,7 +26,16 @@ export interface TxRecord extends TxScanned {
 	readonly id: number
 	flagged: boolean
 	valid_data: boolean
-	data_reason: 'oversized' | 'partial' | 'timeout' | '404' | 'corrupt' | 'corrupt-maybe' | 'unsupported' | (string & {}) //intellisense hack
+	data_reason: 
+		'oversized' 
+		| 'partial' 
+		| 'timeout' 
+		| '404' 
+		| 'corrupt' 
+		| 'corrupt-maybe' 
+		| 'unsupported' 
+		| 'noop'
+		| (string & {}) //intellisense hack
 
 	nsfw_porn: number
 	nsfw_sexy: number

@@ -1,11 +1,11 @@
 require('dotenv').config() //first line of entrypoint
 import express from 'express'
 import { logger } from '../utils/logger'
-import { getBlacklist, getBlacklistTestOnly } from './blacklist'
+import { getBlacklist, getBlacklistTestOnly, getStatsTestOnly } from './blacklist'
 
 
 const app = express()
-const port = (process.env.NODE_ENV === 'production') ? 80 : 3001
+const port = 80
 
 // app.use(cors())
 
@@ -28,6 +28,12 @@ app.get('/whitelist.txt', async(req, res)=> {
 app.get('/nocache-testonly.html', async(req, res)=> {
 	res.setHeader('Content-Type', 'text/html')
 	const html = await getBlacklistTestOnly(true)
+	res.send(html)
+})
+
+app.get('/nocache-stats.html', async(req, res)=> {
+	res.setHeader('Content-Type', 'text/html')
+	const html = await getStatsTestOnly()
 	res.send(html)
 })
 

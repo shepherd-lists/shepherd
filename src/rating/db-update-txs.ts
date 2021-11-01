@@ -117,3 +117,11 @@ export const dbUnsupportedMimeType = async(txid: string)=> {
 		last_update_date: new Date(),
 	})
 }
+
+export const dbNoop = async(txid: string)=> {
+	return updateDb(txid,{
+		valid_data: false, // this removes it from current queue
+		data_reason: 'noop',
+		last_update_date: new Date(),
+	})
+}

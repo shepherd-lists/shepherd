@@ -5,9 +5,7 @@ import { unsupportedTypes, videoTypes, VID_TMPDIR_MAXSIZE } from '../constants'
 import { processVids } from './video/process-files'
 import { VidDownloads } from './video/VidDownloads'
 import { addToDownloads } from './video/downloader'
-import col from 'ansi-colors'
 import { performance } from 'perf_hooks'
-import loadConfig from '../utils/load-config'
 import * as FilterHost from './filter-host'
 
 const prefix = 'queue'
@@ -27,7 +25,7 @@ const getImages = async(batch: number)=> {
 	.limit(batch)
 
 	const length = records.length
-	logger(prefix, length, 'images retrieved')
+	logger(prefix, length, 'images selected')
 
 	return records
 }
@@ -40,7 +38,7 @@ const getGifs = async(batch: number)=> {
 	.limit(batch)
 	
 	const length = records.length
-	logger(prefix, length, 'gifs found')
+	logger(prefix, length, 'gifs selected')
 	
 	return records
 }
@@ -53,7 +51,7 @@ const getVids = async(batch: number)=> {
 	.limit(batch)
 
 	const length = records.length
-	logger(prefix, length, 'videos found')
+	logger(prefix, length, 'videos selected')
 
 	return records
 }
@@ -91,7 +89,7 @@ export const rater = async(lowmem: boolean)=>{
 
 	const BATCH_IMAGE = lowmem? 5 : 50
 	const BATCH_GIF = lowmem? 1 : 5
-	const BATCH_VIDEO = 1
+	const BATCH_VIDEO = 11
 	const BATCH_OTHER = 1
 
 	let imageQueue = await getImages(BATCH_IMAGE)
