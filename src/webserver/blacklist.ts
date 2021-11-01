@@ -58,7 +58,7 @@ export const getStatsTestOnly = async()=> {
 	let html = '<html><body style="font-family:\'Courier New\',monospace;">'
 
 		const txsCount = await db<TxRecord>('txs').count('id')
-		html += `<h1>Total records: ${txsCount.length}</h1>`
+		html += `<h1>Total records: ${txsCount[0].count}</h1>`
 
 		//select content_type, count(*) from txs where valid_data is null group by content_type;
 		const results = await db<TxRecord>('txs').select('content_type').count('content_type').whereNull('valid_data').groupBy('content_type')
