@@ -17,10 +17,10 @@ app.get('/', (req, res)=> {
 
 app.post('/postupdate', async(req, res)=>{
 	try{
-		console.log('request body:', JSON.stringify(req.body))
 		await pluginResultHandler(req.body)
 		res.sendStatus(200)
 	}catch(e:any){
+		logger(prefix, 'Error. Request body:', JSON.stringify(req.body))
 		if(e instanceof TypeError){
 			res.setHeader('Content-Type', 'text/plain')
 			res.status(400).send(e.message)
@@ -31,14 +31,14 @@ app.post('/postupdate', async(req, res)=>{
 			res.status(406).send(e.message)
 			return;
 		}
-		logger('UNHANDLED Error =>', `${e.name} (${e.code}) : ${e.message}`)
+		logger(prefix, 'UNHANDLED Error =>', `${e.name} (${e.code}) : ${e.message}`)
 		slackLogger('UNHANDLED Error =>', `${e.name} (${e.code}) : ${e.message}`)
 		console.log(e)
 		res.sendStatus(500)
 	}
 })
 
-app.listen(port, ()=> logger(`started on http://localhost:${port}`))
+export const server = app.listen(port, ()=> logger(`started on http://localhost:${port}`))
 
 
 const pluginResultHandler = async(body: APIFilterResult)=>{
@@ -56,6 +56,8 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 		if(res !== txid){
 			throw new Error('Could not update database')
 		}
+	}else if(result.data_reason === undefined){
+		throw new TypeError('data_reason and flagged cannot both be undefined')
 	}else{
 		switch (result.data_reason) {
 			case 'corrupt-maybe':
