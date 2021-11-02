@@ -62,7 +62,8 @@ Notes:
 
 1. install docker & docker-compose
 2. install nodejs (the version should not matter)
-3. create a `.env` file and enter all required values (e.g. `cp .env.example .env`)
+3. create a `.env` file (e.g. `cp .env.example .env`)
+4. copy `shepherd.config.json.example` to `shepherd.config.json`
 
 ## Install and run
 
