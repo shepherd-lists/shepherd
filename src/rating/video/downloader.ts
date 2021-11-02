@@ -163,10 +163,11 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				dbNoDataFound404(vid.txid)
 				resolve(404)
 			}else if(
-				e.message === 'Client network socket disconnected before secure TLS connection was established'
-				|| [500,502,504].includes(status)
+				status >= 500
+				|| e.message === 'Client network socket disconnected before secure TLS connection was established'
+				|| e.message === 'read ECONNRESET'
 			){
-				logger(vid.txid, e.message, 'Download will be retried')
+				logger(vid.txid, e.message, 'Gateway error. Download will be retried')
 				resolve('gateway error')
 			}else{
 				logger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', e.message)
