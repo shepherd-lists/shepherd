@@ -13,6 +13,11 @@ services:
       POSTGRES_DB: arblacklist
       PGDATA: /var/lib/postgresql/data/pgdata
     restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
   webserver:
     image: ${IMAGE_REPO}/shepherd-webserver:${TARGET:-prod}
     build: 
@@ -71,3 +76,6 @@ services:
     restart: always
 volumes:
   pgdata:
+    driver_opts:
+      performance-mode: maxIO
+      throughput-mode: bursting
