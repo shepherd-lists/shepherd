@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Copy shepherd.config.json
+        run: cp shepherd.config.json.example shepherd.config.json
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
