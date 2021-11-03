@@ -27,6 +27,10 @@
   "keywords": [],
   "author": "Ros McMahon <ros@arweave.org>",
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shepherd-media-classifier/shepherd.git"
+  },
   "devDependencies": {
     "@types/chai": "^4.2.16",
     "@types/mocha": "^8.2.2",
