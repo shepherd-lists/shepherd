@@ -14,7 +14,7 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile.test
-      target: test
+      # target: test
     environment: 
       DB_HOST: pgdb
       PROCESS_NAME: test

@@ -1,64 +1,40 @@
-version: '3.7'
+version: '3.9'
 
 services:
-  pgdb:
-    image: ${IMAGE_REPO}/shepherd-pgdb:${TARGET:-prod}
-    build: 
-      context: ./postgres
-    volumes: 
-      - pgdata:/var/lib/postgresql/data
-    environment: 
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: arblacklist
-      PGDATA: /var/lib/postgresql/data/pgdata
-    restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 4G
   webserver:
-    image: ${IMAGE_REPO}/shepherd-webserver:${TARGET:-prod}
+    image: ${IMAGE_REPO:-dummy}/shepherd-webserver:${TARGET:-prod}
     build: 
       context: .
       target: ${TARGET:-prod}
     environment: 
-      DB_HOST: pgdb
+      DB_HOST: ${PGDB:-pgdb}
       PROCESS_NAME: webserver
-    depends_on: 
-      - pgdb
     ports: 
       - '80:80'
     restart: always
   http-api:
-    image: ${IMAGE_REPO}/shepherd-http-api:${TARGET:-prod}
+    image: ${IMAGE_REPO:-dummy}/shepherd-http-api:${TARGET:-prod}
     build: 
       context: .
       target: ${TARGET:-prod}
     environment: 
-      DB_HOST: pgdb
+      DB_HOST: ${PGDB:-pgdb}
       PROCESS_NAME: http-api
-    depends_on: 
-      - pgdb
     ports: 
       - '84:84'
     restart: always
   scanner:
-    image: ${IMAGE_REPO}/shepherd-scanner:${TARGET:-prod}
-    hostname: ${IMAGE_REPO}-shepherd-scanner
+    image: ${IMAGE_REPO:-dummy}/shepherd-scanner:${TARGET:-prod}
+    hostname: ${IMAGE_REPO:-dummy}-shepherd-scanner
     build: 
       context: .
-      target: prod
     environment: 
-      DB_HOST: pgdb
+      DB_HOST: ${PGDB:-pgdb}
       PROCESS_NAME: scanner
-    depends_on: 
-      - pgdb
     restart: always
   rating:
-    image: ${IMAGE_REPO}/shepherd-rating:${TARGET:-prod}
-    hostname: ${IMAGE_REPO}-shepherd-rating
+    image: ${IMAGE_REPO:-dummy}/shepherd-rating:${TARGET:-prod}
+    hostname: ${IMAGE_REPO:-dummy}-shepherd-rating
     deploy:
       resources:
         limits:
@@ -66,16 +42,8 @@ services:
           memory: 30G
     build: 
       context: .
-      target: prod
     environment: 
-      DB_HOST: pgdb
+      DB_HOST: ${PGDB:-pgdb}
       PROCESS_NAME: rating
       NODE_OPTIONS: '--max-old-space-size=8192'
-    depends_on: 
-      - pgdb
     restart: always
-volumes:
-  pgdata:
-    driver_opts:
-      performance-mode: maxIO
-      throughput-mode: bursting

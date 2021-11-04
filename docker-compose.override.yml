@@ -1,0 +1,37 @@
+services:
+  pgdb:
+    image: ${IMAGE_REPO:-dummy}/shepherd-pgdb:${TARGET:-prod}
+    build: 
+      context: ./postgres
+    volumes: 
+      - pgdata:/var/lib/postgresql/data
+    environment: 
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: arblacklist
+      PGDATA: /var/lib/postgresql/data/pgdata
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+      update_config:
+        order: stop-first # ecs: unsupported
+  webserver:
+    depends_on: 
+      - ${PGDB:-pgdb}
+  http-api:
+    depends_on: 
+      - ${PGDB:-pgdb}
+  scanner:
+    depends_on: 
+      - ${PGDB:-pgdb}
+  rating:
+    depends_on: 
+      - ${PGDB:-pgdb}
+volumes:
+  pgdata:
+    driver_opts:
+      performance-mode: maxIO
+      throughput-mode: bursting
