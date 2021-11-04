@@ -53,7 +53,6 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		
 		else if(
 			(e.message === `Timeout of ${NO_DATA_TIMEOUT}ms exceeded`)
-			// || (!e.response && e.code && e.code === 'ECONNRESET')
 		){
 			logger(prefix, 'connection timed out in batch. check again alone', contentType, url)
 			await dbTimeoutInBatch(txid)
@@ -69,7 +68,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		
 		else{
 			logger(prefix, 'UNHANDLED Error processing', url + ' ', status, ':', e.message)
-			slackLogger(prefix, 'UNHANDLED Error processing', txid, status, ':', e.message)
+			await slackLogger(prefix, 'UNHANDLED Error processing', txid, status, ':', e.message)
 			logger(prefix, 'UNHANDLED', e)
 		}
 		return false;
