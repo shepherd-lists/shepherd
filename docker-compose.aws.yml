@@ -1,0 +1,23 @@
+version: '3.9'
+
+# x-aws-cluster: ECS cluster ID
+x-aws-vpc: ${AWS_VPC_ARN}
+# x-aws-loadbalancer: ARN of an existing LoadBalancer
+
+services:
+  pgmigrate:
+    image: ${IMAGE_REPO:-dummy}/shepherd-pgmigrate:${TARGET:-prod}
+  webserver:
+    image: ${IMAGE_REPO:-dummy}/shepherd-webserver:${TARGET:-prod}
+  http-api:
+    image: ${IMAGE_REPO:-dummy}/shepherd-http-api:${TARGET:-prod}
+  scanner:
+    image: ${IMAGE_REPO:-dummy}/shepherd-scanner:${TARGET:-prod}
+  rating:
+    image: ${IMAGE_REPO:-dummy}/shepherd-rating:${TARGET:-prod}
+
+
+networks:
+  default:
+    external: true
+    name: ${AWS_SECURITY_GROUP_ID}

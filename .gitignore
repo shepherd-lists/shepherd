@@ -1,6 +1,7 @@
 secret
 node_modules
 .env
+.env.aws
 # package-lock.json, using `npm ci` in container
 NOTES.txt
 *.log
