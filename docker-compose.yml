@@ -1,39 +1,47 @@
 version: '3.9'
 
 services:
+  pgmigrate:
+    build:
+      context: ./postgres.migrate
+    environment:
+      DB_HOST: ${DB_HOST-pgdb}
+    volumes:
+      - ./postgres.migrate:/app
+    # restart: 'no'
+    deploy:
+      restart_policy:
+        condition: 'no'
+        max_attempts: 0
   webserver:
-    image: ${IMAGE_REPO:-dummy}/shepherd-webserver:${TARGET:-prod}
     build: 
       context: .
       target: ${TARGET:-prod}
     environment: 
-      DB_HOST: ${PGDB:-pgdb}
+      DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: webserver
     ports: 
       - '80:80'
     restart: always
   http-api:
-    image: ${IMAGE_REPO:-dummy}/shepherd-http-api:${TARGET:-prod}
     build: 
       context: .
       target: ${TARGET:-prod}
     environment: 
-      DB_HOST: ${PGDB:-pgdb}
+      DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: http-api
     ports: 
       - '84:84'
     restart: always
   scanner:
-    image: ${IMAGE_REPO:-dummy}/shepherd-scanner:${TARGET:-prod}
     hostname: ${IMAGE_REPO:-dummy}-shepherd-scanner
     build: 
       context: .
     environment: 
-      DB_HOST: ${PGDB:-pgdb}
+      DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: scanner
     restart: always
   rating:
-    image: ${IMAGE_REPO:-dummy}/shepherd-rating:${TARGET:-prod}
     hostname: ${IMAGE_REPO:-dummy}-shepherd-rating
     deploy:
       resources:
@@ -43,7 +51,7 @@ services:
     build: 
       context: .
     environment: 
-      DB_HOST: ${PGDB:-pgdb}
+      DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: rating
       NODE_OPTIONS: '--max-old-space-size=8192'
     restart: always
