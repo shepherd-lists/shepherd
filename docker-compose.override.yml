@@ -18,21 +18,18 @@ services:
     #       memory: 4G
     #   update_config:
     #     order: stop-first # ecs: unsupported
-  pgmigrate:
+  scanner:
     depends_on: 
       - pgdb
   webserver:
     depends_on: 
-      - pgdb
+      - scanner
   http-api:
     depends_on: 
-      - pgdb
-  scanner:
-    depends_on: 
-      - pgdb
+      - scanner
   rating:
     depends_on: 
-      - pgdb
+      - scanner
 volumes:
   pgdata:
     # driver_opts:

@@ -1,22 +1,10 @@
 version: '3.9'
 
 services:
-  pgmigrate:
-    build:
-      context: ./postgres.migrate
-    environment:
-      DB_HOST: ${DB_HOST-pgdb}
-    volumes:
-      - ./postgres.migrate:/app
-    # restart: 'no'
-    deploy:
-      restart_policy:
-        condition: 'any'
-        max_attempts: 0
   webserver:
     build: 
       context: .
-      target: ${TARGET:-prod}
+      target: web
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: webserver
@@ -26,7 +14,7 @@ services:
   http-api:
     build: 
       context: .
-      target: ${TARGET:-prod}
+      target: web
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: http-api
@@ -37,6 +25,7 @@ services:
     hostname: ${IMAGE_REPO:-dummy}-shepherd-scanner
     build: 
       context: .
+      target: scanner
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: scanner
@@ -50,6 +39,7 @@ services:
           memory: 30G
     build: 
       context: .
+      target: rating
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: rating
