@@ -37,7 +37,7 @@ describe('video-prepare tests', ()=> {
 		//@ts-ignore
 		const smallvid: VidDownloadRecord = {
 			complete: 'FALSE',
-			content_size: 1053651,
+			content_size: '1053651',
 			txid: 'nSX3Qaz-r1NF2dJ4Xh-pMrD6VNt_5wmtu6AgezO3h9U',
 			content_type: 'video/mp4',
 		}
@@ -50,7 +50,7 @@ describe('video-prepare tests', ()=> {
 		//@ts-ignore
 		const nodata: VidDownloadRecord = {
 			complete: 'FALSE',
-			content_size: 14343687,
+			content_size: '14343687',
 			txid: 'mKtVp1UVE7TScGBoGrZ8Qi741v2G06a-An8baaceY2M', //no data (it's actually a missing image)
 		}
 		try {
@@ -64,7 +64,7 @@ describe('video-prepare tests', ()=> {
 		//@ts-ignore
 		const notvid: VidDownloadRecord = {
 			complete: 'FALSE',
-			content_size: 419080,
+			content_size: '419080',
 			txid: 'rbm6bKvIKhuui9wATaySbLDuRUKq1KLb8qmaihNpsbU', // an image file
 		}
 		try {
@@ -78,7 +78,7 @@ describe('video-prepare tests', ()=> {
 		//@ts-ignore
 		const vid: VidDownloadRecord = {
 			complete: 'FALSE',
-			content_size: 1053651,
+			content_size: '1053651',
 			txid: 'MudCCqbbf--ktx1b0EMrhSdNWP3ZT9XnMJP-oC486cM',
 			content_type: 'video/mp4',
 		}
@@ -93,7 +93,7 @@ describe('video-prepare tests', ()=> {
 		//@ts-ignore
 		const vid: VidDownloadRecord = {
 			complete: 'FALSE',
-			content_size: 1053651,
+			content_size: '1053651',
 			txid: 'Uq1EEdlNvM-rjqerjPHhPMv3oBAHu9DysIjQNq0YTdk',
 			content_type: 'video/mp4',
 		}
@@ -109,7 +109,7 @@ describe('video-prepare tests', ()=> {
 	it('6. full processing of a video', async()=>{
 		//@ts-ignore
 		const vid: TxRecord = {
-			content_size: 597283,
+			content_size: '597283',
 			content_type: 'video/mp4',
 			txid: '5ptIH1GrUYrgzrrwCf-mVE8aWMGbiZ4vt9z4VcMYaNA',
 		}

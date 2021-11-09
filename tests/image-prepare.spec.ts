@@ -26,28 +26,28 @@ describe('image-prepare tests', ()=> {
 			/* set up data for 404 test */
 			const res404 = await db<TxRecord>('txs').where({ txid: tx404 })
 			if(res404.length !== 1){
-				await db<TxRecord>('txs').insert({txid: tx404, content_type: 'image/png', content_size: 0})
+				await db<TxRecord>('txs').insert({txid: tx404, content_type: 'image/png', content_size: '0'})
 			}
 			await db<TxRecord>('txs').where({ txid: tx404}).update({ data_reason: 'timeout'}) //set to !404
 
 			/* set up data for corrupt file test */
 			const resCorrupt = await db<TxRecord>('txs').where({ txid: txCorrupt })
 			if(resCorrupt.length !== 1){
-				await db<TxRecord>('txs').insert({txid: txCorrupt, content_type: 'image/png', content_size: 123})
+				await db<TxRecord>('txs').insert({txid: txCorrupt, content_type: 'image/png', content_size: '123'})
 			}
 			await db<TxRecord>('txs').where({ txid: txCorrupt}).update({ data_reason: 'timeout'}) //set to !mimetype
 
 			/* set up data for file timeout test */
 			const resTimeout = await db<TxRecord>('txs').where({ txid: txTimeout })
 			if(resTimeout.length !== 1){
-				await db<TxRecord>('txs').insert({txid: txTimeout, content_type: 'image/png', content_size: 123})
+				await db<TxRecord>('txs').insert({txid: txTimeout, content_type: 'image/png', content_size: '123'})
 			}
 			await db<TxRecord>('txs').where({ txid: txCorrupt}).update({ data_reason: 'partial'}) //set to !timeout
 
 			/* set up data for non-image mimetype test */
 			const resNonImageMime = await db<TxRecord>('txs').where({ txid: txNonImageMime })
 			if(resNonImageMime.length !== 1){
-				await db<TxRecord>('txs').insert({txid: txNonImageMime, content_type: 'image/png', content_size: 123})
+				await db<TxRecord>('txs').insert({txid: txNonImageMime, content_type: 'image/png', content_size: '123'})
 			}else{
 				await db<TxRecord>('txs').where({ txid: txNonImageMime}).update({ content_type: 'image/png'}) //set to !timeout
 			}
@@ -55,7 +55,7 @@ describe('image-prepare tests', ()=> {
 			/* set up data for non-image mimetype test */
 			const resWrongImageMime = await db<TxRecord>('txs').where({ txid: txWrongImageMime })
 			if(resWrongImageMime.length !== 1){
-				await db<TxRecord>('txs').insert({txid: txWrongImageMime, content_type: 'image/jpeg', content_size: 123})
+				await db<TxRecord>('txs').insert({txid: txWrongImageMime, content_type: 'image/jpeg', content_size: '123'})
 			}else{
 				await db<TxRecord>('txs').where({ txid: txWrongImageMime}).update({ content_type: 'image/jpeg'}) //set to !timeout
 			}

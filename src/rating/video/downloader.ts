@@ -51,10 +51,10 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			})
 
 			/* Video size might be incorrect */
-			const contentLength = Number(headers['content-length'])
-			if(vid.content_size !== contentLength){
+			const contentLength = BigInt(headers['content-length'])
+			if(BigInt(vid.content_size) !== contentLength){
 				logger(vid.txid, 'content-length. gql:', vid.content_size, typeof vid.content_size, 'header:', contentLength)
-				vid.content_size = contentLength
+				vid.content_size = contentLength.toString()
 			}
 
 			timer = setTimeout( ()=>{

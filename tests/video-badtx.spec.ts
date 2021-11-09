@@ -14,7 +14,7 @@ describe('video bad tx handling tests', ()=> {
 		//@ts-ignore
 		const badData: VidDownloadRecord = {
 			complete: 'FALSE',
-			content_size: 262144,
+			content_size: '262144',
 			txid: '7mRWvWP5KPoDfmpbGYILChc9bjjXpiPhxuhXwlnODik', // corrupt video data
 		}
 		try{
@@ -33,7 +33,7 @@ describe('video bad tx handling tests', ()=> {
 		//@ts-ignore
 		const badData: VidDownloadRecord = {
 			complete: 'FALSE',
-			content_size: 262144,
+			content_size: '262144',
 			txid: 'u54MK6zX3B0hjRqQqGzHn1m7ZGCsHNTWvFOrc0oBbCQ', // audio only
 		}
 		try{
@@ -52,7 +52,7 @@ describe('video bad tx handling tests', ()=> {
 		//@ts-ignore
 		const badData: VidDownloadRecord = {
 			complete: 'FALSE',
-			content_size: 0,
+			content_size: '0',
 			txid: 'SxP57BAAiZB0WEipA0_LtyQJ0SY51DwI4vE4N03ykJ0', // error 404
 		}
 		//this does not throw an error, just gets handled.

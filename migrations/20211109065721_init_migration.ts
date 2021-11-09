@@ -6,7 +6,7 @@ export async function up(knex: Knex): Promise<void> {
 		table.bigIncrements('id')
 		table.string('txid', 43).unique().notNullable()
 		table.string('content_type').notNullable()
-		table.bigInteger('content_size').notNullable()
+		table.bigInteger('content_size').notNullable() //returns string
 		table.boolean('flagged')
 		table.boolean('valid_data')
 		table.boolean('data_reason')
@@ -28,7 +28,7 @@ export async function up(knex: Knex): Promise<void> {
 	await knex.schema.createTable('states', table=> {
 		table.increments('id')
 		table.text('pname').notNullable()
-		table.bigInteger('value').notNullable()
+		table.integer('value').notNullable()
 	})
 	await knex('states').insert([
 		{ pname: 'scanner_position', value: 0},

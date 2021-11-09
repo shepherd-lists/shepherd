@@ -65,7 +65,7 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 			for (const item of metas) {
 				const txid = item.node.id
 				let content_type = item.node.data.type
-				const content_size = item.node.data.size
+				const content_size = item.node.data.size.toString()
 
 				// this content_type is missing for dataItems
 				if(!content_type){ 
