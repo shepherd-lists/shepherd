@@ -5,8 +5,6 @@ x-aws-vpc: ${AWS_VPC_ARN}
 # x-aws-loadbalancer: ARN of an existing LoadBalancer
 
 services:
-  pgmigrate:
-    image: ${IMAGE_REPO:-dummy}/shepherd-pgmigrate:${TARGET:-prod}
   webserver:
     image: ${IMAGE_REPO:-dummy}/shepherd-webserver:${TARGET:-prod}
   http-api:
