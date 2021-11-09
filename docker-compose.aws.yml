@@ -18,6 +18,7 @@ services:
 
 
 networks:
+  # need 2, private and public security groups/subnets here
   default:
     external: true
     name: ${AWS_SECURITY_GROUP_ID}

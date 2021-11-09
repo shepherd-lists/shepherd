@@ -11,7 +11,7 @@ services:
     # restart: 'no'
     deploy:
       restart_policy:
-        condition: 'no'
+        condition: 'any'
         max_attempts: 0
   webserver:
     build: 
