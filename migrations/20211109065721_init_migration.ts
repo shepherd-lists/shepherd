@@ -1,5 +1,6 @@
 import { Knex } from "knex";
 
+//insert into knex_migrations(name, batch, migration_time) values('20211109065721_init_migration.ts', 1, Now());
 
 export async function up(knex: Knex): Promise<void> {
 	await knex.schema.createTable('txs', (table)=>{
