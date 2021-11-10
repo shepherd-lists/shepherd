@@ -1,4 +1,4 @@
-version: '3.9'
+version: '3.7'
 
 # x-aws-cluster: ECS cluster ID
 x-aws-vpc: ${AWS_VPC_ARN}

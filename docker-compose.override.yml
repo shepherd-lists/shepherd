@@ -1,3 +1,5 @@
+version: '3.7'
+
 services:
   pgdb:
     # image: ${IMAGE_REPO:-dummy}/shepherd-pgdb:${TARGET:-prod}
