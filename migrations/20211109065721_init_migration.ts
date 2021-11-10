@@ -3,13 +3,13 @@ import { Knex } from "knex";
 
 export async function up(knex: Knex): Promise<void> {
 	await knex.schema.createTable('txs', (table)=>{
-		table.bigIncrements('id')
-		table.string('txid', 43).unique().notNullable()
-		table.string('content_type').notNullable()
+		table.increments('id') //consider migrating to bigIncrements
+		table.specificType('txid', 'char(43)').unique().notNullable()
+		table.text('content_type').notNullable()
 		table.bigInteger('content_size').notNullable() //returns string
 		table.boolean('flagged')
 		table.boolean('valid_data')
-		table.boolean('data_reason')
+		table.text('data_reason')
 
 		table.float('nsfw_porn')
 		table.float('nsfw_sexy')
