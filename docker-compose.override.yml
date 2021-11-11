@@ -23,15 +23,6 @@ services:
   scanner:
     depends_on: 
       - pgdb
-  webserver:
-    depends_on: 
-      - scanner
-  http-api:
-    depends_on: 
-      - scanner
-  rating:
-    depends_on: 
-      - scanner
 volumes:
   pgdata:
     # driver_opts:

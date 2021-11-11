@@ -1,6 +1,15 @@
 version: '3.7'
 
 services:
+  scanner:
+    hostname: ${IMAGE_REPO:-dummy}-shepherd-scanner
+    build: 
+      context: .
+      target: scanner
+    environment: 
+      DB_HOST: ${DB_HOST:-pgdb}
+      PROCESS_NAME: scanner
+    restart: always
   webserver:
     build: 
       context: .
@@ -11,6 +20,8 @@ services:
     ports: 
       - '80:80'
     restart: always
+    depends_on:
+      - scanner
   http-api:
     build: 
       context: .
@@ -21,15 +32,8 @@ services:
     ports: 
       - '84:84'
     restart: always
-  scanner:
-    hostname: ${IMAGE_REPO:-dummy}-shepherd-scanner
-    build: 
-      context: .
-      target: scanner
-    environment: 
-      DB_HOST: ${DB_HOST:-pgdb}
-      PROCESS_NAME: scanner
-    restart: always
+    depends_on:
+      - scanner
   rating:
     hostname: ${IMAGE_REPO:-dummy}-shepherd-rating
     deploy:
@@ -45,3 +49,5 @@ services:
       PROCESS_NAME: rating
       NODE_OPTIONS: '--max-old-space-size=8192'
     restart: always
+    depends_on:
+      - scanner
