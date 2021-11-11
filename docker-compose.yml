@@ -48,6 +48,7 @@ services:
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: rating
       NODE_OPTIONS: '--max-old-space-size=8192'
+      TF_ENABLE_ONEDNN_OPTS: '1'
     restart: always
     depends_on:
       - scanner
