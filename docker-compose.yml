@@ -29,18 +29,13 @@ services:
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: http-api
-    ports: 
-      - '84:84'
+    # ports: 
+    #   - '84:84'
     restart: always
     depends_on:
       - scanner
   rating:
     hostname: ${IMAGE_REPO:-dummy}-shepherd-rating
-    deploy:
-      resources:
-        limits:
-          cpus: '4.0'
-          memory: 30G
     build: 
       context: .
       target: rating

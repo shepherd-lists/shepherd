@@ -20,7 +20,6 @@ ENV TF_CPP_MIN_LOG_LEVEL=2
 ENTRYPOINT node -r ts-node/register src/rating/index.ts
 
 FROM base as web
-# EXPOSE 80 # irrelevant?
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as scanner

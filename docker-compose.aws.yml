@@ -13,10 +13,23 @@ services:
     image: ${IMAGE_REPO:-dummy}/shepherd-scanner:${TARGET:-prod}
   rating:
     image: ${IMAGE_REPO:-dummy}/shepherd-rating:${TARGET:-prod}
-
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 30G
 
 networks:
   # need 2, private and public security groups/subnets here
   default:
     external: true
     name: ${AWS_SECURITY_GROUP_ID}
+
+x-aws-cloudformation:
+  Resources:
+    RatingTaskDefinition:
+      Properties:
+        ContainerDefinitions:
+          - LinuxParameters:
+              MaxSwap: 61440
+              # Swappiness: 60
