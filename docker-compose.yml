@@ -4,7 +4,7 @@ services:
   scanner:
     hostname: ${IMAGE_REPO:-dummy}-shepherd-scanner
     build: 
-      context: .
+      context: ./apps
       target: scanner
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
@@ -12,7 +12,7 @@ services:
     restart: always
   webserver:
     build: 
-      context: .
+      context: ./apps
       target: web
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
@@ -24,7 +24,7 @@ services:
       - scanner
   http-api:
     build: 
-      context: .
+      context: ./apps
       target: web
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
@@ -37,7 +37,7 @@ services:
   rating:
     hostname: ${IMAGE_REPO:-dummy}-shepherd-rating
     build: 
-      context: .
+      context: ./apps
       target: rating
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}

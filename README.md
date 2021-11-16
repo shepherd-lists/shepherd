@@ -54,25 +54,23 @@ Notes:
 
 - at least 10GB of free disk space
 - windows: no specific requirements
-- linux: swap file or partition must exist
-- apple m1 silicon: cpu not yet supported
+- linux: swap file or partition must exist. Example: 32GB ram / 64GB swap
+- apple m1 silicon: cpu not yet supported for default plugin `shepherd-plugin-nsfw`
 - other arm cpus or macos x86: untested, test reports welcome!
 
 ## Prerequisites
 
 1. install docker & docker-compose
-2. install nodejs (the version should not matter)
-3. copy `shepherd.config.json.example` to `shepherd.config.json`
+2. copy `shepherd.config.json.example` to `shepherd.config.json`
+3. (optional) install nodejs (the version should not matter)
 4. (optional) create a `.env` file (e.g. `cp .env.example .env`)
 
 ## Install and run
 
-> Note: Do **not** run 'npm install'
-
 Clone this repo and cd in to the `shepherd` directory. Configure `shepherd.config.json` if you need to, then run this command
 
 ```
-npm start
+docker-compose up -d
 ```
 That's it!
 
@@ -84,7 +82,7 @@ On initial start it will take some time (maybe several days for example) to read
 
 You can check on progress using logs
 ```
-npm run logs
+docker-compose logs -f
 ```
 but there's no need to wait for it to sync to the latest block, you can start using the list produced straight away.
 

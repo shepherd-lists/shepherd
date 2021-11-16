@@ -1,7 +1,7 @@
 version: '3.7'
 
 services:
-  pgdb:
+  pgdb-test:
     build: 
       context: ./postgres
     environment: 
@@ -12,12 +12,12 @@ services:
     restart: always
   test:
     build: 
-      context: .
+      context: ./apps
       dockerfile: Dockerfile.test
       # target: test
     environment: 
-      DB_HOST: pgdb
+      DB_HOST: pgdb-test
       PROCESS_NAME: test
       NODE_OPTIONS: '--max-old-space-size=8192'
     depends_on: 
-      - pgdb
+      - pgdb-test

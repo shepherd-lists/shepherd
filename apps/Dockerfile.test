@@ -6,8 +6,7 @@ ENV NO_UPDATE_NOTIFIER=true
 RUN npm config set update-notifier false
 
 # install ffmpeg dependency
-RUN apt update 
-RUN apt install ffmpeg -y
+RUN apt update && apt install ffmpeg -y
 
 # create app directory
 WORKDIR /app
@@ -17,3 +16,4 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 COPY shepherd.config.test.json shepherd.config.json
+RUN npm install -g knex ts-node
