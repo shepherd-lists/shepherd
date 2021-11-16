@@ -14,8 +14,7 @@ ENV NODE_ENV=production
 
 FROM base as rating
 # install ffmpeg dependency
-RUN apt update 
-RUN apt install ffmpeg -y
+RUN apt update && apt install ffmpeg -y
 ENV TF_CPP_MIN_LOG_LEVEL=2
 ENTRYPOINT node -r ts-node/register src/rating/index.ts
 
