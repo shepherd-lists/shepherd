@@ -53,9 +53,9 @@ describe('video-prepare tests', ()=> {
 			content_size: '14343687',
 			txid: 'mKtVp1UVE7TScGBoGrZ8Qi741v2G06a-An8baaceY2M', //no data (it's actually a missing image)
 		}
+		await knex<TxRecord>('txs').where('txid', nodata.txid).delete()
 		await knex<TxRecord>('txs').insert({ txid: nodata.txid, content_type: 'video/mp4', content_size: '123'})
 		const res = await videoDownload(nodata) 
-		console.log(res)
 		expect(res).to.equal('no data timeout')
 	}).timeout(0)
 
@@ -66,6 +66,7 @@ describe('video-prepare tests', ()=> {
 			content_size: '419080',
 			txid: 'rbm6bKvIKhuui9wATaySbLDuRUKq1KLb8qmaihNpsbU', // an image file
 		}
+		await knex<TxRecord>('txs').where('txid', notvid.txid).delete()
 		await knex<TxRecord>('txs').insert({ txid: notvid.txid, content_type: 'video/mp4', content_size: '123'})
 		const res = await videoDownload(notvid) 
 		expect(res).false
@@ -79,6 +80,7 @@ describe('video-prepare tests', ()=> {
 			txid: 'MudCCqbbf--ktx1b0EMrhSdNWP3ZT9XnMJP-oC486cM',
 			content_type: 'video/mp4',
 		}
+		await knex<TxRecord>('txs').where('txid', vid.txid).delete()
 		await knex<TxRecord>('txs').insert({ txid: vid.txid, content_type: 'video/mp4', content_size: '123'})
 		await videoDownload(vid)
 		while(vid.complete !== 'TRUE') await sleep(500)
@@ -96,10 +98,12 @@ describe('video-prepare tests', ()=> {
 			content_type: 'video/mp4',
 		}
 		// exec(`ffplay https://arweave.net/${vid.txid}`)
+		await knex<TxRecord>('txs').where('txid', vid.txid).delete()
 		await knex<TxRecord>('txs').insert({ txid: vid.txid, content_type: 'video/mp4', content_size: '123'})
 		await videoDownload(vid)
 		while(vid.complete === 'FALSE') await sleep(500)
 		const frames = await createScreencaps(vid.txid) 
+		expect(frames.length).eq(4)
 		const checkId = await checkFrames(frames, vid.txid) 
 		expect(checkId).to.exist
 		expect(checkId).eq(vid.txid)
@@ -109,11 +113,12 @@ describe('video-prepare tests', ()=> {
 	it('6. full processing of a video', async()=>{
 		//@ts-ignore
 		const vid: TxRecord = {
-			txid: '5ptIH1GrUYrgzrrwCf-mVE8aWMGbiZ4vt9z4VcMYaNA',
+			txid: 'nwIUNPF8R03uW0zrPHnR4aTAnDdExqv56fMbbMQoHCA',
 			content_type: 'video/mp4',
 			content_size: '16498',
 		}
 		/* set up DB data */
+		await knex<TxRecord>('txs').where('txid', vid.txid).delete()
 		await knex<TxRecord>('txs').insert(vid)
 
 		await addToDownloads(vid)
@@ -125,7 +130,7 @@ describe('video-prepare tests', ()=> {
 		while(dl.complete === 'FALSE') await sleep(500)
 		expect(dl.complete).to.eq('TRUE')
 		await processVids()
-		expect(VidDownloads.getInstance().length()).eq(0)
+		expect( VidDownloads.getInstance().length() ).eq(0)
 
 		const check = await knex<TxRecord>('txs').where({ txid: vid.txid})
 		expect(check.length).eq(1)

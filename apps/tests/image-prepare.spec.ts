@@ -65,8 +65,20 @@ describe('image-prepare tests', ()=> {
 			console.log(col.redBright('error connecting to DB'), JSON.stringify(e))
 			process.exit(1)
 		}
-		// load AI model 
-		// await imageRater.init()
+	})
+
+	after(async function () {
+		/* remove mock records after testing */
+		const ids = [
+			tx404,
+			txCorrupt,
+			txTimeout,
+			txNonImageMime,
+			txWrongImageMime,
+		]
+		await Promise.all(ids.map(id=>{
+			db<TxRecord>('txs').delete().where({ txid: id })
+		}))
 	})
 
 
