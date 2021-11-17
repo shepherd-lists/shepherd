@@ -59,8 +59,10 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 
 			timer = setTimeout( ()=>{
 				source.cancel()
-				logger(vid.txid, `setTimeout ${NO_STREAM_TIMEOUT} ms exceeded`)
+				logger(vid.txid, `No data timeout ${NO_STREAM_TIMEOUT} ms exceeded`)
 				dbNoDataFound(vid.txid)
+				filewriter.end()
+				resolve('no data timeout')
 			}, NO_STREAM_TIMEOUT )
 			
 			const stream: IncomingMessage = data
@@ -122,7 +124,6 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				}else if(vid.complete !== 'ERROR'){ //tiny bad files can get here
 					vid.complete = 'TRUE'
 				}
-				// if(process.env.NODE_ENV === 'test') playVidFile_TEST_ONLY(vid.txid)
 				vid.complete === 'TRUE' ? resolve(true) : resolve(false)
 			})
 	
@@ -146,6 +147,10 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 					vid.complete = 'ERROR'
 					reject(JSON.stringify(e))
 				}
+			})
+
+			stream.on('close', ()=>{
+				filewriter.close()
 			})
 			
 		}catch(e:any){

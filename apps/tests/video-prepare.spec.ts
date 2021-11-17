@@ -40,6 +40,7 @@ describe('video-prepare tests', ()=> {
 			txid: 'nSX3Qaz-r1NF2dJ4Xh-pMrD6VNt_5wmtu6AgezO3h9U',
 			content_type: 'video/mp4',
 		}
+		await knex<TxRecord>('txs').insert({ txid: smallvid.txid, content_type: 'video/mp4', content_size: '10108'})
 		const res = await videoDownload(smallvid)
 		while(smallvid.complete === 'FALSE') await sleep(500)
 		expect(res).to.be.true
@@ -67,14 +68,14 @@ describe('video-prepare tests', ()=> {
 		}
 		await knex<TxRecord>('txs').insert({ txid: notvid.txid, content_type: 'video/mp4', content_size: '123'})
 		const res = await videoDownload(notvid) 
-		expect(res).to.equal('bad file type')
+		expect(res).false
 	}).timeout(0)
 	
 	it('4. createScreencaps: create screencaps from video', async()=> {
 		//@ts-ignore
 		const vid: VidDownloadRecord = {
 			complete: 'FALSE',
-			content_size: '1053651',
+			content_size: '229455',
 			txid: 'MudCCqbbf--ktx1b0EMrhSdNWP3ZT9XnMJP-oC486cM',
 			content_type: 'video/mp4',
 		}
@@ -83,13 +84,14 @@ describe('video-prepare tests', ()=> {
 		while(vid.complete !== 'TRUE') await sleep(500)
 		const frames = await createScreencaps(vid.txid) 
 		expect(frames.length).greaterThan(1)
+		expect(frames.length).eq(4)
 	}).timeout(0)
 
 	it('5. checkFrames: check screencaps for nsfw content', async()=> {
 		//@ts-ignore
 		const vid: VidDownloadRecord = {
 			complete: 'FALSE',
-			content_size: '1053651',
+			content_size: '229455',
 			txid: 'Uq1EEdlNvM-rjqerjPHhPMv3oBAHu9DysIjQNq0YTdk',
 			content_type: 'video/mp4',
 		}
@@ -100,7 +102,8 @@ describe('video-prepare tests', ()=> {
 		const frames = await createScreencaps(vid.txid) 
 		const checkId = await checkFrames(frames, vid.txid) 
 		expect(checkId).to.exist
-		if(checkId){ expect(checkId).equal(vid.txid) }
+		expect(checkId).eq(vid.txid)
+		// if(checkId){ expect(checkId).equal(vid.txid) }
 	}).timeout(0)
 	
 	it('6. full processing of a video', async()=>{
@@ -108,7 +111,7 @@ describe('video-prepare tests', ()=> {
 		const vid: TxRecord = {
 			txid: '5ptIH1GrUYrgzrrwCf-mVE8aWMGbiZ4vt9z4VcMYaNA',
 			content_type: 'video/mp4',
-			content_size: '597283',
+			content_size: '16498',
 		}
 		/* set up DB data */
 		await knex<TxRecord>('txs').insert(vid)
