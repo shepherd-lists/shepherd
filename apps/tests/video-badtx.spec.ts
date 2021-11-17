@@ -5,8 +5,11 @@ import { createScreencaps } from '../src/rating/video/screencaps'
 import { addToDownloads, videoDownload } from '../src/rating/video/downloader'
 import col from 'ansi-colors'
 import { VidDownloadRecord } from '../src/rating/video/VidDownloads'
+import dbConnection from '../src/utils/db-connection'
+import { TxRecord } from '../src/types'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+const knex = dbConnection()
 
 describe('video bad tx handling tests', ()=> {
 
@@ -55,6 +58,8 @@ describe('video bad tx handling tests', ()=> {
 			content_size: '0',
 			txid: 'SxP57BAAiZB0WEipA0_LtyQJ0SY51DwI4vE4N03ykJ0', // error 404
 		}
+		// needs a db entry to update
+		await knex<TxRecord>('txs').insert({ txid: badData.txid, content_type: 'video/mp4', content_size: '123'})
 		//this does not throw an error, just gets handled.
 		const res = await videoDownload(badData)
 		expect(res).eq(404)

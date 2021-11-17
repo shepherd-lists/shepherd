@@ -32,7 +32,6 @@ describe('http-api tests', ()=>{
 		try{
 			await knex<TxRecord>('txs').delete().where({ txid: mockRecord.txid })
 		}finally{
-			knex.destroy().catch((e)=>console.log('error in destroy',e))
 			server.close(e=>e && console.log('error closing server', e))
 		}
 	})
