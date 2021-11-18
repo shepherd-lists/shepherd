@@ -88,7 +88,7 @@ export const rater = async(lowmem: boolean)=>{
 	/* get backlog queues */
 
 	const BATCH_IMAGE = lowmem? 5 : 50
-	const BATCH_GIF = lowmem? 1 : 5
+	const BATCH_GIF = lowmem? 1 : 1
 	const BATCH_VIDEO = 11
 	const BATCH_OTHER = 1
 
