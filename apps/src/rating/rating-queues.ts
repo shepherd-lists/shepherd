@@ -25,7 +25,7 @@ const getImages = async(batch: number)=> {
 	.limit(batch)
 
 	const length = records.length
-	logger(prefix, length, 'images selected')
+	logger(prefix, length, 'images selected. batch size', batch)
 
 	return records
 }
@@ -38,7 +38,7 @@ const getGifs = async(batch: number)=> {
 	.limit(batch)
 	
 	const length = records.length
-	logger(prefix, length, 'gifs selected')
+	logger(prefix, length, 'gifs selected. batch size', batch)
 	
 	return records
 }
@@ -51,7 +51,7 @@ const getVids = async(batch: number)=> {
 	.limit(batch)
 
 	const length = records.length
-	logger(prefix, length, 'videos selected')
+	logger(prefix, length, 'videos selected. batch size', batch)
 
 	return records
 }
