@@ -160,9 +160,12 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			vid.complete = 'ERROR'
 			filewriter.end()
 			let status = 0
-			if(e.response && e.response.status){
-				status = Number(e.response.status)
+			let code = ''
+			if(e.response){
+				if(e.response.status) status = Number(e.response.status)
+				if(e.response.code) code = e.response.code
 			}
+
 			if(status === 404){
 				logger(vid.txid, 'Error 404 :', e.message)
 				dbNoDataFound404(vid.txid)
@@ -170,13 +173,15 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			}else if(
 				status >= 500
 				|| e.message === 'Client network socket disconnected before secure TLS connection was established'
-				|| e.message === 'read ECONNRESET'
+				|| ['ECONNRESET', 'ETIMEDOUT'].includes(code)
 			){
 				logger(vid.txid, e.message, 'Gateway error. Download will be retried')
 				resolve('gateway error')
 			}else{
-				logger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', e.message)
-				slackLogger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', e.message)
+				logger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', code, ':', status, ':', e.message)
+				logger(vid.txid, 'Full error e:', e)
+				if(e.response){ logger(vid.txid, 'Full error e.response:', e.response) }
+				slackLogger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', code, ':', status, ':', e.message)
 				reject(e)
 			}
 		}
