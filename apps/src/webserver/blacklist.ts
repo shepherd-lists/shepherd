@@ -59,6 +59,10 @@ export const getStatsTestOnly = async()=> {
 
 		const txsCount = await db<TxRecord>('txs').count('id')
 		html += `<h1>Total records: ${txsCount[0].count}</h1>`
+		const activeQueue = await db<TxRecord>('txs').whereNull('valid_data').count('id')
+		html += `<h2>Active Queue: ${activeQueue[0].count}</h2>`
+		const inactiveQueue = await db<TxRecord>('txs').whereNotNull('valid_data').whereNull('flagged').count('id')
+		html += `<h2>Inactive Queue: ${inactiveQueue[0].count}</h2>`
 
 		//select content_type, count(*) from txs where valid_data is null group by content_type;
 		const results = await db<TxRecord>('txs').select('content_type').count('content_type').whereNull('valid_data').groupBy('content_type')
