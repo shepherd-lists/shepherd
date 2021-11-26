@@ -39,7 +39,13 @@ export const processVids = async()=> {
 					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
 					dbCorruptDataMaybe(dl.txid)
 				}else if(e.message === 'spawnSync /bin/sh ENOMEM'){
-					logger(dl.txid, 'ffmpeg: spawnSync /bin/sh ENOMEM. Will retry.')
+					if(dl.retried === false){
+						logger(dl.txid, 'ffmpeg: spawnSync /bin/sh ENOMEM. Will retry once.')
+						dl.retried = true
+					}else{
+						logger(dl.txid, 'ffmpeg: spawnSync /bin/sh ENOMEM. Already retried. Shelving.')
+						dbCorruptDataMaybe(dl.txid)
+					}
 				}else{
 					logger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
 					slackLogger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)

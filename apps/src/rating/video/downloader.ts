@@ -15,7 +15,8 @@ const downloads = VidDownloads.getInstance()
 
 export const addToDownloads = async(vid: TxRecord)=> {
 
-	let dl: VidDownloadRecord = Object.assign({	complete: 'FALSE' }, vid)
+	// convert TxRecord to a new VidDownloadRecord
+	let dl: VidDownloadRecord = Object.assign({	complete: 'FALSE', retried: false }, vid)
 	downloads.push(dl)
 
 	try{

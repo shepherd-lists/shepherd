@@ -6,6 +6,7 @@ import { logger } from "../../utils/logger"
 
 export interface VidDownloadRecord extends TxRecord {
 	complete: 'TRUE' | 'FALSE' | 'ERROR' | (string & {})
+	retried: boolean
 }
 
 export class VidDownloads implements Iterable<VidDownloadRecord> {

@@ -164,7 +164,7 @@ export const rater = async(lowmem: boolean)=>{
 		const t1 = performance.now()
 		logger(prefix, 'sql queries took', (t1-t0).toFixed(2), 'ms to complete')
 
-		//make sure we're not reloading inflight up vids
+		//make sure we're not reloading inflight vids
 		const inflight = vidDownloads.listIds()
 		while((vidQueue.length > 0) && inflight.includes(vidQueue[vidQueue.length-1].id)){
 			vidQueue.pop()
