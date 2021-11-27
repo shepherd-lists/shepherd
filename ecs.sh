@@ -14,3 +14,4 @@ docker compose -f docker-compose.yml -f docker-compose.aws.yml build
 docker compose -f docker-compose.yml -f docker-compose.aws.yml push
 docker --context ecs compose -f docker-compose.yml -f docker-compose.aws.yml down
 docker --context ecs compose -f docker-compose.yml -f docker-compose.aws.yml up
+docker --context ecs compose -f docker-compose.yml -f docker-compose.aws.yml ps
