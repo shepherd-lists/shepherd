@@ -9,6 +9,7 @@ services:
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: scanner
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK}
     restart: always
   webserver:
     build: 
@@ -17,6 +18,7 @@ services:
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: webserver
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
     ports: 
       - '80:80'
     restart: always
@@ -29,6 +31,7 @@ services:
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: http-api
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK}
     # ports: 
     #   - '84:84'
     restart: always
@@ -42,6 +45,7 @@ services:
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: rating
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
       NODE_OPTIONS: '--max-old-space-size=8192'
       TF_ENABLE_ONEDNN_OPTS: '1'
     restart: always
