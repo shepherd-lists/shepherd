@@ -42,6 +42,7 @@ export const processVids = async()=> {
 					if(dl.retried === false){
 						logger(dl.txid, 'ffmpeg: spawnSync /bin/sh ENOMEM. Will retry once.')
 						dl.retried = true
+						continue; //skip cleanup()
 					}else{
 						logger(dl.txid, 'ffmpeg: spawnSync /bin/sh ENOMEM. Already retried. Shelving.')
 						dbCorruptDataMaybe(dl.txid)
