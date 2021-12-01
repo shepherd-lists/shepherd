@@ -124,10 +124,7 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 
 	} catch(e:any){
 
-		let status = 0
-		if(e.response && e.response.status){
-			status = Number(e.response.status)
-		}
+		let status = Number(e.response?.status) || 0
 
 		if( status >= 500 ){
 			logger('GATEWAY ERROR!', e.message, 'Waiting for 30 seconds...')

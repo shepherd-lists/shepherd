@@ -160,12 +160,8 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			}
 			vid.complete = 'ERROR'
 			filewriter.end()
-			let status = 0
-			let code = ''
-			if(e.response){
-				if(e.response.status) status = Number(e.response.status)
-				if(e.response.code) code = e.response.code
-			}
+			const status = Number(e.response?.status) || 0
+			const code = e.response?.code || e.code || 'no-code'
 
 			if(status === 404){
 				logger(vid.txid, 'Error 404 :', e.message)

@@ -40,10 +40,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 	} catch(e:any) {
 
 		/* catch network issues & no data situations */
-		let status = 0
-		if(e.response && e.response.status){
-			status = Number(e.response.status)
-		}
+		const status = Number(e.response?.status) || 0
 
 		if(status === 404){
 			logger(prefix, 'no data found (404)', contentType, url)
