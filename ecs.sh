@@ -3,7 +3,7 @@
 #for .env scope in this script
 export $(egrep -v '^#' .env | xargs)
 
-# OLD_REGION=$(aws configure get region)
+OLD_REGION=$(aws configure get region)
 aws configure set region $AWS_REGION
 
 export IMAGE_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
@@ -16,4 +16,4 @@ docker --context ecs compose -f docker-compose.yml -f docker-compose.aws.yml dow
 docker --context ecs compose -f docker-compose.yml -f docker-compose.aws.yml up
 docker --context ecs compose -f docker-compose.yml -f docker-compose.aws.yml ps
 
-# aws configure set region $OLD_REGION
+aws configure set region $OLD_REGION
