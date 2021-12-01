@@ -5,6 +5,7 @@ import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeT
 import { getImageMime } from './image-filetype'
 import loadConfig from '../utils/load-config'
 import { slackLogger } from '../utils/slackLogger'
+import si from 'systeminformation'
 
 
 const prefix = 'filter-host'
@@ -67,6 +68,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 			logger(prefix, 'UNHANDLED Error processing', url + ' ', status, ':', e.message)
 			await slackLogger(prefix, 'UNHANDLED Error processing', txid, status, ':', e.message)
 			logger(prefix, 'UNHANDLED', e)
+			logger(prefix, await si.mem())
 		}
 		return false;
 	}

@@ -9,6 +9,7 @@ import { dbNoDataFound, dbNoDataFound404, dbNoMimeType, dbPartialVideoFound, dbW
 import { VidDownloadRecord, VidDownloads } from "./VidDownloads";
 import { TxRecord } from "../../types";
 import { slackLogger } from "../../utils/slackLogger";
+import si from 'systeminformation'
 
 
 const downloads = VidDownloads.getInstance()
@@ -160,6 +161,9 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			}
 			vid.complete = 'ERROR'
 			filewriter.end()
+
+			logger(vid.txid, await si.mem())
+
 			const status = Number(e.response?.status) || 0
 			const code = e.response?.code || e.code || 'no-code'
 

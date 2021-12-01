@@ -5,6 +5,7 @@ import { logger } from '../utils/logger'
 import { rater } from './rating-queues'
 import loadConfig from '../utils/load-config'
 import { slackLogger } from '../utils/slackLogger'
+import si from 'systeminformation'
 
 const prefix = 'rating'
 
@@ -21,6 +22,7 @@ const main = async()=> {
 		rater(config.lowmem)
 
 	}catch(e){
+		logger(prefix, await si.mem())
 		if(e instanceof Error){
 			logger(prefix, 'Unhandled error in main!\t', e.name, ':', e.message)
 			slackLogger(prefix, 'Unhandled error in main!\t', e.name, ':', e.message)
