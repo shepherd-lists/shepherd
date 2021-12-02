@@ -2,7 +2,7 @@ Description: "Deploys the shepherd networks stack"
 
 Resources:
 
-  VPC:
+  ShepherdVPC:
     Type: 'AWS::EC2::VPC'
     Properties:
       CidrBlock: '10.0.0.0/16'
@@ -15,7 +15,7 @@ Resources:
   Subnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref VPC
+      VpcId: !Ref ShepherdVPC
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: '10.0.0.0/24'
       MapPublicIpOnLaunch: true
@@ -25,7 +25,7 @@ Resources:
   Subnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref VPC
+      VpcId: !Ref ShepherdVPC
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: '10.0.1.0/24'
       MapPublicIpOnLaunch: true
@@ -35,13 +35,14 @@ Resources:
   Subnet3:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref VPC
+      VpcId: !Ref ShepherdVPC
       AvailabilityZone: !Select [2, !GetAZs '']
       CidrBlock: '10.0.2.0/24'
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: shepherd-subnet3
+# DB subnet group to be passed to rds          
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -51,7 +52,24 @@ Resources:
         - !Ref Subnet2
         - !Ref Subnet3
       DBSubnetGroupName: shepherd-dbsubnetgroup
+  
+# security group to be passed to docker and rds
+  ShepherdSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Shepherd default SG"
+      VpcId: !Ref ShepherdVPC
+      GroupName: shepherd-default-sg
+  DefaultSecurityGroupIngress5432:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ShepherdSecurityGroup
+      SourceSecurityGroupId: !Ref ShepherdSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
 
+# some router/gateway boilerplate
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
@@ -62,11 +80,11 @@ Resources:
     Type: 'AWS::EC2::VPCGatewayAttachment'
     Properties:
       InternetGatewayId: !Ref InternetGateway
-      VpcId: !Ref VPC
+      VpcId: !Ref ShepherdVPC
   RouteTable:
     Type: 'AWS::EC2::RouteTable'
     Properties:
-      VpcId: !Ref VPC
+      VpcId: !Ref ShepherdVPC
       Tags:
         - Key: Name
           Value: shepherd-route-table
@@ -93,12 +111,18 @@ Resources:
       RouteTableId: !Ref RouteTable
       DestinationCidrBlock: '0.0.0.0/0'
 
+
 Outputs:
 
   ShepherdVPC:
-    Description: VPC
-    Value: !Ref VPC
+    Description: ShepherdVPC
+    Value: !Ref ShepherdVPC
 
   ShepherdDBSubnetGroup:
     Description: DBSubnetGroup
     Value: !Ref DBSubnetGroup
+
+  ShepherdSecurityGroup:
+    Description: ShepherdSecurityGroup
+    Value: !Ref ShepherdSecurityGroup
+

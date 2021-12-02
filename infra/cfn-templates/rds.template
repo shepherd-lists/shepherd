@@ -4,16 +4,14 @@ Description: "Deploys shepherd-pgdb, a single RDS instance"
 Parameters:
   KeyVpcSgId:
     Type: String
-  KeyPassword:
-    Type: String
-    Default: postgres
-    NoEcho: true
   KeySubnetGroupName:
     Type: String
 
 Resources:
   ShepherdPgdb:
     Type: AWS::RDS::DBInstance
+    # DeletionPolicy: Retain
+    # UpdateReplacePolicy: Retain
     Properties:
       DBInstanceIdentifier: shepherd-pgdb
       VPCSecurityGroups:
@@ -28,13 +26,16 @@ Resources:
       # DeleteAutomatedBackups: false
       DBName: arblacklist
       MasterUsername: postgres
-      MasterUserPassword:
-        Ref: KeyPassword
+      MasterUserPassword: postgres
       Tags:
         - Key: Project
           Value: "shepherd RDS PostgreSQL"
 
 Outputs:
-  EndpointUrl:
-    Description: "Endpoint of the newly created RDS PostgreSQL"
+  RdsEndpointUrl:
+    Description: "DB_HOST Endpoint of the newly created RDS PostgreSQL"
     Value: !GetAtt ShepherdPgdb.Endpoint.Address
+
+
+
+

@@ -49,20 +49,13 @@ export AWS_DBSUBNETGROUP=$(aws cloudformation describe-stacks \
 sed -i '/^AWS_DBSUBNETGROUP/d' .env  # remove old line before adding new
 echo "AWS_DBSUBNETGROUP=$AWS_DBSUBNETGROUP" | tee -a .env
 
-
-echo "Creating shepherd_default_sg..." 2>&1 | tee -a setup.log
-
-export AWS_SECURITY_GROUP_ID=$(aws ec2 create-security-group \
+export AWS_SECURITY_GROUP_ID=$(aws cloudformation describe-stacks \
 	--region $AWS_REGION \
-	--vpc-id $AWS_VPC_ID \
-	--group-name shepherd_default_sg \
-	--description "shepherd default sg" \
-	--query GroupId \
-	--output text)
+  --stack-name shepherd-networks-stack \
+  --query "Stacks[0].Outputs[?OutputKey=='ShepherdSecurityGroup'].OutputValue" \
+  --output text)
 sed -i '/^AWS_SECURITY_GROUP_ID/d' .env  # remove old line before adding new
 echo "AWS_SECURITY_GROUP_ID=$AWS_SECURITY_GROUP_ID" | tee -a .env
-# create inbound rule for pg rds
-aws ec2 authorize-security-group-ingress --group-id $AWS_SECURITY_GROUP_ID --protocol tcp --port 5432 --source-group $AWS_SECURITY_GROUP_ID
 
 
 echo "Creating RDS via shepherd-rds-stack.template cfn" 2>&1 | tee -a setup.log
@@ -75,7 +68,7 @@ aws cloudformation deploy \
 
 export DB_HOST=$(aws cloudformation describe-stacks \
 	--stack-name "shepherd-rds-stack" \
-	--query "Stacks[0].Outputs[?OutputKey=='EndpointUrl'].OutputValue" \
+	--query "Stacks[0].Outputs[?OutputKey=='RdsEndpointUrl'].OutputValue" \
 	--output text)
 sed -i '/^DB_HOST/d' .env  # remove old line before adding new
 echo "DB_HOST=$DB_HOST" | tee -a .env
