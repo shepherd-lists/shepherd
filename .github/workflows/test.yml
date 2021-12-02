@@ -1,8 +1,7 @@
 name: Test workflow, to later be included in master before build
 on:
-  push:
-    branches:
-      - '!master'
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
   test:
