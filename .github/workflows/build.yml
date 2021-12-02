@@ -1,11 +1,11 @@
 name: Build & push images to AWS. Start a cluster.
 
 on: 
-  push:
-    branches:
-      - master
-    # Allows you to run this workflow manually from the Actions tab
-    workflow_dispatch:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - master
 
 jobs: 
   build:
