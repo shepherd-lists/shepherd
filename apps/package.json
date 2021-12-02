@@ -12,8 +12,7 @@
     "rebuild": "npm run down && npm run up",
     "docker:psql": "docker exec -it shepherd_pgdb_1 psql -U postgres arblacklist",
     "test:grep": "mocha -r ts-node/register tests/**/*.spec.ts --grep",
-    "test": "mocha -r ts-node/register tests/**/*.spec.ts",
-    "postversion": "git push && git push --tags"
+    "test": "mocha -r ts-node/register tests/**/*.spec.ts"
   },
   "keywords": [],
   "author": "Ros McMahon <ros@arweave.org>",
