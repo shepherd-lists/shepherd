@@ -8,11 +8,8 @@ else
 	exit 1
 fi
 
-echo "Deleting RDS pgdb..." 2>&1 | tee -a setup.log
-aws cloudformation delete-stack --stack-name shepherd-rds-stack
-
-echo "Deleting networks stack..." 2>&1 | tee -a setup.log
-aws cloudformation delete-stack --stack-name shepherd-networks-stack
+echo "Deleting cloudformation stack...(networks and RDS)" 2>&1 | tee -a setup.log
+aws cloudformation delete-stack --region $AWS_REGION --stack-name shepherd-aws-stack
 
 
 echo "Deleting ecr repositories..." 2>&1 | tee -a setup.log

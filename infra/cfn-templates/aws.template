@@ -111,6 +111,30 @@ Resources:
       RouteTableId: !Ref RouteTable
       DestinationCidrBlock: '0.0.0.0/0'
 
+  ShepherdPgdb:
+    Type: AWS::RDS::DBInstance
+    # had to add this DependsOn as AWS was not picking up the reference later. bug?
+    DependsOn: DBSubnetGroup
+    # DeletionPolicy: Retain
+    # UpdateReplacePolicy: Retain
+    Properties:
+      DBInstanceIdentifier: shepherd-pgdb
+      VPCSecurityGroups:
+        - Ref: ShepherdSecurityGroup
+      DBSubnetGroupName: 
+        Ref: DBSubnetGroup
+      AllocatedStorage: 20
+      DBInstanceClass: "db.t3.medium"
+      StorageType: gp2
+      Engine: postgres
+      EngineVersion: "13.3"
+      # DeleteAutomatedBackups: false
+      DBName: arblacklist
+      MasterUsername: postgres
+      MasterUserPassword: postgres
+      Tags:
+        - Key: Project
+          Value: "shepherd RDS PostgreSQL"
 
 Outputs:
 
@@ -118,11 +142,10 @@ Outputs:
     Description: ShepherdVPC
     Value: !Ref ShepherdVPC
 
-  ShepherdDBSubnetGroup:
-    Description: DBSubnetGroup
-    Value: !Ref DBSubnetGroup
-
   ShepherdSecurityGroup:
     Description: ShepherdSecurityGroup
     Value: !Ref ShepherdSecurityGroup
 
+  RdsEndpointUrl:
+    Description: "DB_HOST Endpoint of the newly created RDS PostgreSQL"
+    Value: !GetAtt ShepherdPgdb.Endpoint.Address
