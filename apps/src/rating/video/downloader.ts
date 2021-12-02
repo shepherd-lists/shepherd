@@ -162,8 +162,6 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			vid.complete = 'ERROR'
 			filewriter.end()
 
-			logger(vid.txid, await si.mem())
-
 			const status = Number(e.response?.status) || 0
 			const code = e.response?.code || e.code || 'no-code'
 
@@ -183,6 +181,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				logger(vid.txid, 'Full error e:', e)
 				if(e.response){ logger(vid.txid, 'Full error e.response:', e.response) }
 				slackLogger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', code, ':', status, ':', e.message)
+				logger(vid.txid, await si.mem())
 				reject(e)
 			}
 		}
