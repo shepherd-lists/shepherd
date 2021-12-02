@@ -1,81 +1,53 @@
 version: '3.7'
 
 services:
-  pgdb:
-    image: ${IMAGE_REPO}/shepherd-pgdb:${TARGET:-prod}
+  scanner:
+    hostname: ${IMAGE_REPO:-dummy}-shepherd-scanner
     build: 
-      context: ./postgres
-    volumes: 
-      - pgdata:/var/lib/postgresql/data
+      context: ./apps
+      target: scanner
     environment: 
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: arblacklist
-      PGDATA: /var/lib/postgresql/data/pgdata
+      DB_HOST: ${DB_HOST:-pgdb}
+      PROCESS_NAME: scanner
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK}
     restart: always
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 4G
   webserver:
-    image: ${IMAGE_REPO}/shepherd-webserver:${TARGET:-prod}
     build: 
-      context: .
-      target: ${TARGET:-prod}
+      context: ./apps
+      target: web
     environment: 
-      DB_HOST: pgdb
+      DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: webserver
-    depends_on: 
-      - pgdb
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
     ports: 
       - '80:80'
     restart: always
+    depends_on:
+      - scanner
   http-api:
-    image: ${IMAGE_REPO}/shepherd-http-api:${TARGET:-prod}
     build: 
-      context: .
-      target: ${TARGET:-prod}
+      context: ./apps
+      target: web
     environment: 
-      DB_HOST: pgdb
+      DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: http-api
-    depends_on: 
-      - pgdb
-    ports: 
-      - '84:84'
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK}
+    # ports: 
+    #   - '84:84'
     restart: always
-  scanner:
-    image: ${IMAGE_REPO}/shepherd-scanner:${TARGET:-prod}
-    hostname: ${IMAGE_REPO}-shepherd-scanner
-    build: 
-      context: .
-      target: prod
-    environment: 
-      DB_HOST: pgdb
-      PROCESS_NAME: scanner
-    depends_on: 
-      - pgdb
-    restart: always
+    depends_on:
+      - scanner
   rating:
-    image: ${IMAGE_REPO}/shepherd-rating:${TARGET:-prod}
-    hostname: ${IMAGE_REPO}-shepherd-rating
-    deploy:
-      resources:
-        limits:
-          cpus: '4.0'
-          memory: 30G
+    hostname: ${IMAGE_REPO:-dummy}-shepherd-rating
     build: 
-      context: .
-      target: prod
+      context: ./apps
+      target: rating
     environment: 
-      DB_HOST: pgdb
+      DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: rating
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
       NODE_OPTIONS: '--max-old-space-size=8192'
-    depends_on: 
-      - pgdb
+      TF_ENABLE_ONEDNN_OPTS: '1'
     restart: always
-volumes:
-  pgdata:
-    driver_opts:
-      performance-mode: maxIO
-      throughput-mode: bursting
+    depends_on:
+      - scanner

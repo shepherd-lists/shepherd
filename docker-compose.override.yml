@@ -1,23 +1,19 @@
 version: '3.7'
 
 services:
-  pgdb-test:
+  pgdb:
     build: 
       context: ./postgres
+    volumes: 
+      - pgdata:/var/lib/postgresql/data
     environment: 
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: arblacklist
       PGDATA: /var/lib/postgresql/data/pgdata
     restart: always
-  test:
-    build: 
-      context: ./apps
-      dockerfile: Dockerfile.test
-      # target: test
-    environment: 
-      DB_HOST: pgdb-test
-      PROCESS_NAME: test
-      NODE_OPTIONS: '--max-old-space-size=8192'
+  scanner:
     depends_on: 
-      - pgdb-test
+      - pgdb
+volumes:
+  pgdata:

@@ -1,0 +1,25 @@
+version: '3.7'
+
+# x-aws-cluster: ECS cluster ID
+x-aws-vpc: arn:aws:ec2:${AWS_REGION}:${AWS_ACCOUNT_ID}:vpc/${AWS_VPC_ID}
+# x-aws-loadbalancer: ARN of an existing LoadBalancer
+
+services:
+  webserver:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/shepherd-webserver:${IMAGE_TAG:-latest}
+  http-api:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/shepherd-http-api:${IMAGE_TAG:-latest}
+  scanner:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/shepherd-scanner:${IMAGE_TAG:-latest}
+  rating:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 30G
+
+networks:
+  default:
+    external: true
+    name: ${AWS_SECURITY_GROUP_ID}

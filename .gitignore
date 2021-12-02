@@ -1,15 +1,15 @@
 secret
 node_modules
 .env
+.env.aws
 # package-lock.json, using `npm ci` in container
 NOTES.txt
 *.log
 .DS_Store
 .vscode/settings.json
-postgres.build/*
-temp-screencaps/*
 *.tgz
 .vscode
 aws-setup.bat
 out.txt
-/shepherd.config.json
+shepherd.config.json
+cloudformation.yml

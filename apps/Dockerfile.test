@@ -1,0 +1,12 @@
+FROM rosmcmahon/node14-ffmpeg as base
+
+
+# create app directory
+WORKDIR /app
+
+FROM base as test
+COPY package*.json ./
+RUN npm ci
+COPY . .
+COPY shepherd.config.test.json shepherd.config.json
+RUN npm install -g knex ts-node
