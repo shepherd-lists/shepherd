@@ -81,7 +81,7 @@ const scanner = async()=> {
 				max = min + numOfBlocks - 1
 
 				const tProcess = performance.now() - t0
-				let timeout = 1000 - tProcess
+				let timeout = 2000 - tProcess
 				if(timeout < 0) timeout = 0
 				console.log(`scanned ${numOfBlocks} blocks in ${tProcess} ms. pausing for ${timeout}ms`)
 				await sleep(timeout) //slow down, we're getting rate-limited 
