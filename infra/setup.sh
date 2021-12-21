@@ -12,6 +12,9 @@ else
 	exit 1
 fi
 
+export SCRIPT_DIR=$(dirname "$(realpath $0)")
+echo "SCRIPT_DIR=$SCRIPT_DIR"
+
 echo "Setting AWS_ACCOUNT_ID ..." 2>&1 | tee -a setup.log
 
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -29,7 +32,7 @@ aws ecr create-repository --region $AWS_REGION --repository-name shepherd-http-a
 echo "Creating VPC, adding ID to .env, all the network stuff, via networks.template cfn" 2>&1 | tee -a setup.log
 
 aws cloudformation deploy --region $AWS_REGION \
-	--template-file ./infra/cfn-templates/aws.template \
+	--template-file $SCRIPT_DIR/cfn-templates/aws.template \
 	--stack-name shepherd-aws-stack
 
 export AWS_VPC_ID=$(aws cloudformation describe-stacks \
