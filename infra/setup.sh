@@ -4,14 +4,19 @@
 #   Prequisite: install and configure aws-cli@2   #
 ###################################################
 
+echo "+====================================================+"			2>&1 | tee -a setup.log
+echo "| Starting $(realpath $0) @ $(date --rfc-3339=seconds) |"		2>&1 | tee -a setup.log
+echo "+====================================================+"			2>&1 | tee -a setup.log
+
 # import .env
 if [ -f ".env" ]; then
 	export $(egrep -v '^#' .env | xargs)
+	# should probably check for mandatory vars here
 else
 	echo "file .env not found. exiting"
 	exit 1
 fi
-
+# for any relative paths
 export SCRIPT_DIR=$(dirname "$(realpath $0)")
 echo "SCRIPT_DIR=$SCRIPT_DIR"
 
@@ -29,7 +34,7 @@ aws ecr create-repository --region $AWS_REGION --repository-name shepherd-rating
 aws ecr create-repository --region $AWS_REGION --repository-name shepherd-http-api   2>&1 | tee -a setup.log
 
 
-echo "Creating VPC, adding ID to .env, all the network stuff, via networks.template cfn" 2>&1 | tee -a setup.log
+echo "Creating VPC, adding ID to .env, all the network stuff, via aws.template cfn" 2>&1 | tee -a setup.log
 
 aws cloudformation deploy --region $AWS_REGION \
 	--template-file $SCRIPT_DIR/cfn-templates/aws.template \
