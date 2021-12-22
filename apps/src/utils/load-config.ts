@@ -26,10 +26,8 @@ const config = async()=> {
 
 		//remove org/user detail
 		const interArr = installString.split('/')
-		let packageName = ''
-		if(interArr.length === 2) packageName = interArr[1]
-		else if(interArr.length === 1) packageName = interArr[0]
-		else throw new Error('Bad plugin string: ' + installString)
+		let packageName = interArr[interArr.length - 1]
+		if(!packageName) throw new Error('Bad plugin string: ' + installString)
 		
 		//remove version detail
 		packageName = packageName.split('@')[0] 
