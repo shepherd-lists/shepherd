@@ -12,7 +12,16 @@ import { slackLogger } from "../utils/slackLogger"
 //leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
 const TRAIL_BEHIND = 15 
 
-const getTopBlock = async () => Number((await axios.get(`${HOST_URL}/info`)).data.height)
+const getTopBlock = async () => {
+	//return Number((await axios.get(`${HOST_URL}/info`)).data.height)
+	/* use GQL's current block as it can get out of sync */
+
+	const query = "query($minBlock: Int) {\n  blocks(\n    height: {\n      min: $minBlock,\n    }\n    first: 1\n    sort: HEIGHT_DESC\n    \n  ){\n    edges {\n      node {\n        height\n      }\n    }\n  }\n}"
+	const { data } =  await axios.post('https://arweave.net/graphql', {
+		query,
+	})
+	return +data.data.blocks.edges[0].node.height
+}
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
