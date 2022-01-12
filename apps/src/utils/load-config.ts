@@ -20,9 +20,8 @@ const config = async()=> {
 	const plugins: FilterPluginInterface[] = []
 
 	for (const installString of jsonConfig.plugins as string[]) {
-		logger(prefix, `installing '${installString}' shepherd plugin...`)
-		execSync(`npm install ${installString}`, { stdio: 'inherit'})
-		logger(prefix, `installed '${installString}' shepherd plugin complete.`)
+
+		/* get package name from install string */
 
 		//remove org/user detail
 		const interArr = installString.split('/')
@@ -32,14 +31,18 @@ const config = async()=> {
 		//remove version detail
 		packageName = packageName.split('@')[0] 
 
+		logger(prefix, `installing '${installString}' shepherd plugin...`)
+		execSync(`npm list ${packageName} || npm install ${installString}`, { stdio: 'inherit'})
+		logger(prefix, `installation of '${installString}' shepherd plugin complete.`)
+
+		logger(prefix, 'installed version:')
+		execSync(`npm ls ${packageName}`, { stdio: 'inherit' })
+
 		logger(prefix, `loading '${packageName}' shepherd plugin...`)
 		const plugin: FilterPluginInterface = (await import(packageName)).default
 		plugins.push(plugin)
 		logger(prefix, `loading '${packageName}' shepherd plugin complete.`)
 
-		logger(prefix, 'installed version:')
-		const grep = process.platform === 'win32' ? 'findstr' : 'grep'
-		execSync(`npm ls --depth=0 | ${grep} ${packageName}`, { stdio: 'inherit' })
 
 
 		//early model loading
