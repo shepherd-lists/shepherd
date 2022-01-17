@@ -13,3 +13,4 @@ aws-setup.bat
 out.txt
 shepherd.config.json
 cloudformation.yml
+shepherd-plugin-safer
