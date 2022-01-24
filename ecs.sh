@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [[ `uname -m` == 'arm64' && `uname -s` == 'Darwin' ]]; then
+	echo "ABORTING! The container images are currently not building on M1 Silicon"
+	exit 1
+fi
+
 #for .env scope in this script
 export $(egrep -v '^#' .env | xargs)
 
