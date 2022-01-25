@@ -149,3 +149,12 @@ Outputs:
   RdsEndpointUrl:
     Description: "DB_HOST Endpoint of the newly created RDS PostgreSQL"
     Value: !GetAtt ShepherdPgdb.Endpoint.Address
+
+  Subnet1:
+    Value: !Ref Subnet1
+    
+  Subnet2:
+    Value: !Ref Subnet2
+    
+  Subnet3:
+    Value: !Ref Subnet3

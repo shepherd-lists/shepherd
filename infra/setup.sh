@@ -39,7 +39,7 @@ aws ecr create-repository --repository-name shepherd-webserver  2>&1 | tee -a se
 aws ecr create-repository --repository-name shepherd-scanner    2>&1 | tee -a setup.log
 aws ecr create-repository --repository-name shepherd-rating     2>&1 | tee -a setup.log
 aws ecr create-repository --repository-name shepherd-http-api   2>&1 | tee -a setup.log
-
+echo -e "\n\n** N.B. Errors above about RepositoryAlreadyExistsException can be ignored. **\n\n"
 
 echo "Creating VPC, adding ID to .env, all the network stuff, via aws.template cfn" 2>&1 | tee -a setup.log
 
@@ -68,4 +68,25 @@ export DB_HOST=$(aws cloudformation describe-stacks \
 	--output text)
 sed -i '/^DB_HOST/d' .env  # remove old line before adding new
 echo "DB_HOST=$DB_HOST" | tee -a .env
+
+export SUBNET1=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='Subnet1'].OutputValue" \
+	--output text)
+sed -i '/^SUBNET1/d' .env  # remove old line before adding new
+echo "SUBNET1=$SUBNET1" | tee -a .env
+
+export SUBNET2=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='Subnet2'].OutputValue" \
+	--output text)
+sed -i '/^SUBNET2/d' .env  # remove old line before adding new
+echo "SUBNET2=$SUBNET2" | tee -a .env
+
+export SUBNET3=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='Subnet3'].OutputValue" \
+	--output text)
+sed -i '/^SUBNET3/d' .env  # remove old line before adding new
+echo "SUBNET3=$SUBNET3" | tee -a .env
 
