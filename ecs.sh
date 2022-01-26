@@ -22,7 +22,7 @@ aws ecr get-login-password --region $AWS_DEFAULT_REGION --profile shepherd | doc
 
 docker compose -f docker-compose.yml -f docker-compose.aws.yml build
 docker compose -f docker-compose.yml -f docker-compose.aws.yml push
-docker --context ecs compose -f docker-compose.yml -f docker-compose.aws.yml convert > cf.yml.log
+docker --context ecs compose -f docker-compose.yml -f docker-compose.aws.yml convert > "cfn.yml.$(date +"%Y.%m.%d-%H:%M").log"
 docker --context ecs compose -f docker-compose.yml -f docker-compose.aws.yml down
 docker --context ecs compose -f docker-compose.yml -f docker-compose.aws.yml up
 docker --context ecs compose -f docker-compose.yml -f docker-compose.aws.yml ps
