@@ -90,3 +90,10 @@ export SUBNET3=$(aws cloudformation describe-stacks \
 sed -i '/^SUBNET3/d' .env  # remove old line before adding new
 echo "SUBNET3=$SUBNET3" | tee -a .env
 
+export ROUTETABLE=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='RouteTable'].OutputValue" \
+	--output text)
+sed -i '/^ROUTETABLE/d' .env  # remove old line before adding new
+echo "ROUTETABLE=$ROUTETABLE" | tee -a .env
+

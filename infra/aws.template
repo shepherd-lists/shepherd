@@ -76,7 +76,7 @@ Resources:
       IpProtocol: tcp
       FromPort: 84
       ToPort: 84
-
+      
 # some router/gateway boilerplate
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
@@ -160,9 +160,10 @@ Outputs:
 
   Subnet1:
     Value: !Ref Subnet1
-    
   Subnet2:
     Value: !Ref Subnet2
-    
   Subnet3:
     Value: !Ref Subnet3
+
+  RouteTable:
+    Value: !Ref RouteTable
