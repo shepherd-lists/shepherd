@@ -41,7 +41,7 @@ aws ecr create-repository --repository-name shepherd-rating     2>&1 | tee -a se
 aws ecr create-repository --repository-name shepherd-http-api   2>&1 | tee -a setup.log
 echo -e "\n\n** N.B. Errors above about RepositoryAlreadyExistsException can be ignored. **\n\n"
 
-echo "Creating VPC, adding ID to .env, all the network stuff, via aws.template cfn" 2>&1 | tee -a setup.log
+echo "Deploying stack using aws.template..." 2>&1 | tee -a setup.log
 
 aws cloudformation deploy \
 	--template-file $SCRIPT_DIR/aws.template \
