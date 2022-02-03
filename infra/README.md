@@ -12,3 +12,4 @@
 - install brew
 - `brew install coreutils`
 - `brew install gnu-sed` and follow directions to install to path.
+- (optional) `brew install bash` and chsh to new install
