@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 node:14
+FROM node:14
 
 # turn off the nuisance nodejs update message 
 ARG NO_UPDATE_NOTIFIER=true

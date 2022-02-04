@@ -18,7 +18,7 @@ FROM base as scanner
 RUN npm install -g knex ts-node
 ENTRYPOINT knex migrate:latest && node -r ts-node/register src/$PROCESS_NAME/index.ts
 
-FROM rosmcmahon/node14-ffmpeg as rating
+FROM rosmcmahon/node14-ffmpeg:multi-arch as rating
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
