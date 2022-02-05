@@ -57,21 +57,25 @@ export const getBlacklistTestOnly = async(black: boolean)=> {
 export const getStatsTestOnly = async()=> {
 	let html = '<html><body style="font-family:\'Courier New\',monospace;">'
 
-		const txsCount = await db<TxRecord>('txs').count('id')
-		html += `<h1>Total records: ${txsCount[0].count}</h1>`
-		const activeQueue = await db<TxRecord>('txs').whereNull('valid_data').count('id')
-		html += `<h2>Active Queue: ${activeQueue[0].count}</h2>`
-		const inactiveQueue = await db<TxRecord>('txs').whereNotNull('valid_data').whereNull('flagged').count('id')
-		html += `<h2>Inactive Queue: ${inactiveQueue[0].count}</h2>`
+	const txsCount = await db<TxRecord>('txs').count('id')
+	html += `<h1>Total records: ${txsCount[0].count}</h1>`
 
-		//select content_type, count(*) from txs where valid_data is null group by content_type;
-		const results = await db<TxRecord>('txs').select('content_type').count('content_type').whereNull('valid_data').groupBy('content_type')
+	const inflightNoop = await db<TxRecord>('txs').whereNull('flagged').where({data_reason: 'noop'}).count('id')
+	html += `<h2>Inflight noop: ${inflightNoop[0].count}</h2>`
 
-		html += '<table>'
-		for (const res of results) {
-			html += `<tr><td>${res.content_type}</td><td>${res.count}</td><tr>`
-		}
-		html += '</table>'
+	const unfinished = await db<TxRecord>('txs').whereNull('flagged').count('id')
+	html += `<h2>Unflagged: ${unfinished[0].count}</h2>`
+
+	//select content_type, count(*) from txs where valid_data is null group by content_type;
+	const results = await db<TxRecord>('txs').select('content_type').count('content_type').whereNull('valid_data').groupBy('content_type')
+
+	html += '<table>'
+	for (const res of results) {
+		html += `<tr><td>${res.content_type}</td><td>${res.count}</td><tr>`
+	}
+	html += '</table>'
+	
+
 	
 	return html + '</table></body></html>'
 }
