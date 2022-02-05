@@ -52,6 +52,7 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 	if(result.flagged !== undefined){
 		const res = await updateDb(txid, {
 			flagged: result.flagged,
+			valid_data: true,
 		})
 		if(res !== txid){
 			throw new Error('Could not update database')

@@ -11,6 +11,8 @@ fi
 echo "Deleting cloudformation stack...(networks and RDS)" 2>&1 | tee -a setup.log
 aws cloudformation delete-stack --stack-name shepherd-aws-stack
 
+echo "Waiting for delete stack to complete..." 2>&1 | tee -a setup.log
+aws cloudformation wait stack-delete-complete --stack-name shepherd-aws-stack 2>&1 | tee -a setup.log
 
 echo "Deleting ecr repositories..." 2>&1 | tee -a setup.log
 aws ecr delete-repository --repository-name shepherd-webserver --force  2>&1 | tee -a setup.log
