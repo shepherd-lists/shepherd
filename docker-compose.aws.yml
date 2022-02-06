@@ -11,6 +11,11 @@ services:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-http-api:${IMAGE_TAG:-latest}
   scanner:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-scanner:${IMAGE_TAG:-latest}
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
   rating:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
     deploy:
