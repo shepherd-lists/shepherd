@@ -1,4 +1,4 @@
-import { TxRecord } from '../types'
+import { TxRecord, StateRecord } from '../types'
 import getDb from '../utils/db-connection'
 import { logger } from '../utils/logger'
 
@@ -59,6 +59,9 @@ export const getStatsTestOnly = async()=> {
 
 	const txsCount = await db<TxRecord>('txs').count('id')
 	html += `<h1>Total records: ${txsCount[0].count}</h1>`
+
+	const scanPosn = await db<StateRecord>('states').where({ pname: 'scanner_position'})
+	html += `Scanner Position: ${scanPosn[0].value}` 
 
 	const inflightNoop = await db<TxRecord>('txs').whereNull('flagged').where({data_reason: 'noop'}).count('id')
 	html += `<h2>Inflight noop: ${inflightNoop[0].count}</h2>`
