@@ -7,6 +7,7 @@ import { logger } from "../utils/logger"
 import { scanBlocks } from "./scan-blocks"
 import { performance } from 'perf_hooks'
 import { slackLogger } from "../utils/slackLogger"
+import si from 'systeminformation'
 
 
 //leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
@@ -47,7 +48,8 @@ const scanner = async()=> {
 		 * keep pace once at the top: 1
 		 */
 		const db = dbConnection()
-		let position = (await db<StateRecord>('states').where({pname: 'scanner_position'}))[0].value
+		const readPosition = async()=> (await db<StateRecord>('states').where({pname: 'scanner_position'}))[0].value
+		let position = await readPosition()
 		let topBlock = await getTopBlock()
 		const initialHeight = topBlock // we do not want to keep calling getTopBlock during initial catch up phase
 
@@ -57,7 +59,7 @@ const scanner = async()=> {
 			if(position < 150000) return 1000
 			if(position < 350000) return 100
 			if(position < 776000) return 50
-			return 2
+			return 1
 		}
 		
 		let numOfBlocks = calcBulkBlocks(position)
@@ -86,6 +88,16 @@ const scanner = async()=> {
 					'topBlock:', topBlock, 
 				)
 
+				// there might be more than 1 scanner running (replacing)
+				const dbPosition = await readPosition()
+				if(dbPosition < max){
+					await db<StateRecord>('states')
+						.where({pname: 'scanner_position'})
+						.update({value: max})
+				}else{
+					max = dbPosition
+				}
+
 				min = max + 1 
 				max = min + numOfBlocks - 1
 
@@ -97,11 +109,13 @@ const scanner = async()=> {
 
 			} catch(e:any) {
 				logger('Error!', 'Scanner fell over. Waiting 30 seconds to try again.')
+				logger(await si.mem())
 				await sleep(30000)
 			}
 		}///end while(true)
 	} catch(e:any) {
 		logger('UNHANDLED Error in scanner!', e.name, ':', e.message)
+		logger(await si.mem())
 		slackLogger('UNHANDLED Error in scanner!', e.name, ':', e.message)
 	}
 }

@@ -111,11 +111,7 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 		/* not needed yet */
 		const texts: TxScanned[] = [] //await getRecords(textTypes)
 
-		await db<StateRecord>('states')
-			.where({pname: 'scanner_position'})
-			.update({value: maxBlock})
-
-
+		
 		return {
 			images,
 			videos,
