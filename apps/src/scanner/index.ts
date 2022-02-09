@@ -81,9 +81,9 @@ const scanner = async()=> {
 
 				const res = await scanBlocks(min, max)
 				logger('results', 
-					'images:', res.images.length, ',',
-					'videos:', res.videos.length, ',',
-					'texts:', res.texts.length, ',',
+					'images:', res.numImages, ',',
+					'videos:', res.numVideos, ',',
+					'texts:', res.numTexts, ',',
 					'scanner_position:', max, ',',
 					'topBlock:', topBlock, 
 				)
