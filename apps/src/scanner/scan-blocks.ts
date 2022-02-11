@@ -103,6 +103,7 @@ const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string
 
 		if(res.edges && res.edges.length){
 			//do something with res.edges
+			logger('info', `processing gql page of ${res.edges.length} results. cursor: ${cursor}`)
 			numRecords += await insertRecords(res.edges)
 			cursor = res.edges[res.edges.length - 1].cursor
 		}
@@ -114,7 +115,6 @@ const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string
 
 const insertRecords = async(metas: GQLEdgeInterface[])=> {
 	let records: TxScanned[] = []
-	logger('info', `processing gql page of ${metas.length} results`)
 
 	for (const item of metas) {
 		const txid = item.node.id
