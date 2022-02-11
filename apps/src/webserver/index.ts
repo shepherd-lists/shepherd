@@ -2,15 +2,17 @@ require('dotenv').config() //first line of entrypoint
 import express from 'express'
 import { logger } from '../utils/logger'
 import { getBlacklist, getBlacklistTestOnly, getStatsTestOnly } from './blacklist'
-
+import si from 'systeminformation'
 
 const app = express()
 const port = 80
 
 // app.use(cors())
 
-app.get('/', (req, res)=> {
-	res.status(200).send('Webserver operational.')
+app.get('/', async(req, res)=> {
+	res.setHeader('Content-Type', 'text/plain')
+	const text = JSON.stringify(await si.osInfo())
+	res.status(200).send('Webserver operational.\n\n\n' + text)
 })
 
 app.get('/blacklist.txt', async(req, res)=> {
