@@ -119,6 +119,22 @@ Resources:
       RouteTableId: !Ref RouteTable
       DestinationCidrBlock: '0.0.0.0/0'
 
+  # Needed to connect to EIP
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Scheme: internet-facing
+      SecurityGroups:
+      - !Ref ShepherdSecurityGroup
+      Subnets:
+      - !Ref Subnet1
+      - !Ref Subnet2
+      - !Ref Subnet3
+      Tags:
+      - Key: net.arweave.hosted.projects
+        Value: shepherd
+
   ShepherdPgdb:
     Type: AWS::RDS::DBInstance
     # had to add this DependsOn as AWS was not picking up the reference later. bug?
@@ -167,3 +183,8 @@ Outputs:
 
   RouteTable:
     Value: !Ref RouteTable
+
+  LoadBalancerArn:
+    Value: !Ref LoadBalancer
+  LoadBalancerDnsName:
+    Value: !GetAtt LoadBalancer.DNSName

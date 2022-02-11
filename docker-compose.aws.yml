@@ -2,15 +2,18 @@ version: '3.7'
 
 # x-aws-cluster: ECS cluster ID
 x-aws-vpc: arn:aws:ec2:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:vpc/${AWS_VPC_ID}
-# x-aws-loadbalancer: ARN of an existing LoadBalancer
+x-aws-loadbalancer: ${ELB_ARN}
 
 services:
   webserver:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-webserver:${IMAGE_TAG:-latest}
+    platform: linux/amd64
   http-api:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-http-api:${IMAGE_TAG:-latest}
+    platform: linux/amd64
   scanner:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-scanner:${IMAGE_TAG:-latest}
+    platform: linux/amd64
     deploy:
       resources:
         limits:
@@ -18,6 +21,7 @@ services:
           memory: 4G
   rating:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
+    platform: linux/amd64
     deploy:
       resources:
         limits:

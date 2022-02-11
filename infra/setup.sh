@@ -97,3 +97,17 @@ export ROUTETABLE=$(aws cloudformation describe-stacks \
 sed -i '/^ROUTETABLE/d' .env  # remove old line before adding new
 echo "ROUTETABLE=$ROUTETABLE" | tee -a .env
 
+export ELB_ARN=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='LoadBalancerArn'].OutputValue" \
+	--output text)
+sed -i '/^ELB_ARN/d' .env  # remove old line before adding new
+echo "ELB_ARN=$ELB_ARN" | tee -a .env
+
+export ELB_DNSNAME=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='LoadBalancerDnsName'].OutputValue" \
+	--output text)
+sed -i '/^ELB_DNSNAME/d' .env  # remove old line before adding new
+echo "ELB_DNSNAME=$ELB_DNSNAME" | tee -a .env
+
