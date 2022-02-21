@@ -55,7 +55,7 @@ Notes:
 - at least 10GB of free disk space
 - windows: no specific requirements
 - linux: swap file or partition must exist. Example: 32GB ram / 64GB swap
-- apple m1 silicon: cpu not yet supported for default plugin `shepherd-plugin-nsfw`
+- apple m1 silicon: now fully supported, no specific requirements
 - other arm cpus or macos x86: untested, test reports welcome!
 
 ## Prerequisites
@@ -71,7 +71,7 @@ Clone this repo and cd in to the `shepherd` directory. Configure `apps/shepherd.
 ```
 docker-compose up -d
 ```
-That's it! There's also `run.bat` and `./run.sh` for your convenience.
+That's it! There's also `start.bat` and `./start.sh` for your convenience.
 
 ## Usage
 

@@ -17,7 +17,7 @@ ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 FROM base as scanner
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
-FROM rosmcmahon/node14-ffmpeg as rating
+FROM rosmcmahon/node14-ffmpeg:multi-arch as rating
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
