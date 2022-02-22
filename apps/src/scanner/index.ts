@@ -20,6 +20,7 @@ const start = async()=> {
 		}
 		
 		scanner()
+		
 	}catch(e){
 		logger('Error!', 'error upgrading database', e)
 	}
