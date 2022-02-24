@@ -18,12 +18,6 @@ export interface TxRecord extends TxScanned {
 		| 'noop'
 		| (string & {}) //intellisense hack
 
-	nsfw_porn: number
-	nsfw_sexy: number
-	nsfw_hentai: number
-	nsfw_neutral: number
-	nsfw_drawings: number
-
 	last_update_date: Date
 }
 
