@@ -11,13 +11,19 @@ const db = dbConnection()
 
 const start = async()=> {
 	try{
-		const res = await db.migrate.latest({ directory: './migrations/'})
-		const status = res[0]
+		/**
+		 * Database updates happen here before scanner and other services start
+		 */
+		const migrate = await db.migrate.latest({ directory: './migrations/'})
+		const status = migrate[0]
 		if(status === 1){
-			logger('info', col.green('Database upgrades complete'), res[1])
+			logger('migrate', col.green('Database upgrades complete'), migrate[1])
 		}else if(status === 2){
-			logger('info', col.green('Database upgrade not required'), res[1])
+			logger('migrate', col.green('Database upgrade not required'), migrate[1])
 		}
+
+		const seed = await db.seed.run({ directory: './seeds/'})
+		logger('info', 'applied the following seed files', seed)
 		
 		scanner()
 		
