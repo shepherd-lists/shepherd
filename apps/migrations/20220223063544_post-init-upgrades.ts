@@ -15,7 +15,6 @@ export async function up(knex: Knex): Promise<void> {
 		table.integer('height')
 
 	})
-	//create new flagged table?
 }
 
 
