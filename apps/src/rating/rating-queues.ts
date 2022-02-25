@@ -94,7 +94,7 @@ export const rater = async(lowmem: boolean)=>{
 
 	let imageQueue = await getImages(BATCH_IMAGE)
 	let gifQueue = await getGifs(BATCH_GIF)
-	let vidQueue = await getVids(BATCH_VIDEO)
+	let vidQueue: TxRecord[] = [] //await getVids(BATCH_VIDEO)
 	let otherQueue = await getOthers(BATCH_OTHER)
 
 	const vidDownloads = VidDownloads.getInstance()
@@ -160,7 +160,7 @@ export const rater = async(lowmem: boolean)=>{
 		imageQueue = await getImages(BATCH_IMAGE)
 		gifQueue = await getGifs(BATCH_GIF)
 		if(otherQueue.length === 0) otherQueue = await getOthers(BATCH_OTHER)
-		vidQueue = await getVids(BATCH_VIDEO)
+		vidQueue = []//await getVids(BATCH_VIDEO)
 		const t1 = performance.now()
 		logger(prefix, 'sql queries took', (t1-t0).toFixed(2), 'ms to complete')
 
