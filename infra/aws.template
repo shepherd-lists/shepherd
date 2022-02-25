@@ -148,7 +148,7 @@ Resources:
       DBSubnetGroupName: 
         Ref: DBSubnetGroup
       AllocatedStorage: 40
-      DBInstanceClass: "db.t3.medium"
+      DBInstanceClass: "db.t3.xlarge"
       StorageType: gp2
       Engine: postgres
       EngineVersion: "13.3"
