@@ -2,7 +2,7 @@ version: '3.7'
 
 # x-aws-cluster: ECS cluster ID
 x-aws-vpc: arn:aws:ec2:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:vpc/${AWS_VPC_ID}
-x-aws-loadbalancer: ${ELB_ARN}
+# x-aws-loadbalancer: ${ELB_ARN}
 
 services:
   webserver:

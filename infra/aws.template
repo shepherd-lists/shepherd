@@ -119,21 +119,21 @@ Resources:
       RouteTableId: !Ref RouteTable
       DestinationCidrBlock: '0.0.0.0/0'
 
-  # Needed to connect to EIP
-  LoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Type: application
-      Scheme: internet-facing
-      SecurityGroups:
-      - !Ref ShepherdSecurityGroup
-      Subnets:
-      - !Ref Subnet1
-      - !Ref Subnet2
-      - !Ref Subnet3
-      Tags:
-      - Key: net.arweave.hosted.projects
-        Value: shepherd
+  # # Needed to connect to EIP
+  # LoadBalancer:
+  #   Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  #   Properties:
+  #     Type: application
+  #     Scheme: internet-facing
+  #     SecurityGroups:
+  #     - !Ref ShepherdSecurityGroup
+  #     Subnets:
+  #     - !Ref Subnet1
+  #     - !Ref Subnet2
+  #     - !Ref Subnet3
+  #     Tags:
+  #     - Key: net.arweave.hosted.projects
+  #       Value: shepherd
 
   ShepherdPgdb:
     Type: AWS::RDS::DBInstance
@@ -147,7 +147,7 @@ Resources:
         - Ref: ShepherdSecurityGroup
       DBSubnetGroupName: 
         Ref: DBSubnetGroup
-      AllocatedStorage: 20
+      AllocatedStorage: 40
       DBInstanceClass: "db.t3.medium"
       StorageType: gp2
       Engine: postgres
