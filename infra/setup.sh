@@ -47,6 +47,8 @@ aws cloudformation deploy \
 	--template-file $SCRIPT_DIR/aws.template \
 	--stack-name shepherd-aws-stack
 
+echo 
+
 export AWS_VPC_ID=$(aws cloudformation describe-stacks \
   --stack-name shepherd-aws-stack \
   --query "Stacks[0].Outputs[?OutputKey=='ShepherdVPC'].OutputValue" \
