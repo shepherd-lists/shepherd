@@ -1,10 +1,10 @@
 import { Knex } from "knex";
 import { StateRecord, TxRecord } from '../src/types'
 import { logger } from '../src/utils/logger'
-import fs from 'fs'
 import { parse } from 'csv-parse'
 import col from 'ansi-colors'
 import got from 'got'
+import AWS from 'aws-sdk'
 
 export async function seed(knex: Knex): Promise<void> {
 
@@ -19,7 +19,7 @@ export async function seed(knex: Knex): Promise<void> {
 	
 	// const parser = fs.createReadStream(`${__dirname}/` + '../../../db-dumps/shepgdb-20220223-txs-TEST.csv').pipe( 
 
-	const parser = got.stream('https://shepherd-dump.s3.eu-west-2.amazonaws.com/shepgdb-20220224-txs.csv').pipe(
+	const parser = got.stream('https://shepherd-seed.s3.eu-central-1.amazonaws.com/shepgdb-20220224-txs.csv').pipe(
 		parse({
 			columns: (header: any[]) => { 
 				header[0] = false  //remove id from records
