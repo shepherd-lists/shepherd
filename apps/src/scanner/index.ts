@@ -14,15 +14,15 @@ const start = async()=> {
 		/**
 		 * Database updates happen here before scanner and other services start
 		 */
-		const migrate = await db.migrate.latest({ directory: './migrations/'})
-		const status = migrate[0]
-		if(status === 1){
-			logger('migrate', col.green('Database upgrades complete'), migrate[1])
-		}else if(status === 2){
-			logger('migrate', col.green('Database upgrade not required'), migrate[1])
+		const [ batchNo, logs] = await db.migrate.latest({ directory: `${__dirname}/../../migrations/`})
+		
+		if(logs.length !== 0){
+			logger('migrate', col.green('Database upgrades complete'), batchNo, logs)
+		}else{
+			logger('migrate', col.green('Database upgrade not required'), batchNo, logs)
 		}
 
-		const seed = await db.seed.run({ directory: './seeds/'})
+		const seed = await db.seed.run({ directory: `${__dirname}/../../seeds/`})
 		logger('info', 'applied the following seed files', seed)
 		
 		scanner()
