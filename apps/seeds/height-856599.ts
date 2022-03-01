@@ -60,6 +60,11 @@ export async function seed(knex: Knex): Promise<void> {
 		if(count % 10000===0) logger('data-seed', 'records done', count)
 
 	}
+	if(batch.length > 0){
+		await knex<TxRecord>('txs').insert(batch).onConflict('txid').ignore()
+	}
+
+
 	logger('data-seed', col.green(`\ndone processing ${count} records :-)`))
 
 	await knex<StateRecord>('states').update({ value: 856599}).where({ pname: 'scanner_position'})
