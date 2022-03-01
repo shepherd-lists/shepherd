@@ -4,7 +4,6 @@ import { logger } from '../src/utils/logger'
 import { parse } from 'csv-parse'
 import col from 'ansi-colors'
 import got from 'got'
-import AWS from 'aws-sdk'
 
 export async function seed(knex: Knex): Promise<void> {
 
