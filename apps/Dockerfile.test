@@ -1,4 +1,4 @@
-FROM rosmcmahon/node14-ffmpeg as base
+FROM rosmcmahon/node14-ffmpeg:multi-arch as base
 
 
 # create app directory
