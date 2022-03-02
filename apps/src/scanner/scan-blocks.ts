@@ -1,12 +1,14 @@
 import * as Gql from 'ar-gql'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { HOST_URL, imageTypes, textTypes, videoTypes } from '../constants'
-import { StateRecord, TxScanned } from '../types'
+import { imageTypes, videoTypes } from '../constants'
+import { TxScanned } from '../types'
 import getDbConnection from '../utils/db-connection'
 import { logger } from '../utils/logger'
+import { performance } from 'perf_hooks'
 
 
-const db = getDbConnection()
+const knex = getDbConnection()
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 interface IGetIdsResults {
 	numImages: number
@@ -82,6 +84,9 @@ const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string
 						name 
 						value
 					}
+					block{
+						height
+					}
 				}
 			}
 		}
@@ -94,6 +99,8 @@ const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string
 	let numRecords = 0 //TxScanned[] = []
 
 	while(hasNextPage){
+		const t0 = performance.now()
+
  		const res = (await Gql.run(query, { 
 			minBlock,
 			maxBlock,
@@ -103,11 +110,16 @@ const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string
 
 		if(res.edges && res.edges.length){
 			//do something with res.edges
-			logger('info', `processing gql page of ${res.edges.length} results. cursor: ${cursor}`)
 			numRecords += await insertRecords(res.edges)
 			cursor = res.edges[res.edges.length - 1].cursor
 		}
 		hasNextPage = res.pageInfo.hasNextPage
+
+		const tProcess = performance.now() - t0
+		let timeout = 500 - tProcess
+		if(timeout < 0) timeout = 0
+		logger('info', `processed gql page of ${res.edges.length} results in ${tProcess.toFixed(0)} ms. pausing for ${timeout.toFixed(0)}ms. cursor: ${cursor}. Total ${numRecords} records.`)
+		await sleep(timeout)
 	}
 
 	return numRecords
@@ -120,6 +132,7 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 		const txid = item.node.id
 		let content_type = item.node.data.type
 		const content_size = item.node.data.size.toString()
+		const height = item.node.block.height
 
 		// this content_type is missing for dataItems
 		if(!content_type){ 
@@ -135,11 +148,12 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 			txid, 
 			content_type,
 			content_size,
+			height,
 		})
 	}
 
 	try{
-		await db<TxScanned>('txs').insert(records).onConflict('txid').ignore()
+		await knex<TxScanned>('txs').insert(records).onConflict('txid').ignore()
 	}	catch(e:any){
 		if(e.code && Number(e.code) === 23505){
 			logger('info', 'Duplicate key value violates unique constraint', e.detail)

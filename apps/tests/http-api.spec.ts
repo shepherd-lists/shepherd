@@ -13,6 +13,7 @@ const mockRecord: TxScanned = {
 	txid: '1234567890123456789012345678901234567890123',
 	content_size: '100',
 	content_type: 'test/dummy',
+	height: 123
 }
 
 describe('http-api tests', ()=>{
@@ -25,6 +26,7 @@ describe('http-api tests', ()=>{
 			txid: mockRecord.txid, 
 			content_size: mockRecord.content_size,
 			content_type: mockRecord.content_type,
+			height: mockRecord.height,
 		})
 	})
 	/* remove mock records after testing */

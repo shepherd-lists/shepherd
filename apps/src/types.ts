@@ -2,6 +2,7 @@ export interface TxScanned {
 	txid: string
 	content_type: string
 	content_size: string //knex.bigInteger returns a string, convert to BigInt
+	height: number
 }
 export interface TxRecord extends TxScanned {
 	readonly id: number
