@@ -10,7 +10,7 @@
     "up": "docker-compose up --build -d && docker-compose logs -f",
     "down": "docker-compose down --remove-orphans",
     "rebuild": "npm run down && npm run up",
-    "psql": "docker exec -it shepherd-pgdb-1 psql -U postgres arblacklist",
+    "psql": "docker exec -it shepherd_pgdb_1 psql -U postgres arblacklist",
     "test:grep": "mocha -r ts-node/register tests/**/*.spec.ts --grep",
     "test": "mocha -r ts-node/register tests/**/*.spec.ts"
   },
@@ -47,6 +47,7 @@
     "knex": "^0.95.14",
     "knex-utils": "^5.3.2",
     "pg": "^8.6.0",
+    "pg-query-stream": "^4.2.3",
     "rimraf": "^3.0.2",
     "shelljs": "^0.8.5",
     "systeminformation": "^5.9.15",
