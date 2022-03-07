@@ -100,13 +100,29 @@ const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string
 
 	while(hasNextPage){
 		const t0 = performance.now()
-
- 		const res = (await Gql.run(query, { 
-			minBlock,
-			maxBlock,
-			mediaTypes,
-			cursor,
-		})).data.transactions
+		let res; 
+		while(true){
+			try{
+				res = (await Gql.run(query, { 
+					minBlock,
+					maxBlock,
+					mediaTypes,
+					cursor,
+				})).data.transactions
+				break;
+			}catch(e:any){
+				if(e instanceof TypeError){
+					logger('gql-error', 'data: null. errors in res.data.errors')
+					continue;
+				}
+				if(e.code && e.code === 'ECONNRESET'){
+					logger('gql-error', 'ECONNRESET')
+					continue;
+				}
+				logger('gql-error', e.response?.status, ':', e.message)
+				throw e;
+			}
+		}
 
 		if(res.edges && res.edges.length){
 			//do something with res.edges
