@@ -92,11 +92,10 @@ const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string
 		}
 	}`
 
-	///TODO: setTimeout for gql.run
 
 	let hasNextPage = true
 	let cursor = ''
-	let numRecords = 0 //TxScanned[] = []
+	let numRecords = 0 
 
 	while(hasNextPage){
 		const t0 = performance.now()
@@ -132,10 +131,7 @@ const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string
 		hasNextPage = res.pageInfo.hasNextPage
 
 		const tProcess = performance.now() - t0
-		let timeout = 500 - tProcess
-		if(timeout < 0) timeout = 0
-		logger('info', `processed gql page of ${res.edges.length} results in ${tProcess.toFixed(0)} ms. pausing for ${timeout.toFixed(0)}ms. cursor: ${cursor}. Total ${numRecords} records.`)
-		await sleep(timeout)
+		logger('info', `processed gql page of ${res.edges.length} results in ${tProcess.toFixed(0)} ms. cursor: ${cursor}. Total ${numRecords} records.`)
 	}
 
 	return numRecords
