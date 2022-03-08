@@ -1,8 +1,9 @@
 require('dotenv').config() //first line of entrypoint
 import express from 'express'
 import { logger } from '../utils/logger'
-import { getBlacklist, getBlacklistTestOnly, getStatsTestOnly } from './blacklist'
+import { getBlacklist, getBlacklistTestOnly, getPerfHistory, getStatsTestOnly } from './blacklist'
 import si from 'systeminformation'
+import './perf-cron' //starts automatically
 
 const app = express()
 const port = 80
@@ -39,5 +40,12 @@ app.get('/nocache-stats.html', async(req, res)=> {
 	res.send(html)
 })
 
+app.get('/perf',async (req, res) => {
+	res.setHeader('Content-Type', 'text/html')
+	const html = await getPerfHistory()
+	res.send(html) 
+})
 
 app.listen(port, ()=> logger(`started on http://localhost:${port}`))
+
+
