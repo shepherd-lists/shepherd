@@ -39,7 +39,6 @@ export async function up(knex: Knex): Promise<void> {
 
 
 export async function down(knex: Knex): Promise<void> {
-	//this seems dangerous?
 	await knex.schema.dropTableIfExists('txs')
 	await knex.schema.dropTableIfExists('states')
 }
