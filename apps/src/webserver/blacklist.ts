@@ -1,4 +1,4 @@
-import { TxRecord, StateRecord } from '../types'
+import { TxRecord, StateRecord, HistoryRecord } from '../types'
 import getDb from '../utils/db-connection'
 import { logger } from '../utils/logger'
 
@@ -83,16 +83,35 @@ export const getStatsTestOnly = async()=> {
 }
 
 export const getPerfHistory = async()=> {
-	let html = '<html><body style="font-family:\'Courier New\',monospace;">'
-
-	const results = await knex<TxRecord>('txs').select('flagged').count('*').groupBy('flagged')
-	console.log(results)
+	let html = `<html>
+		<style>
+			table, th, td {
+				border: 1px solid black;
+				border-collapse: collapse;
+			}
+		</style>
+		<body style="font-family:\'Courier New\',monospace;">`
 	html += '<table>'
-	for (const res of results) {
-		//@ts-ignore
-		html += `<tr><td>${res.flagged}</td><td>${res.count}</td><tr>`
+
+	const records = await knex<HistoryRecord>('history').select('*').orderBy('id', 'desc')
+
+	//column names
+	html += '<tr>'
+	for(const key in records[0]){
+		html += `<th><center>${key}</center></th>`
 	}
-	html += '</table>'
+	html += '</tr>'
+
+	for(const record of records) {
+		console.log(record)
+		html += '<tr>'
+		for(const key in record){
+			//@ts-ignore
+			html += `<td>${record[key]}</td>`
+		}
+		html += '</tr>'
+	}
 	
+	html += '</table>'
 	return html + '</body></html>'
 }
