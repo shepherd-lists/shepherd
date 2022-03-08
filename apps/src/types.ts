@@ -33,3 +33,10 @@ export type FfmpegError = {
 	message: string
 	status: number
 }
+
+export interface HistoryRecord {
+	total_txs: string
+	unflagged: string
+	scanner_position: number
+	gql_height: number
+}
