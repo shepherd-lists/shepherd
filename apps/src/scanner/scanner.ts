@@ -8,26 +8,18 @@ import { scanBlocks } from "./scan-blocks"
 import { performance } from 'perf_hooks'
 import { slackLogger } from "../utils/slackLogger"
 import si from 'systeminformation'
+import { getGqlHeight } from '../utils/gql-height'
 
 
 //leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
 const TRAIL_BEHIND = 15 
 
 
-
-/* use GQL height over /info height, as both can get out of sync */
-const getTopBlock = async () => {
-	const query = "query($minBlock: Int){ blocks( height:{min:$minBlock} first:1 ){ edges{node{height}} }}"
-	const { data } =  await axios.post('https://arweave.net/graphql', {	query })
-	return +data.data.blocks.edges[0].node.height
-}
-
-
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const waitForNewBlock =  async (height: number) => {
 	while(true){
-		let h = await getTopBlock()
+		let h = await getGqlHeight()
 		if(h >= height){
 			return h; //stop waiting
 		}
@@ -49,7 +41,7 @@ export const scanner = async()=> {
 		const db = dbConnection()
 		const readPosition = async()=> (await db<StateRecord>('states').where({pname: 'scanner_position'}))[0].value
 		let position = await readPosition()
-		let topBlock = await getTopBlock()
+		let topBlock = await getGqlHeight()
 		const initialHeight = topBlock // we do not want to keep calling getTopBlock during initial catch up phase
 
 		logger('initialising', 'Starting scanner position', position, 'and weave height', topBlock)
