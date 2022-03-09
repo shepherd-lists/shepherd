@@ -93,24 +93,41 @@ export const getPerfHistory = async()=> {
 		<body style="font-family:\'Courier New\',monospace;">`
 	html += '<table>'
 
-	const records = await knex<HistoryRecord>('history').select('*').orderBy('id', 'desc')
+	const records = await knex<HistoryRecord>('history').select('*')//.orderBy('id', 'desc')
 
 	//column names
 	html += '<tr>'
 	for(const key in records[0]){
 		html += `<th><center>${key}</center></th>`
 	}
+	html += `<th><center>num processed</center></th>`
 	html += '</tr>'
 
-	for(const record of records) {
+	const numFlagged = new Array(records.length)
+	numFlagged[0] = 0
+
+	//first entry
+	html += '<tr>'
+	for(const key in records[0]){
+		//@ts-ignore
+		html += `<td>${records[0][key]}</td>`
+	}
+	html += `<td>${numFlagged[0]}</td>`
+	html += '</tr>'
+
+	for (let i = 1; i < records.length; i++) {
+		const recA = records[i - 1]
+		const recB = records[i]
+		numFlagged[i] = +recA.unflagged - +recB.unflagged + +recB.total_txs - +recA.total_txs
 		html += '<tr>'
-		for(const key in record){
+		for(const key in records[i]){
 			//@ts-ignore
-			html += `<td>${record[key]}</td>`
+			html += `<td>${records[i][key]}</td>`
 		}
+		html += `<td>${numFlagged[i]}</td>`
 		html += '</tr>'
 	}
-	
+
 	html += '</table>'
 	return html + '</body></html>'
 }
