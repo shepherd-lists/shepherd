@@ -86,11 +86,13 @@ const trueCount = (results: boolean[]) => results.reduce((acc, curr)=> curr ? ++
 export const rater = async(lowmem: boolean)=>{
 
 	/* get backlog queues */
+	const NUM_TASKS = 3
 
-	const BATCH_IMAGE = lowmem? 5 : 50
-	const BATCH_GIF = lowmem? 1 : 2
+	const BATCH_IMAGE = lowmem? 5 : 50 * NUM_TASKS
+	const BATCH_GIF = lowmem? 1 : 2 * NUM_TASKS
 	const BATCH_VIDEO = 11
-	const BATCH_OTHER = 1
+	const BATCH_OTHER = 1 
+	const TASK_ID = Number(process.env.TASK_ID) //individual
 
 	let imageQueue = await getImages(BATCH_IMAGE)
 	let gifQueue = await getGifs(BATCH_GIF)
@@ -105,7 +107,9 @@ export const rater = async(lowmem: boolean)=>{
 
 		//splice off a batch from the queue
 		let images = imageQueue.splice(0, Math.min(imageQueue.length, BATCH_IMAGE))
+		images = images.filter(rec=>rec.id % 3 === TASK_ID)
 		let gifs = gifQueue.splice(0, Math.min(gifQueue.length, BATCH_GIF))
+		gifs = gifs.filter(rec=>rec.id % 3 === TASK_ID)
 		let others = otherQueue.splice(0, Math.min(otherQueue.length, BATCH_OTHER))
 
 		const imagesBacklog = images.length + gifs.length // + others.length

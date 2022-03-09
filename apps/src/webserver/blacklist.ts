@@ -103,7 +103,6 @@ export const getPerfHistory = async()=> {
 	html += '</tr>'
 
 	for(const record of records) {
-		console.log(record)
 		html += '<tr>'
 		for(const key in record){
 			//@ts-ignore

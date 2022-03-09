@@ -29,7 +29,23 @@ services:
         limits:
           cpus: '4.0'
           memory: 16G
-  rating:
+  rating0:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
+    platform: linux/amd64
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 30G
+  rating1:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
+    platform: linux/amd64
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 30G
+  rating2:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
     platform: linux/amd64
     deploy:
