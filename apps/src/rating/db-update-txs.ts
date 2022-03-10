@@ -124,7 +124,7 @@ export const dbInflightDel = async(txid: string)=> {
 	try{
 		const ret = await knex<InflightsRecord>('inflights').where({ txid, }).del('txid')
 		if(ret[0] !== txid){
-			logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS')
+			logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS', ret)
 		}
 		return ret[0];
 	}catch(e:any){
@@ -143,12 +143,12 @@ export const dbInflightAdd = async(txid: string)=> {
 		)
 		//consider adding ON CONFLICT DO NOTHING ?
 
-		if(ret[0] !== txid){
-			logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS')
+		if(ret.rows[0].txid !== txid){
+			logger(txid, 'DB_ERROR ADDING TO INFLIGHTS', ret)
 		}
 		return ret[0];
 	}catch(e:any){
-		logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS', e.name, ':', e.message)
+		logger(txid, 'DB_ERROR ADDING TO INFLIGHTS', e.name, ':', e.message)
 		logger(txid, e) // `throw e` does nothing, use the return
 	}	
 }

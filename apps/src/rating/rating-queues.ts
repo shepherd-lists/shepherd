@@ -90,6 +90,7 @@ export const rater = async(lowmem: boolean)=>{
 	const BATCH_VIDEO = 11
 	const BATCH_OTHER = 1 
 	const TASK_ID = Number(process.env.TASK_ID) //individual
+	console.log('TASK_ID', TASK_ID)
 
 	let imageQueue = await getImages(BATCH_IMAGE)
 	let gifQueue = await getGifs(BATCH_GIF)
@@ -104,9 +105,9 @@ export const rater = async(lowmem: boolean)=>{
 
 		//splice off a batch from the queue
 		let images = imageQueue.splice(0, Math.min(imageQueue.length, BATCH_IMAGE))
-		images = images.filter(rec=>rec.id % 3 === TASK_ID)
+		images = images.filter(rec=> (+rec.id % NUM_TASKS === TASK_ID) )
 		let gifs = gifQueue.splice(0, Math.min(gifQueue.length, BATCH_GIF))
-		gifs = gifs.filter(rec=>rec.id % 3 === TASK_ID)
+		gifs = gifs.filter(rec=> (+rec.id % NUM_TASKS === TASK_ID) )
 		// let others = otherQueue.splice(0, Math.min(otherQueue.length, BATCH_OTHER))
 
 		const imagesBacklog = images.length + gifs.length // + others.length
