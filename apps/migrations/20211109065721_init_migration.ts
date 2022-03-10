@@ -1,6 +1,5 @@
 import { Knex } from "knex";
 
-//insert into knex_migrations(name, batch, migration_time) values('20211109065721_init_migration.ts', 1, Now());
 
 export async function up(knex: Knex): Promise<void> {
 	await knex.schema.createTable('txs', (table)=>{
@@ -22,9 +21,6 @@ export async function up(knex: Knex): Promise<void> {
 	})
 	await knex.schema.raw('ALTER TABLE txs ADD CONSTRAINT cc_txid CHECK ((char_length(txid) = 43))')
 
-	/**
-	 * Remove all that dbowner stuff
-	 */
 
 	await knex.schema.createTable('states', table=> {
 		table.increments('id')
