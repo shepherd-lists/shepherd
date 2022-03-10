@@ -9,19 +9,16 @@ import { performance } from 'perf_hooks'
 import * as FilterHost from './filter-host'
 
 const prefix = 'queue'
-const db = getDbConnection()
+const knex = getDbConnection()
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const getImages = async(batch: number)=> {
-	const records = await db<TxRecord>('txs')
+	const records = await knex<TxRecord>('txs')
 	.whereNull('valid_data') //not processed yet
-	.where( function(){
-		this.orWhere({ content_type: 'image/bmp'})
-		.orWhere({ content_type: 'image/jpeg'})
-		.orWhere({ content_type: 'image/png'})
-	})
-	.orderBy('last_update_date', 'desc')
+	.whereIn('content_type', ['image/bmp', 'image/jpeg', 'image/png'])
+	.whereNotIn('id', knex.select('foreign_id').from('inflights'))
+	.orderBy('id', 'desc')
 	.limit(batch)
 
 	const length = records.length
@@ -31,10 +28,11 @@ const getImages = async(batch: number)=> {
 }
 
 const getGifs = async(batch: number)=> {
-	const records = await db<TxRecord>('txs')
+	const records = await knex<TxRecord>('txs')
 	.whereNull('valid_data') //not processed yet
 	.where({ content_type: 'image/gif'})
-	.orderBy('last_update_date', 'desc')
+	.whereNotIn('id', knex.select('foreign_id').from('inflights'))
+	.orderBy('id', 'desc')
 	.limit(batch)
 	
 	const length = records.length
@@ -43,42 +41,41 @@ const getGifs = async(batch: number)=> {
 	return records
 }
 
-const getVids = async(batch: number)=> {
-	const records = await db<TxRecord>('txs')
-	.whereNull('valid_data') //not processed yet
-	.whereIn('content_type', videoTypes)
-	.orderBy('last_update_date', 'asc') //'asc' because we pop()
-	.limit(batch)
+// const getVids = async(batch: number)=> {
+// 	const records = await knex<TxRecord>('txs')
+// 	.whereNull('valid_data') //not processed yet
+// 	.whereIn('content_type', videoTypes)
+// 	.orderBy('last_update_date', 'asc') //'asc' because we pop()
+// 	.limit(batch)
 
-	const length = records.length
-	logger(prefix, length, 'videos selected. batch size', batch)
+// 	const length = records.length
+// 	logger(prefix, length, 'videos selected. batch size', batch)
 
-	return records
-}
+// 	return records
+// }
 
-const getOthers = async(batch: number)=> {
+// const getOthers = async(batch: number)=> {
+// 	//unsupported image types
+// 	const otherImages = await knex<TxRecord>('txs')
+// 	.whereNull('valid_data') //not processed yet
+// 	.whereIn('content_type', unsupportedTypes)
+// 	.orderBy('last_update_date', 'desc')
+// 	.limit(batch)
 
-	//unsupported image types
-	const otherImages = await db<TxRecord>('txs')
-	.whereNull('valid_data') //not processed yet
-	.whereIn('content_type', unsupportedTypes)
-	.orderBy('last_update_date', 'desc')
-	.limit(batch)
+// 	//all the bad txids - partial/corrupt/oversized/timeouts
+// 	const badDatas = await knex<TxRecord>('txs')
+// 	.where({valid_data: false}) //potential bad data
+// 	.whereNull('flagged') //not processed
+// 	.orderBy('last_update_date', 'desc')
+// 	.limit(batch)
 
-	//all the bad txids - partial/corrupt/oversized/timeouts
-	const badDatas = await db<TxRecord>('txs')
-	.where({valid_data: false}) //potential bad data
-	.whereNull('flagged') //not processed
-	.orderBy('last_update_date', 'desc')
-	.limit(batch)
+// 	logger(prefix, otherImages.length, 'unsupported images.', badDatas.length, '"bad" txids')
 
-	logger(prefix, otherImages.length, 'unsupported images.', badDatas.length, '"bad" txids')
-
-	return [
-		...otherImages,
-		...badDatas,
-	] 
-}
+// 	return [
+// 		...otherImages,
+// 		...badDatas,
+// 	] 
+// }
 
 // sum trues from array of booleans
 const trueCount = (results: boolean[]) => results.reduce((acc, curr)=> curr ? ++acc : acc, 0)
@@ -110,7 +107,7 @@ export const rater = async(lowmem: boolean)=>{
 		images = images.filter(rec=>rec.id % 3 === TASK_ID)
 		let gifs = gifQueue.splice(0, Math.min(gifQueue.length, BATCH_GIF))
 		gifs = gifs.filter(rec=>rec.id % 3 === TASK_ID)
-		let others = otherQueue.splice(0, Math.min(otherQueue.length, BATCH_OTHER))
+		// let others = otherQueue.splice(0, Math.min(otherQueue.length, BATCH_OTHER))
 
 		const imagesBacklog = images.length + gifs.length // + others.length
 

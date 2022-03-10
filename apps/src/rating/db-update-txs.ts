@@ -1,12 +1,14 @@
-import { TxRecord } from '../types'
+import { InflightsRecord, TxRecord } from '../types'
 import getDbConnection from '../utils/db-connection'
 import { logger } from '../utils/logger'
-const db = getDbConnection()
+
+
+const knex = getDbConnection()
 
 
 export const updateDb = async(txid: string, updates: Partial<TxRecord>)=> {
 	try{
-		const checkId = await db<TxRecord>('txs').where({txid}).update(updates, 'txid')
+		const checkId = await knex<TxRecord>('txs').where({txid}).update(updates, 'txid')
 		if(checkId[0] !== txid){
 			logger(txid, 'ERROR UPDATING DATABASE!', JSON.stringify(updates))
 		}
@@ -118,10 +120,35 @@ export const dbUnsupportedMimeType = async(txid: string)=> {
 	})
 }
 
-export const dbNoop = async(txid: string)=> {
-	return updateDb(txid,{
-		valid_data: false, // this removes it from current queue
-		data_reason: 'noop',
-		last_update_date: new Date(),
-	})
+export const dbInflightDel = async(txid: string)=> {
+	try{
+		const ret = await knex<InflightsRecord>('inflights').where({ txid, }).del('txid')
+		if(ret[0] !== txid){
+			logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS')
+		}
+		return ret[0];
+	}catch(e:any){
+		logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS', e.name, ':', e.message)
+		logger(txid, e) // `throw e` does nothing, use the return
+	}
+}
+
+export const dbInflightAdd = async(txid: string)=> {
+	try{
+		//knex just not up to the task in this case :-(
+
+		const ret = await knex.raw(`INSERT INTO inflights (txid, foreign_id)
+			SELECT '${txid}', id AS foreign_id FROM txs WHERE txid='${txid}'
+			RETURNING txid;`
+		)
+		//consider adding ON CONFLICT DO NOTHING ?
+
+		if(ret[0] !== txid){
+			logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS')
+		}
+		return ret[0];
+	}catch(e:any){
+		logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS', e.name, ':', e.message)
+		logger(txid, e) // `throw e` does nothing, use the return
+	}	
 }

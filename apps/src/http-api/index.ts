@@ -1,6 +1,6 @@
 require('dotenv').config()
 import express from 'express'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoop, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateDb } from '../rating/db-update-txs'
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightAdd, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateDb } from '../rating/db-update-txs'
 import { APIFilterResult, FilterErrorResult, FilterResult } from '../shepherd-plugin-interfaces'
 import { logger } from '../utils/logger'
 import { slackLogger } from '../utils/slackLogger'
@@ -57,6 +57,8 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 		if(res !== txid){
 			throw new Error('Could not update database')
 		}
+		await dbInflightDel(txid)
+		
 	}else if(result.data_reason === undefined){
 		throw new TypeError('data_reason and flagged cannot both be undefined')
 	}else{
@@ -75,10 +77,6 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 				break;
 			case 'unsupported':
 				await dbUnsupportedMimeType(txid)
-				break;
-			case 'noop':
-				// do nothing, but we need to take it out of the processing queue
-				await dbNoop(txid)
 				break;
 		
 			default:
