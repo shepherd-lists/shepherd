@@ -63,7 +63,7 @@ export const getStatsTestOnly = async()=> {
 	const scanPosn = await knex<StateRecord>('states').where({ pname: 'scanner_position'})
 	html += `Scanner Position: ${scanPosn[0].value}` 
 
-	const inflightNoop = await knex<TxRecord>('txs').whereNull('flagged').where({data_reason: 'noop'}).count('id')
+	const inflightNoop = await knex<TxRecord>('inflight').count('id')
 	html += `<h2>Inflight noop: ${inflightNoop[0].count}</h2>`
 
 	const unfinished = await knex<TxRecord>('txs').whereNull('flagged').count('id')
