@@ -14,6 +14,8 @@ export const unsupportedTypes = [
 	"image/webp",
 	"image/x-ms-bmp",
 	"image/svg+xml",
+	"image/apng",
+	"image/heic",
 ]
 
 export const imageTypes = [

@@ -16,7 +16,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const getImages = async(batch: number)=> {
 	const records = await knex<TxRecord>('txs')
 	.whereNull('valid_data') //not processed yet
-	.whereIn('content_type', ['image/bmp', 'image/jpeg', 'image/png'])
+	.where('content_type', 'like', 'image%')
 	.whereNotIn('id', knex.select('foreign_id').from('inflights'))
 	.orderBy('id', 'desc')
 	.limit(batch)
@@ -27,19 +27,19 @@ const getImages = async(batch: number)=> {
 	return records
 }
 
-const getGifs = async(batch: number)=> {
-	const records = await knex<TxRecord>('txs')
-	.whereNull('valid_data') //not processed yet
-	.where({ content_type: 'image/gif'})
-	.whereNotIn('id', knex.select('foreign_id').from('inflights'))
-	.orderBy('id', 'desc')
-	.limit(batch)
+// const getGifs = async(batch: number)=> {
+// 	const records = await knex<TxRecord>('txs')
+// 	.whereNull('valid_data') //not processed yet
+// 	.where({ content_type: 'image/gif'})
+// 	.whereNotIn('id', knex.select('foreign_id').from('inflights'))
+// 	.orderBy('id', 'desc')
+// 	.limit(batch)
 	
-	const length = records.length
-	logger(prefix, length, 'gifs selected. batch size', batch)
+// 	const length = records.length
+// 	logger(prefix, length, 'gifs selected. batch size', batch)
 	
-	return records
-}
+// 	return records
+// }
 
 // const getVids = async(batch: number)=> {
 // 	const records = await knex<TxRecord>('txs')
@@ -84,6 +84,7 @@ export const rater = async(lowmem: boolean)=>{
 
 	/* get backlog queues */
 	const NUM_TASKS = 3
+	const WORKING_RECORDS = 100000 * NUM_TASKS
 
 	const BATCH_IMAGE = lowmem? 5 : 50 * NUM_TASKS
 	const BATCH_GIF = lowmem? 1 : 2 * NUM_TASKS
@@ -92,8 +93,8 @@ export const rater = async(lowmem: boolean)=>{
 	const TASK_ID = Number(process.env.TASK_ID) //individual
 	console.log('TASK_ID', TASK_ID)
 
-	let imageQueue = await getImages(BATCH_IMAGE)
-	let gifQueue = await getGifs(BATCH_GIF)
+	let imageQueue = await getImages(WORKING_RECORDS)
+	// let gifQueue =await getGifs(BATCH_GIF)
 	let vidQueue: TxRecord[] = [] //await getVids(BATCH_VIDEO)
 	let otherQueue: TxRecord[] = [] //await getOthers(BATCH_OTHER)
 
@@ -106,11 +107,11 @@ export const rater = async(lowmem: boolean)=>{
 		//splice off a batch from the queue
 		let images = imageQueue.splice(0, Math.min(imageQueue.length, BATCH_IMAGE))
 		images = images.filter(rec=> (+rec.id % NUM_TASKS === TASK_ID) )
-		let gifs = gifQueue.splice(0, Math.min(gifQueue.length, BATCH_GIF))
-		gifs = gifs.filter(rec=> (+rec.id % NUM_TASKS === TASK_ID) )
+		// let gifs = gifQueue.splice(0, Math.min(gifQueue.length, BATCH_GIF))
+		// gifs = gifs.filter(rec=> (+rec.id % NUM_TASKS === TASK_ID) )
 		// let others = otherQueue.splice(0, Math.min(otherQueue.length, BATCH_OTHER))
 
-		const imagesBacklog = images.length + gifs.length // + others.length
+		const imagesBacklog = images.length //+ gifs.length // + others.length
 
 		if(imagesBacklog !== 0){
 			//process a batch of images
@@ -118,9 +119,9 @@ export const rater = async(lowmem: boolean)=>{
 			const imgRet: boolean[] = await Promise.all(images.map(image => FilterHost.checkImageTxid(image.txid, image.content_type)))
 			logger(prefix, `processed ${trueCount(imgRet)} out of ${images.length} images successfully`)
 			
-			//process a batch of gifs
-			logger(prefix, `processing ${gifs.length} gifs of ${gifQueue.length + gifs.length}`)
-			await Promise.all(gifs.map(gif => FilterHost.checkImageTxid(gif.txid, gif.content_type)))
+			// //process a batch of gifs
+			// logger(prefix, `processing ${gifs.length} gifs of ${gifQueue.length + gifs.length}`)
+			// await Promise.all(gifs.map(gif => FilterHost.checkImageTxid(gif.txid, gif.content_type)))
 			
 			// //process a batch of others
 			// logger(prefix, `processing ${others.length} others of ${otherQueue.length + others.length}`)
@@ -158,9 +159,9 @@ export const rater = async(lowmem: boolean)=>{
 		}
 
 		const t0 = performance.now()
-		//refresh the queues on every single loop to keep current even with a backlog
-		imageQueue = await getImages(BATCH_IMAGE)
-		gifQueue = await getGifs(BATCH_GIF)
+		//refresh the queues only when WORKING_RECORDS are empty
+		if(imageQueue.length === 0) imageQueue = await getImages(WORKING_RECORDS)
+		// gifQueue = await getGifs(BATCH_GIF)
 		if(otherQueue.length === 0) otherQueue = [] //await getOthers(BATCH_OTHER)
 		vidQueue = []//await getVids(BATCH_VIDEO)
 		const t1 = performance.now()
