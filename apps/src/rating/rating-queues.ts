@@ -103,6 +103,7 @@ export const rater = async(lowmem: boolean)=>{
 	/* loop through each queue interleaving one batch at a time */
 	
 	while(true){
+		const t0 = performance.now()
 
 		//splice off a batch from the queue
 		let images = imageQueue.splice(0, Math.min(imageQueue.length, BATCH_IMAGE))
@@ -158,19 +159,21 @@ export const rater = async(lowmem: boolean)=>{
 			await sleep(5000)
 		}
 
-		const t0 = performance.now()
+		
 		//refresh the queues only when WORKING_RECORDS are empty
 		if(imageQueue.length === 0) imageQueue = await getImages(WORKING_RECORDS)
 		// gifQueue = await getGifs(BATCH_GIF)
 		if(otherQueue.length === 0) otherQueue = [] //await getOthers(BATCH_OTHER)
 		vidQueue = []//await getVids(BATCH_VIDEO)
-		const t1 = performance.now()
-		logger(prefix, 'sql queries took', (t1-t0).toFixed(2), 'ms to complete')
+		
 
 		//make sure we're not reloading inflight vids
 		const inflight = vidDownloads.listIds()
 		while((vidQueue.length > 0) && inflight.includes(vidQueue[vidQueue.length-1].id)){
 			vidQueue.pop()
 		}
+		
+		const t1 = performance.now()
+		logger(prefix, '1 loop took', (t1-t0).toFixed(2), 'ms to complete')
 	}
 }
