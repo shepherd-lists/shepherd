@@ -17,6 +17,8 @@ Let's presume you want to load a horizontally scaling container to act as classi
 
 ### 1. Stub Plugin
 
+Instead of processing the files sent to your plugin within that same plugin and process. You can use a stub plugin to send the unprocessed file data to your classifier container. It then returns a special 'noop' message to shepherd so that shepherd does not wait for the result.
+
 Example code for a stub plugin can be seen here: [container-stub-plugin-example](https://github.com/shepherd-media-classifier/container-stub-plugin-example/blob/main/src/index.ts). It's commented and self explanatory.
 
 ### 2. HTTP-API interface
@@ -40,14 +42,20 @@ For reference, the code for the http-api is located in [./apps/src/http-api/inde
 
 ### AWS Infra Support
 
-Step 1 is to copy `.env.aws.example` to `.env`, and fill in your details.
+There is support for running shepherd on AWS ECS using Docker and CloudFormation templates. 
 
-There is support for running shepherd on AWS ECS using Docker and CloudFormation templates. More details can be found in the `./infra/` folder. The `./infra/setup.sh` script must be run first. The AWS regional instance can then be spun up using the `./ecs.sh` script.
+First thing to do is copy `.env.aws.example` to `.env`, and fill in your details.
+
+More information can be found in the `./infra/` folder. 
+
+- The `./infra/setup.sh` script must be run first. This sets up an RDS database, networking, VPC, etc.
+- The AWS regional instance can then be spun up using the `./ecs.sh` script.
 
 The `./infra/setup.sh` exports variables such as 'AWS_VPC_ID', and 'AWS_SECURITY_GROUP_ID' and *also* appends them to your `.env` file. These can be used to add your containers to the shepherd VPC. 
 
 See `docker-compose.aws.yml`, `./ecs.sh`, and `./infra/setup.sh` for example usage.
 
+> Without any configuration, `./ecs.sh` will start a regular module loaded instance with the default shepherd-plugin-nsfw plugin running. It's not particularly balanced in this configuration.
 
 ## Notes
 
