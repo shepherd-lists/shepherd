@@ -15,5 +15,10 @@ services:
   scanner:
     depends_on: 
       - pgdb
+  sqs-local:
+    build: 
+      context: ./sqs-local
+    ports:
+      - '9325:9325' # for UI
 volumes:
   pgdata:
