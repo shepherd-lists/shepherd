@@ -20,5 +20,14 @@ services:
       context: ./sqs-local
     ports:
       - '9325:9325' # for UI
+  feeder:
+    environment:
+      SQS_LOCAL: 'yes'
+      AWS_ACCESS_KEY_ID: dummy 
+      AWS_SECRET_ACCESS_KEY: dummytoo 
+      # AWS_FEEDER_QUEUE: shepherd-feeder-q
+      AWS_FEEDER_QUEUE: http://sqs-local:9324/000000000000/shepherd-feeder-q
+    depends_on:
+      - sqs-local
 volumes:
   pgdata:

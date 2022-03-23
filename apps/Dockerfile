@@ -8,13 +8,18 @@ RUN npm config set update-notifier false
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
-COPY . .
 ENV NODE_ENV=production
 
 FROM base as web
+COPY . .
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as scanner
+COPY . .
+ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
+
+FROM base as feeder
+COPY . .
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM rosmcmahon/node14-ffmpeg:multi-arch as rating

@@ -37,6 +37,7 @@
     "@types/shelljs": "^0.8.9",
     "ansi-colors": "^4.1.1",
     "ar-gql": "0.0.6",
+    "aws-sdk": "^2.1097.0",
     "axios": "^0.24.0",
     "cross-env": "^7.0.3",
     "csv-parse": "^5.0.4",
