@@ -28,8 +28,9 @@ console.log(`process.env.AWS_FEEDER_QUEUE`, process.env.AWS_FEEDER_QUEUE)
 
 const sqs = new SQS({
 	apiVersion: '2012-11-05',
-	...(process.env.SQS_LOCAL==='yes' && { endpoint: 'http://sqs-local:9324', region: 'whatever' })
+	...(process.env.SQS_LOCAL==='yes' && { endpoint: 'http://sqs-local:9324', region: 'dummy-value' })
 })
+console.log('sqs.config.endpoint', sqs.config.endpoint)
 
 export const feeder = async()=> {
 
@@ -45,12 +46,21 @@ export const feeder = async()=> {
 	let entries: SQS.SendMessageBatchRequestEntryList = []
 	const messageBatchSize = 10 // max 10 messages for sqs.sendMessageBatch
 	
+	// await sqs.sendMessage({
+	// 	QueueUrl: process.env.AWS_FEEDER_QUEUE as string,
+	// 	MessageDeduplicationId: records[0].txid,
+	// 	MessageBody: JSON.stringify(records[0]),
+	// 	MessageGroupId: 'group0',
+	// }).promise()
+
 	let t0 = performance.now()
 	
 	for(const rec of records){
 
 		entries.push({
 			Id: rec.txid,
+			MessageDeduplicationId: rec.txid,
+			MessageGroupId: 'group0',
 			MessageBody:  JSON.stringify(rec)
 		})
 
@@ -83,4 +93,10 @@ export const feeder = async()=> {
 	)
 	await Promise.all(promises)
 	console.log(`${count} messages sent`)
+
+	const { Attributes } = await sqs.getQueueAttributes({
+		QueueUrl: process.env.AWS_FEEDER_QUEUE as string,
+		AttributeNames: ['ApproximateNumberOfMessages'],
+	}).promise()
+	console.log(Attributes)
 }

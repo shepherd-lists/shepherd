@@ -1,5 +1,4 @@
 require('dotenv').config() //first line of entrypoint
-import loadConfig from '../utils/load-config'
 import { logger } from '../utils/logger'
 import { slackLogger } from '../utils/slackLogger'
 import si from 'systeminformation'
@@ -9,8 +8,6 @@ const prefix = 'feeder'
 
 const main = async()=> {
 	try{
-
-		// const config = await loadConfig() // this calls the init functions early
 
 		await feeder()
 
