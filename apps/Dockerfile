@@ -19,8 +19,14 @@ COPY . .
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as feeder
-COPY . .
-ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
+COPY ./src/feeder ./src/feeder
+COPY ./src/types.ts ./src/
+COPY ./src/utils ./src/utils
+ENTRYPOINT node -r ts-node/register src/feeder/index.ts
+
+FROM base as fetchers
+COPY ./src/fetchers ./src/fetchers
+ENTRYPOINT node -r ts-node/register src/fetchers/index.ts
 
 FROM rosmcmahon/node14-ffmpeg:multi-arch as rating
 WORKDIR /app

@@ -40,14 +40,22 @@ services:
   feeder:
     build:
       context: ./apps
-      # dockerfile: Dockerfile.feeder
       target: feeder
     environment:
       PROCESS_NAME: feeder
       DB_HOST: ${DB_HOST:-pgdb}
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
-    # depends_on: 
-    #   - scanner
+    depends_on: 
+      # - scanner
+      - pgdb
+  fetchers:
+    build: 
+      context: ./apps
+      target: fetchers
+    environment:
+      PROCESS_NAME: fetchers
+      DB_HOST: ${DB_HOST:-pgdb}
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
   # rating0:
   #   hostname: ${IMAGE_REPO:-dummy}-shepherd-rating
   #   build: 
