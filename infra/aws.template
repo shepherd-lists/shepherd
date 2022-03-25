@@ -159,6 +159,20 @@ Resources:
       Tags:
         - Key: Project
           Value: "shepherd RDS PostgreSQL"
+  
+  # shepherd-feeder-q
+  SQSFeederQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: shepherd-feeder-q.fifo
+      MessageRetentionPeriod: 1209600 # 14 days (AWS max value)
+      FifoQueue: true
+      ContentBasedDeduplication: true
+      DeduplicationScope: queue
+      VisibilityTimeout: 900 # 15 minutes
+      # RedrivePolicy:
+      #   deadLetterTargetArn: !GetAtt SQSInputQueueDLQ.Arn
+      #   maxReceiveCount: 10
 
 Outputs:
 
@@ -173,6 +187,10 @@ Outputs:
   RdsEndpointUrl:
     Description: "DB_HOST Endpoint of the newly created RDS PostgreSQL"
     Value: !GetAtt ShepherdPgdb.Endpoint.Address
+
+  SQSFeederQueue:
+    Value: !GetAtt SQSFeederQueue.QueueUrl
+
 
   Subnet1:
     Value: !Ref Subnet1

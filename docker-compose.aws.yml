@@ -29,30 +29,63 @@ services:
         limits:
           cpus: '4.0'
           memory: 16G
-  rating0:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
+  feeder:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-feeder:${IMAGE_TAG:-latest}
     platform: linux/amd64
     deploy:
       resources:
         limits:
-          cpus: '4.0'
-          memory: 30G
-  rating1:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
+          cpus: '2.0'
+          memory: 8G
+    environment:
+      AWS_FEEDER_QUEUE: ${AWS_FEEDER_QUEUE}
+    x-aws-role:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Action: 'sqs:*' 
+        Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-feeder-q.fifo'
+  fetchers:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-fetchers:${IMAGE_TAG:-latest}
     platform: linux/amd64
     deploy:
       resources:
         limits:
-          cpus: '4.0'
-          memory: 30G
-  rating2:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
-    platform: linux/amd64
-    deploy:
-      resources:
-        limits:
-          cpus: '4.0'
-          memory: 30G
+          cpus: '2.0'
+          memory: 8G
+    environment:
+      AWS_FEEDER_QUEUE: ${AWS_FEEDER_QUEUE}
+    x-aws-role:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Action: 'sqs:*' 
+        Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-feeder-q.fifo'
+      
+  # rating0:
+  #   image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
+  #   platform: linux/amd64
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '4.0'
+  #         memory: 30G
+  # rating1:
+  #   image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
+  #   platform: linux/amd64
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '4.0'
+  #         memory: 30G
+  # rating2:
+  #   image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
+  #   platform: linux/amd64
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '4.0'
+  #         memory: 30G
 
 networks:
   default:
