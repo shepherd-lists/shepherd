@@ -11,11 +11,18 @@ RUN npm ci --only=production
 ENV NODE_ENV=production
 
 FROM base as web
-COPY . .
+COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
+COPY ./src/utils ./src/utils
+COPY ./src/types.ts ./src/
+COPY ./src/shepherd-plugin-interfaces ./src/shepherd-plugin-interfaces
+COPY ./src/rating/db-update-txs.ts ./src/rating
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as scanner
-COPY . .
+COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
+COPY ./src/types.ts ./src/
+COPY ./src/utils ./src/utils
+COPY ./src/constants.ts ./src/
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as feeder
