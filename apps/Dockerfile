@@ -23,6 +23,8 @@ COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
 COPY ./src/types.ts ./src/
 COPY ./src/utils ./src/utils
 COPY ./src/constants.ts ./src/
+COPY ./migrations ./migrations
+COPY ./seeds ./seeds
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as feeder

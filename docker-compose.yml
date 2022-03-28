@@ -46,8 +46,7 @@ services:
       DB_HOST: ${DB_HOST:-pgdb}
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
     depends_on: 
-      # - scanner
-      - pgdb
+      - scanner
   fetchers:
     build: 
       context: ./apps
