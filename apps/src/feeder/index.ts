@@ -14,6 +14,7 @@ const main = async()=> {
 	}catch(e){
 		if(e instanceof Error){
 			logger(prefix, 'Unhandled error in main!\t', e.name, ':', e.message)
+			console.log(e)
 			slackLogger(prefix, 'Unhandled error in main!\t', e.name, ':', e.message)
 		}else{
 			logger(prefix, 'Unhandled in main!\t', JSON.stringify(e))

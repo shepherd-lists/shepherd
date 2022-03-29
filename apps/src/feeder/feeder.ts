@@ -4,8 +4,10 @@ import { logger } from "../utils/logger"
 import { SQS } from 'aws-sdk'
 import { performance } from 'perf_hooks'
 
+
 const prefix = 'feeder'
 const knex = dbConnection() 
+const QueueUrl = process.env.AWS_FEEDER_QUEUE as string
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -28,7 +30,8 @@ console.log(`process.env.AWS_FEEDER_QUEUE`, process.env.AWS_FEEDER_QUEUE)
 
 const sqs = new SQS({
 	apiVersion: '2012-11-05',
-	...(process.env.SQS_LOCAL==='yes' && { endpoint: 'http://sqs-local:9324', region: 'dummy-value' })
+	...(process.env.SQS_LOCAL==='yes' && { endpoint: 'http://sqs-local:9324', region: 'dummy-value' }),
+	maxRetries: 10, //default 3
 })
 console.log('sqs.config.endpoint', sqs.config.endpoint)
 
@@ -46,8 +49,9 @@ export const feeder = async()=> {
 	let entries: SQS.SendMessageBatchRequestEntryList = []
 	const messageBatchSize = 10 // max 10 messages for sqs.sendMessageBatch
 	
+	console.log('promise batch size', promisesBatch)
 	// await sqs.sendMessage({
-	// 	QueueUrl: process.env.AWS_FEEDER_QUEUE as string,
+	// 	QueueUrl,
 	// 	MessageDeduplicationId: records[0].txid,
 	// 	MessageBody: JSON.stringify(records[0]),
 	// 	MessageGroupId: 'group0',
@@ -67,12 +71,13 @@ export const feeder = async()=> {
 		if(entries.length === messageBatchSize){
 			promises.push(
 				sqs.sendMessageBatch({
-					QueueUrl: process.env.AWS_FEEDER_QUEUE as string,
+					QueueUrl,
 					Entries: entries,
 				}).promise()
 			)
 			entries = []
 		}
+		
 
 		if(promises.length === promisesBatch){
 			await Promise.all(promises)
@@ -85,17 +90,21 @@ export const feeder = async()=> {
 		}
 	}
 	// handle the remainers
-	promises.push(
-		sqs.sendMessageBatch({
-			QueueUrl: process.env.AWS_FEEDER_QUEUE as string,
-			Entries: entries,
-		}).promise()
-	)
-	await Promise.all(promises)
-	console.log(`${count} messages sent`)
+	if(entries.length > 0){
+		promises.push(
+			sqs.sendMessageBatch({
+				QueueUrl,
+				Entries: entries,
+			}).promise()
+		)
+	}
+	if(promises.length > 0){
+		await Promise.all(promises)
+		console.log(`${count} remaining messages sent`)
+	}
 
 	const { Attributes } = await sqs.getQueueAttributes({
-		QueueUrl: process.env.AWS_FEEDER_QUEUE as string,
+		QueueUrl,
 		AttributeNames: ['ApproximateNumberOfMessages'],
 	}).promise()
 	console.log(Attributes)
