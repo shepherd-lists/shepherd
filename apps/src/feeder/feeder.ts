@@ -41,7 +41,23 @@ export const feeder = async()=> {
 	const WORKING_RECORDS = 25000 //aim of min 100k/hr: ~ 15mins of txs
 	const ABSOLUTE_TIMEOUT = 15 * 60 * 1000 //15 mins
 
-	let records = await getTxRecords(WORKING_RECORDS)
+
+	while(true){
+		if(+await approximateNumberOfMessages() < WORKING_RECORDS ){
+			await sendToSqs( await getTxRecords(WORKING_RECORDS) )
+		}
+		await sleep(ABSOLUTE_TIMEOUT)
+
+	}
+}
+
+const approximateNumberOfMessages = async()=> (await sqs.getQueueAttributes({
+	QueueUrl,
+	AttributeNames: ['ApproximateNumberOfMessages'],
+}).promise()).Attributes!.ApproximateNumberOfMessages
+
+
+const sendToSqs = async(records: TxRecord[])=>{
 
 	let count = 0
 	let promises = []
@@ -50,12 +66,6 @@ export const feeder = async()=> {
 	const messageBatchSize = 10 // max 10 messages for sqs.sendMessageBatch
 	
 	console.log('promise batch size', promisesBatch)
-	// await sqs.sendMessage({
-	// 	QueueUrl,
-	// 	MessageDeduplicationId: records[0].txid,
-	// 	MessageBody: JSON.stringify(records[0]),
-	// 	MessageGroupId: 'group0',
-	// }).promise()
 
 	let t0 = performance.now()
 	
@@ -103,9 +113,5 @@ export const feeder = async()=> {
 		console.log(`${count} remaining messages sent`)
 	}
 
-	const { Attributes } = await sqs.getQueueAttributes({
-		QueueUrl,
-		AttributeNames: ['ApproximateNumberOfMessages'],
-	}).promise()
-	console.log(Attributes)
+	console.log('approximateNumberOfMessages', await approximateNumberOfMessages())
 }
