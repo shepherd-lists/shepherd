@@ -42,8 +42,8 @@ export interface HistoryRecord {
 }
 
 export interface InflightsRecord {
-	readonly id: number
+	readonly id?: number
 	foreign_id: number
 	txid: string
-	create_at: Date
+	create_at?: Date
 }

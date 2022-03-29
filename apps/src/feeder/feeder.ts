@@ -1,4 +1,4 @@
-import { TxRecord } from "../types"
+import { TxRecord, InflightsRecord } from "../types"
 import dbConnection from "../utils/db-connection"
 import { logger } from "../utils/logger"
 import { SQS } from 'aws-sdk'
@@ -43,15 +43,16 @@ export const feeder = async()=> {
 
 
 	while(true){
-		if(+await approximateNumberOfMessages() < WORKING_RECORDS ){
+		const numSqsMsgs = await approximateNumberOfMessages()
+		logger(prefix, 'approximateNumberOfMessages', numSqsMsgs)
+		if(numSqsMsgs < WORKING_RECORDS ){
 			await sendToSqs( await getTxRecords(WORKING_RECORDS) )
 		}
 		await sleep(ABSOLUTE_TIMEOUT)
-
 	}
 }
 
-const approximateNumberOfMessages = async()=> (await sqs.getQueueAttributes({
+const approximateNumberOfMessages = async()=> +(await sqs.getQueueAttributes({
 	QueueUrl,
 	AttributeNames: ['ApproximateNumberOfMessages'],
 }).promise()).Attributes!.ApproximateNumberOfMessages
@@ -61,6 +62,7 @@ const sendToSqs = async(records: TxRecord[])=>{
 
 	let count = 0
 	let promises = []
+	let inflights: InflightsRecord[] = []
 	const promisesBatch = 100 // 10 - 100 seems to be a sweet spot for performance on elasticmq
 	let entries: SQS.SendMessageBatchRequestEntryList = []
 	const messageBatchSize = 10 // max 10 messages for sqs.sendMessageBatch
@@ -77,6 +79,10 @@ const sendToSqs = async(records: TxRecord[])=>{
 			MessageGroupId: 'group0',
 			MessageBody:  JSON.stringify(rec)
 		})
+		inflights.push({
+			txid: rec.txid,
+			foreign_id: rec.id,
+		})
 
 		if(entries.length === messageBatchSize){
 			promises.push(
@@ -85,7 +91,9 @@ const sendToSqs = async(records: TxRecord[])=>{
 					Entries: entries,
 				}).promise()
 			)
+			await knex<TxRecord>('inflights ').insert(inflights).onConflict().ignore()
 			entries = []
+			inflights = []
 		}
 		
 
@@ -95,7 +103,7 @@ const sendToSqs = async(records: TxRecord[])=>{
 		}
 
 		if(++count % 1000 === 0){
-			console.log(`${count} messages sent in ${(performance.now()-t0).toFixed(2)}ms`)
+			console.log(`${count} messages sent inflight. ${(performance.now()-t0).toFixed(2)}ms`)
 			t0 = performance.now()
 		}
 	}
