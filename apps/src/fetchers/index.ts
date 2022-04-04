@@ -1,40 +1,26 @@
-import { SQS } from 'aws-sdk'
+require('dotenv').config() //first line of entrypoint
+import { logger } from '../utils/logger'
+import { slackLogger } from '../utils/slackLogger'
+import si from 'systeminformation'
+import { fetchers } from './fetchers'
 
-
-const prefix = 'feeder'
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-const sqs = new SQS({
-	apiVersion: '2012-11-05',
-	...(process.env.SQS_LOCAL==='yes' && { endpoint: 'http://sqs-local:9324', region: 'dummy-value' })
-})
-console.log('sqs.config.endpoint', sqs.config.endpoint)
+const prefix = 'fetchers'
 
 const main = async()=> {
-	while(true){
-		const { Messages, $response } = await sqs.receiveMessage({
-			QueueUrl: process.env.AWS_FEEDER_QUEUE as string,
-			// AttributeNames: ['SentTimestamp'],
-			MaxNumberOfMessages: 10,
-			MessageAttributeNames: ['All'],
-			VisibilityTimeout: 20,
-			WaitTimeSeconds: 0,
-		}).promise()
-		if(Messages){
-			console.log(`received ${Messages.length} messages`)
+	try{
 
-			const deleted = await Promise.all(Messages.map(msg=>{
-				return sqs.deleteMessage({
-					ReceiptHandle: msg.ReceiptHandle!,
-					QueueUrl: process.env.AWS_FEEDER_QUEUE as string,
-				}).promise()
-			}))
-			console.log(`deleted ${deleted.length} messages.`)
+		await fetchers()
 
+	}catch(e){
+		if(e instanceof Error){
+			logger(prefix, 'Unhandled error in main!\t', e.name, ':', e.message)
+			console.log(e)
+			slackLogger(prefix, 'Unhandled error in main!\t', e.name, ':', e.message)
 		}else{
-			console.log('no messages')
-			await sleep(5000)
+			logger(prefix, 'Unhandled in main!\t', JSON.stringify(e))
+			slackLogger(prefix, 'Unhandled in main!\t', JSON.stringify(e))
 		}
+		logger(prefix, await si.mem())
 	}
 }
 main()
