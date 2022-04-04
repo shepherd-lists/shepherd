@@ -11,6 +11,17 @@ const QueueUrl = process.env.AWS_FEEDER_QUEUE as string
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+const sqs = new SQS({
+	apiVersion: '2012-11-05',
+	...(process.env.SQS_LOCAL==='yes' && { endpoint: 'http://sqs-local:9324', region: 'dummy-value' }),
+	maxRetries: 10, //default 3
+})
+
+// debug output for sanity
+console.log(`process.env.SQS_LOCAL`, process.env.SQS_LOCAL)
+console.log(`process.env.AWS_FEEDER_QUEUE`, process.env.AWS_FEEDER_QUEUE)
+console.log('sqs.config.endpoint', sqs.config.endpoint)
+
 const getTxRecords =async (limit: number) => {
 	const records = await knex<TxRecord>('txs')
 		.whereNull('valid_data')
@@ -24,16 +35,6 @@ const getTxRecords =async (limit: number) => {
 
 	return records;
 }
-
-console.log(`process.env.SQS_LOCAL`, process.env.SQS_LOCAL)
-console.log(`process.env.AWS_FEEDER_QUEUE`, process.env.AWS_FEEDER_QUEUE)
-
-const sqs = new SQS({
-	apiVersion: '2012-11-05',
-	...(process.env.SQS_LOCAL==='yes' && { endpoint: 'http://sqs-local:9324', region: 'dummy-value' }),
-	maxRetries: 10, //default 3
-})
-console.log('sqs.config.endpoint', sqs.config.endpoint)
 
 export const feeder = async()=> {
 

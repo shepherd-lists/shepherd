@@ -20,8 +20,8 @@ ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as scanner
 COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
-COPY ./src/types.ts ./src/
 COPY ./src/utils ./src/utils
+COPY ./src/types.ts ./src/
 COPY ./src/constants.ts ./src/
 COPY ./migrations ./migrations
 COPY ./seeds ./seeds
@@ -29,12 +29,15 @@ ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as feeder
 COPY ./src/feeder ./src/feeder
-COPY ./src/types.ts ./src/
 COPY ./src/utils ./src/utils
+COPY ./src/types.ts ./src/
 ENTRYPOINT node -r ts-node/register src/feeder/index.ts
 
 FROM base as fetchers
 COPY ./src/fetchers ./src/fetchers
+COPY ./src/utils ./src/utils
+COPY ./src/types.ts ./src/
+COPY ./src/constants.ts ./src/
 ENTRYPOINT node -r ts-node/register src/fetchers/index.ts
 
 FROM rosmcmahon/node14-ffmpeg:multi-arch as rating

@@ -55,3 +55,5 @@ export const VID_TMPDIR_MAXSIZE = 8 * 1024 ** 3 // 2 GB <=TODO: should also chec
 // switch gateways
 export const HOST_URL = 'https://arweave.net'
 // export const HOST_URL = 'https://arweave.dev'
+
+export const FEEDER_Q_VISIBILITY_TIMEOUT = 900 // 15 minutes
