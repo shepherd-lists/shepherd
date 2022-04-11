@@ -1,3 +1,4 @@
+import { Response } from 'express'
 import { TxRecord, StateRecord, HistoryRecord } from '../types'
 import getDb from '../utils/db-connection'
 import { logger } from '../utils/logger'
@@ -54,32 +55,32 @@ export const getBlacklistTestOnly = async(black: boolean)=> {
 	return html + '</table></body></html>'
 }
 
-export const getStatsTestOnly = async()=> {
-	let html = '<html><body style="font-family:\'Courier New\',monospace;">'
+export const getStatsTestOnly = async(res: Response)=> {
+	res.write('<html><body style="font-family:\'Courier New\',monospace;">')
 
 	const txsCount = await knex<TxRecord>('txs').count('id')
-	html += `<h1>Total records: ${txsCount[0].count}</h1>`
+	res.write(`<h1>Total records: ${txsCount[0].count}</h1>`)
 
 	const scanPosn = await knex<StateRecord>('states').where({ pname: 'scanner_position'})
-	html += `Scanner Position: ${scanPosn[0].value}` 
+	res.write(`Scanner Position: ${scanPosn[0].value}`)
 
-	const inflightNoop = await knex<TxRecord>('inflight').count('id')
-	html += `<h2>Inflight noop: ${inflightNoop[0].count}</h2>`
+	const inflightNoop = await knex<TxRecord>('inflights').count('id')
+	res.write(`<h2>Inflight noop: ${inflightNoop[0].count}</h2>`)
 
 	const unfinished = await knex<TxRecord>('txs').whereNull('flagged').count('id')
-	html += `<h2>Flagged: ${Number(txsCount[0].count) - Number(unfinished[0].count)}</h2>`
-	html += `<h2>Unflagged: ${unfinished[0].count}</h2>`
+	res.write(`<h2>Flagged: ${Number(txsCount[0].count) - Number(unfinished[0].count)}</h2>`)
+	res.write(`<h2>Unflagged: ${unfinished[0].count}</h2>`)
 
 	//select content_type, count(*) from txs where valid_data is null group by content_type;
 	const results = await knex<TxRecord>('txs').select('content_type').count('content_type').whereNull('valid_data').groupBy('content_type')
 
-	html += '<table>'
-	for (const res of results) {
-		html += `<tr><td>${res.content_type}</td><td>${res.count}</td><tr>`
+	res.write('<table>')
+	for (const result of results) {
+		res.write(`<tr><td>${result.content_type}</td><td>${result.count}</td><tr>`)
 	}
-	html += '</table>'
+	res.write('</table>')
 	
-	return html + '</body></html>'
+	res.write('</body></html>')
 }
 
 export const getPerfHistory = async()=> {

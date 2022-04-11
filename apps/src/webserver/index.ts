@@ -36,8 +36,8 @@ app.get('/nocache-testonly.html', async(req, res)=> {
 
 app.get('/nocache-stats.html', async(req, res)=> {
 	res.setHeader('Content-Type', 'text/html')
-	const html = await getStatsTestOnly()
-	res.send(html)
+	await getStatsTestOnly(res)
+	res.end()
 })
 
 app.get('/perf',async (req, res) => {
