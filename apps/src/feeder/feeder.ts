@@ -90,8 +90,6 @@ const sendToSqs = async(records: TxRecord[])=>{
 	for(const rec of records){
 		entries.push({
 			Id: rec.txid,
-			MessageDeduplicationId: rec.txid,
-			MessageGroupId: 'group0',
 			MessageBody:  JSON.stringify(rec)
 		})
 		inflights.push({
@@ -104,7 +102,19 @@ const sendToSqs = async(records: TxRecord[])=>{
 				sqs.sendMessageBatch({
 					QueueUrl,
 					Entries: entries,
-				}).promise()
+				})
+				.promise()
+				.then(res=>{
+					const fails = res.Failed.length
+					if(fails > 0){
+						const total = res.Successful.length + fails
+						console.log(`Failed to batch send ${fails}/${total} messages:`)
+						for(const f of res.Failed){
+							console.log(f.Id)
+							// now remove from inflights ...
+						}
+					}
+				})
 			)
 			await knex<TxRecord>('inflights ').insert(inflights).onConflict().ignore()
 			entries = []
