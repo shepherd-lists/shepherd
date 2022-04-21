@@ -23,15 +23,29 @@ console.log(`process.env.AWS_FEEDER_QUEUE`, process.env.AWS_FEEDER_QUEUE)
 console.log('sqs.config.endpoint', sqs.config.endpoint)
 
 const getTxRecords =async (limit: number) => {
+	const t0 = performance.now()
 	const records = await knex<TxRecord>('txs')
+		.select([
+			'txs.id',
+			'txs.txid',
+			'txs.content_type',
+			'txs.content_size',
+			'txs.flagged',
+			'txs.valid_data',
+			'txs.data_reason',
+			'txs.last_update_date',
+			'txs.height',
+		])
+		.leftJoin('inflights', 'txs.id', 'inflights.foreign_id')
+		.whereNull('inflights.foreign_id')
 		.whereNull('valid_data')
 		.whereRaw("content_type SIMILAR TO '(image|video)/%'")
-		.whereNotIn('id', knex.select('foreign_id').from('inflights'))
-		.orderBy('id', 'desc')
+		.orderBy('txs.id', 'desc')
 		.limit(limit)
-
+	
 	const length = records.length
-	logger(prefix, length, 'records selected. limit', limit)
+	const duration = performance.now() - t0
+	logger(prefix, length, 'records selected. limit', limit, ` - in ${duration.toFixed(2)}ms`)
 
 	return records;
 }
@@ -49,6 +63,7 @@ export const feeder = async()=> {
 		if(numSqsMsgs < WORKING_RECORDS ){
 			await sendToSqs( await getTxRecords(WORKING_RECORDS) )
 		}
+		logger(prefix, 'sleeping for 15 minutes...')
 		await sleep(ABSOLUTE_TIMEOUT)
 	}
 }
@@ -73,7 +88,6 @@ const sendToSqs = async(records: TxRecord[])=>{
 	let t0 = performance.now()
 	
 	for(const rec of records){
-
 		entries.push({
 			Id: rec.txid,
 			MessageDeduplicationId: rec.txid,
@@ -116,6 +130,7 @@ const sendToSqs = async(records: TxRecord[])=>{
 				Entries: entries,
 			}).promise()
 		)
+		await knex<TxRecord>('inflights ').insert(inflights).onConflict().ignore()
 	}
 	if(promises.length > 0){
 		await Promise.all(promises)
