@@ -25,17 +25,7 @@ console.log('sqs.config.endpoint', sqs.config.endpoint)
 const getTxRecords =async (limit: number) => {
 	const t0 = performance.now()
 	const records = await knex<TxRecord>('txs')
-		.select([
-			'txs.id',
-			'txs.txid',
-			'txs.content_type',
-			'txs.content_size',
-			'txs.flagged',
-			'txs.valid_data',
-			'txs.data_reason',
-			'txs.last_update_date',
-			'txs.height',
-		])
+		.select(['txs.*'])
 		.leftJoin('inflights', 'txs.id', 'inflights.foreign_id')
 		.whereNull('inflights.foreign_id')
 		.whereNull('valid_data')
