@@ -67,20 +67,20 @@ const approximateNumberOfMessages = async()=> +(await sqs.getQueueAttributes({
 const sendToSqs = async(records: TxRecord[])=>{
 
 	let count = 0
-	let promises = []
+	let promisesBatch = []
+	const promisesBatchSize = 100 // 10 - 100 seems to be a sweet spot for performance
 	let inflights: InflightsRecord[] = []
-	const promisesBatch = 100 // 10 - 100 seems to be a sweet spot for performance on elasticmq
 	let entries: SQS.SendMessageBatchRequestEntryList = []
 	const messageBatchSize = 10 // max 10 messages for sqs.sendMessageBatch
 	
-	console.log('promise batch size', promisesBatch)
+	console.log('promise batch size', promisesBatchSize)
 
 	let t0 = performance.now()
 	
 	for(const rec of records){
 		entries.push({
 			Id: rec.txid,
-			MessageBody:  JSON.stringify(rec)
+			MessageBody: JSON.stringify(rec)
 		})
 		inflights.push({
 			txid: rec.txid,
@@ -88,33 +88,17 @@ const sendToSqs = async(records: TxRecord[])=>{
 		})
 
 		if(entries.length === messageBatchSize){
-			promises.push(
-				sqs.sendMessageBatch({
-					QueueUrl,
-					Entries: entries,
-				})
-				.promise()
-				.then(res=>{
-					const fails = res.Failed.length
-					if(fails > 0){
-						const total = res.Successful.length + fails
-						console.log(`Failed to batch send ${fails}/${total} messages:`)
-						for(const f of res.Failed){
-							console.log(f.Id)
-							// now remove from inflights ...
-						}
-					}
-				})
+			promisesBatch.push( 
+				processMessageBatch(inflights, entries) 
 			)
-			await knex<TxRecord>('inflights ').insert(inflights).onConflict().ignore()
+
 			entries = []
 			inflights = []
 		}
-		
 
-		if(promises.length === promisesBatch){
-			await Promise.all(promises)
-			promises = []
+		if(promisesBatch.length === promisesBatchSize){
+			await Promise.all(promisesBatch)
+			promisesBatch = []
 		}
 
 		if(++count % 1000 === 0){
@@ -124,18 +108,38 @@ const sendToSqs = async(records: TxRecord[])=>{
 	}
 	// handle the remainers
 	if(entries.length > 0){
-		promises.push(
-			sqs.sendMessageBatch({
-				QueueUrl,
-				Entries: entries,
-			}).promise()
+		promisesBatch.push( 
+			processMessageBatch(inflights, entries) 
 		)
-		await knex<TxRecord>('inflights ').insert(inflights).onConflict().ignore()
 	}
-	if(promises.length > 0){
-		await Promise.all(promises)
+	if(promisesBatch.length > 0){
+		await Promise.all(promisesBatch)
 		console.log(`${count} remaining messages sent`)
 	}
 
 	console.log('approximateNumberOfMessages', await approximateNumberOfMessages())
+}
+
+const processMessageBatch = async(inflights: InflightsRecord[], entries: SQS.SendMessageBatchRequestEntry[])=> {
+	return new Promise<number>(async resolve =>{
+		let ifRecs = inflights //careful with these refs
+		const res = await sqs.sendMessageBatch({
+			QueueUrl,
+			Entries: entries,
+		}).promise()
+		
+		const fails = res.Failed.length
+		if(fails > 0){
+			const total = res.Successful.length + fails
+			logger(prefix, `Failed to batch send ${fails}/${total} messages:`)
+			for (const f of res.Failed) {
+				logger(f.Id, `${f.Code} : ${f.Message}. ${f.SenderFault && 'SenderFault.'}`)
+				ifRecs = ifRecs.filter(ifRec => ifRec.txid !== f.Id)
+			}
+		}
+		if(ifRecs.length > 0){
+			await knex<TxRecord>('inflights').insert(ifRecs).onConflict().ignore()
+		}
+		resolve(0)
+	})
 }
