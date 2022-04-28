@@ -10,6 +10,22 @@ services:
       POSTGRES_DB: arblacklist
       PGDATA: /var/lib/postgresql/data/pgdata
     restart: always
+  s3-local-test:
+    image: bitnami/minio:latest
+    ports:
+      # - '9000:9000'
+      - '9001:9001' # for UI
+    environment:
+      MINIO_ROOT_USER: minioroot
+      MINIO_ROOT_PASSWORD: minioroot
+      MINIO_FORCE_NEW_KEYS: 'yes'
+      MINIO_DEFAULT_BUCKETS: shepherd-input-mod-local:public
+  sqs-local-test:
+    build: 
+      context: ./sqs-local
+    ports:
+      - '9324:9324'
+      - '9325:9325' # for UI
   test:
     build: 
       context: ./apps
@@ -19,5 +35,15 @@ services:
       DB_HOST: pgdb-test
       PROCESS_NAME: test
       NODE_OPTIONS: '--max-old-space-size=8192'
+      SQS_LOCAL: 'yes'
+      AWS_ACCESS_KEY_ID: dummy 
+      AWS_SECRET_ACCESS_KEY: dummytoo 
+      AWS_FEEDER_QUEUE: http://sqs-local-test:9324/000000000000/shepherd-feeder-q
+      AWS_INPUT_BUCKET: 'http://s3-local-test:9000'
     depends_on: 
       - pgdb-test
+      - s3-local-test
+      - sqs-local-test
+
+networks:
+  shep-test-nw:
