@@ -45,5 +45,5 @@ export interface InflightsRecord {
 	readonly id?: number
 	foreign_id: number
 	txid: string
-	create_at?: Date
+	created_at?: Date
 }
