@@ -1,7 +1,7 @@
 process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import { after } from 'mocha'
-import { TxRecord, TxScanned } from '../src/types'
+import { InflightsRecord, TxRecord, TxScanned } from '../src/types'
 import dbConnection from '../src/utils/db-connection'
 import { server } from '../src/http-api' //start the http interface server
 import axios, { AxiosError } from 'axios'
@@ -22,17 +22,17 @@ describe('http-api tests', ()=>{
 	before(async function () {
 		this.timeout(5000)
 
-		await knex<TxRecord>('txs').insert({ 
-			txid: mockRecord.txid, 
-			content_size: mockRecord.content_size,
-			content_type: mockRecord.content_type,
-			height: mockRecord.height,
+		const res = await knex<TxRecord>('txs').insert(mockRecord, 'id')
+		await knex<InflightsRecord>('inflights').insert({
+			txid: mockRecord.txid,
+			foreign_id: res[0], 
 		})
 	})
 	/* remove mock records after testing */
 	after(async function () {
 		try{
 			await knex<TxRecord>('txs').delete().where({ txid: mockRecord.txid })
+			await knex<TxRecord>('inflights').delete().where({ txid: mockRecord.txid })
 		}finally{
 			server.close(e=>e && console.log('error closing server', e))
 		}
