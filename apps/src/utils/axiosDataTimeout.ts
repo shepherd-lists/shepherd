@@ -1,6 +1,8 @@
+import { PassThrough } from 'stream'
 import axios from "axios"
 import { NO_DATA_TIMEOUT, NO_STREAM_TIMEOUT } from "../constants"
 import { logger } from "./logger"
+import { IncomingMessage } from 'http'
 
 //used in batches
 export const axiosDataTimeout = async(url: string)=> {
@@ -32,8 +34,8 @@ export const axiosDataTimeout = async(url: string)=> {
 		return res.data
 
 	}catch(e:any){
-		clearTimeout(timer!)
 		if(e.response || e.code){
+			clearTimeout(timer!)
 			throw(e)
 		}
 		throw new Error(`Timeout of ${NO_DATA_TIMEOUT}ms exceeded`)
@@ -42,45 +44,56 @@ export const axiosDataTimeout = async(url: string)=> {
 
 //to be used on individual, unbatched urls (the above axiosDataTimeout isn't 100% perfect, so can use below for second pass, for example)
 export const axiosStreamTimeout = async(url: string)=> {
-	return new Promise<Buffer>( async(resolve, reject) => {
+	return new Promise<NodeJS.ReadableStream>( async(resolve, reject) => {
 		
+		const returnOut = new PassThrough()
+
 		const source = axios.CancelToken.source()
-	
-		const timer = setTimeout( ()=>{
-			source.cancel()
-			reject(new Error(`Timeout of ${NO_STREAM_TIMEOUT}ms exceeded`))
-		}, NO_STREAM_TIMEOUT )
+		let timer: NodeJS.Timeout | null = null
+
+		process.nextTick(()=>{ 
+			timer = setTimeout( ()=>{
+				source.cancel()
+				returnOut.destroy()
+				reject(new Error(`Timeout of ${NO_STREAM_TIMEOUT}ms exceeded`))
+			}, NO_STREAM_TIMEOUT )
+		})
 	
 		try{
 			
-			const { data: stream } = await axios.get(url, {
+			const { data } = await axios.get(url, {
 				cancelToken: source.token,
 				responseType: 'stream',
 			})
-
-			//const stream: IncomingMessage
+			const stream: IncomingMessage = data
 			
-			let buffers: Uint8Array[] = []
+			// let buffers: Uint8Array[] = []
 	
 			stream.on('data', (buffer: Uint8Array)=>{
-				clearTimeout(timer)
-				buffers.push(buffer)
+				clearTimeout(timer!)
+				// buffers.push(buffer)
 			})
+
+			stream.pipe(returnOut)
 	
-			stream.on('end', ()=>{
-				const data = Buffer.concat(buffers)
-				resolve(data)
-				return;
-			})
+			// stream.on('end', ()=>{
+			// 	const data = Buffer.concat(buffers)
+			// 	resolve(data)
+			// 	return;
+			// })
 
 			stream.on('error', (e: any)=>{
 				logger('READ STREAM ERROR')
+				returnOut.destroy()
 				reject(e)
 			})
-	
+			
 		}catch(e:any){
-			clearTimeout(timer)
+			clearTimeout(timer!)
+			returnOut.destroy()
 			reject(e)
 		}
+
+		resolve(returnOut)
 	})
 }
