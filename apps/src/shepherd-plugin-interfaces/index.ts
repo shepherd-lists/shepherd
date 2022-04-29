@@ -1,3 +1,5 @@
+import { Readable } from "stream"
+
 export interface FilterResult {
 	flagged: boolean // main output: whether the image is filtereed or not
 	scores?: string  // optional plugin scoring
@@ -15,6 +17,11 @@ export interface FilterErrorResult {
 		| 'noop'					// no operation
 		| (string & {})
 	err_message?: string // optional error message
+}
+
+export const INFLIGHT_CONST: FilterErrorResult = {
+	data_reason: 'noop',
+	flagged: undefined,
 }
 
 export interface FilterPluginInterface {
@@ -35,4 +42,8 @@ export interface FilterPluginInterface {
 export interface APIFilterResult {
 	txid: string
 	result: FilterResult | FilterErrorResult
+}
+
+export interface StreamPluginInterface {
+	checkStream(read: Readable, mimetype: string, txid: string):Promise<string | Error> 
 }
