@@ -1,6 +1,6 @@
 require('dotenv').config()
 import express from 'express'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateDb } from '../rating/db-update-txs'
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateTxsDb } from '../rating/db-update-txs'
 import { APIFilterResult, FilterErrorResult, FilterResult } from '../shepherd-plugin-interfaces'
 import { logger } from '../utils/logger'
 import { slackLogger } from '../utils/slackLogger'
@@ -50,7 +50,7 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 	}
 
 	if(result.flagged !== undefined){
-		const res = await updateDb(txid, {
+		const res = await updateTxsDb(txid, {
 			flagged: result.flagged,
 			valid_data: true,
 		})

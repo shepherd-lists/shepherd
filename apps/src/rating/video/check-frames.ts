@@ -2,7 +2,7 @@ import fs from 'fs'
 import { HOST_URL } from '../../constants'
 import { logger } from '../../utils/logger'
 import * as FilterHost from "../filter-host"
-import { updateDb } from '../db-update-txs'
+import { updateTxsDb } from '../db-update-txs'
 
 
 const prefix = 'check-frames'
@@ -27,7 +27,7 @@ export const checkFrames = async(frames: string[], txid: string)=> {
 	}
 	logger(txid, 'video', ((flagged) ? 'flagged' : 'clean'), vidUrl)
 
-	return updateDb(txid,{
+	return updateTxsDb(txid,{
 		flagged,
 		valid_data: true,
 		last_update_date: new Date(),

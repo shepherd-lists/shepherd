@@ -1,7 +1,7 @@
 import { logger } from '../utils/logger'
 import { HOST_URL, NO_DATA_TIMEOUT } from '../constants'
 import { axiosDataTimeout } from '../utils/axiosDataTimeout'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeType, dbInflightAdd, dbOversizedPngFound, dbPartialImageFound, dbTimeoutInBatch, dbUnsupportedMimeType, dbWrongMimeType, updateDb } from './db-update-txs'
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeType, dbInflightAdd, dbOversizedPngFound, dbPartialImageFound, dbTimeoutInBatch, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb } from './db-update-txs'
 import { getImageMime } from './image-filetype'
 import loadConfig from '../utils/load-config'
 import { slackLogger } from '../utils/slackLogger'
@@ -87,7 +87,7 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 	const result = await checkImage(pic, mime, txid)
 
 	if(result.flagged !== undefined){
-		await updateDb(txid, {
+		await updateTxsDb(txid, {
 			flagged: result.flagged,
 			valid_data: true,
 			last_update_date: new Date(),
