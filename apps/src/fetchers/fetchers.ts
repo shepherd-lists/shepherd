@@ -4,8 +4,9 @@ import { FEEDER_Q_VISIBILITY_TIMEOUT, HOST_URL, NO_STREAM_TIMEOUT } from '../con
 import { TxRecord, TxScanned } from '../types'
 import dbConnection from '../utils/db-connection'
 import { logger } from '../utils/logger'
-// import StreamPlugin from './shepherd-plugin-s3stream/src'
+import StreamPlugin from './shepherd-plugin-s3stream/src'
 import { IncomingMessage } from 'http'
+import { dbNoDataFound } from '../rating/db-update-txs'
 
 const prefix = 'fetchers'
 const knex = dbConnection() 
@@ -52,10 +53,30 @@ const deleteMessages = async(Messages: SQS.Message[])=> {
 	return deleted.length;
 }
 
-const deleteMessage = async(msg: SQS.Message)=> sqs.deleteMessage({
-	ReceiptHandle: msg.ReceiptHandle!,
-	QueueUrl,
-}).promise()
+const deleteMessage = async(msg: SQS.Message)=> {
+	try{
+		await sqs.deleteMessage({
+			ReceiptHandle: msg.ReceiptHandle!,
+			QueueUrl,
+		}).promise()
+	}catch(e){
+		if(e instanceof Error){
+			if(e.name === 'UnknownEndpoint'){
+				console.log('sqs UnknownEndpoint error.', e.name, ':', e.message)
+				throw e;
+			}
+			if(e.name === 'ReceiptHandleIsInvalid'){
+				if(process.env.NODE_ENV !== 'test'){
+					console.log('sqs ReceiptHandleIsInvalid error. Message deleted already?', e.name, ':', e.message)
+				}
+				return;
+			}
+
+			console.log(prefix, `sqs delete error. ${e.name} : ${e.message}`)
+		}
+		throw e;
+	}
+}
   
 export const fetchers = async()=> {
 
@@ -79,7 +100,10 @@ export const fetchers = async()=> {
 	while(true){ //loop for dev only
 		const m = await getMessage()
 		if(m){
-			await streamer(m)
+			const ret = await streamer(m)
+			if(ret === 'NO_DATA'){
+				// await dbNoDataFound(rec.txid)
+			}
 		}else{
 			console.log('got no message. waiting..')
 			await sleep(5000)
@@ -92,6 +116,7 @@ export const fetchers = async()=> {
 export const streamer = async(m: SQS.Message)=> {
 	
 	logger('streamer', 'starting', m.MessageId)
+	let retCode = 'OK' // used in test
 
 	const rec: TxScanned = JSON.parse(m.Body!)
 
@@ -110,84 +135,44 @@ export const streamer = async(m: SQS.Message)=> {
 		if(process.env.NODE_ENV==='test') process.stdout.write('.')
 	})
 
-	read.on('close',()=> {
+	read.on('close', async()=> {
 		console.log('close', m.MessageId, received)
 		if(!complete){
 			if(received === 0n){
+				console.log('NO_DATA detected. length', received) 
 				read.emit('error', new Error('NO_DATA'))
+				retCode = 'NO_DATA' //close gets fired one way or another in time to set this
 			}else if(contentLength !== received){
-				console.log('partial detected. length', received) //read.emit('error', new Error('PARTIAL_ERROR'))
+				console.log('partial detected. length', received) 
+				//partial data will be classified too
 				read.emit('end')
 			}
 		}
 	})
-
-	read.on('abort',()=> console.log('abort'))
-
+	
 	let complete = false
 	read.on('end',()=>{
 		console.log('end', m.MessageId)
 		complete = true
 	})
-
-	read.on('error',e=> { 
-		console.log('error', e.message, m.MessageId); 
-		if(e.message==='NO_DATA') uploader.abort() 
-	})
-
+	
 	read.setTimeout(NO_STREAM_TIMEOUT, ()=>{
 		console.log(prefix, 'activity timeout occurred on', m.MessageId, rec.txid)
-		// read.off('data', test=>console.log('read.off(data)',test))
 		srcToken.cancel() //cancel axios
-		if(received === 0n){
-			read.emit('error', new Error('NO_DATA'))
-		}else{
-			read.destroy()
-		}
+		read.destroy() //close called next
 	})
 
-	
-	console.assert(process.env.AWS_INPUT_BUCKET, 'process.env.AWS_INPUT_BUCKET is undefined')
-	const s3 = new S3({
-		apiVersion: '2006-03-01',
-		endpoint: process.env.AWS_INPUT_BUCKET,
-		accessKeyId: 'minioroot',
-		secretAccessKey: 'minioroot',
-		s3ForcePathStyle: true, // *** needed with minio ***
-	})
+	await StreamPlugin.checkStream(read, rec.content_type, rec.txid)
 
-	let uploader: S3.ManagedUpload
-	try{
-		uploader = s3.upload({
-			Bucket: 'shepherd-input-mod-local',
-			Key: rec.txid,
-			ContentType: rec.content_type,
-			Body: read,
-		})
-		const data = await uploader.promise()
-		console.log('uploaded to', data.Location)
+	// just in case some plugin isn't playing nice, ensure 'close' is fired.
+	if(!read.destroyed) read.destroy()
 
-		await deleteMessage(m)
-		console.log(`deleted message: ${m.MessageId} ${rec.txid}`)
-		return true;
-	}catch(e){
-		if(e instanceof Error){
-			if(e.name === 'RequestAbortedError'){
-				console.log('s3 RequestAbortedError.', m.MessageId)
-				return 'NO_DATA';
-			}
-			if(e.name === 'UnknownEndpoint'){
-				console.log('sqs UnknownEndpoint error.', e.name, ':', e.message)
-				throw e;
-			}
-			if(e.name === 'ReceiptHandleIsInvalid'){
-				console.log('sqs ReceiptHandleIsInvalid error. Message deleted already?', e.name, ':', e.message)
-				return true;
-			}
+	await deleteMessage(m)
+	console.log(`deleted message: ${m.MessageId} ${rec.txid}`)
 
-			console.log(`s3upload error. ${e.name} : ${e.message}`)
-			return;
-		}
-		throw e; 
-	}//end trycatch uploader
+	return retCode;
 } 
+
+export const streamType = async()=> {
+	
+}
