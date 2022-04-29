@@ -34,19 +34,16 @@ describe('fetchers tests', ()=>{
 
 	it('tests a good message gets processed', async()=> {
 		const res = await streamer(goodMsg)
-		console.log('UNIT TEST RESULT:', res)
 		expect(res).eq('OK')
 	}).timeout(0)
 
 	it('tests a NO_DATA message gets processed', async()=> {
 		const res = await streamer(nodataMsg)
-		console.log('UNIT TEST RESULT:', res)
 		expect(res).eq('NO_DATA')
 	}).timeout(0)
 
 	it('tests PARTIAL_DATA message gets processed', async()=> {
 		const res = await streamer(partialdataMsg)
-		console.log('UNIT TEST RESULT:', res)
 		expect(res).eq('OK')
 	}).timeout(0)
 
