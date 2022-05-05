@@ -164,11 +164,8 @@ Resources:
   SQSFeederQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: shepherd-feeder-q.fifo
+      QueueName: shepherd-feeder-q
       MessageRetentionPeriod: 1209600 # 14 days (AWS max value)
-      FifoQueue: true
-      ContentBasedDeduplication: true
-      DeduplicationScope: queue
       VisibilityTimeout: 900 # 15 minutes
       # RedrivePolicy:
       #   deadLetterTargetArn: !GetAtt SQSInputQueueDLQ.Arn

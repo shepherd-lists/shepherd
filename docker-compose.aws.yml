@@ -44,7 +44,7 @@ services:
       Statement:
       - Effect: Allow
         Action: 'sqs:*' 
-        Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-feeder-q.fifo'
+        Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-feeder-q'
   fetchers:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-fetchers:${IMAGE_TAG:-latest}
     platform: linux/amd64
@@ -60,7 +60,7 @@ services:
       Statement:
       - Effect: Allow
         Action: 'sqs:*' 
-        Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-feeder-q.fifo'
+        Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-feeder-q'
       
   # rating0:
   #   image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
