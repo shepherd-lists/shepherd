@@ -14,10 +14,12 @@ console.assert(process.env.AWS_INPUT_BUCKET, 'process.env.AWS_INPUT_BUCKET is un
 // const s3 = new AWS.S3({ apiVersion: '2006-03-01' })
 const s3 = new S3({
 	apiVersion: '2006-03-01',
-	endpoint: 'http://s3-local-test:9000',
-	accessKeyId: 'minioroot',
-	secretAccessKey: 'minioroot',
-	s3ForcePathStyle: true, // *** needed with minio ***
+	...(process.env.S3_LOCAL==='yes' && { 
+		endpoint: process.env.S3_LOCAL_ENDPOINT!,
+		accessKeyId: 'minioroot',
+		secretAccessKey: 'minioroot',
+		s3ForcePathStyle: true, // *** needed with minio ***
+	 }),
 })
 
 const bucketName = process.env.AWS_INPUT_BUCKET as string

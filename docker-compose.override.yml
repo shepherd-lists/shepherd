@@ -47,6 +47,9 @@ services:
       AWS_ACCESS_KEY_ID: dummy 
       AWS_SECRET_ACCESS_KEY: dummytoo 
       AWS_FEEDER_QUEUE: http://sqs-local:9324/000000000000/shepherd-feeder-q
+      S3_LOCAL: 'yes'
+      S3_LOCAL_ENDPOINT: http://s3-local:9000
+      AWS_INPUT_BUCKET: shepherd-input-mod-local
     depends_on:
       - sqs-local
       - s3-local

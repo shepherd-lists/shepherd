@@ -40,6 +40,8 @@ services:
       AWS_SECRET_ACCESS_KEY: dummytoo 
       AWS_FEEDER_QUEUE: http://sqs-local-test:9324/000000000000/shepherd-feeder-q
       AWS_INPUT_BUCKET: shepherd-input-mod-local
+      S3_LOCAL: 'yes'
+      S3_LOCAL_ENDPOINT: http://s3-local-test:9000
     depends_on: 
       - pgdb-test
       - s3-local-test
