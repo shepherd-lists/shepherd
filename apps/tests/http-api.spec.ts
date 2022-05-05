@@ -1,11 +1,11 @@
 process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import { after } from 'mocha'
-import { InflightsRecord, TxRecord, TxScanned } from '../src/types'
-import dbConnection from '../src/utils/db-connection'
+import { InflightsRecord, TxRecord, TxScanned } from '../src/common/types'
+import dbConnection from '../src/common/utils/db-connection'
 import { server } from '../src/http-api' //start the http interface server
 import axios, { AxiosError } from 'axios'
-import { APIFilterResult } from '../src/shepherd-plugin-interfaces'
+import { APIFilterResult } from '../src/common/shepherd-plugin-interfaces'
 
 const knex = dbConnection()
 

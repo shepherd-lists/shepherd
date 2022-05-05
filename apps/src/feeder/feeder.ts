@@ -1,6 +1,6 @@
-import { TxRecord, InflightsRecord } from "../types"
-import dbConnection from "../utils/db-connection"
-import { logger } from "../utils/logger"
+import { TxRecord, InflightsRecord } from "../common/types"
+import dbConnection from "../common/utils/db-connection"
+import { logger } from "../common/utils/logger"
 import { SQS } from 'aws-sdk'
 import { performance } from 'perf_hooks'
 
@@ -121,7 +121,7 @@ const sendToSqs = async(records: TxRecord[])=>{
 }
 
 const processMessageBatch = async(inflights: InflightsRecord[], entries: SQS.SendMessageBatchRequestEntry[])=> {
-	return new Promise<number>(async resolve =>{
+	// return new Promise<number>(async resolve =>{
 		let ifRecs = inflights //careful with these refs
 		const res = await sqs.sendMessageBatch({
 			QueueUrl,
@@ -140,6 +140,6 @@ const processMessageBatch = async(inflights: InflightsRecord[], entries: SQS.Sen
 		if(ifRecs.length > 0){
 			await knex<TxRecord>('inflights').insert(ifRecs).onConflict().ignore()
 		}
-		resolve(0)
-	})
+	// 	resolve(0)
+	// })
 }

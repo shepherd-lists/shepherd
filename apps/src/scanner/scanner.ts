@@ -1,14 +1,14 @@
 require('dotenv').config() //first line of entrypoint
 import axios from "axios"
-import { HOST_URL } from "../constants"
-import { StateRecord } from "../types"
-import dbConnection from "../utils/db-connection"
-import { logger } from "../utils/logger"
+import { HOST_URL } from "../common/constants"
+import { StateRecord } from "../common/types"
+import dbConnection from "../common/utils/db-connection"
+import { logger } from "../common/utils/logger"
 import { scanBlocks } from "./scan-blocks"
 import { performance } from 'perf_hooks'
-import { slackLogger } from "../utils/slackLogger"
+import { slackLogger } from "../common/utils/slackLogger"
 import si from 'systeminformation'
-import { getGqlHeight } from '../utils/gql-height'
+import { getGqlHeight } from '../common/utils/gql-height'
 
 
 //leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded

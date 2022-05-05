@@ -1,9 +1,9 @@
 require('dotenv').config()
 import express from 'express'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateTxsDb } from '../rating/db-update-txs'
-import { APIFilterResult, FilterErrorResult, FilterResult } from '../shepherd-plugin-interfaces'
-import { logger } from '../utils/logger'
-import { slackLogger } from '../utils/slackLogger'
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateTxsDb } from '../common/utils/db-update-txs'
+import { APIFilterResult, FilterErrorResult, FilterResult } from '../common/shepherd-plugin-interfaces'
+import { logger } from '../common/utils/logger'
+import { slackLogger } from '../common/utils/slackLogger'
 
 const prefix = 'http-api'
 const app = express()

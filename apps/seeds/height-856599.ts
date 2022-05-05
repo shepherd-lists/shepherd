@@ -1,6 +1,6 @@
 import { Knex } from "knex";
-import { StateRecord, TxRecord } from '../src/types'
-import { logger } from '../src/utils/logger'
+import { StateRecord, TxRecord } from '../src/common/types'
+import { logger } from '../src/common/utils/logger'
 import { parse } from 'csv-parse'
 import col from 'ansi-colors'
 import got from 'got'

@@ -1,6 +1,6 @@
 require('dotenv').config() //first line of entrypoint
 import express from 'express'
-import { logger } from '../utils/logger'
+import { logger } from '../common/utils/logger'
 import { getBlacklist, getBlacklistTestOnly, getPerfHistory, getStatsTestOnly } from './blacklist'
 import si from 'systeminformation'
 import './perf-cron' //starts automatically

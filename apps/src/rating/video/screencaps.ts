@@ -1,8 +1,8 @@
-import { VID_TMPDIR } from '../../constants'
-import { logger } from '../../utils/logger'
+import { VID_TMPDIR } from '../../common/constants'
+import { logger } from '../../common/utils/logger'
 import { execSync } from 'child_process'
 import shelljs from 'shelljs'
-import { FfmpegError } from '../../types'
+import { FfmpegError } from '../../common/types'
 import { EOL } from 'os'
 
 

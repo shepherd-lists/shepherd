@@ -1,6 +1,6 @@
 import { InflightsRecord, TxRecord } from '../types'
-import getDbConnection from '../utils/db-connection'
-import { logger } from '../utils/logger'
+import getDbConnection from './db-connection'
+import { logger } from './logger'
 
 
 const knex = getDbConnection()

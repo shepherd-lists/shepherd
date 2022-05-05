@@ -3,8 +3,8 @@ process.env['NODE_ENV'] = 'test'
 import col from 'ansi-colors'
 import { expect } from 'chai'
 import * as imageFilter from '../src/rating/filter-host'
-import getDbConnection from '../src/utils/db-connection'
-import { TxRecord } from '../src/types'
+import getDbConnection from '../src/common/utils/db-connection'
+import { TxRecord } from '../src/common/types'
 
 const db = getDbConnection()
 

@@ -1,8 +1,8 @@
 import fs from 'fs'
-import { HOST_URL } from '../../constants'
-import { logger } from '../../utils/logger'
+import { HOST_URL } from '../../common/constants'
+import { logger } from '../../common/utils/logger'
 import * as FilterHost from "../filter-host"
-import { updateTxsDb } from '../db-update-txs'
+import { updateTxsDb } from '../../common/utils/db-update-txs'
 
 
 const prefix = 'check-frames'

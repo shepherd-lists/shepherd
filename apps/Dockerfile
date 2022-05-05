@@ -12,32 +12,24 @@ ENV NODE_ENV=production
 
 FROM base as web
 COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
-COPY ./src/utils ./src/utils
-COPY ./src/types.ts ./src/
-COPY ./src/shepherd-plugin-interfaces ./src/shepherd-plugin-interfaces
-COPY ./src/rating/db-update-txs.ts ./src/rating
+COPY ./src/common ./src/common
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as scanner
 COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
-COPY ./src/utils ./src/utils
-COPY ./src/types.ts ./src/
-COPY ./src/constants.ts ./src/
+COPY ./src/common ./src/common
 COPY ./migrations ./migrations
 COPY ./seeds ./seeds
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as feeder
 COPY ./src/feeder ./src/feeder
-COPY ./src/utils ./src/utils
-COPY ./src/types.ts ./src/
+COPY ./src/common ./src/common
 ENTRYPOINT node -r ts-node/register src/feeder/index.ts
 
 FROM base as fetchers
 COPY ./src/fetchers ./src/fetchers
-COPY ./src/utils ./src/utils
-COPY ./src/types.ts ./src/
-COPY ./src/constants.ts ./src/
+COPY ./src/common ./src/common
 ENTRYPOINT node -r ts-node/register src/fetchers/index.ts
 
 FROM rosmcmahon/node14-ffmpeg:multi-arch as rating

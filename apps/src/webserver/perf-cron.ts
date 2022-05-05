@@ -1,6 +1,6 @@
-import { HistoryRecord, StateRecord, TxRecord } from "../types";
-import dbConnection from "../utils/db-connection";
-import { getGqlHeight } from "../utils/gql-height";
+import { HistoryRecord, StateRecord, TxRecord } from "../common/types";
+import dbConnection from "../common/utils/db-connection";
+import { getGqlHeight } from "../common/utils/gql-height";
 
 const knex = dbConnection()
 

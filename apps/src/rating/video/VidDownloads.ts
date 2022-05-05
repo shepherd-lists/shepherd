@@ -1,7 +1,7 @@
 import rimraf from "rimraf"
-import { VID_TMPDIR } from "../../constants"
-import { TxRecord } from "../../types"
-import { logger } from "../../utils/logger"
+import { VID_TMPDIR } from "../../common/constants"
+import { TxRecord } from "../../common/types"
+import { logger } from "../../common/utils/logger"
 
 
 export interface VidDownloadRecord extends TxRecord {

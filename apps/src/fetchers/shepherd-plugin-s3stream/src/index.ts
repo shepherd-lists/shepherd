@@ -1,5 +1,5 @@
 // require('dotenv').config()
-import { StreamPluginInterface, INFLIGHT_CONST } from '../../../shepherd-plugin-interfaces'
+import { StreamPluginInterface, INFLIGHT_CONST } from '../../../common/shepherd-plugin-interfaces'
 import { S3 } from 'aws-sdk'
 import { Readable } from 'stream'
 

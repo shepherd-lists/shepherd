@@ -1,6 +1,6 @@
 require('dotenv').config() //first line of entrypoint
-import { logger } from '../utils/logger'
-import { slackLogger } from '../utils/slackLogger'
+import { logger } from '../common/utils/logger'
+import { slackLogger } from '../common/utils/slackLogger'
 import si from 'systeminformation'
 import { feeder } from './feeder'
 

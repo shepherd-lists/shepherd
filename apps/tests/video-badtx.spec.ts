@@ -5,8 +5,8 @@ import { createScreencaps } from '../src/rating/video/screencaps'
 import { addToDownloads, videoDownload } from '../src/rating/video/downloader'
 import col from 'ansi-colors'
 import { VidDownloadRecord } from '../src/rating/video/VidDownloads'
-import dbConnection from '../src/utils/db-connection'
-import { TxRecord } from '../src/types'
+import dbConnection from '../src/common/utils/db-connection'
+import { TxRecord } from '../src/common/types'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const knex = dbConnection()

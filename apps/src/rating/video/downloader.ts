@@ -3,12 +3,12 @@ import fs from 'fs'
 import { exec } from 'child_process'
 import filetype, { FileTypeResult } from "file-type";
 import { IncomingMessage } from "http";
-import { HOST_URL, NO_STREAM_TIMEOUT, VID_TMPDIR, VID_TMPDIR_MAXSIZE } from "../../constants";
-import { logger } from "../../utils/logger";
-import { dbNoDataFound, dbNoDataFound404, dbNoMimeType, dbPartialVideoFound, dbWrongMimeType } from "../db-update-txs";
+import { HOST_URL, NO_STREAM_TIMEOUT, VID_TMPDIR, VID_TMPDIR_MAXSIZE } from "../../common/constants";
+import { logger } from "../../common/utils/logger";
+import { dbNoDataFound, dbNoDataFound404, dbNoMimeType, dbPartialVideoFound, dbWrongMimeType } from "../../common/utils/db-update-txs";
 import { VidDownloadRecord, VidDownloads } from "./VidDownloads";
-import { TxRecord } from "../../types";
-import { slackLogger } from "../../utils/slackLogger";
+import { TxRecord } from "../../common/types";
+import { slackLogger } from "../../common/utils/slackLogger";
 import si from 'systeminformation'
 
 

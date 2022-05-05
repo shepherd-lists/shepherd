@@ -1,12 +1,12 @@
 import { S3, SQS } from 'aws-sdk'
 import axios from 'axios'
-import { FEEDER_Q_VISIBILITY_TIMEOUT, HOST_URL, NO_STREAM_TIMEOUT } from '../constants'
-import { TxRecord, TxScanned } from '../types'
-import dbConnection from '../utils/db-connection'
-import { logger } from '../utils/logger'
+import { FEEDER_Q_VISIBILITY_TIMEOUT, HOST_URL, NO_STREAM_TIMEOUT } from '../common/constants'
+import { TxRecord, TxScanned } from '../common/types'
+import dbConnection from '../common/utils/db-connection'
+import { logger } from '../common/utils/logger'
 import StreamPlugin from './shepherd-plugin-s3stream/src'
 import { IncomingMessage } from 'http'
-import { dbNoDataFound } from '../rating/db-update-txs'
+
 
 const prefix = 'fetchers'
 const knex = dbConnection() 

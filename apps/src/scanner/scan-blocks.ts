@@ -1,9 +1,9 @@
 import * as Gql from 'ar-gql'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { imageTypes, videoTypes } from '../constants'
-import { TxScanned } from '../types'
-import getDbConnection from '../utils/db-connection'
-import { logger } from '../utils/logger'
+import { imageTypes, videoTypes } from '../common/constants'
+import { TxScanned } from '../common/types'
+import getDbConnection from '../common/utils/db-connection'
+import { logger } from '../common/utils/logger'
 import { performance } from 'perf_hooks'
 
 

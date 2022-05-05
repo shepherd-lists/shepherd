@@ -1,7 +1,7 @@
 import { Response } from 'express'
-import { TxRecord, StateRecord, HistoryRecord } from '../types'
-import getDb from '../utils/db-connection'
-import { logger } from '../utils/logger'
+import { TxRecord, StateRecord, HistoryRecord } from '../common/types'
+import getDb from '../common/utils/db-connection'
+import { logger } from '../common/utils/logger'
 
 const knex = getDb()
 

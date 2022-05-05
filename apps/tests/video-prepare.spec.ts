@@ -5,11 +5,11 @@ import { expect } from 'chai'
 import { checkFrames } from '../src/rating/video/check-frames'
 import { createScreencaps } from '../src/rating/video/screencaps'
 import { processVids } from '../src/rating/video/process-files'
-import { TxRecord } from '../src/types'
+import { TxRecord } from '../src/common/types'
 import { VidDownloadRecord, VidDownloads } from '../src/rating/video/VidDownloads'
 import { addToDownloads, videoDownload } from '../src/rating/video/downloader'
 import rimraf from 'rimraf'
-import dbConnection from '../src/utils/db-connection'
+import dbConnection from '../src/common/utils/db-connection'
 
 const knex = dbConnection()
 
