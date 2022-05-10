@@ -4,6 +4,7 @@ import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedP
 import { APIFilterResult, FilterErrorResult, FilterResult } from '../common/shepherd-plugin-interfaces'
 import { logger } from '../common/utils/logger'
 import { slackLogger } from '../common/utils/slackLogger'
+import { slackLoggerPositive } from '../common/utils/slackLoggerPositive'
 
 const prefix = 'http-api'
 const app = express()
@@ -50,16 +51,21 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 	}
 
 	if(result.flagged !== undefined){
+		if(result.flagged === true && process.env.SLACK_POSITIVE){
+			slackLoggerPositive(JSON.stringify(body))
+		}
 		const res = await updateTxsDb(txid, {
 			flagged: result.flagged,
 			valid_data: true,
 		})
+
 		if(res !== txid){
+			await dbInflightDel(txid)
 			throw new Error('Could not update database')
 		}
-		await dbInflightDel(txid)
 		
 	}else if(result.data_reason === undefined){
+		await dbInflightDel(txid)
 		throw new TypeError('data_reason and flagged cannot both be undefined')
 	}else{
 		switch (result.data_reason) {
@@ -84,4 +90,6 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 				throw new Error('UNHANDLED plugin result in http-api:\n' + JSON.stringify(result))
 		}
 	}
+
+	await dbInflightDel(txid)
 }
