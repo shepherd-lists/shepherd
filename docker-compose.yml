@@ -32,6 +32,7 @@ services:
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: http-api
       SLACK_WEBHOOK: ${SLACK_WEBHOOK}
+      SLACK_POSITIVE: ${SLACK_POSITIVE}
     # ports: 
     #   - '84:84'
     restart: always
