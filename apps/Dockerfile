@@ -1,4 +1,4 @@
-FROM node:14 as base
+FROM node:16 as base
 
 # turn off the nuisance nodejs update message 
 ARG NO_UPDATE_NOTIFIER=true
@@ -32,7 +32,7 @@ COPY ./src/fetchers ./src/fetchers
 COPY ./src/common ./src/common
 ENTRYPOINT node -r ts-node/register src/fetchers/index.ts
 
-FROM rosmcmahon/node14-ffmpeg:multi-arch as rating
+FROM rosmcmahon/node16-ffmpeg:multi-arch as rating
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production

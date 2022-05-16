@@ -2,6 +2,6 @@ version: '3.7'
 
 services:
   node14-ffmpeg:
-    image: rosmcmahon/node14-ffmpeg
+    image: rosmcmahon/node16-ffmpeg
     build:
       context: .
