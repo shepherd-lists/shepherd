@@ -55,6 +55,7 @@ services:
     environment:
       PROCESS_NAME: fetchers
       DB_HOST: ${DB_HOST:-pgdb}
+      STREAMS_PER_FETCHER: ${STREAMS_PER_FETCHER:-50}
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
   # rating0:
   #   hostname: ${IMAGE_REPO:-dummy}-shepherd-rating

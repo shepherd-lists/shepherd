@@ -24,6 +24,7 @@ const sqs = new SQS({
 console.log(`process.env.SQS_LOCAL`, process.env.SQS_LOCAL)
 console.log(`process.env.AWS_FEEDER_QUEUE`, process.env.AWS_FEEDER_QUEUE)
 console.log('sqs.config.endpoint', sqs.config.endpoint)
+console.log('process.env.STREAMS_PER_FETCHER', process.env.STREAMS_PER_FETCHER)
 
 const getMessages = async(): Promise<SQS.Message[]> => {
 	const { Messages } = await sqs.receiveMessage({
@@ -80,27 +81,14 @@ const deleteMessage = async(msg: SQS.Message)=> {
   
 export const fetchers = async()=> {
 
-	/**
-	 * - the plan.
-	 * create streams from txid sources.
-	 * need new streams plugin
-	 * check streams for no response, timeout retrieving bytes, 404, etc. consider switching to `got`
-	 * check mimes, but no DB updates!
-	 * pipe until done, start the next txid
-	 */
 
-	// while(true){ !!! no big loop !!! stream providers should be autonomous
-		/* get txids */
-		/* start streams */
-		/* perform stream processing in case of cancelling stream */
-	// }
-
+	process.env.STREAMS_PER_FETCHER
 	const numStreams = 50
 
 	while(true){ //loop for dev only
 		const m = await getMessage()
 		if(m){
-			const ret = await streamer(m)
+			const ret = await dataStream(m)
 			if(ret === 'NO_DATA'){
 				// await dbNoDataFound(rec.txid)
 			}
@@ -113,18 +101,28 @@ export const fetchers = async()=> {
 	
 }
 
-export const streamer = async(m: SQS.Message)=> {
+export const dataStreamErrors = async(m: SQS.Message)=> {
+	try{
+		const ret = await dataStream(m)
+	}catch(e){
+		if(axios.isAxiosError(e)){
+			//do something
+		}
+	}
+}
+
+export const dataStream = async(m: SQS.Message)=> {
 	
-	logger('streamer', 'starting', m.MessageId)
+	logger(dataStream.name, 'starting', m.MessageId)
 	let retCode = 'OK' // used in test
 
 	const rec: TxScanned = JSON.parse(m.Body!)
 
 	
-	const srcToken = axios.CancelToken.source()
+	const control = new AbortController()
 	const { data, headers} = await axios.get(`${HOST_URL}/${rec.txid}`, { 
 		responseType: 'stream',
-		cancelToken: srcToken.token,
+		signal: control.signal,
 	})
 	const read: IncomingMessage = data
 	const contentLength = BigInt(headers['content-length'])
@@ -158,7 +156,7 @@ export const streamer = async(m: SQS.Message)=> {
 	
 	read.setTimeout(NO_STREAM_TIMEOUT, ()=>{
 		console.log(prefix, 'activity timeout occurred on', m.MessageId, rec.txid)
-		srcToken.cancel() //cancel axios
+		control.abort() //abort axios
 		read.destroy() //close called next
 	})
 
@@ -173,6 +171,6 @@ export const streamer = async(m: SQS.Message)=> {
 	return retCode;
 } 
 
-export const streamType = async()=> {
+export const filetypeStream = async()=> {
 	
 }
