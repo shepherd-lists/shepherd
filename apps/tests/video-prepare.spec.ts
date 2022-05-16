@@ -10,6 +10,9 @@ import { VidDownloadRecord, VidDownloads } from '../src/rating/video/VidDownload
 import { addToDownloads, videoDownload } from '../src/rating/video/downloader'
 import rimraf from 'rimraf'
 import dbConnection from '../src/common/utils/db-connection'
+import sinon from 'sinon'
+import { PassThrough } from 'stream'
+import axios from 'axios'
 
 const knex = dbConnection()
 
@@ -40,6 +43,7 @@ describe('video-prepare tests', ()=> {
 			txid: 'nSX3Qaz-r1NF2dJ4Xh-pMrD6VNt_5wmtu6AgezO3h9U',
 			content_type: 'video/mp4',
 		}
+		await knex<TxRecord>('txs').where('txid', smallvid.txid).delete()
 		await knex<TxRecord>('txs').insert({ txid: smallvid.txid, content_type: 'video/mp4', content_size: '10108'})
 		const res = await videoDownload(smallvid)
 		while(smallvid.complete === 'FALSE') await sleep(500)
@@ -55,8 +59,16 @@ describe('video-prepare tests', ()=> {
 		}
 		await knex<TxRecord>('txs').where('txid', nodata.txid).delete()
 		await knex<TxRecord>('txs').insert({ txid: nodata.txid, content_type: 'video/mp4', content_size: '123'})
+
+		const mockStream = new PassThrough()
+		const fakeAxios = sinon.stub(axios, 'get').resolves({ 
+			data: mockStream, headers: { 'content-length': 123 }
+		})
+
 		const res = await videoDownload(nodata) 
+		expect(fakeAxios.called).true
 		expect(res).to.equal('no data timeout')
+		sinon.restore()
 	}).timeout(0)
 
 	it('3. videoDownload: incorrect file-type can be detected & download aborted', async()=> {

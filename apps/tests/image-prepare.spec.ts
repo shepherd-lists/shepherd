@@ -5,6 +5,9 @@ import { expect } from 'chai'
 import * as imageFilter from '../src/rating/filter-host'
 import getDbConnection from '../src/common/utils/db-connection'
 import { TxRecord } from '../src/common/types'
+import sinon from 'sinon'
+import axios from 'axios'
+import { NO_DATA_TIMEOUT } from '../src/common/constants'
 
 const db = getDbConnection()
 
@@ -81,6 +84,8 @@ describe('image-prepare tests', ()=> {
 		}))
 	})
 
+	afterEach(()=> sinon.restore())
+
 
 	it('tests handling 404 image', async()=>{
 		const res = await imageFilter.checkImageTxid(tx404, 'image/png')
@@ -119,7 +124,13 @@ describe('image-prepare tests', ()=> {
 	}).timeout(0)
 
 	it('tests handling image file timeout while downloading', async()=>{
+		
+		const fakeAxios = sinon.stub(axios, 'get').returns(
+			new Promise(resolve => setTimeout(resolve, NO_DATA_TIMEOUT+1000))
+		)
+
 		const res = await imageFilter.checkImageTxid(txTimeout, 'image/png')
+		expect(fakeAxios.called).true
 		expect(res).false // false: will handle later
 		
 		const check = await db<TxRecord>('txs').where({ txid: txTimeout})
