@@ -2,7 +2,10 @@ process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import {  } from 'mocha'
 import { SQS } from 'aws-sdk'
-import { streamer } from '../src/fetchers/fetchers'
+import { dataStream } from '../src/fetchers/fetchers'
+import sinon from 'sinon'
+import axios from 'axios'
+import { PassThrough } from 'stream'
 
 // some test sqs messages
 const goodMsg: SQS.Message = {
@@ -17,7 +20,8 @@ const nodataMsg: SQS.Message = {
 	MessageId: 'msg-id-no-data',
 	ReceiptHandle: '002',
 	Body: JSON.stringify({
-		txid: 'MdOMjck45888zaIuS_VE8SY2jspssvUrDIJPUzVjiF8',
+		// txid: 'MdOMjck45888zaIuS_VE8SY2jspssvUrDIJPUzVjiF8',
+		txid: 'mKtVp1UVE7TScGBoGrZ8Qi741v2G06a-An8baaceY2M',
 		content_type: 'video/mp4',
 	})
 }
@@ -32,18 +36,38 @@ const partialdataMsg: SQS.Message = {
 
 describe('fetchers tests', ()=>{
 
+	afterEach(()=> sinon.restore())
+
 	it('tests a good message gets processed', async()=> {
-		const res = await streamer(goodMsg)
+		const res = await dataStream(goodMsg)
 		expect(res).eq('OK')
 	}).timeout(0)
 
 	it('tests a NO_DATA message gets processed', async()=> {
-		const res = await streamer(nodataMsg)
+		const mockStream = new PassThrough()
+		//@ts-ignore
+		mockStream.setTimeout = (t: number, cb: Function) => setTimeout(cb, 1000)
+		const fakeAxios = sinon.stub(axios, 'get').resolves({ 
+			data: mockStream, headers: { 'content-length': 123 }
+		})
+
+		const res = await dataStream(nodataMsg)
+		expect(fakeAxios.called).true
 		expect(res).eq('NO_DATA')
 	}).timeout(0)
 
 	it('tests PARTIAL_DATA message gets processed', async()=> {
-		const res = await streamer(partialdataMsg)
+		const mockStream = new PassThrough() 
+		//@ts-ignore
+		mockStream.setTimeout = (t: number, cb: Function) => setTimeout(cb, 1000)
+		const fakeAxios = sinon.stub(axios, 'get').resolves({ 
+			data: mockStream, headers: { 'content-length': 123 }
+		})
+		mockStream.push('fake-partial-data')
+		
+		
+		const res = await dataStream(partialdataMsg)
+		expect(fakeAxios.called).true
 		expect(res).eq('OK')
 	}).timeout(0)
 
