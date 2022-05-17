@@ -98,7 +98,7 @@ describe('video-prepare tests', ()=> {
 		while(vid.complete !== 'TRUE') await sleep(500)
 		const frames = await createScreencaps(vid.txid) 
 		expect(frames.length).greaterThan(1)
-		expect(frames.length).eq(4)
+		expect(frames.length).lessThanOrEqual(4) //ffmpeg sometimes creates 2,3,4 screencaps. not an error.
 	}).timeout(0)
 
 	it('5. checkFrames: check screencaps for nsfw content', async()=> {
