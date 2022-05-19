@@ -4,7 +4,7 @@ import { FEEDER_Q_VISIBILITY_TIMEOUT, HOST_URL, NO_STREAM_TIMEOUT } from '../com
 import { TxRecord, TxScanned } from '../common/types'
 import dbConnection from '../common/utils/db-connection'
 import { logger } from '../common/utils/logger'
-import StreamPlugin from './shepherd-plugin-s3stream/src'
+import { s3Stream } from './s3Stream'
 import { IncomingMessage } from 'http'
 
 
@@ -160,7 +160,7 @@ export const dataStream = async(m: SQS.Message)=> {
 		read.destroy() //close called next
 	})
 
-	await StreamPlugin.checkStream(read, rec.content_type, rec.txid)
+	await s3Stream(read, rec.content_type, rec.txid)
 
 	// just in case some plugin isn't playing nice, ensure 'close' is fired.
 	if(!read.destroyed) read.destroy()

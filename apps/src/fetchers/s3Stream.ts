@@ -1,9 +1,7 @@
-// require('dotenv').config()
-import { StreamPluginInterface, INFLIGHT_CONST } from '../../../common/shepherd-plugin-interfaces'
 import { S3 } from 'aws-sdk'
 import { Readable } from 'stream'
 
-const prefix = '[s3stream-plugin]'
+const prefix = '[s3stream]'
 
 console.assert(process.env.AWS_DEFAULT_REGION, 'process.env.AWS_DEFAULT_REGION is undefined')
 console.assert(process.env.AWS_ACCESS_KEY_ID, 'process.env.AWS_ACCESS_KEY_ID is undefined')
@@ -24,7 +22,7 @@ const s3 = new S3({
 
 const bucketName = process.env.AWS_INPUT_BUCKET as string
 
-const checkStream = async(read: Readable, mimetype: string, txid: string)=> {
+export const s3Stream = async(read: Readable, mimetype: string, txid: string)=> {
 
 	console.log(prefix, 'uploading', txid, mimetype)
 
@@ -62,8 +60,3 @@ const checkStream = async(read: Readable, mimetype: string, txid: string)=> {
 	}
 }
 
-
-const StreamPlugin: StreamPluginInterface = {
-	checkStream,
-}
-export default StreamPlugin;
