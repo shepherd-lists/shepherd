@@ -1,7 +1,8 @@
 import { S3 } from 'aws-sdk'
 import { Readable } from 'stream'
+import { logger } from '../common/utils/logger'
 
-const prefix = '[s3stream]'
+const prefix = 's3stream'
 
 console.assert(process.env.AWS_DEFAULT_REGION, 'process.env.AWS_DEFAULT_REGION is undefined')
 console.assert(process.env.AWS_ACCESS_KEY_ID, 'process.env.AWS_ACCESS_KEY_ID is undefined')
@@ -9,7 +10,6 @@ console.assert(process.env.AWS_SECRET_ACCESS_KEY, 'process.env.AWS_SECRET_ACCESS
 console.assert(process.env.AWS_INPUT_BUCKET, 'process.env.AWS_INPUT_BUCKET is undefined')
 
 
-// const s3 = new AWS.S3({ apiVersion: '2006-03-01' })
 const s3 = new S3({
 	apiVersion: '2006-03-01',
 	...(process.env.S3_LOCAL==='yes' && { 
@@ -22,17 +22,16 @@ const s3 = new S3({
 
 const bucketName = process.env.AWS_INPUT_BUCKET as string
 
-export const s3Stream = async(read: Readable, mimetype: string, txid: string)=> {
+export const s3Stream = async(readable: Readable, mimetype: string, txid: string)=> {
 
-	console.log(prefix, 'uploading', txid, mimetype)
+	logger(prefix, 'uploading', txid, mimetype)
 
-	read.on('error',e=>{
+	readable.on('error',e=>{
 		if(e.message === 'NO_DATA'){ 
-			console.log(prefix, 'error', e.message, txid)
+			logger(prefix, 'aborting. error', e.message, txid)
 			uploader.abort() 
-
 		}else{
-			console.log(prefix, 'error', e)
+			logger(prefix, 'UNHANDLED error', e)
 		}
 	})
 
@@ -42,10 +41,10 @@ export const s3Stream = async(read: Readable, mimetype: string, txid: string)=> 
 			Bucket: bucketName,
 			Key: txid,
 			ContentType: mimetype,
-			Body: read,
+			Body: readable,
 		})
 		const data = await uploader.promise()
-		console.log(prefix, 'uploaded buffer. Location', data.Location)
+		logger(prefix, 'uploaded buffer. Location', data.Location)
 		return 'OK';
 	}catch(e){
 		if(e instanceof Error){
@@ -53,7 +52,7 @@ export const s3Stream = async(read: Readable, mimetype: string, txid: string)=> 
 				// not an error. we requested to abort
 				return 'NO_DATA';
 			}
-			console.log('UNHANDLED S3 ERROR', e.name,':',e.message)
+			logger(prefix, 'UNHANDLED S3 ERROR', e.name,':',e.message)
 		}
 		//just throw stuff like NoSuchBucket, UnknownEndpoint, etc. needs to be handled externally
 		throw e;	
