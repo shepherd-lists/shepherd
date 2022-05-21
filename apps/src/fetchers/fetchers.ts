@@ -89,9 +89,9 @@ export const fetchers = async()=> {
 		const m = await getMessage()
 		if(m){
 			const ret = await dataStream(m)
-			if(ret === 'NO_DATA'){
-				// await dbNoDataFound(rec.txid)
-			}
+			// if(ret === 'NO_DATA'){
+			// 	// await dbNoDataFound(rec.txid)
+			// }
 		}else{
 			console.log('got no message. waiting..')
 			await sleep(5000)
@@ -103,10 +103,17 @@ export const fetchers = async()=> {
 
 export const dataStreamErrors = async(m: SQS.Message)=> {
 	try{
-		const ret = await dataStream(m)
-	}catch(e){
-		if(axios.isAxiosError(e)){
-			//do something
+		const incoming = dataStream(m)
+
+		// await s3Stream(incoming, rec.content_type, rec.txid)
+	
+		await deleteMessage(m)
+		console.log(`deleted message: ${m.MessageId} ${'rec.txid'}`)
+	}catch(e:any){
+		const status = Number(e.response?.status) || 0
+		const code = e.response?.code || e.code || 'no-code'
+		if(status === 404){
+			
 		}
 	}
 }
@@ -114,61 +121,52 @@ export const dataStreamErrors = async(m: SQS.Message)=> {
 export const dataStream = async(m: SQS.Message)=> {
 	
 	logger(dataStream.name, 'starting', m.MessageId)
-	let retCode = 'OK' // used in test
+
 
 	const rec: TxScanned = JSON.parse(m.Body!)
-
 	
 	const control = new AbortController()
 	const { data, headers} = await axios.get(`${HOST_URL}/${rec.txid}`, { 
 		responseType: 'stream',
 		signal: control.signal,
 	})
-	const read: IncomingMessage = data
+	const incoming: IncomingMessage = data
 	const contentLength = BigInt(headers['content-length'])
 
 	let received = 0n
-	read.on('data', (chunk: Uint8Array) => {
+	incoming.on('data', (chunk: Uint8Array) => {
 		received += BigInt(chunk.length)
 		if(process.env.NODE_ENV==='test') process.stdout.write('.')
 	})
 
-	read.on('close', async()=> {
+	incoming.on('close', async()=> {
 		console.log('close', m.MessageId, received)
 		if(!complete){
 			if(received === 0n){
 				console.log('NO_DATA detected. length', received) 
-				read.emit('error', new Error('NO_DATA'))
-				retCode = 'NO_DATA' //close gets fired one way or another in time to set this
+				incoming.emit('error', new Error('NO_DATA'))
+				// retCode = 'NO_DATA' //close gets fired one way or another in time to set this
 			}else if(contentLength !== received){
 				console.log('partial detected. length', received) 
 				//partial data will be classified too
-				read.emit('end')
+				incoming.emit('end')
 			}
 		}
 	})
 	
 	let complete = false
-	read.on('end',()=>{
+	incoming.on('end',()=>{
 		console.log('end', m.MessageId)
 		complete = true
 	})
 	
-	read.setTimeout(NO_STREAM_TIMEOUT, ()=>{
+	incoming.setTimeout(NO_STREAM_TIMEOUT, ()=>{
 		console.log(prefix, 'activity timeout occurred on', m.MessageId, rec.txid)
 		control.abort() //abort axios
-		read.destroy() //close called next
+		incoming.destroy() //close called next
 	})
 
-	await s3Stream(read, rec.content_type, rec.txid)
-
-	// just in case some plugin isn't playing nice, ensure 'close' is fired.
-	if(!read.destroyed) read.destroy()
-
-	await deleteMessage(m)
-	console.log(`deleted message: ${m.MessageId} ${rec.txid}`)
-
-	return retCode;
+	return incoming;
 } 
 
 export const filetypeStream = async()=> {
