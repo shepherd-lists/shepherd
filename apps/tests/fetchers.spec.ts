@@ -38,12 +38,16 @@ describe('fetchers tests', ()=>{
 
 	afterEach(()=> sinon.restore())
 
-	it('tests a good message gets processed', async()=> {
-		const res = await dataStream(goodMsg)
-		expect(res).eq('OK')
+	it('tests a good message gets processed', (done)=> {
+		dataStream(goodMsg).then(ds=>{
+			expect(ds).to.exist
+			ds.on('end',()=>{
+				done()
+			})
+		})
 	}).timeout(0)
 
-	it('tests a NO_DATA message gets processed', async()=> {
+	it('tests a NO_DATA message gets processed', (done)=> {
 		const mockStream = new PassThrough()
 		//@ts-ignore
 		mockStream.setTimeout = (t: number, cb: Function) => setTimeout(cb, 1000)
@@ -51,12 +55,18 @@ describe('fetchers tests', ()=>{
 			data: mockStream, headers: { 'content-length': 123 }
 		})
 
-		const res = await dataStream(nodataMsg)
-		expect(fakeAxios.called).true
-		expect(res).eq('NO_DATA')
+		dataStream(nodataMsg).then(ds=>{
+			expect(ds).to.exist
+			expect(fakeAxios.called).true
+			ds.on('error', e =>{
+				if(e.message==='NO_DATA'){
+					done()
+				}
+			})
+		})
 	}).timeout(0)
 
-	it('tests PARTIAL_DATA message gets processed', async()=> {
+	it('tests PARTIAL_DATA message gets processed', (done)=> {
 		const mockStream = new PassThrough() 
 		//@ts-ignore
 		mockStream.setTimeout = (t: number, cb: Function) => setTimeout(cb, 1000)
@@ -66,9 +76,20 @@ describe('fetchers tests', ()=>{
 		mockStream.push('fake-partial-data')
 		
 		
-		const res = await dataStream(partialdataMsg)
-		expect(fakeAxios.called).true
-		expect(res).eq('OK')
+		dataStream(partialdataMsg).then(ds =>{
+			expect(fakeAxios.called).true
+			ds.on('end', ()=> {
+				done() 
+			})
+		})
 	}).timeout(0)
+
+	// it('tests a 404 message gets processed', async()=> {
+	// 	const res = await dataStream(
+	// 		Object.assign(goodMsg, { Body: JSON.stringify({ txid: 'uWnAlY0fOnvqb2HC1lt_CJh_OSbgQOlgx6XInMYv86I'})})
+	// 	)
+
+	// 	expect(res).eq('OK')
+	// }).timeout(0)
 
 })
