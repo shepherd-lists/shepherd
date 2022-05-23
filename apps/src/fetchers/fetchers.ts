@@ -6,6 +6,7 @@ import dbConnection from '../common/utils/db-connection'
 import { logger } from '../common/utils/logger'
 import { s3Stream } from './s3Stream'
 import { IncomingMessage } from 'http'
+import { pipeline } from 'stream/promises'
 
 
 const prefix = 'fetchers'
@@ -88,10 +89,25 @@ export const fetchers = async()=> {
 	while(true){ //loop for dev only
 		const m = await getMessage()
 		if(m){
-			const ret = await dataStream(m)
+			logger(fetchers.name, 'starting', m.MessageId)
+			
+			const rec: TxScanned = JSON.parse(m.Body!)
+
+			let incoming: IncomingMessage
 			// if(ret === 'NO_DATA'){
-			// 	// await dbNoDataFound(rec.txid)
-			// }
+				// 	// await dbNoDataFound(rec.txid)
+				// }
+			try{
+				incoming = await dataStream(m.MessageId!, rec.txid)
+				const uploaded = await s3Stream(incoming, rec.content_type, rec.txid)
+				
+			}catch(e){
+				console.log('FETCHERS Unhandled', e)
+				throw e;
+			}
+
+			await deleteMessage(m)
+			console.log(`deleted message: ${m.MessageId} ${'rec.txid'}`)
 		}else{
 			console.log('got no message. waiting..')
 			await sleep(5000)
@@ -101,32 +117,35 @@ export const fetchers = async()=> {
 	
 }
 
-export const dataStreamErrors = async(m: SQS.Message)=> {
-	try{
-		const incoming = dataStream(m)
-
-		// await s3Stream(incoming, rec.content_type, rec.txid)
+// export const dataStreamErrors = async(msgId: string, txid: string)=> {
+// 	try{
+// 		const incoming = await dataStream(msgId, txid)
+// 		const eHandler = (e:any) => {
+// 			if(e.message==='NO_DATA'){
+// 				throw new Error('NO_DATA error thrown')
+// 			}
+// 		}
+// 		incoming.on('error', eHandler)
 	
-		await deleteMessage(m)
-		console.log(`deleted message: ${m.MessageId} ${'rec.txid'}`)
-	}catch(e:any){
-		const status = Number(e.response?.status) || 0
-		const code = e.response?.code || e.code || 'no-code'
-		if(status === 404){
-			
-		}
-	}
-}
+// 		return incoming
+// 	}catch(e:any){
+// 		const status = Number(e.response?.status) || 0
+// 		const code = e.response?.code || e.code || 'no-code'
+// 		if(status === 404){
+// 			console.log('caught 404')
+// 			return '404';
+// 		}else{
+// 			console.log('caught', e)
+// 			return e.message;
+// 		}
 
-export const dataStream = async(m: SQS.Message)=> {
-	
-	logger(dataStream.name, 'starting', m.MessageId)
+// 	}
+// }
 
-
-	const rec: TxScanned = JSON.parse(m.Body!)
+export const dataStream = async(msgId: string, txid: string)=> {
 	
 	const control = new AbortController()
-	const { data, headers} = await axios.get(`${HOST_URL}/${rec.txid}`, { 
+	const { data, headers} = await axios.get(`${HOST_URL}/${txid}`, { 
 		responseType: 'stream',
 		signal: control.signal,
 	})
@@ -140,12 +159,11 @@ export const dataStream = async(m: SQS.Message)=> {
 	})
 
 	incoming.on('close', async()=> {
-		console.log('close', m.MessageId, received)
+		console.log('close', msgId, received)
 		if(!complete){
 			if(received === 0n){
 				console.log('NO_DATA detected. length', received) 
 				incoming.emit('error', new Error('NO_DATA'))
-				// retCode = 'NO_DATA' //close gets fired one way or another in time to set this
 			}else if(contentLength !== received){
 				console.log('partial detected. length', received) 
 				//partial data will be classified too
@@ -156,12 +174,12 @@ export const dataStream = async(m: SQS.Message)=> {
 	
 	let complete = false
 	incoming.on('end',()=>{
-		console.log('end', m.MessageId)
+		console.log('end', msgId)
 		complete = true
 	})
 	
 	incoming.setTimeout(NO_STREAM_TIMEOUT, ()=>{
-		console.log(prefix, 'activity timeout occurred on', m.MessageId, rec.txid)
+		console.log(prefix, 'activity timeout occurred on', msgId, txid)
 		control.abort() //abort axios
 		incoming.destroy() //close called next
 	})
