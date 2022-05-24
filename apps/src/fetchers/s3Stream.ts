@@ -27,7 +27,7 @@ export const s3Stream = async(readable: Readable, mimetype: string, txid: string
 	logger(prefix, 'uploading', txid, mimetype)
 
 	readable.on('error',e=>{
-		if(e.message === 'NO_DATA'){ 
+		if(['NO_DATA', 'BAD_MIME'].includes(e.message)){ 
 			logger(prefix, 'aborting. error', e.message, txid)
 			uploader.abort() 
 		}else{
@@ -50,7 +50,7 @@ export const s3Stream = async(readable: Readable, mimetype: string, txid: string
 		if(e instanceof Error){
 			if(e.name === 'RequestAbortedError'){
 				// not an error. we requested to abort
-				return 'NO_DATA';
+				return 'ABORTED';
 			}
 			logger(prefix, 'UNHANDLED S3 ERROR', e.name,':',e.message)
 		}
@@ -59,3 +59,13 @@ export const s3Stream = async(readable: Readable, mimetype: string, txid: string
 	}
 }
 
+export const s3Delete = async (txid: string) => {
+	logger(prefix, `deleting ${txid} ...`)
+	
+	await s3.deleteObject({
+		Bucket: bucketName,
+		Key: txid,
+	}).promise()
+	
+	logger(prefix, `sent delete command on ${txid} without throwing error`)
+}

@@ -7,6 +7,7 @@ import { logger } from '../common/utils/logger'
 import { s3Stream } from './s3Stream'
 import { IncomingMessage } from 'http'
 import { pipeline } from 'stream/promises'
+import { filetypeStream } from './fileTypeStream'
 
 
 const prefix = 'fetchers'
@@ -94,12 +95,13 @@ export const fetchers = async()=> {
 			const rec: TxScanned = JSON.parse(m.Body!)
 
 			let incoming: IncomingMessage
-			// if(ret === 'NO_DATA'){
-				// 	// await dbNoDataFound(rec.txid)
-				// }
+			let uploaded: "OK" | "ABORTED"
 			try{
 				incoming = await dataStream(m.MessageId!, rec.txid)
-				const uploaded = await s3Stream(incoming, rec.content_type, rec.txid)
+				const mimeOk = await filetypeStream(incoming, rec.txid)
+				if(mimeOk){
+					uploaded = await s3Stream(incoming, rec.content_type, rec.txid)
+				}
 				
 			}catch(e){
 				console.log('FETCHERS Unhandled', e)
@@ -117,30 +119,6 @@ export const fetchers = async()=> {
 	
 }
 
-// export const dataStreamErrors = async(msgId: string, txid: string)=> {
-// 	try{
-// 		const incoming = await dataStream(msgId, txid)
-// 		const eHandler = (e:any) => {
-// 			if(e.message==='NO_DATA'){
-// 				throw new Error('NO_DATA error thrown')
-// 			}
-// 		}
-// 		incoming.on('error', eHandler)
-	
-// 		return incoming
-// 	}catch(e:any){
-// 		const status = Number(e.response?.status) || 0
-// 		const code = e.response?.code || e.code || 'no-code'
-// 		if(status === 404){
-// 			console.log('caught 404')
-// 			return '404';
-// 		}else{
-// 			console.log('caught', e)
-// 			return e.message;
-// 		}
-
-// 	}
-// }
 
 export const dataStream = async(msgId: string, txid: string)=> {
 	
@@ -184,9 +162,13 @@ export const dataStream = async(msgId: string, txid: string)=> {
 		incoming.destroy() //close called next
 	})
 
+	incoming.on('error', e =>{
+		if(e.message === 'BAD_MIME'){
+			control.abort()
+			incoming.destroy()
+		}
+	})
+
 	return incoming;
 } 
 
-export const filetypeStream = async()=> {
-	
-}
