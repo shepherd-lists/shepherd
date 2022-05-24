@@ -27,8 +27,7 @@ describe('fetchers-s3Stream tests', ()=>{
 		}, 0)
 
 		const res = await s3Stream(mockStream,'image/gif', 'txid-nodata')
-		expect(res).eq('NO_DATA')
+		expect(res).eq('ABORTED')
 	}).timeout(0)
-
 
 })
