@@ -3,7 +3,7 @@ import { Readable } from 'stream';
 import { logger } from '../common/utils/logger';
 import { s3Delete } from './s3Stream';
 
-export const filetypeStream = async(incoming: Readable, txid: string)=> {
+export const filetypeStream = async(incoming: Readable, txid: string, dbMime: string)=> {
 	const ft = await fromStream(incoming)
 	if( ft && (
 			ft.mime.startsWith('image')
@@ -15,9 +15,9 @@ export const filetypeStream = async(incoming: Readable, txid: string)=> {
 		if(process.env.NODE_ENV === 'test') logger(filetypeStream.name, `${txid} tested ok ${ft.mime}`)
 		return true;
 	}else{
-		if(process.env.NODE_ENV === 'test') logger(filetypeStream.name, `${txid} tested bad ${ft?.mime}`)
+		// if(process.env.NODE_ENV === 'test') 
+		logger(filetypeStream.name, `${txid} original ${dbMime} rejected with ${ft?.mime}`)
 		incoming.emit('error', new Error('BAD_MIME'))
-		s3Delete(txid)
 		return false;
 	}
 }
