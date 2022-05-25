@@ -17,7 +17,8 @@ export const filetypeStream = async(incoming: Readable, txid: string, dbMime: st
 	}else{
 		// if(process.env.NODE_ENV === 'test') 
 		logger(filetypeStream.name, `${txid} original ${dbMime} rejected with ${ft?.mime}`)
-		incoming.emit('error', new Error('BAD_MIME'))
-		return false;
+		const mimeError = new Error('BAD_MIME')
+		incoming.emit('error', mimeError)
+		throw mimeError;
 	}
 }

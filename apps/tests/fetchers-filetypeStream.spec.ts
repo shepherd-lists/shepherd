@@ -5,6 +5,7 @@ import sinon from 'sinon'
 import { PassThrough } from 'stream'
 import { createReadStream } from 'fs'
 import { filetypeStream } from '../src/fetchers/fileTypeStream'
+import { FetchersStatus } from '../src/common/constants'
 
 
 describe('fetchers-filetypeStream tests', ()=>{
@@ -18,15 +19,23 @@ describe('fetchers-filetypeStream tests', ()=>{
 		expect(res).true
 	}).timeout(0)
 
-	it('tests a BAD_MIME stream aborts', async()=> {
+	it('tests a BAD_MIME stream aborts and error thrown', async()=> {
+		const BAD_MIME: FetchersStatus = 'BAD_MIME'
 		const mockStream = new PassThrough()
 		mockStream.push('this is not media content')
 		mockStream.end()
 
-		mockStream.on('error', e => mockStream.destroy()) //clean up
+		mockStream.on('error', e => {
+			expect(e.message).eq(BAD_MIME)
+			mockStream.destroy() //clean up
+		}) 
 
-		const res = await filetypeStream(mockStream, 'txid-bad-mime', 'image/fake-mime')
-		expect(res).false
+		try{
+			const res = await filetypeStream(mockStream, 'txid-bad-mime', 'image/fake-mime')
+			expect(true).false // we shouldn't get here, make sure test fails
+		}catch(e:any){
+			expect(e.message).eq(BAD_MIME)
+		}
 	}).timeout(0)
 
 })
