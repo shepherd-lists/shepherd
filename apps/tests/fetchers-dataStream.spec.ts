@@ -1,10 +1,11 @@
 process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import {  } from 'mocha'
-import { dataStream,  } from '../src/fetchers/fetchers'
+import { dataStream } from '../src/fetchers/fetchers'
 import sinon from 'sinon'
 import axios, { Axios, AxiosError } from 'axios'
 import { PassThrough } from 'stream'
+import * as DbUpdate from '../src/common/utils/db-update-txs'
 
 /* these are now being mocked, but the responses have been changing lately on the gateway (2022-05-24) */
 // some test datas
@@ -36,8 +37,10 @@ describe('fetchers `dataStream` tests', ()=>{
 		const fakeAxios = sinon.stub(axios, 'get').resolves({ 
 			data: mockStream, headers: { 'content-length': 123 }
 		})
+		//quieten log noise
+		sinon.stub(DbUpdate, 'dbNoDataFound').resolves() //we're not testing db connectivity here.
 
-		dataStream(nodataMsgId, nodataTxid).then(ds=>{
+		dataStream(nodataMsgId, 'txid-no-data').then(ds=>{
 			expect(ds).to.exist
 			expect(fakeAxios.called).true
 			ds.on('error', e =>{
@@ -57,7 +60,7 @@ describe('fetchers `dataStream` tests', ()=>{
 		})
 		mockStream.push('fake-partial-data')
 		
-		dataStream(partialdataMsgId, partialdataTxid).then(ds =>{
+		dataStream(partialdataMsgId, 'txid-partial-data').then(ds =>{
 			expect(fakeAxios.called).true
 			ds.on('end', ()=> {
 				done() 

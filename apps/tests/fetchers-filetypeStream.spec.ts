@@ -14,7 +14,7 @@ describe('fetchers-filetypeStream tests', ()=>{
 	it('tests a good stream does not emit an error', async()=> {
 		const rs = createReadStream(`${__dirname}/assets/test.png`)
 
-		const res = await filetypeStream(rs, 'txid-good-png')
+		const res = await filetypeStream(rs, 'txid-good-png', 'image/png')
 		expect(res).true
 	}).timeout(0)
 
@@ -25,7 +25,7 @@ describe('fetchers-filetypeStream tests', ()=>{
 
 		mockStream.on('error', e => mockStream.destroy()) //clean up
 
-		const res = await filetypeStream(mockStream, 'txid-bad-mime')
+		const res = await filetypeStream(mockStream, 'txid-bad-mime', 'image/fake-mime')
 		expect(res).false
 	}).timeout(0)
 
