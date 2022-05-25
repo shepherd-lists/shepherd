@@ -6,30 +6,30 @@ ENV NO_UPDATE_NOTIFIER=true
 RUN npm config set update-notifier false
 # create app directory
 WORKDIR /app
+ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --only=production
-ENV NODE_ENV=production
 
 FROM base as web
-COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
 COPY ./src/common ./src/common
+COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as scanner
-COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
-COPY ./src/common ./src/common
 COPY ./migrations ./migrations
 COPY ./seeds ./seeds
+COPY ./src/common ./src/common
+COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
 ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
 
 FROM base as feeder
-COPY ./src/feeder ./src/feeder
 COPY ./src/common ./src/common
+COPY ./src/feeder ./src/feeder
 ENTRYPOINT node -r ts-node/register src/feeder/index.ts
 
 FROM base as fetchers
-COPY ./src/fetchers ./src/fetchers
 COPY ./src/common ./src/common
+COPY ./src/fetchers ./src/fetchers
 ENTRYPOINT node -r ts-node/register src/fetchers/index.ts
 
 FROM rosmcmahon/node16-ffmpeg:multi-arch as rating
