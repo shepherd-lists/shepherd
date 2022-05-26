@@ -23,7 +23,7 @@ const s3 = new S3({
 
 const bucketName = process.env.AWS_INPUT_BUCKET as string
 
-export const s3Stream = async(readable: Readable, mimetype: string, txid: string)=> {
+export const s3UploadStream = async(readable: Readable, mimetype: string, txid: string)=> {
 
 	logger(prefix, 'uploading', txid, mimetype)
 
