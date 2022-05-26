@@ -73,6 +73,15 @@ export const dbNoDataFound = async(txid: string)=> {
 		last_update_date: new Date(),
 	})
 }
+export const dbBadMimeFound = async(txid: string, mimetype: string)=> {
+	await dbInflightDel(txid)
+	return updateTxsDb(txid,{
+		flagged: false,
+		valid_data: false,
+		data_reason: 'mimetype',
+		last_update_date: new Date(),
+	})
+}
 
 export const dbCorruptDataConfirmed = async(txid: string)=> {
 	return updateTxsDb(txid,{
