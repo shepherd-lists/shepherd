@@ -17,6 +17,7 @@ export interface TxRecord extends TxScanned {
 		| 'corrupt-maybe' 
 		| 'unsupported' 
 		| 'noop'
+		| 'mime-type'
 		| (string & {}) //intellisense hack
 
 	last_update_date: Date
