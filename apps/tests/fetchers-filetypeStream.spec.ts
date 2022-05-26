@@ -6,6 +6,8 @@ import { PassThrough } from 'stream'
 import { createReadStream } from 'fs'
 import { filetypeStream } from '../src/fetchers/fileTypeStream'
 import { FetchersStatus } from '../src/common/constants'
+import * as dbStub from '../src/common/utils/db-update-txs'
+import * as s3Stub from '../src/fetchers/s3Services'
 
 
 describe('fetchers-filetypeStream tests', ()=>{
@@ -20,18 +22,22 @@ describe('fetchers-filetypeStream tests', ()=>{
 	}).timeout(0)
 
 	it('tests a BAD_MIME stream aborts and error thrown', async()=> {
-		const BAD_MIME: FetchersStatus = 'BAD_MIME'
 		const mockStream = new PassThrough()
 		mockStream.push('this is not media content')
 		mockStream.end()
-
+		
+		// we're not testing these
+		sinon.stub(dbStub, 'dbBadMimeFound').resolves()
+		sinon.stub(s3Stub, 's3Delete').resolves()
+		
+		const BAD_MIME: FetchersStatus = 'BAD_MIME'
 		mockStream.on('error', e => {
 			expect(e.message).eq(BAD_MIME)
 			mockStream.destroy() //clean up
 		}) 
 
 		try{
-			const res = await filetypeStream(mockStream, 'txid-bad-mime', 'image/fake-mime')
+			await filetypeStream(mockStream, 'txid-bad-mime', 'image/fake-mime')
 			expect(true).false // we shouldn't get here, make sure test fails
 		}catch(e:any){
 			expect(e.message).eq(BAD_MIME)
