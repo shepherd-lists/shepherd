@@ -66,12 +66,11 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 }
 
 export const s3Delete = async (txid: string) => {
-	logger(s3Delete.name, `deleting ${txid} ...`)
-	
+
 	await s3.deleteObject({
 		Bucket: bucketName,
 		Key: txid,
 	}).promise()
 	
-	logger(s3Delete.name, `sent delete command for ${txid} without throwing error`)
+	logger(s3Delete.name, `sent delete command for ${txid}`)
 }

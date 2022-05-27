@@ -24,7 +24,7 @@ export const filetypeStream = async(incoming: Readable, txid: string, dbMime: st
 	}else{
 		
 		// throw errors and cleanup
-		logger(filetypeStream.name, `${txid} original ${dbMime} rejected with ${ft?.mime}`)
+		logger(filetypeStream.name, `${txid} original '${dbMime}' rejected with '${ft?.mime}'`)
 
 		const status: FetchersStatus = 'BAD_MIME' //invoke type-checking without extending Error
 		const mimeError = new Error(status)

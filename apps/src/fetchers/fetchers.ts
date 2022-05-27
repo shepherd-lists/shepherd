@@ -42,8 +42,9 @@ const getMessages = async(): Promise<SQS.Message[]> => {
 	
 	return msgs || [];
 }
+//exported for test
 let messages: SQS.Message[] = []
-const getMessage = async()=> {
+export const getMessage = async()=> {
 	if(messages.length === 0){
 		messages = await getMessages()
 	}
@@ -56,8 +57,8 @@ const deleteMessages = async(Messages: SQS.Message[])=> {
 	
 	return deleted.length;
 }
-
-const deleteMessage = async(msg: SQS.Message)=> {
+//exported for test
+export const deleteMessage = async(msg: SQS.Message)=> {
 	try{
 		await sqs.deleteMessage({
 			ReceiptHandle: msg.ReceiptHandle!,
@@ -89,24 +90,24 @@ export const fetchers = async()=> {
 
 }
 
-export const fetcherLoop = async()=> {
+export const fetcherLoop = async(loop: boolean = true)=> {
 
-	while(true){ //loop for dev only
-		const m = await getMessage()
-		if(m){
-			const rec: TxScanned = JSON.parse(m.Body!)
+	do{ // simple loop for mvp fetcher
+		const msg = await getMessage()
+		if(msg){
+			const rec: TxScanned = JSON.parse(msg.Body!)
 			const txid = rec.txid
 
 			logger(fetchers.name, 
-				`starting ${m.MessageId}`, 
+				`starting ${msg.MessageId}`, 
 				`txid ${rec.txid}`,
-				`size ${(Number(rec.content_size)/1024).toFixed(1)}kb`,
+				`size ${(Number(rec.content_size)/1024).toFixed(1)} kb`,
 			)
 
 			let incoming: IncomingMessage
 			let uploaded: "OK" | "ABORTED"
 			try{
-				incoming = await dataStream(m.MessageId!, txid)
+				incoming = await dataStream(msg.MessageId!, txid)
 				await filetypeStream(incoming, txid, rec.content_type) // file-type only check first bytes, so await ok or error
 				uploaded = await s3UploadStream(incoming, rec.content_type, txid)
 				
@@ -138,14 +139,14 @@ export const fetcherLoop = async()=> {
 			}
 
 			// complete, so delete the SQS message
-			await deleteMessage(m)
-			console.log(`deleted message: ${m.MessageId} ${rec.txid}`)
+			await deleteMessage(msg)
+			console.log(`deleted message: ${msg.MessageId} ${rec.txid}`)
 			
 		}else{
 			console.log('got no message. waiting..')
 			await sleep(5000)
 		}
-	}
+	}while(loop)
 }
 
 
