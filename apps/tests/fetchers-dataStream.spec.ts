@@ -3,7 +3,7 @@ import { expect } from 'chai'
 import {  } from 'mocha'
 import { dataStream } from '../src/fetchers/fetchers'
 import sinon from 'sinon'
-import axios, { Axios, AxiosError } from 'axios'
+import axios from 'axios'
 import { PassThrough } from 'stream'
 import * as DbUpdate from '../src/common/utils/db-update-txs'
 
