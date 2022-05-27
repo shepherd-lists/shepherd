@@ -22,12 +22,14 @@
     "url": "git+https://github.com/shepherd-media-classifier/shepherd.git"
   },
   "devDependencies": {
-    "@types/chai": "^4.2.16",
-    "@types/mocha": "^9.0.0",
-    "@types/sinon": "^10.0.6",
-    "chai": "^4.3.4",
-    "mocha": "^9.2.0",
-    "sinon": "^12.0.1"
+    "@types/chai": "^4.3.1",
+    "@types/chai-as-promised": "^7.1.5",
+    "@types/mocha": "^9.1.1",
+    "@types/sinon": "^10.0.11",
+    "chai": "^4.3.6",
+    "chai-as-promised": "^7.1.1",
+    "mocha": "^10.0.0",
+    "sinon": "^14.0.0"
   },
   "dependencies": {
     "@slack/webhook": "^6.0.0",
