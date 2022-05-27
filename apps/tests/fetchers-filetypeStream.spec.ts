@@ -27,8 +27,8 @@ describe('fetchers-filetypeStream tests', ()=>{
 		mockStream.end()
 		
 		// we're not testing these
-		sinon.stub(dbStub, 'dbBadMimeFound').resolves()
-		sinon.stub(s3Stub, 's3Delete').resolves()
+		const stubDbBadMime = sinon.stub(dbStub, 'dbBadMimeFound').resolves()
+		const spyS3Delete = sinon.spy(s3Stub, 's3Delete')
 		
 		const BAD_MIME: FetchersStatus = 'BAD_MIME'
 		mockStream.on('error', e => {
@@ -42,6 +42,8 @@ describe('fetchers-filetypeStream tests', ()=>{
 		}catch(e:any){
 			expect(e.message).eq(BAD_MIME)
 		}
+		expect(stubDbBadMime.calledOnce, 'dbBadMimeFound should be called once').true
+		expect(spyS3Delete.calledOnce, 's3Delete should be called once').true
 	}).timeout(0)
 
 })
