@@ -6,7 +6,6 @@ import dbConnection from '../common/utils/db-connection'
 import { logger } from '../common/utils/logger'
 import { s3Delete, s3UploadStream } from './s3Services'
 import { IncomingMessage } from 'http'
-import { filetypeStream } from './fileTypeStream'
 import { dbNoDataFound, dbNoDataFound404 } from '../common/utils/db-update-txs'
 
 
@@ -47,7 +46,7 @@ let _messages: SQS.Message[] = []
 let _loading = false
 export const getMessage = async()=> {
 	
-	while(_loading) await sleep(100)
+	while(_loading) await sleep(10)
 	
 	if(_messages.length === 0){
 		if(!_loading){
@@ -60,12 +59,6 @@ export const getMessage = async()=> {
 	return _messages.pop() // if no messages, returns undefined
 }
 
-const deleteMessages = async(Messages: SQS.Message[])=> {
-	const deleted = await Promise.all(Messages.map(msg=> deleteMessage(msg) ))
-	logger(prefix, `deleted ${deleted.length} of ${Messages.length} messages.`)
-	
-	return deleted.length;
-}
 //exported for test
 export const deleteMessage = async(msg: SQS.Message)=> {
 	try{
@@ -118,8 +111,7 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 			let incoming: IncomingMessage
 			let uploaded: "OK" | "ABORTED"
 			try{
-				incoming = await dataStream(msg.MessageId!, txid)
-				await filetypeStream(incoming, txid, rec.content_type) // file-type only check first bytes, so await ok or error
+				incoming = await dataStream(txid)
 				uploaded = await s3UploadStream(incoming, rec.content_type, txid)
 				
 			}catch(e:any){
@@ -161,7 +153,7 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 }
 
 
-export const dataStream = async(msgId: string, txid: string)=> {
+export const dataStream = async(txid: string)=> {
 	
 	const control = new AbortController()
 	const { data, headers} = await axios.get(`${HOST_URL}/${txid}`, { 
@@ -178,7 +170,7 @@ export const dataStream = async(msgId: string, txid: string)=> {
 	})
 
 	incoming.on('close', async()=> {
-		( process.env.NODE_ENV==='test' && console.log('close', msgId, received) )
+		( process.env.NODE_ENV==='test' && console.log('close', txid, received) )
 		if(!incoming.readableEnded){ //i.e. 'end'
 			if(received === 0n){
 				logger(dataStream.name, 'NO_DATA detected. length', received, txid) 
@@ -192,16 +184,17 @@ export const dataStream = async(msgId: string, txid: string)=> {
 	})
 	
 	if(process.env.NODE_ENV === 'test'){ 
-		incoming.on('end',()=> console.log('end', msgId))
+		incoming.on('end',()=> console.log('end', txid))
 	}
 	
 	incoming.setTimeout(NO_STREAM_TIMEOUT, ()=>{
-		logger(dataStream.name, 'stream no-activity timeout', msgId, txid)
+		logger(dataStream.name, 'stream no-activity timeout', txid)
 		control.abort() //abort axios
 		incoming.destroy() //close called next
 	})
 
 	incoming.on('error', async e =>{
+		process.env.NODE_ENV==='test' && console.log(dataStream.name, 'onerror', e.name, e.message, txid)
 		const eMessage = e.message as FetchersStatus
 		if(eMessage === 'BAD_MIME'){
 			control.abort()
