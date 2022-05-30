@@ -43,12 +43,21 @@ const getMessages = async(): Promise<SQS.Message[]> => {
 	return msgs || [];
 }
 //exported for test
-let messages: SQS.Message[] = []
+let _messages: SQS.Message[] = []
+let _loading = false
 export const getMessage = async()=> {
-	if(messages.length === 0){
-		messages = await getMessages()
+	
+	while(_loading) await sleep(100)
+	
+	if(_messages.length === 0){
+		if(!_loading){
+			_loading = true
+			_messages = await getMessages()
+			_loading = false
+		}
 	}
-	return messages.pop() // if no messages, returns undefined
+	
+	return _messages.pop() // if no messages, returns undefined
 }
 
 const deleteMessages = async(Messages: SQS.Message[])=> {
@@ -86,7 +95,9 @@ export const deleteMessage = async(msg: SQS.Message)=> {
 export const fetchers = async()=> {
 
 	console.log('STREAMS_PER_FETCHER', STREAMS_PER_FETCHER)
-	fetcherLoop()
+	for (let i = 0; i < STREAMS_PER_FETCHER; i++) {
+		fetcherLoop()
+	}
 
 }
 
@@ -133,7 +144,7 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 					continue;
 				}
 				else{
-					logger(fetchers.name, 'Unhandled error', e.message)
+					logger(fetchers.name, 'Unhandled error', txid, e.name, e.message)
 					throw e;
 				}
 			}
@@ -143,7 +154,7 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 			console.log(`deleted message: ${msg.MessageId} ${rec.txid}`)
 			
 		}else{
-			console.log('got no message. waiting..')
+			console.log('got no message. waiting 5s ..')
 			await sleep(5000)
 		}
 	}while(loop)
@@ -170,10 +181,10 @@ export const dataStream = async(msgId: string, txid: string)=> {
 		( process.env.NODE_ENV==='test' && console.log('close', msgId, received) )
 		if(!incoming.readableEnded){ //i.e. 'end'
 			if(received === 0n){
-				logger(dataStream.name, 'NO_DATA detected. length', received) 
+				logger(dataStream.name, 'NO_DATA detected. length', received, txid) 
 				incoming.emit('error', new Error('NO_DATA'))
 			}else if(contentLength !== received){
-				logger(dataStream.name, 'partial detected. length', received) 
+				logger(dataStream.name, 'partial detected. length', received, txid) 
 				//partial data will be classified too
 				incoming.emit('end')
 			}
