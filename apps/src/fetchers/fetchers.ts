@@ -6,7 +6,7 @@ import dbConnection from '../common/utils/db-connection'
 import { logger } from '../common/utils/logger'
 import { s3Delete, s3UploadStream } from './s3Services'
 import { IncomingMessage } from 'http'
-import { dbNoDataFound, dbNoDataFound404 } from '../common/utils/db-update-txs'
+import { dbNegligibleData, dbNoDataFound, dbNoDataFound404 } from '../common/utils/db-update-txs'
 
 
 const prefix = 'fetchers'
@@ -123,10 +123,6 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 					logger(fetchers.name, `404 returned for ${txid}`)
 					await dbNoDataFound404(txid)
 				}
-				else if(badMime){
-					if(process.env.NODE_ENV==='test') logger(fetchers.name, `BAD_MIME returned for ${txid}`) 
-					//cleanup is handled in filetypeStream function
-				}
 				else if(
 					status >= 500
 					|| ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'].includes(code)
@@ -170,41 +166,48 @@ export const dataStream = async(txid: string)=> {
 	})
 
 	incoming.on('close', async()=> {
-		( process.env.NODE_ENV==='test' && console.log('close', txid, received) )
-		if(!incoming.readableEnded){ //i.e. 'end'
+		( process.env.NODE_ENV==='test' && console.log('close', txid, received, 'readableEnded:', incoming.readableEnded) )
+		if(!incoming.readableEnded){ //i.e. 'end' not called
 			if(received === 0n){
 				logger(dataStream.name, 'NO_DATA detected. length', received, txid) 
-				incoming.emit('error', new Error('NO_DATA'))
+				//inform other consumers
+				const NO_DATA: FetchersStatus = 'NO_DATA'
+				incoming.emit('error', new Error(NO_DATA)) //signal consumers to abort
+				//clean up and mark bad txid
+				await dbNoDataFound(txid) 
+			}else if(received < 125n){
+				logger(dataStream.name, 'NEGLIGIBLE_DATA, PARTIAL detected. length', received, txid) 
+				const NEGLIGIBLE_DATA: FetchersStatus = 'NEGLIGIBLE_DATA'
+				await dbNegligibleData(txid)
+				// await s3Delete(txid) //just in case
+				incoming.emit('error', new Error(NEGLIGIBLE_DATA)) 
 			}else if(contentLength !== received){
 				logger(dataStream.name, 'partial detected. length', received, txid) 
-				//partial data will be classified too
-				incoming.emit('end')
+				//partial data can be classified too
+				incoming.emit('end') //end the stream so consumers can finish processing.
+			}else{
+				logger(dataStream.name, 'UNHANDLED. Something unexpected happened before `end` was emitted', txid, received, contentLength)
+			}
+		}else{ //end was called
+			if(received < 125n){
+				logger(dataStream.name, 'negligible data detected', received, txid)
+				await dbNegligibleData(txid)
+				await s3Delete(txid)
 			}
 		}
 	})
 	
 	if(process.env.NODE_ENV === 'test'){ 
-		incoming.on('end',()=> console.log('end', txid))
+		incoming.on('end', ()=> console.log('end', txid))
+		incoming.on('error', e => console.log('on.error', e.name, e.message, txid))
 	}
 	
 	incoming.setTimeout(NO_STREAM_TIMEOUT, ()=>{
-		logger(dataStream.name, 'stream no-activity timeout', txid)
+		logger(dataStream.name, 'stream no-activity timeout. aborting', txid)
 		control.abort() //abort axios
 		incoming.destroy() //close called next
 	})
 
-	incoming.on('error', async e =>{
-		process.env.NODE_ENV==='test' && console.log(dataStream.name, 'onerror', e.name, e.message, txid)
-		const eMessage = e.message as FetchersStatus
-		if(eMessage === 'BAD_MIME'){
-			control.abort()
-			incoming.destroy()
-		}else if(eMessage === 'NO_DATA'){
-			// a no-data stream will already have closed
-			await dbNoDataFound(txid)
-			await s3Delete(txid)
-		}
-	})
 
 	return incoming;
 } 

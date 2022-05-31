@@ -61,7 +61,7 @@ export const FEEDER_Q_VISIBILITY_TIMEOUT = 900 // 15 minutes
 
 export type FetchersStatus = 
 	'NO_DATA'
-	| 'BAD_MIME'
+	| 'NEGLIGIBLE_DATA'
 	| 'ERROR_404'
 	| 'OK'
 	| (string & {})

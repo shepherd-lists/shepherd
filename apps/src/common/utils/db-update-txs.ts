@@ -73,12 +73,12 @@ export const dbNoDataFound = async(txid: string)=> {
 		last_update_date: new Date(),
 	})
 }
-export const dbBadMimeFound = async(txid: string, mimetype: string)=> {
+export const dbNegligibleData = async(txid: string)=> {
 	await dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		flagged: false,
 		valid_data: false,
-		data_reason: 'mimetype',
+		data_reason: 'negligible-data',
 		last_update_date: new Date(),
 	})
 }
