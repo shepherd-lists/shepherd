@@ -28,12 +28,17 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 	logger(prefix, 'uploading', txid, mimetype)
 
 	readable.on('error', e =>{
-		const errorStatuses: FetchersStatus[] = ['NO_DATA', 'NEGLIGIBLE_DATA']
-		if(errorStatuses.includes(e.message)){ 
+		const streamStatuses: FetchersStatus[] = ['NO_DATA', 'NEGLIGIBLE_DATA']
+		const code = (e as any).code
+		if(streamStatuses.includes(e.message)){ 
 			logger(prefix, 'aborting. error', e.message, txid)
-			uploader.abort() 
+			uploader.abort()
+		}else if(code && ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND'].includes(code)){ 
+			logger(prefix, 'aborting. error', e.message, txid)
+			uploader.abort()
 		}else{
-			logger(prefix, 'UNHANDLED error', e)
+			logger(prefix, 'UNHANDLED error event', e.message, txid, e)
+			throw e
 		}
 	})
 
