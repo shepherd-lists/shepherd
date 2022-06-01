@@ -125,7 +125,7 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 				}
 				else if(
 					status >= 500
-					|| ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'].includes(code)
+					|| ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND'].includes(code)
 				){
 					logger(fetchers.name, `network error during ${txid}`, status, code)
 					// dont delete the SQS message, let it retry
