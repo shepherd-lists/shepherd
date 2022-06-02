@@ -44,7 +44,7 @@ export const textTypes = [
 	"application/pdf",
 ]
 
-// axios workaround timeouts
+// axios/http workaround timeouts
 export const NO_DATA_TIMEOUT = 40000
 export const NO_STREAM_TIMEOUT = 10000
 
@@ -65,3 +65,5 @@ export type FetchersStatus =
 	| 'ERROR_404'
 	| 'OK'
 	| (string & {})
+
+export const network_EXXX_codes = ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND']

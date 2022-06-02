@@ -1,6 +1,6 @@
 import { SQS } from 'aws-sdk'
 import axios from 'axios'
-import { FEEDER_Q_VISIBILITY_TIMEOUT, FetchersStatus, HOST_URL, NO_STREAM_TIMEOUT } from '../common/constants'
+import { FEEDER_Q_VISIBILITY_TIMEOUT, FetchersStatus, HOST_URL, NO_STREAM_TIMEOUT, network_EXXX_codes } from '../common/constants'
 import { TxScanned } from '../common/types'
 import dbConnection from '../common/utils/db-connection'
 import { logger } from '../common/utils/logger'
@@ -102,44 +102,42 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 			const rec: TxScanned = JSON.parse(msg.Body!)
 			const txid = rec.txid
 
-			logger(fetchers.name, 
+			logger(fetcherLoop.name, 
 				`starting ${msg.MessageId}`, 
 				`txid ${rec.txid}`,
 				`size ${(Number(rec.content_size)/1024).toFixed(1)} kb`,
 			)
 
 			let incoming: IncomingMessage
-			let uploaded: "OK" | "ABORTED"
 			try{
 				incoming = await dataStream(txid)
-				uploaded = await s3UploadStream(incoming, rec.content_type, txid)
+				await s3UploadStream(incoming, rec.content_type, txid)
 				
 			}catch(e:any){
-				const badMime = e.message as FetchersStatus === 'BAD_MIME'
-				const status = Number(e.response?.status) || 0
+				const status = Number(e.response?.status) || Number(e.statusCode) || 0
 				const code = e.response?.code || e.code || 'no-code'
 				
 				if(status === 404){
-					logger(fetchers.name, `404 returned for ${txid}`)
+					logger(fetcherLoop.name, `404 returned for ${txid}`)
 					await dbNoDataFound404(txid)
 				}
 				else if(
 					status >= 500
-					|| ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND'].includes(code)
+					|| network_EXXX_codes.includes(code)
 				){
-					logger(fetchers.name, `network error during ${txid}`, status, code)
+					logger(fetcherLoop.name, `network error during ${txid}. continue after SQS timeout`, status, code)
 					// dont delete the SQS message, let it retry
 					continue;
 				}
 				else{
-					logger(fetchers.name, 'Unhandled error', txid, e.name, e.message)
+					logger(fetcherLoop.name, 'Unhandled error', txid, e.name, e.message)
 					throw e;
 				}
 			}
 
 			// complete, so delete the SQS message
 			await deleteMessage(msg)
-			console.log(`deleted message: ${msg.MessageId} ${rec.txid}`)
+			logger(fetcherLoop.name, `deleted message: ${msg.MessageId} ${rec.txid}`)
 			
 		}else{
 			console.log('got no message. waiting 5s ..')
@@ -151,6 +149,7 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 
 export const dataStream = async(txid: string)=> {
 	
+	let networkError = false;
 	const control = new AbortController()
 	const { data, headers} = await axios.get(`${HOST_URL}/${txid}`, { 
 		responseType: 'stream',
@@ -167,7 +166,7 @@ export const dataStream = async(txid: string)=> {
 
 	incoming.on('close', async()=> {
 		( process.env.NODE_ENV==='test' && console.log('close', txid, received, 'readableEnded:', incoming.readableEnded) )
-		if(!incoming.readableEnded){ //i.e. 'end' not called
+		if(!incoming.readableEnded && !networkError){ //i.e. 'end' not called
 			if(received === 0n){
 				logger(dataStream.name, 'NO_DATA detected. length', received, txid) 
 				//inform other consumers
@@ -199,8 +198,15 @@ export const dataStream = async(txid: string)=> {
 	
 	if(process.env.NODE_ENV === 'test'){ 
 		incoming.on('end', ()=> console.log('end', txid))
-		incoming.on('error', e => console.log('on.error', e.name, e.message, txid))
 	}
+
+	incoming.on('error', e => {
+		const code = (e as any).code
+		if(code && network_EXXX_codes.includes(code)){
+			logger(dataStream.name, 'net error event', e.name, e.message, code, txid)
+			networkError = true
+		}
+	})
 	
 	incoming.setTimeout(NO_STREAM_TIMEOUT, ()=>{
 		logger(dataStream.name, 'stream no-activity timeout. aborting', txid)

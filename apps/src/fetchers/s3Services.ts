@@ -34,7 +34,7 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 			logger(prefix, 'aborting. error', e.message, txid)
 			uploader.abort()
 		}else if(code && ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND'].includes(code)){ 
-			logger(prefix, 'aborting. error', e.message, txid)
+			logger(prefix, 'aborting. error', code, txid)
 			uploader.abort()
 		}else{
 			logger(prefix, 'UNHANDLED error event', e.message, txid, e)
@@ -62,7 +62,12 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 				// not an error. we requested to abort
 				return 'ABORTED';
 			}
-			logger(prefix, 'UNHANDLED S3 ERROR', e.name,':',e.message)
+			if(e.name === 'TimeoutError'){
+				// n/w error
+				return 'NW_ERROR';
+			}
+			//@ts-ignore
+			logger(prefix, 'UNHANDLED S3 ERROR', `${e.name}:${e.message}. code? ${e.code}`, txid)
 		}
 		//just throw errors like NoSuchBucket, UnknownEndpoint, etc. needs to be handled externally
 		throw e;
