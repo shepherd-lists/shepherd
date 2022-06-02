@@ -17,7 +17,7 @@ describe('fetchers-s3Upload tests', ()=>{
 	it('tests a good stream gets uploaded', async()=> {
 		const s = createReadStream(`${__dirname}/`+'./fixtures/test.png')
 
-		const res = await s3UploadStream(s, 'image/png', 'txid-good')
+		const res = await s3UploadStream(s, 'image/png', 'txid-s3upload-good')
 		expect(res).eq('OK')
 	}).timeout(0)
 
@@ -27,7 +27,7 @@ describe('fetchers-s3Upload tests', ()=>{
 			mockStream.emit('error', new Error('NO_DATA'))
 		}, 0)
 
-		const res = await s3UploadStream(mockStream,'image/gif', 'txid-nodata')
+		const res = await s3UploadStream(mockStream,'image/gif', 'txid-s3upload-nodata')
 		expect(res).eq('ABORTED')
 	}).timeout(0)
 
@@ -38,7 +38,7 @@ describe('fetchers-s3Upload tests', ()=>{
 			mockStream.emit('error', new Error('NEGLIGIBLE_DATA'))
 		}, 0)
 
-		const res = await s3UploadStream(mockStream,'image/gif', 'txid-nodata')
+		const res = await s3UploadStream(mockStream,'image/gif', 'txid-s3upload-negligibledata')
 		expect(res).eq('ABORTED')
 	}).timeout(0)
 
