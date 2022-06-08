@@ -94,6 +94,20 @@ export AWS_FEEDER_QUEUE=$(aws cloudformation describe-stacks \
 sed -i '/^AWS_FEEDER_QUEUE/d' .env  # remove old line before adding new
 echo "AWS_FEEDER_QUEUE=$AWS_FEEDER_QUEUE" | tee -a .env
 
+export AWS_INPUT_BUCKET=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='S3Bucket'].OutputValue" \
+	--output text)
+sed -i '/^AWS_INPUT_BUCKET/d' .env  # remove old line before adding new
+echo "AWS_INPUT_BUCKET=$AWS_INPUT_BUCKET" | tee -a .env
+
+export AWS_SQS_INPUT_QUEUE=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='SQSInputQueue'].OutputValue" \
+	--output text)
+sed -i '/^AWS_SQS_INPUT_QUEUE/d' .env  # remove old line before adding new
+echo "AWS_SQS_INPUT_QUEUE=$AWS_SQS_INPUT_QUEUE" | tee -a .env
+
 export SUBNET1=$(aws cloudformation describe-stacks \
 	--stack-name "shepherd-aws-stack" \
 	--query "Stacks[0].Outputs[?OutputKey=='Subnet1'].OutputValue" \

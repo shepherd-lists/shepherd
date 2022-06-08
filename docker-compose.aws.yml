@@ -61,6 +61,9 @@ services:
       - Effect: Allow
         Action: 'sqs:*' 
         Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-feeder-q'
+      - Effect: Allow
+        Action: 's3:PutObject'
+        Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}/*'
       
   # rating0:
   #   image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}

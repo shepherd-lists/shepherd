@@ -171,6 +171,72 @@ Resources:
       #   deadLetterTargetArn: !GetAtt SQSInputQueueDLQ.Arn
       #   maxReceiveCount: 10
 
+  # AWS_INPUT_BUCKET
+  # Policies for S3Bucket access done in docker compose also
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: BucketOwnerFullControl
+      BucketName: !Join ['', ['shepherd-mod-input-', Ref: AWS::Region]]
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Queue: !GetAtt SQSInputQueue.Arn 
+            Event: 's3:ObjectCreated:*'
+  SQSInputQueueDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600 # 14 days (AWS max value)
+      QueueName: shepherd-input-dlq
+  SQSInputQueueDLQPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref SQSInputQueueDLQ
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - Ref: AWS::AccountId
+            Action: 'sqs:*'
+            Resource: !GetAtt SQSInputQueueDLQ.Arn
+  # AWS_SQS_INPUT_QUEUE
+  SQSInputQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: shepherd-input-q
+      MessageRetentionPeriod: 1209600 # 14 days (AWS max value)
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt SQSInputQueueDLQ.Arn
+        maxReceiveCount: 10
+  SQSInputQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: 
+              - 'SQS:SendMessage'
+            Resource: !GetAtt SQSInputQueue.Arn
+            Condition:
+              ArnEquals:
+                'aws:SourceArn': !Join 
+                  - ''
+                  - - 'arn:aws:s3:::'
+                    - shepherd-mod-input
+                    - '-'
+                    - Ref: AWS::Region
+          - Effect: Allow
+            Principal: 
+              AWS:
+                - Ref: AWS::AccountId
+            Action: 
+              - 'SQS:*'
+            Resource: !GetAtt SQSInputQueue.Arn
+      Queues:
+        - !Ref SQSInputQueue 
+
 Outputs:
 
   ShepherdVPC:
@@ -188,6 +254,12 @@ Outputs:
   SQSFeederQueue:
     Value: !GetAtt SQSFeederQueue.QueueUrl
 
+  S3Bucket:
+    Description: "shepherd-safer S3Bucket for Safer inputs"
+    Value: !Ref S3Bucket
+
+  SQSInputQueue:
+    Value: !Ref SQSInputQueue
 
   Subnet1:
     Value: !Ref Subnet1
