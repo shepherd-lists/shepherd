@@ -64,31 +64,7 @@ services:
       - Effect: Allow
         Action: 's3:PutObject'
         Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}/*'
-      
-  # rating0:
-  #   image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
-  #   platform: linux/amd64
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '4.0'
-  #         memory: 30G
-  # rating1:
-  #   image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
-  #   platform: linux/amd64
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '4.0'
-  #         memory: 30G
-  # rating2:
-  #   image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
-  #   platform: linux/amd64
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '4.0'
-  #         memory: 30G
+
 
 networks:
   default:
