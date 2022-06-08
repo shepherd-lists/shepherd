@@ -8,6 +8,10 @@ else
 	exit 1
 fi
 
+echo "Deleting all objects from $AWS_INPUT_BUCKET..."
+
+aws s3 rm "s3://$AWS_INPUT_BUCKET/" --recursive 
+
 echo "Deleting cloudformation stack...(networks and RDS)" 2>&1 | tee -a setup.log
 aws cloudformation delete-stack --stack-name shepherd-aws-stack
 
