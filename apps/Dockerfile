@@ -8,7 +8,7 @@ RUN npm config set update-notifier false
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 FROM base as web
 COPY ./src/common ./src/common
@@ -35,7 +35,7 @@ ENTRYPOINT node -r ts-node/register src/fetchers/index.ts
 FROM rosmcmahon/node16-ffmpeg:multi-arch as rating
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 COPY . .
 ENV NODE_ENV=production
 ENV TF_CPP_MIN_LOG_LEVEL=2
