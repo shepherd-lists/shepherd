@@ -139,8 +139,8 @@ Resources:
     Type: AWS::RDS::DBInstance
     # had to add this DependsOn as AWS was not picking up the reference later. bug?
     DependsOn: DBSubnetGroup
-    # DeletionPolicy: Retain
-    # UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       DBInstanceIdentifier: shepherd-pgdb
       VPCSecurityGroups:
