@@ -55,6 +55,8 @@ services:
           memory: 8G
     environment:
       AWS_FEEDER_QUEUE: ${AWS_FEEDER_QUEUE}
+      AWS_INPUT_BUCKET: ${AWS_INPUT_BUCKET}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
     x-aws-role:
       Version: '2012-10-17'
       Statement:
