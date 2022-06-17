@@ -53,6 +53,10 @@ services:
         limits:
           cpus: '2.0'
           memory: 8G
+      x-aws-autoscaling:
+        min: 1
+        max: 10
+        cpu: 75
     environment:
       AWS_FEEDER_QUEUE: ${AWS_FEEDER_QUEUE}
       AWS_INPUT_BUCKET: ${AWS_INPUT_BUCKET}
