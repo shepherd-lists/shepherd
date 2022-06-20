@@ -82,6 +82,15 @@ export const dbNegligibleData = async(txid: string)=> {
 		last_update_date: new Date(),
 	})
 }
+export const dbMalformedXMLData = async(txid: string)=> {
+	await dbInflightDel(txid)
+	return updateTxsDb(txid,{
+		flagged: false,
+		valid_data: false,
+		data_reason: 'MalformedXML-data',
+		last_update_date: new Date(),
+	})
+}
 
 export const dbCorruptDataConfirmed = async(txid: string)=> {
 	return updateTxsDb(txid,{

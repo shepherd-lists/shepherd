@@ -1,6 +1,7 @@
 import { S3 } from 'aws-sdk'
 import { Readable } from 'stream'
 import { FetchersStatus } from '../common/constants'
+import { dbMalformedXMLData } from '../common/utils/db-update-txs'
 import { logger } from '../common/utils/logger'
 
 const prefix = 's3stream'
@@ -65,6 +66,11 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 			if(e.name === 'TimeoutError'){
 				// n/w error
 				return 'NW_ERROR';
+			}
+			if(e.name === 'MalformedXML'){
+				logger(prefix, 'MalformedXML', e.message, txid)
+				await dbMalformedXMLData(txid)
+				return 'MalformedXML';
 			}
 			//@ts-ignore
 			logger(prefix, 'UNHANDLED S3 ERROR', `${e.name}:${e.message}. code? ${e.code}`, txid)
