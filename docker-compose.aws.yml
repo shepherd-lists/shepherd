@@ -55,7 +55,7 @@ services:
           memory: 8G
       x-aws-autoscaling:
         min: 1
-        max: 10
+        max: 20
         cpu: 75
     environment:
       AWS_FEEDER_QUEUE: ${AWS_FEEDER_QUEUE}
@@ -68,7 +68,7 @@ services:
         Action: 'sqs:*' 
         Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-feeder-q'
       - Effect: Allow
-        Action: 's3:PutObject'
+        Action: 's3:*'
         Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}/*'
 
 

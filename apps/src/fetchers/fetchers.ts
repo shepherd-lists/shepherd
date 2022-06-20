@@ -36,10 +36,10 @@ const getMessages = async(): Promise<SQS.Message[]> => {
 		VisibilityTimeout: FEEDER_Q_VISIBILITY_TIMEOUT,
 		WaitTimeSeconds: 0,
 	}).promise()
-	const msgs = Messages!
-	logger(prefix, `received ${msgs?.length} messages`)
+	const msgs = Messages! || []
+	logger(prefix, `received ${msgs.length} messages`)
 	
-	return msgs || [];
+	return msgs;
 }
 //exported for test
 let _messages: SQS.Message[] = []
@@ -140,7 +140,7 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 			logger(fetcherLoop.name, `deleted message: ${msg.MessageId} ${rec.txid}`)
 			
 		}else{
-			console.log('got no message. waiting 5s ..')
+			// console.log('got no message. waiting 5s ..')
 			await sleep(5000)
 		}
 	}while(loop)
