@@ -4,11 +4,7 @@ import { getGqlHeight } from "../common/utils/gql-height";
 
 const knex = dbConnection()
 
-const INTERVAL = 60*60*1000 //1 hr
-
-setInterval(()=> {
-	cronjob();
-},INTERVAL)
+const INTERVAL = 60*60*1000 //60 mins
 
 const cronjob = async()=> {
 	// count group by flagged
@@ -32,3 +28,9 @@ const cronjob = async()=> {
 	console.log('[perf-cron]', output)
 	await knex<HistoryRecord>('history').insert(output)
 }
+
+setInterval(()=> {
+	cronjob();
+},INTERVAL)
+
+cronjob() //run once at start also
