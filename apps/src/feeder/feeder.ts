@@ -44,7 +44,7 @@ export const feeder = async()=> {
 
 	// some constants we might finesse later
 	const WORKING_RECORDS = 25000 //aim of min 100k/hr: ~ 15mins of txs
-	const ABSOLUTE_TIMEOUT = 15 * 60 * 1000 //15 mins
+	const ABSOLUTE_TIMEOUT = 1 * 60 * 1000 //1 mins
 
 
 	while(true){
@@ -53,7 +53,7 @@ export const feeder = async()=> {
 		if(numSqsMsgs < WORKING_RECORDS ){
 			await sendToSqs( await getTxRecords(WORKING_RECORDS) )
 		}
-		logger(prefix, 'sleeping for 15 minutes...')
+		logger(prefix, 'sleeping for 1 minutes...')
 		await sleep(ABSOLUTE_TIMEOUT)
 	}
 }
