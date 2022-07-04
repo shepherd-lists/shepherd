@@ -1,10 +1,15 @@
+/**
+ * Database types
+ */
+
+/* txs table */
 export interface TxScanned {
 	txid: string
 	content_type: string
 	content_size: string //knex.bigInteger returns a string, convert to BigInt
 	height: number
 }
-export interface TxRecord extends TxScanned {
+export interface TxRecord extends TxScanned, TxFlaggedOptions {
 	readonly id: number
 	flagged: boolean
 	valid_data: boolean
@@ -23,17 +28,15 @@ export interface TxRecord extends TxScanned {
 
 	last_update_date: Date
 }
-
-
-export interface StateRecord {
-	pname: 'scanner_position' | 'rating_position' | (string & {}) //nice hack for intellisense
-	value: number
+export interface TxFlaggedOptions {
+	flag_type?: 'test' | 'match' | 'classified' | (string & {})
+	top_score_name?: string
+	top_score_value?: number
 }
 
-export type FfmpegError = {
-	name: 'FfmpegError'
-	message: string
-	status: number
+export interface StateRecord {
+	pname: 'scanner_position' | 'rating_position' | (string & {}) //intellisense hack
+	value: number
 }
 
 export interface HistoryRecord {
@@ -48,4 +51,15 @@ export interface InflightsRecord {
 	foreign_id: number
 	txid: string
 	created_at?: Date
+}
+
+/**
+ * Other types
+ */
+
+/** @deprecated */
+export type FfmpegError = {
+	name: 'FfmpegError'
+	message: string
+	status: number
 }

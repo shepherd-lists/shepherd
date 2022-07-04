@@ -1,8 +1,11 @@
 import { Readable } from "stream"
+import { TxFlaggedOptions } from "../types"
 
-export interface FilterResult {
-	flagged: boolean // main output: whether the image is filtereed or not
-	scores?: string  // optional plugin scoring
+export interface FilterResult extends TxFlaggedOptions {
+	flagged: boolean // main output: whether the image is filtered or not
+	
+	/** @deprecated */
+	scores?: string  //remove later
 }
 
 /* Feedback error types to the host app. Host may process image and try submitting to plugin again. */
@@ -19,10 +22,6 @@ export interface FilterErrorResult {
 	err_message?: string // optional error message
 }
 
-export const INFLIGHT_CONST: FilterErrorResult = {
-	data_reason: 'noop',
-	flagged: undefined,
-}
 
 export interface FilterPluginInterface {
 	/**
