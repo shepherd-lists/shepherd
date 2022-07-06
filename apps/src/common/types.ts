@@ -29,7 +29,7 @@ export interface TxRecord extends TxScanned, TxFlaggedOptions {
 	last_update_date: Date
 }
 export interface TxFlaggedOptions {
-	flag_type?: 'test' | 'match' | 'classified' | (string & {})
+	flag_type?: 'test' | 'matched' | 'classified' | (string & {})
 	top_score_name?: string
 	top_score_value?: number
 }

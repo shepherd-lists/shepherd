@@ -44,7 +44,7 @@ export const server = app.listen(port, ()=> logger(`started on http://localhost:
 
 const pluginResultHandler = async(body: APIFilterResult)=>{
 	const txid = body.txid
-	const result = body.result
+	const result = body.filterResult
 	
 	if((typeof txid !== 'string') || txid.length !== 43){
 		throw new TypeError('txid is not defined correctly')

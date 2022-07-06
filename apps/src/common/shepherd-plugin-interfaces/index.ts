@@ -3,7 +3,7 @@ import { TxFlaggedOptions } from "../types"
 
 export interface FilterResult extends TxFlaggedOptions {
 	flagged: boolean // main output: whether the image is filtered or not
-	
+
 	/** @deprecated */
 	scores?: string  //remove later
 }
@@ -40,7 +40,7 @@ export interface FilterPluginInterface {
 
 export interface APIFilterResult {
 	txid: string
-	result: FilterResult | FilterErrorResult
+	filterResult: FilterResult | FilterErrorResult
 }
 
 export interface StreamPluginInterface {
