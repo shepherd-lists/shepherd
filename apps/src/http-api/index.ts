@@ -51,12 +51,15 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 	}
 
 	if(result.flagged !== undefined){
-		if(result.flagged === true && process.env.SLACK_POSITIVE){
-			slackLoggerPositive(JSON.stringify(body))
+		if(process.env.SLACK_POSITIVE && (result.flagged === true || result.flag_type === 'classified') ){
+			slackLoggerPositive(body)
 		}
 		const res = await updateTxsDb(txid, {
 			flagged: result.flagged,
 			valid_data: true,
+			...(result.flag_type && { flag_type: result.flag_type}),
+			...(result.top_score_name && { top_score_name: result.top_score_name}),
+			...(result.top_score_value && { top_score_value: result.top_score_value}),
 		})
 
 		if(res !== txid){

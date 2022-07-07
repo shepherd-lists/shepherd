@@ -41,7 +41,7 @@ describe('http-api tests', ()=>{
 	it('1. tests that a tx record gets updated', async()=>{
 		const data: APIFilterResult = {
 			txid: mockRecord.txid,
-			result: { flagged: false,	}
+			filterResult: { flagged: false,	}
 		}
 		const res = await axios.post('http://localhost:84/postupdate', data)
 		expect(res.status).eq(200)
@@ -50,7 +50,7 @@ describe('http-api tests', ()=>{
 	it('2. tests that a non-existant record gets rejected', async()=>{
 		const data: APIFilterResult = {
 			txid: mockRecord.txid.replace('1','X'),
-			result: { flagged: false,	}
+			filterResult: { flagged: false,	}
 		}
 		try{
 			const res = await axios.post('http://localhost:84/postupdate', data)
@@ -64,9 +64,9 @@ describe('http-api tests', ()=>{
 
 	it('3. tests that a badly formed txid in the payload get rejected', async()=>{
 		expect(1)
-		const data = {
+		const data: APIFilterResult = {
 			txid: 'this-is-a-bad-txid',
-			result: { flagged: false,	}
+			filterResult: { flagged: false,	}
 		}
 		try{
 			const res = await axios.post('http://localhost:84/postupdate', data)
@@ -82,7 +82,7 @@ describe('http-api tests', ()=>{
 		expect(1)
 		const data = {
 			notxid: 'no txid in the payload',
-			result: { flagged: false,	},
+			filterResult: { flagged: false,	},
 		}
 		try{
 			await axios.post('http://localhost:84/postupdate', data)
@@ -98,7 +98,7 @@ describe('http-api tests', ()=>{
 		expect(1)
 		const data = {
 			txid: mockRecord.txid,
-			result: {
+			filterResult: {
 				scores: 'scores are optional. flagged || data_reason are not.'
 			}
 		}
