@@ -19,8 +19,8 @@ FROM base as scanner
 COPY ./migrations ./migrations
 COPY ./seeds ./seeds
 COPY ./src/common ./src/common
-COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
-ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
+COPY ./src/scanner ./src/scanner
+ENTRYPOINT node -r ts-node/register src/scanner/index.ts
 
 FROM base as feeder
 COPY ./src/common ./src/common
