@@ -87,6 +87,9 @@ const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string
 					block{
 						height
 					}
+					parent{
+						id
+					}
 				}
 			}
 		}
@@ -145,6 +148,7 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 		let content_type = item.node.data.type
 		const content_size = item.node.data.size.toString()
 		const height = item.node.block.height
+		const parent = item.node.parent?.id || null
 
 		// this content_type is missing for dataItems
 		if(!content_type){ 
@@ -161,6 +165,7 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 			content_type,
 			content_size,
 			height,
+			parent,
 		})
 	}
 

@@ -8,6 +8,7 @@ export interface TxScanned {
 	content_type: string
 	content_size: string //knex.bigInteger returns a string, convert to BigInt
 	height: number
+	parent: string | null
 }
 export interface TxRecord extends TxScanned, TxFlaggedOptions {
 	readonly id: number
