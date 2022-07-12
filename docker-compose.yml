@@ -14,7 +14,7 @@ services:
   webserver:
     build: 
       context: ./apps
-      target: web
+      target: webserver
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: webserver
@@ -27,7 +27,7 @@ services:
   http-api:
     build: 
       context: ./apps
-      target: web
+      target: http-api
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: http-api

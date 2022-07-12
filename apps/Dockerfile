@@ -10,10 +10,15 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-FROM base as web
+FROM base as webserver
 COPY ./src/common ./src/common
-COPY ./src/$PROCESS_NAME ./src/$PROCESS_NAME
-ENTRYPOINT node -r ts-node/register src/$PROCESS_NAME/index.ts
+COPY ./src/webserver ./src/webserver
+ENTRYPOINT node -r ts-node/register src/webserver/index.ts
+
+FROM base as http-api
+COPY ./src/common ./src/common
+COPY ./src/http-api ./src/http-api
+ENTRYPOINT node -r ts-node/register src/http-api/index.ts
 
 FROM base as scanner
 COPY ./migrations ./migrations
