@@ -10,22 +10,50 @@ const port = 80
 
 // app.use(cors())
 
+console.log('process.env.WHITELIST',process.env.WHITELIST)
+const accessList: string[] = JSON.parse(process.env.WHITELIST || '[]')
+console.log(`accessList (WHITELIST) for '/blacklist.txt' access`, accessList)
+
+const ipWhitelisted = (ip: string)=>{
+	// convert from `::ffff:192.0.0.1` => `192.0.0.1`
+	if(ip.startsWith("::ffff:")){
+    ip = ip.substring(7)
+	}
+	return accessList.includes(ip)
+}
+
+
 app.get('/', async(req, res)=> {
 	res.setHeader('Content-Type', 'text/plain')
+	res.write('Webserver operational.\n\n\n')
+
+	if(process.env.WHITELIST){
+		const ip = req.headers['x-forwarded-for'] as string || 'undefined'
+		res.write(`your ip is ${ip}\n`)
+		res.write(`whitelisted: ${ipWhitelisted(ip)}\n`)
+	}else{
+		res.write('$WHITELIST is not defined')
+	}
+	res.write('\n\n')
+	
 	const text = JSON.stringify(await si.osInfo())
-	res.status(200).send('Webserver operational.\n\n\n' + text)
+	res.write('\n\n\n' + text)
+
+	res.status(200).end()
 })
 
 app.get('/blacklist.txt', async(req, res)=> {
-	res.setHeader('Content-Type', 'text/plain')
-	const text = await getBlacklist(true)
-	res.send(text)
-})
+	//if $WHITELIST not defined we let everyone access
+	if(process.env.WHITELIST){
+		const ip = req.headers['x-forwarded-for'] as string || 'undefined'
+		if(!ipWhitelisted(ip)){
+			return res.status(403).send('403 Forbidden')
+		}
+	}
 
-app.get('/whitelist.txt', async(req, res)=> {
 	res.setHeader('Content-Type', 'text/plain')
-	const text = await getBlacklist(false)
-	res.send(text)
+	await getBlacklist(res)
+	res.status(200).end()
 })
 
 app.get('/nocache-testonly.html', async(req, res)=> {

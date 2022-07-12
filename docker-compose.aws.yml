@@ -8,6 +8,8 @@ services:
   webserver:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-webserver:${IMAGE_TAG:-latest}
     platform: linux/amd64
+    environment:
+      WHITELIST: ${WHITELIST:-}
     deploy:
       resources:
         limits:

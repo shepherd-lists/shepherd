@@ -8,38 +8,28 @@ const knex = getDb()
 //serve cache for 5 mins
 const timeout = 5 * 60 * 1000 // min 5 mins between list updates
 let _lastBlack = 0
-let _lastWhite = 0
-let _whiteText = ''
 let _blackText = ''
 
-export const getBlacklist = async(black: boolean)=> {
+export const getBlacklist = async(res: Response)=> {
 
 	const now = new Date().valueOf()
-	if(black){
-		if(now - _lastBlack > timeout) _lastBlack = now
-		else{ 
-			logger('serving cached blacklist')
-			return _blackText	
-		}
-	} else{
-		if(now - _lastWhite > timeout) _lastWhite = now
-		else{ 
-			logger('serving cached whitelist')
-			return _whiteText 
-		}
+	
+	if(now - _lastBlack > timeout) _lastBlack = now
+	else{ 
+		logger('serving cached blacklist')
+		return res.write(_blackText);
 	}
 
-	const records = await knex<TxRecord>('txs').where({flagged: black})
-	logger('flagged txs retrieved', records.length)
+	const records = await knex<TxRecord>('txs').where({flagged: true})
+	logger('blacklisted tx records retrieved', records.length)
 	let text = ''
 	for (const record of records) {
-		text += record.txid + '\n'
+		const nl = record.txid + '\n'
+		text += nl
+		res.write(nl)
 	}
 
-	if(black) _blackText = text
-	else _whiteText = text
-	
-	return text
+	_blackText = text
 }
 
 export const getBlacklistTestOnly = async(black: boolean)=> {
