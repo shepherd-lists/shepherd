@@ -1,6 +1,8 @@
 import axios from 'axios'
 import { DataItem, unbundleData } from 'arbundles'
 import { logger } from '../common/utils/logger'
+import { updateTxsDb } from '../common/utils/db-update-txs'
+import { HOST_URL } from '../common/constants'
 
 /**
  * ** THIS IS MVP ONLY FOR NOW **
@@ -18,7 +20,7 @@ export const byteRanges = async (wantedId: string, bundleId: string) => {
 
 	/* get bundle infos */
 
-	const { data } = await axiosRetried('https://arweave.net/' + bundleId, 'arraybuffer')
+	const { data } = await axiosRetried(`${HOST_URL}/${bundleId}`, 'arraybuffer')
 	logger(byteRanges.name, data.length, 'bytes found in arweave.net cache')
 
 	const bundle = unbundleData(data)
@@ -41,12 +43,7 @@ export const byteRanges = async (wantedId: string, bundleId: string) => {
 
 	/* get weave data indices */
 
-	// // `data.length` is like our /tx endOffset
-	// const splicedData = (data as Buffer).subarray(data.length - reverseStartOffset, data.length - reverseEndOffset)
-	// const dataItem = new DataItem(splicedData)
-	// logger(byteRanges.name, dataItem.id, 'isValid:', await dataItem.isValid()) 
-
-	const { data: data2} = await axiosRetried(`https://arweave.net/tx/${bundleId}/offset`, 'json')
+	const { data: data2} = await axiosRetried(`${HOST_URL}/tx/${bundleId}/offset`, 'json')
 	logger(byteRanges.name, data2)
 	const byteRange = {
 		byteStart: BigInt(data2.offset) + 1n - BigInt(reverseStartOffset),
@@ -54,7 +51,13 @@ export const byteRanges = async (wantedId: string, bundleId: string) => {
 	}
 	logger(byteRanges.name, byteRange)
 
-	console.log('WRITE THIS TO DATABASE NOW!')
+	const checkId = await updateTxsDb(wantedId, { 
+		byteStart: byteRange.byteStart.toString(),
+		byteEnd: byteRange.byteEnd.toString(), 
+	})
+	if(checkId !== wantedId){
+		throw new Error(`Error writing byte-range to database! Wanted '${wantedId}'. Returned '${checkId}'.`)
+	}
 
 	return byteRange;
 }
