@@ -3,7 +3,7 @@ import { StateRecord, TxRecord } from '../src/common/types'
 import { logger } from '../src/common/utils/logger'
 import { parse } from 'csv-parse'
 import col from 'ansi-colors'
-import got from 'got'
+import got from 'got' // needs non-esm 11.8.3
 
 export async function seed(knex: Knex): Promise<void> {
 
