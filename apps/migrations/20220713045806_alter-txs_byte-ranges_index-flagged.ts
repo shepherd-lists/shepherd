@@ -6,7 +6,6 @@ export async function up(knex: Knex): Promise<void> {
 		table.bigInteger('byteStart') //returns string
 		table.bigInteger('byteEnd') //returns string
 
-		// table.index('flagged', 'index_flagged', { predicate: knex.whereNot('flagged') })
 	})
 	await knex.schema.raw('CREATE INDEX txs_flagged ON txs ( flagged ) WHERE flagged=true;')
 }
