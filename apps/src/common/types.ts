@@ -27,6 +27,9 @@ export interface TxRecord extends TxScanned, TxFlaggedOptions {
 		| 'negligible-data'
 		| (string & {}) //intellisense hack
 
+	byteStart?: string	// convert to BigInt
+	byteEnd?: string		// convert to BigInt
+
 	last_update_date: Date
 }
 export interface TxFlaggedOptions {
