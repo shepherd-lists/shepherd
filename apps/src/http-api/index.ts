@@ -5,6 +5,7 @@ import { APIFilterResult, FilterErrorResult, FilterResult } from '../common/shep
 import { logger } from '../common/utils/logger'
 import { slackLogger } from '../common/utils/slackLogger'
 import { slackLoggerPositive } from '../common/utils/slackLoggerPositive'
+import { byteRanges } from './byteRanges'
 
 const prefix = 'http-api'
 const app = express()
@@ -51,8 +52,10 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 	}
 
 	if(result.flagged !== undefined){
-		if(process.env.SLACK_POSITIVE && result.flagged === true ){
-			slackLoggerPositive(body)
+		if(result.flagged === true){
+			if(process.env.SLACK_POSITIVE) slackLoggerPositive(body)
+			//just send this off async
+			byteRanges(txid)
 		}
 		const res = await updateTxsDb(txid, {
 			flagged: result.flagged,
