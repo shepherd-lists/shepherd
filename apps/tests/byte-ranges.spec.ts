@@ -30,7 +30,7 @@ describe('byte-ranges tests', ()=>{
 			if(checkId.length !== 1){
 				await db<TxRecord>('txs').insert({txid: wantedId, content_type: 'text/plain', content_size: '321'})
 			}
-			await db<TxRecord>('txs').where({ txid: wantedId}).update({ byteStart: '0', byteEnd: '0', }) 
+			await db<TxRecord>('txs').where({ txid: wantedId}).update({ byteStart: '0', byteEnd: '0', parent: bundleId, }) 
 		}catch(e:any){
 			console.log('error connecting to DB', JSON.stringify(e))
 			process.exit(1)
@@ -40,7 +40,7 @@ describe('byte-ranges tests', ()=>{
 	it('should return the correct byte range for an ans104 dataItem, and test reconstructed dataItem', async()=> {
 
 
-		const { byteStart, byteEnd } = await byteRanges(wantedId, bundleId)
+		const { byteStart, byteEnd } = await byteRanges(wantedId)
 		
 		expect(byteStart, 'byteStart should equal value').eq(chunkStart)
 		expect(byteEnd, 'byteEnd should equal value').eq(chunkEnd)

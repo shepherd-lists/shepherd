@@ -3,6 +3,11 @@ import { unbundleData } from 'arbundles'
 import { logger } from '../common/utils/logger'
 import { updateTxsDb } from '../common/utils/db-update-txs'
 import { HOST_URL } from '../common/constants'
+import dbConnection from '../common/utils/db-connection'
+import { TxRecord } from '../common/types'
+
+const knex = dbConnection()
+
 
 const CHUNK_ALIGN_GENESIS = 30607159107830n //weave address where enforced 256kb chunks started
 const CHUNK_SIZE = 262144n //256kb
@@ -16,14 +21,21 @@ const CHUNK_SIZE = 262144n //256kb
  * - this only supports the current ans104 bundle standard. missing ans102 (and previous versions?).
  * 
  * @param wantedId the id of the dataItem we want byte ranges for.
- * @param bundleId the id of the arbundle it's in. 
- * @returns the byte range of the dataItem in weave data aligned to chunk boundaries
+ * @returns (for test only) the byte range of the dataItem in weave data aligned to chunk boundaries
  */
-export const byteRanges = async (wantedId: string, bundleId: string) => {
+export const byteRanges = async (wantedId: string) => {
+
+	/* check if this positive flag has a parent */
+
+	const [{ parent }] = await knex<TxRecord>('txs').select('parent').where({ txid: wantedId })
+	if(!parent){
+		logger(byteRanges.name, `no parent tx found for txid ${wantedId}`)
+		return { byteStart:0, byteEnd:0 }; //return for test only
+	}
 
 	/* get bundle infos */
 
-	const { data } = await axiosRetried(`${HOST_URL}/${bundleId}`, 'arraybuffer')
+	const { data } = await axiosRetried(`${HOST_URL}/${parent}`, 'arraybuffer')
 	logger(byteRanges.name, data.length, 'bytes found in arweave.net cache')
 
 	const bundle = unbundleData(data)
@@ -47,7 +59,7 @@ export const byteRanges = async (wantedId: string, bundleId: string) => {
 	/* get weave data indices */
 
 	// get actual dataItem offsets
-	const { data: data2} = await axiosRetried(`${HOST_URL}/tx/${bundleId}/offset`, 'json')
+	const { data: data2} = await axiosRetried(`${HOST_URL}/tx/${parent}/offset`, 'json')
 	logger(byteRanges.name, data2)
 	const dataRange = {
 		byteStart: BigInt(data2.offset) + 1n - BigInt(reverseStartOffset),
