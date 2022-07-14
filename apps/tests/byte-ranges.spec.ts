@@ -18,8 +18,10 @@ describe('byte-ranges tests', ()=>{
 	const wantedStart = 87742364821010n
 	const wantedEnd = 87742364822091n
 	const bundleStart = 87742364823170n + 1n - 3468n
+	const chunkStart = 87742364819702n
+	const chunkEnd = 87742365081846n
 
-	
+
 	before(async function() {
 		this.timeout(0)
 		try{
@@ -40,19 +42,21 @@ describe('byte-ranges tests', ()=>{
 
 		const { byteStart, byteEnd } = await byteRanges(wantedId, bundleId)
 		
-		expect(byteStart, 'byteStart should equal value').eq(wantedStart)
-		expect(byteEnd, 'byteEns should equal value').eq(wantedEnd)
+		expect(byteStart, 'byteStart should equal value').eq(chunkStart)
+		expect(byteEnd, 'byteEnd should equal value').eq(chunkEnd)
 		
-		//reconstuct dataItem from binary
-		const { data } = await axios.get('https://arweave.net/' + bundleId, { responseType: 'arraybuffer'})
-		const splicedData = (data as Buffer).subarray(
-			Number(byteStart - bundleStart), 
-			Number(byteEnd - bundleStart),
-		)
+		/* the following makes no sense any more with chunk aligned byte ranges */
 
-		const dataItem = new DataItem(splicedData)
-		expect(dataItem.id).eq(wantedId)
-		expect(await dataItem.isValid(), 'recontructed dataItem should be valid').true
+		// //reconstuct dataItem from binary
+		// const { data } = await axios.get('https://arweave.net/' + bundleId, { responseType: 'arraybuffer'})
+		// const splicedData = (data as Buffer).subarray(
+		// 	Number(byteStart - bundleStart), 
+		// 	Number(byteEnd - bundleStart),
+		// )
+
+		// const dataItem = new DataItem(splicedData)
+		// expect(dataItem.id).eq(wantedId)
+		// expect(await dataItem.isValid(), 'recontructed dataItem should be valid').true
 
 	}).timeout(0)
 

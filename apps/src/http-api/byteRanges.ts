@@ -1,8 +1,11 @@
 import axios from 'axios'
-import { DataItem, unbundleData } from 'arbundles'
+import { unbundleData } from 'arbundles'
 import { logger } from '../common/utils/logger'
 import { updateTxsDb } from '../common/utils/db-update-txs'
 import { HOST_URL } from '../common/constants'
+
+const CHUNK_ALIGN_GENESIS = 30607159107830n //weave address where enforced 256kb chunks started
+const CHUNK_SIZE = 262144n //256kb
 
 /**
  * ** THIS IS MVP ONLY FOR NOW **
@@ -14,7 +17,7 @@ import { HOST_URL } from '../common/constants'
  * 
  * @param wantedId the id of the dataItem we want byte ranges for.
  * @param bundleId the id of the arbundle it's in. 
- * @returns the byte range of the dataItem in weave data indices.
+ * @returns the byte range of the dataItem in weave data aligned to chunk boundaries
  */
 export const byteRanges = async (wantedId: string, bundleId: string) => {
 
@@ -43,23 +46,36 @@ export const byteRanges = async (wantedId: string, bundleId: string) => {
 
 	/* get weave data indices */
 
+	// get actual dataItem offsets
 	const { data: data2} = await axiosRetried(`${HOST_URL}/tx/${bundleId}/offset`, 'json')
 	logger(byteRanges.name, data2)
-	const byteRange = {
+	const dataRange = {
 		byteStart: BigInt(data2.offset) + 1n - BigInt(reverseStartOffset),
 		byteEnd: BigInt(data2.offset) + 1n - BigInt(reverseEndOffset),
 	}
-	logger(byteRanges.name, byteRange)
+	logger(byteRanges.name, 'dataItem range', dataRange)
+
+	//get aligned to chunk offsets
+	const modStart = (dataRange.byteStart - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE
+	const modEnd = (dataRange.byteEnd - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE
+	const addEnd = modEnd === 0n ? 0n : CHUNK_SIZE - modEnd
+	const chunkRange = {
+		byteStart: dataRange.byteStart - modStart ,
+		byteEnd: dataRange.byteEnd + addEnd,
+	}
+	logger(byteRanges.name, 'chunk range', chunkRange)
+
+	/* update database - (expensive to do this separetely, consider combined operation) */
 
 	const checkId = await updateTxsDb(wantedId, { 
-		byteStart: byteRange.byteStart.toString(),
-		byteEnd: byteRange.byteEnd.toString(), 
+		byteStart: chunkRange.byteStart.toString(),
+		byteEnd: chunkRange.byteEnd.toString(), 
 	})
 	if(checkId !== wantedId){
 		throw new Error(`Error writing byte-range to database! Wanted '${wantedId}'. Returned '${checkId}'.`)
 	}
 
-	return byteRange;
+	return chunkRange; //useds for test
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
