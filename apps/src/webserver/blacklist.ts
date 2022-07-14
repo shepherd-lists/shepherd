@@ -7,21 +7,23 @@ const knex = getDb()
 
 //serve cache for 5 mins
 const timeout = 5 * 60 * 1000 // min 5 mins between list updates
-let _lastBlack = 0
-let _blackText = ''
 
+let _black =  {
+	last: 0,
+	text: '',
+}
 export const getBlacklist = async(res: Response)=> {
 
 	const now = new Date().valueOf()
 	
-	if(now - _lastBlack > timeout) _lastBlack = now
+	if(now - _black.last > timeout) _black.last = now
 	else{ 
 		logger('serving cached blacklist')
-		return res.write(_blackText);
+		return res.write(_black.text);
 	}
 
 	const records = await knex<TxRecord>('txs').where({flagged: true})
-	logger('blacklisted tx records retrieved', records.length)
+	logger('blacklist tx records retrieved', records.length)
 	let text = ''
 	for (const record of records) {
 		const nl = record.txid + '\n'
@@ -29,21 +31,49 @@ export const getBlacklist = async(res: Response)=> {
 		res.write(nl)
 	}
 
-	_blackText = text
+	_black.text = text
 }
 
-export const getBlacklistTestOnly = async(black: boolean)=> {
-	let html = '<html><body style="font-family:\'Courier New\',monospace;">'
+const _range = {
+	last: 0,
+	text: '',
+}
+export const getRangelist = async(res: Response)=> {
 
-	const records = await knex<TxRecord>('txs').where({flagged: black}).orderBy('id', 'desc')
-	logger('flagged txs retrieved', records.length)
-	html += '<h1>Number of records: ' + records.length + '</h1><table>\n'
-	for (const record of records) {
-		html += `<tr><td><a href="https://arweave.net/${record.txid}">${record.txid}</a></td><td>${record.content_size}</td><td>${record.content_type}</td></tr>\n`
+	const now = new Date().valueOf()
+	
+	if(now - _range.last > timeout) _range.last = now
+	else{ 
+		logger('serving cached rangelist')
+		return res.write(_range.text);
 	}
 
-	return html + '</table></body></html>'
+	const records = await knex<TxRecord>('txs').where({flagged: true})
+	logger('rangelist tx records retrieved', records.length)
+	let text = ''
+	for (const record of records) {
+		const nl = `${record.byteStart},${record.byteEnd}\n`
+		text += nl
+		res.write(nl)
+	}
+
+	_range.text = text
 }
+
+
+
+// export const getBlacklistTestOnly = async(black: boolean)=> {
+// 	let html = '<html><body style="font-family:\'Courier New\',monospace;">'
+
+// 	const records = await knex<TxRecord>('txs').where({flagged: black}).orderBy('id', 'desc')
+// 	logger('flagged txs retrieved', records.length)
+// 	html += '<h1>Number of records: ' + records.length + '</h1><table>\n'
+// 	for (const record of records) {
+// 		html += `<tr><td><a href="https://arweave.net/${record.txid}">${record.txid}</a></td><td>${record.content_size}</td><td>${record.content_type}</td></tr>\n`
+// 	}
+
+// 	return html + '</table></body></html>'
+// }
 
 export const getStatsTestOnly = async(res: Response)=> {
 	res.write('<html><body style="font-family:\'Courier New\',monospace;">')
@@ -73,52 +103,54 @@ export const getStatsTestOnly = async(res: Response)=> {
 	res.write('</body></html>')
 }
 
-export const getPerfHistory = async()=> {
-	let html = `<html>
+export const getPerfHistory = async(res: Response)=> {
+	res.write(
+		`<html>
 		<style>
 			table, th, td {
 				border: 1px solid black;
 				border-collapse: collapse;
 			}
 		</style>
-		<body style="font-family:\'Courier New\',monospace;">`
-	html += '<table>'
+		<body style="font-family:\'Courier New\',monospace;">
+			<table>`
+	)
 
 	const records = await knex<HistoryRecord>('history').select('*')//.orderBy('id', 'desc')
 
 	//column names
-	html += '<tr>'
+	res.write('<tr>')
 	for(const key in records[0]){
-		html += `<th><center>${key}</center></th>`
+		res.write(`<th><center>${key}</center></th>`)
 	}
-	html += `<th><center>num processed</center></th>`
-	html += '</tr>'
+	res.write(`<th><center>num processed</center></th>`)
+	res.write('</tr>')
 
 	const numFlagged = new Array(records.length)
 	numFlagged[0] = 0
 
 	//first entry
-	html += '<tr>'
+	res.write('<tr>')
 	for(const key in records[0]){
 		//@ts-ignore
-		html += `<td>${records[0][key]}</td>`
+		res.write(`<td>${records[0][key]}</td>`)
 	}
-	html += `<td>${numFlagged[0]}</td>`
-	html += '</tr>'
+	res.write(`<td>${numFlagged[0]}</td>`)
+	res.write('</tr>')
 
 	for (let i = 1; i < records.length; i++) {
 		const recA = records[i - 1]
 		const recB = records[i]
 		numFlagged[i] = +recA.unflagged - +recB.unflagged + +recB.total_txs - +recA.total_txs
-		html += '<tr>'
+		res.write('<tr>')
 		for(const key in records[i]){
 			//@ts-ignore
-			html += `<td>${records[i][key]}</td>`
+			res.write(`<td>${records[i][key]}</td>`)
 		}
-		html += `<td>${numFlagged[i]}</td>`
-		html += '</tr>'
+		res.write(`<td>${numFlagged[i]}</td>`)
+		res.write('</tr>')
 	}
 
-	html += '</table>'
-	return html + '</body></html>'
+	res.write('</table>')
+	res.write('</body></html>')
 }
