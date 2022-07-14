@@ -26,7 +26,7 @@ describe('http-api tests', ()=>{
 		const res = await knex<TxRecord>('txs').insert(mockRecord, 'id')
 		await knex<InflightsRecord>('inflights').insert({
 			txid: mockRecord.txid,
-			foreign_id: res[0], 
+			foreign_id: res[0].id, 
 		})
 	})
 	/* remove mock records after testing */
