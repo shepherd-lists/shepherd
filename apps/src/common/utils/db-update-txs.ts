@@ -9,10 +9,10 @@ const knex = getDbConnection()
 export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
 	try{
 		const checkId = await knex<TxRecord>('txs').where({txid}).update(updates, 'txid')
-		if(checkId[0] !== txid){
+		if(checkId[0].txid !== txid){
 			logger(txid, 'ERROR UPDATING DATABASE!', JSON.stringify(updates))
 		}
-		return checkId[0];
+		return checkId[0].txid;
 
 	}catch(e:any){
 		logger(txid, 'ERROR UPDATING DATABASE!', e.name, ':', e.message)
@@ -23,10 +23,10 @@ export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
 export const dbInflightDel = async(txid: string)=> {
 	try{
 		const ret = await knex<InflightsRecord>('inflights').where({ txid, }).del('txid')
-		if(ret[0] !== txid){
+		if(ret[0].txid !== txid){
 			logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS', ret)
 		}
-		return ret[0];
+		return ret[0].txid;
 	}catch(e:any){
 		logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS', e.name, ':', e.message)
 		logger(txid, e) // `throw e` does nothing, use the return
@@ -46,7 +46,7 @@ export const dbInflightAdd = async(txid: string)=> {
 		if(ret.rows[0].txid !== txid){
 			logger(txid, 'DB_ERROR ADDING TO INFLIGHTS', ret)
 		}
-		return ret[0];
+		return ret.rows[0].txid;
 	}catch(e:any){
 		logger(txid, 'DB_ERROR ADDING TO INFLIGHTS', e.name, ':', e.message)
 		logger(txid, e) // `throw e` does nothing, use the return
