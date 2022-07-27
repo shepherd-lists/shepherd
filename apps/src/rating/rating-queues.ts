@@ -47,7 +47,7 @@ const getVids = async(batch: number)=> {
 	const records = await db<TxRecord>('txs')
 	.whereNull('valid_data') //not processed yet
 	.whereIn('content_type', videoTypes)
-	.orderBy('last_update_date', 'asc') //'asc' because we pop()
+	.orderBy('last_update_date', 'desc') //'asc' because we pop()
 	.limit(batch)
 
 	const length = records.length
@@ -94,8 +94,8 @@ export const rater = async(lowmem: boolean)=>{
 
 	let imageQueue = await getImages(BATCH_IMAGE)
 	let gifQueue = await getGifs(BATCH_GIF)
-	let vidQueue: TxRecord[] = [] //await getVids(BATCH_VIDEO)
-	let otherQueue = await getOthers(BATCH_OTHER)
+	let vidQueue: TxRecord[] = await getVids(BATCH_VIDEO)
+	let otherQueue = [] as TxRecord[]//await getOthers(BATCH_OTHER)
 
 	const vidDownloads = VidDownloads.getInstance()
 
@@ -106,7 +106,7 @@ export const rater = async(lowmem: boolean)=>{
 		//splice off a batch from the queue
 		let images = imageQueue.splice(0, Math.min(imageQueue.length, BATCH_IMAGE))
 		let gifs = gifQueue.splice(0, Math.min(gifQueue.length, BATCH_GIF))
-		let others = otherQueue.splice(0, Math.min(otherQueue.length, BATCH_OTHER))
+		let others = [] as TxRecord[]//otherQueue.splice(0, Math.min(otherQueue.length, BATCH_OTHER))
 
 		const imagesBacklog = images.length + gifs.length // + others.length
 
@@ -127,9 +127,11 @@ export const rater = async(lowmem: boolean)=>{
 		
 		//start another video download
 		if((vidQueue.length > 0) && (vidDownloads.length() < 10) && (vidDownloads.size() < VID_TMPDIR_MAXSIZE)){
-			logger(prefix, `downloading one from ${vidQueue.length} videos`)
-			let vid = vidQueue.pop() as TxRecord
-			await addToDownloads(vid)
+			const numToAdd = 10 - vidDownloads.length() 
+			logger(prefix, `downloading ${numToAdd} from ${vidQueue.length} videos`)
+			for(let i = 0; i < numToAdd; i++) {
+				await addToDownloads( vidQueue.pop() as TxRecord )
+			}
 		}
 		//process downloaded videos
 		if(vidDownloads.length() > 0){
@@ -151,7 +153,8 @@ export const rater = async(lowmem: boolean)=>{
 			&& vidDownloads.length() > 0
 			&& (vidDownloads.length() === 10 || vidQueue.length === 0)
 		){
-			logger(prefix, 'videos downloading...')
+			logger(prefix, `${vidDownloads.length()} videos, ${(vidDownloads.size()/1048576).toLocaleString()} MBs downloading...`)
+			console.log(vidDownloads.listIds())
 			await sleep(5000)
 		}
 
@@ -159,15 +162,14 @@ export const rater = async(lowmem: boolean)=>{
 		//refresh the queues on every single loop to keep current even with a backlog
 		imageQueue = await getImages(BATCH_IMAGE)
 		gifQueue = await getGifs(BATCH_GIF)
-		if(otherQueue.length === 0) otherQueue = await getOthers(BATCH_OTHER)
-		vidQueue = []//await getVids(BATCH_VIDEO)
+		if(otherQueue.length === 0) { ; }//otherQueue = await getOthers(BATCH_OTHER)
+		vidQueue = await getVids(BATCH_VIDEO)
 		const t1 = performance.now()
 		logger(prefix, 'sql queries took', (t1-t0).toFixed(2), 'ms to complete')
 
 		//make sure we're not reloading inflight vids
 		const inflight = vidDownloads.listIds()
-		while((vidQueue.length > 0) && inflight.includes(vidQueue[vidQueue.length-1].id)){
-			vidQueue.pop()
-		}
+		console.log({inflight})
+		vidQueue = vidQueue.filter(item => !inflight.includes(item.id))
 	}
 }
