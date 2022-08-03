@@ -16,7 +16,7 @@
   },
   "keywords": [],
   "author": "Ros McMahon <ros@arweave.org>",
-  "license": "LGPL 2.1",
+  "license": "LGPL-3.0-or-later",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/shepherd-media-classifier/shepherd.git"
