@@ -48,6 +48,12 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 			await dbNoDataFound404(txid)
 			return true;
 		}
+
+		if(e.message === 'End-Of-Stream'){
+			logger(prefix, `End-Of-Stream`, contentType, url)
+			await dbCorruptDataConfirmed(txid)
+			return true;
+		}
 		
 		else if(
 			(e.message === `Timeout of ${NO_DATA_TIMEOUT}ms exceeded`)
