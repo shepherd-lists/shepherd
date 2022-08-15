@@ -35,6 +35,7 @@ export const processVids = async()=> {
 						'Invalid data found when processing input',
 						'ffout[1]:Error opening filters!',
 						'ffout[1]:undefined',
+						'ffout[1]:Conversion failed!',
 					].includes(e.message)
 				){
 					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
