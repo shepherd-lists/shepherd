@@ -122,7 +122,7 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 					await dbNoDataFound404(txid)
 				}
 				else if(
-					status >= 500
+					status >= 400
 					|| network_EXXX_codes.includes(code)
 				){
 					logger(fetcherLoop.name, `network error during ${txid}. continue after SQS timeout`, status, code)
