@@ -53,10 +53,14 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 
 	if(result.flagged !== undefined){
 		if(result.flagged === true){
-			if(process.env.SLACK_POSITIVE) slackLoggerPositive(body)
+			slackLoggerPositive(body)
 			//just send this off async
 			byteRanges(txid)
 		}
+		if(result.flag_type === 'classified'){
+			slackLogger(body)
+		}
+
 		const res = await updateTxsDb(txid, {
 			flagged: result.flagged,
 			valid_data: true,
@@ -66,12 +70,12 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 		})
 
 		if(res !== txid){
-			await dbInflightDel(txid)
+			dbInflightDel(txid)
 			throw new Error('Could not update database')
 		}
 		
 	}else if(result.data_reason === undefined){
-		await dbInflightDel(txid)
+		dbInflightDel(txid)
 		throw new TypeError('data_reason and flagged cannot both be undefined')
 	}else{
 		switch (result.data_reason) {
