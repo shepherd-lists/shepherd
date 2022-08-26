@@ -58,7 +58,7 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 			byteRanges(txid)
 		}
 		if(result.flag_type === 'classified'){
-			slackLogger(body)
+			slackLogger(JSON.stringify(body))
 		}
 
 		const res = await updateTxsDb(txid, {
