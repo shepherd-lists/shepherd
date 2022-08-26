@@ -37,7 +37,7 @@ const getMessages = async(): Promise<SQS.Message[]> => {
 		WaitTimeSeconds: 0,
 	}).promise()
 	const msgs = Messages! || []
-	logger(prefix, `received ${msgs.length} messages`)
+	// logger(prefix, `received ${msgs.length} messages`)
 	
 	return msgs;
 }

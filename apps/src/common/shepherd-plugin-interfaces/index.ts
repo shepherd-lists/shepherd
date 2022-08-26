@@ -1,5 +1,5 @@
 import { Readable } from "stream"
-import { TxFlaggedOptions } from "../types"
+import type { TxFlaggedOptions } from "../types"
 
 export interface FilterResult extends TxFlaggedOptions {
 	flagged: boolean // main output: whether the image is filtered or not
