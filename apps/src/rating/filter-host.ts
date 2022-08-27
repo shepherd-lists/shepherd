@@ -48,6 +48,12 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 			await dbNoDataFound404(txid)
 			return true;
 		}
+
+		if(e.message === 'End-Of-Stream'){
+			logger(prefix, `End-Of-Stream`, contentType, url)
+			await dbCorruptDataConfirmed(txid)
+			return true;
+		}
 		
 		else if(
 			(e.message === `Timeout of ${NO_DATA_TIMEOUT}ms exceeded`)
@@ -58,7 +64,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		
 		else if(
 			status >= 500
-			|| ( e.code && ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'].includes(e.code) )
+			|| ( e.code && ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND'].includes(e.code) )
 		){
 			// error in the gateway somewhere, not important to us
 			logger(txid, e.message, 'image will automatically retry downloading') //do nothing, record remains in unprocessed queue

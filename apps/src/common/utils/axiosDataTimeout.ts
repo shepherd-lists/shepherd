@@ -34,8 +34,8 @@ export const axiosDataTimeout = async(url: string)=> {
 		return res.data
 
 	}catch(e:any){
+		clearTimeout(timer!)
 		if(e.response || e.code){
-			clearTimeout(timer!)
 			throw(e)
 		}
 		throw new Error(`Timeout of ${NO_DATA_TIMEOUT}ms exceeded`)

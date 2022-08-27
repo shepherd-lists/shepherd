@@ -22,8 +22,12 @@ export const addToDownloads = async(vid: TxRecord)=> {
 
 	try{
 		//call async as likely large download
-		videoDownload( dl ).then( (res)=> {
+		videoDownload( dl )
+		.then( (res)=> {
 			logger(dl.txid, 'finished downloading', res)
+		}).catch(e => {
+			logger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code)
+			throw e;
 		})
 	}catch(e:any){
 		logger(dl.txid, e.message)
@@ -107,8 +111,8 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 					}
 				}
 				filesizeDownloaded += chunk.length
-					
-				filewriter.write(chunk)
+				
+				if(filewriter.writable) filewriter.write(chunk)
 			})
 	
 			stream.on('end', async()=>{
@@ -128,11 +132,27 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				}
 				vid.complete === 'TRUE' ? resolve(true) : resolve(false)
 			})
-	
+
+			stream.setTimeout(NO_STREAM_TIMEOUT, ()=> {
+
+				dbNoDataFound(vid.txid)
+				filewriter.end()
+				resolve('no data timeout')
+				
+				source.cancel()
+				const msg = `stream idle for more than ${NO_STREAM_TIMEOUT}`
+				logger(vid.txid, msg)
+				stream.destroy(new Error(msg))
+				vid.complete = 'ERROR'
+				dbPartialVideoFound(vid.txid)
+				resolve('partial. stream idle.')
+			})
+			
 			stream.on('error', (e: any)=>{
-				if(process.env.NODE_ENV==='test'){
+				if(process.env.NODE_ENV!=='test'){
 					logger('** DEBUG **:', JSON.stringify(e), JSON.stringify(vid))
 				}
+				source.cancel()
 				filewriter.end()
 				if(e.message && e.message === 'aborted'){
 					logger(vid.txid, 'Error: aborted')
@@ -170,7 +190,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				dbNoDataFound404(vid.txid)
 				resolve(404)
 			}else if(
-				status >= 500
+				status >= 400
 				|| e.message === 'Client network socket disconnected before secure TLS connection was established'
 				|| ['ECONNRESET', 'ETIMEDOUT'].includes(code)
 			){
