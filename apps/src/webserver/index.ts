@@ -41,12 +41,12 @@ app.get('/', async(req, res)=> {
 	if(process.env.BLACKLIST_ALLOWED){
 		res.write(`access blacklist: ${ipAllowBlacklist(ip)}\n`)
 	}else{
-		res.write('$BLACKLIST_ALLOWED is not defined')
+		res.write('$BLACKLIST_ALLOWED is not defined\n')
 	}
 	if(process.env.RANGELIST_ALLOWED){
 		res.write(`access rangelist: ${ipAllowRangelist(ip)}\n`)
 	}else{
-		res.write('$RANGELIST_ALLOWED is not defined')
+		res.write('$RANGELIST_ALLOWED is not defined\n')
 	}
 	res.write('\n\n')
 	
