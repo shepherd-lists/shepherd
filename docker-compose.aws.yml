@@ -10,6 +10,7 @@ services:
     platform: linux/amd64
     environment:
       BLACKLIST_ALLOWED: ${BLACKLIST_ALLOWED:-}
+      RANGELIST_ALLOWED: ${RANGELIST_ALLOWED:-}
     deploy:
       resources:
         limits:
