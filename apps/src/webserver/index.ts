@@ -10,11 +10,11 @@ const port = 80
 
 // app.use(cors())
 
-console.log('process.env.WHITELIST',process.env.WHITELIST)
-const accessList: string[] = JSON.parse(process.env.WHITELIST || '[]')
-console.log(`accessList (WHITELIST) for '/blacklist.txt' access`, accessList)
+console.log('process.env.BLACKLIST_ALLOWED',process.env.BLACKLIST_ALLOWED)
+const accessList: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
+console.log(`accessList (BLACKLIST_ALLOWED) for '/blacklist.txt' access`, accessList)
 
-const ipWhitelisted = (ip: string)=>{
+const ipAllowBlacklist = (ip: string)=>{
 	// convert from `::ffff:192.0.0.1` => `192.0.0.1`
 	if(ip.startsWith("::ffff:")){
     ip = ip.substring(7)
@@ -27,12 +27,12 @@ app.get('/', async(req, res)=> {
 	res.setHeader('Content-Type', 'text/plain')
 	res.write('Webserver operational.\n\n\n')
 
-	if(process.env.WHITELIST){
+	if(process.env.BLACKLIST_ALLOWED){
 		const ip = req.headers['x-forwarded-for'] as string || 'undefined'
 		res.write(`your ip is ${ip}\n`)
-		res.write(`whitelisted: ${ipWhitelisted(ip)}\n`)
+		res.write(`access blacklist: ${ipAllowBlacklist(ip)}\n`)
 	}else{
-		res.write('$WHITELIST is not defined')
+		res.write('$BLACKLIST_ALLOWED is not defined')
 	}
 	res.write('\n\n')
 	
@@ -43,10 +43,10 @@ app.get('/', async(req, res)=> {
 })
 
 app.get('/blacklist.txt', async(req, res)=> {
-	//if $WHITELIST not defined we let everyone access
-	if(process.env.WHITELIST){
+	//if $BLACKLIST_ALLOWED not defined we let everyone access
+	if(process.env.BLACKLIST_ALLOWED){
 		const ip = req.headers['x-forwarded-for'] as string || 'undefined'
-		if(!ipWhitelisted(ip)){
+		if(!ipAllowBlacklist(ip)){
 			return res.status(403).send('403 Forbidden')
 		}
 	}
