@@ -1,9 +1,7 @@
 process.env['NODE_ENV'] = 'test'
-import {  } from 'mocha'
+import 'mocha'
 import { expect } from 'chai'
 import { byteRanges } from '../src/http-api/byteRanges'
-import { DataItem } from 'arbundles'
-import axios from 'axios'
 import dbConnection from '../src/common/utils/db-connection'
 import { TxRecord } from '../src/common/types'
 
@@ -40,10 +38,10 @@ describe('byte-ranges tests', ()=>{
 	it('should return the correct byte range for an ans104 dataItem, and test reconstructed dataItem', async()=> {
 
 
-		const { byteStart, byteEnd } = await byteRanges(wantedId)
+		const { start, end } = await byteRanges(wantedId)
 		
-		expect(byteStart, 'byteStart should equal value').eq(chunkStart)
-		expect(byteEnd, 'byteEnd should equal value').eq(chunkEnd)
+		expect(start, 'byteStart should equal value').eq(chunkStart)
+		expect(end, 'byteEnd should equal value').eq(chunkEnd)
 		
 		/* the following makes no sense any more with chunk aligned byte ranges */
 
