@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# exit on errors
+set -euo pipefail
+
 # if [[ `uname -m` == 'arm64' && `uname -s` == 'Darwin' ]]; then
 # 	echo "ABORTING! The container images are currently not building on M1 Silicon"
 # 	exit 1
@@ -36,6 +39,8 @@ docker logout
 aws ecr get-login-password --region $AWS_DEFAULT_REGION --profile shepherd | docker login --password-stdin --username AWS $IMAGE_REPO
 
 docker compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml build
+# prime the docker caches first. scanner has no dependencies
+docker compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml push scanner
 docker compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml push
 docker --context ecs compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml convert > "cfn.yml.$(date +"%Y.%m.%d-%H:%M").log"
 docker --context ecs compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml up

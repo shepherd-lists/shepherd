@@ -6,7 +6,7 @@ x-aws-vpc: arn:aws:ec2:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:vpc/${AWS_VPC_ID}
 
 services:
   webserver:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-webserver:${IMAGE_TAG:-latest}
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:webserver
     platform: linux/amd64
     environment:
       BLACKLIST_ALLOWED: ${BLACKLIST_ALLOWED:-}
@@ -17,7 +17,7 @@ services:
           cpus: '1.0'
           memory: 2G
   http-api:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-http-api:${IMAGE_TAG:-latest}
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:http-api
     platform: linux/amd64
     deploy:
       resources:
@@ -25,7 +25,7 @@ services:
           cpus: '2.0'
           memory: 4G
   scanner:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-scanner:${IMAGE_TAG:-latest}
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:scanner
     platform: linux/amd64
     deploy:
       resources:
@@ -33,7 +33,7 @@ services:
           cpus: '4.0'
           memory: 16G
   feeder:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-feeder:${IMAGE_TAG:-latest}
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:feeder
     platform: linux/amd64
     deploy:
       resources:
@@ -49,7 +49,7 @@ services:
         Action: 'sqs:*' 
         Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-feeder-q'
   fetchers:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-fetchers:${IMAGE_TAG:-latest}
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:fetchers
     platform: linux/amd64
     deploy:
       resources:

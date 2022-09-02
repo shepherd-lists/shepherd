@@ -36,12 +36,13 @@ function delete_repo {
 	fi
 }
 
-create_repo 'shepherd-webserver'
-create_repo 'shepherd-scanner'
-create_repo 'shepherd-http-api'
-create_repo 'shepherd-feeder'
-create_repo 'shepherd-fetchers'
-# this one has been replaced
+create_repo 'shepherd'
+# these are removed
+delete_repo 'shepherd-webserver'
+delete_repo 'shepherd-scanner'
+delete_repo 'shepherd-http-api'
+delete_repo 'shepherd-feeder'
+delete_repo 'shepherd-fetchers'
 delete_repo 'shepherd-rating'
 
 
