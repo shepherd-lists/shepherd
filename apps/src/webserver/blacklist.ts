@@ -52,9 +52,13 @@ export const getRangelist = async(res: Response)=> {
 	logger('rangelist tx records retrieved', records.length)
 	let text = ''
 	for (const record of records) {
-		const nl = `${record.byteStart},${record.byteEnd}\n`
-		text += nl
-		res.write(nl)
+		if(record.byteStart && record.byteStart !== '-1'){ // (-1,-1) denotes an error. e.g. weave data unavailable
+			const nl = `${record.byteStart},${record.byteEnd}\n`
+			text += nl
+			res.write(nl)
+		}else{
+			logger(getRangelist.name, `could not add range values for ${record}`)
+		}
 	}
 
 	_range.text = text
