@@ -61,8 +61,10 @@ app.get('/blacklist.txt', async(req, res)=> {
 	if(process.env.BLACKLIST_ALLOWED){
 		const ip = req.headers['x-forwarded-for'] as string || 'undefined'
 		if(!ipAllowBlacklist(ip)){
+			logger('blacklist', `ip '${ip}' denied access`)
 			return res.status(403).send('403 Forbidden')
 		}
+		logger('blacklist', `ip '${ip}' access granted`)
 	}
 
 	res.setHeader('Content-Type', 'text/plain')
@@ -75,8 +77,10 @@ app.get('/rangelist.txt', async(req, res)=> {
 	if(process.env.RANGELIST_ALLOWED){
 		const ip = req.headers['x-forwarded-for'] as string || 'undefined'
 		if(!ipAllowRangelist(ip)){
+			logger('rangelist', `ip '${ip}' denied access`)
 			return res.status(403).send('403 Forbidden')
 		}
+		logger('rangelist', `ip '${ip}' access granted`)
 	}
 	
 	res.setHeader('Content-Type', 'text/plain')
