@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# exit on errors
+set -euo pipefail
+
 # import .env
 if [ -f ".env" ]; then
 	export $(egrep -v '^#' .env | xargs)

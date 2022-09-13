@@ -4,6 +4,9 @@
 #   Prequisite: install aws-cli v2   #
 ######################################
 
+# exit on errors
+set -euo pipefail
+
 echo "+====================================================+"			2>&1 | tee -a setup.log
 echo "| Starting $(realpath $0) @ $(date "+%Y-%m-%d %H:%M:%S%z") |"		2>&1 | tee -a setup.log
 echo "+====================================================+"			2>&1 | tee -a setup.log
