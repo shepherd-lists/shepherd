@@ -4,8 +4,11 @@
  * //!const items: DataItemJson[] = await arweaveBundles.unbundleData(data) // we can't use this.
  * `unbundleData` filters dataItems that don't validate, so this will interefere with our size calculations.
  */
-import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from './constants-byteRange';
-import { fetchFullRetried } from './fetch-retry';
+import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from './constants-byteRange'
+import { fetchFullRetried } from './fetch-retry'
+import memoize from 'micro-memoize'
+
+const fetchFullRetriedMemo = memoize(fetchFullRetried, { maxSize: 1000 })
 
 //DataItemJson is actually the only thing we need from arweave-bundles package
 class DataItemJson {
@@ -22,14 +25,14 @@ class DataItemJson {
 const head_size = `{"items":[`.length
 const end_size = `]}`.length
 
-export const byteRange102 = async(txid: string, parent: string)=> {
+const fetchHeaderInfo = async(txid: string, parent: string)=> {
 
 	/* fetch the entire L1 parent data & sanity check */
 
 	const { status, json: bundleJson } = await fetchFullRetried(`/${parent}`)
 	if(status === 404) return{
-		status, 
-		start: -1n, end: -1n,
+		status,
+		diSizes: [] as number[], indexTxid: -1, //keep ts happy
 	}
 
 	const {items} = bundleJson as { items: DataItemJson[] }
@@ -45,9 +48,26 @@ export const byteRange102 = async(txid: string, parent: string)=> {
 	//sanity
 	if(indexTxid === undefined) throw new Error(`indexTxid not defined`)
 
+	return {
+		diSizes,
+		indexTxid,
+	}
+}
+const fetchHeaderInfoMemo = memoize(fetchHeaderInfo, { maxSize: 1000 })
+
+export const byteRange102 = async(txid: string, parent: string)=> {
+
+	/* fetch the L1 parent header details (expensive) */
+
+	const {status, diSizes, indexTxid} = await fetchHeaderInfoMemo(txid, parent)
+	if(status === 404) return{
+		status, 
+		start: -1n, end: -1n,
+	}
+
 	/* get weave offset & sanity check */
 	
-	const { status: statusOffset, json } = await fetchFullRetried(`/tx/${parent}/offset`)
+	const { status: statusOffset, json } = await fetchFullRetriedMemo(`/tx/${parent}/offset`)
 	if(statusOffset === 404) return {
 		status: statusOffset, 
 		start: -1n, end: -1n,

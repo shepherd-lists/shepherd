@@ -4,8 +4,9 @@ import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, } from './constants-byteRange'
 import { HOST_URL, network_EXXX_codes } from '../../common/constants'
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
+import memoize from 'micro-memoize'
 
-
+const ans104HeaderDataMemo = memoize(ans104HeaderData, {maxSize: 1000})
 /**
  * 
  * @param id either L1 or L2 id
@@ -30,7 +31,7 @@ export const txidToRange = async (id: string) => {
 	 * 			get entire bundle and calculate byte-range
 	 */
 	//get tx metadata
-	const tx = await gqlTxRetried(id)
+	const tx = await gqlTxRetry(id)
 	if(!tx){
 		throw new Error(`[${txidToRange.name}] getTxRetried(${id}) returned undefined. This should not be happening.`)
 	}
@@ -40,7 +41,7 @@ export const txidToRange = async (id: string) => {
 		return offsetL1(id)
 	}
 	//handle L2 ans104 (arbundles)
-	const txParent = await gqlTxRetried(tx.parent.id)
+	const txParent = await gqlTxRetryMemo(tx.parent.id)
 	if(
 		txParent.tags.some(tag => tag.name === 'Bundle-Format' && tag.value === 'binary')
 		&& txParent.tags.some(tag => tag.name === 'Bundle-Version' && tag.value === '2.0.0')
@@ -64,7 +65,7 @@ export const txidToRange = async (id: string) => {
 }
 
 const offsetL1 = async (id: string): Promise<ByteRange> => {
-	const { data: { offset: end, size} } = await axiosRetried(`/tx/${id}/offset`, id)
+	const { data: { offset: end, size} } = await axiosRetry(`/tx/${id}/offset`, id)
 	const modEnd = (BigInt(end) - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE
 	const addEnd = modEnd === 0n ? 0n : CHUNK_SIZE - modEnd
 
@@ -82,14 +83,14 @@ const byteRange104 = async (txid: string, parent: string) => {
 
 	//TODO: check the parent was mined, via 404, while getting offset
 
-	const { data: { offset: strBundleEnd , size: strBundleSize} } = await axiosRetried(`/tx/${parent}/offset`, txid)
+	const { data: { offset: strBundleEnd , size: strBundleSize} } = await axiosRetryMemo(`/tx/${parent}/offset`, txid)
 	const bundleWeaveEnd = BigInt(strBundleEnd)
 	const bundleWeaveSize = BigInt(strBundleSize)
 	const bundleWeaveStart = bundleWeaveEnd - bundleWeaveSize
 	
 	/* 2. fetch the bundle index data */
-
-	const { status, numDataItems, diIds, diSizes} = await ans104HeaderData(parent)
+	
+	const { status, numDataItems, diIds, diSizes} = await ans104HeaderDataMemo(parent)
 	if(status === 404) return {
 		status,
 		start: -1n,
@@ -151,7 +152,7 @@ const byteRange104 = async (txid: string, parent: string) => {
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-const axiosRetried = async (url: string, id: string) => {
+const axiosRetry = async (url: string, id: string) => {
 	while(true){
 		try{
 			return await axios.get(HOST_URL + url)
@@ -159,16 +160,17 @@ const axiosRetried = async (url: string, id: string) => {
 			//no point retrying 404 errors?
 			const status = Number(e.response?.status) || Number(e.statusCode) || null
 			if(status === 404){
-				console.log (axiosRetried.name, `Error fetching byte-range data with '${HOST_URL + url}' Not retrying.`, e.name, e.message, '. child-id', id)
+				console.log (axiosRetry.name, `Error fetching byte-range data with '${HOST_URL + url}' Not retrying.`, e.name, e.message, '. child-id', id)
 
 				throw e;
 			}
-			console.log (axiosRetried.name, `Error fetching byte-range data with '${HOST_URL + url}' Retrying in 10secs..`, e.name, e.message, id)
+			console.log (axiosRetry.name, `Error fetching byte-range data with '${HOST_URL + url}' Retrying in 10secs..`, e.name, e.message, id)
 			await sleep(10000)
 		}
 	}
 }
-const gqlTxRetried = async (id: string) => {
+const axiosRetryMemo = memoize(axiosRetry, { maxSize: 1000 })
+const gqlTxRetry = async (id: string) => {
 	while(true){
 		try{
 			return await getTx(id)
@@ -177,7 +179,7 @@ const gqlTxRetried = async (id: string) => {
 			const code = e.response?.code || e.code || 'no-code'
 
 			if(status === 429 || network_EXXX_codes.includes(code) || (status && status >= 500)){
-				console.log(gqlTxRetried.name, `gql-fetch-error: '${e.message}', for '${id}'. retrying in 10secs...`)
+				console.log(gqlTxRetry.name, `gql-fetch-error: '${e.message}', for '${id}'. retrying in 10secs...`)
 				await sleep(10000)
 			}else{
 				console.log(e)
@@ -186,3 +188,4 @@ const gqlTxRetried = async (id: string) => {
 		}
 	}
 }
+const gqlTxRetryMemo = memoize(gqlTxRetry, { maxSize: 1000 })
