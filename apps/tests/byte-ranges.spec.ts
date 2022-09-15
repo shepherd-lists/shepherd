@@ -38,7 +38,7 @@ describe('byte-ranges tests', ()=>{
 	it('should return the correct byte range for an ans104 dataItem, and test reconstructed dataItem', async()=> {
 
 
-		const { start, end } = await byteRanges(wantedId)
+		const { start, end } = await byteRanges(wantedId, bundleId)
 		
 		expect(start, 'byteStart should equal value').eq(chunkStart)
 		expect(end, 'byteEnd should equal value').eq(chunkEnd)

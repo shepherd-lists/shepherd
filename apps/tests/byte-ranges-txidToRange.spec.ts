@@ -1,7 +1,7 @@
 process.env['NODE_ENV'] = 'test'
 import 'mocha'
 import { expect } from 'chai'
-import { ByteRange, txidToRange } from '../src/webserver/txidToRange/txidToRange'
+import { txidToRange } from '../src/webserver/txidToRange/txidToRange'
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from '../src/webserver/txidToRange/constants-byteRange'
 import { ans104HeaderData } from '../src/webserver/txidToRange/ans104HeaderData'
 import { byteRange102 } from '../src/webserver/txidToRange/byteRange102'
@@ -9,14 +9,14 @@ import { byteRange102 } from '../src/webserver/txidToRange/byteRange102'
 
 describe('txidToRange tests', ()=> {
 	it('tests an L1 gets processed', async()=> {
-		const bytes = await txidToRange('Yn9PXQvhb1stfjVxJwY4Ei4aIrqUbYVVkwlQiah_8FQ')
+		const bytes = await txidToRange('Yn9PXQvhb1stfjVxJwY4Ei4aIrqUbYVVkwlQiah_8FQ', null)
 		expect(bytes.start).eq(87742364819702n)
 		expect(bytes.end).eq(87742365081846n)
 		
 	}).timeout(0)
 
 	it('tests an ans104 dataItem gets processed', async()=> {
-		const bytes = await txidToRange('I210xM6oaK2G2AnHH1tN49E-Nu_WPWosWHFSLz2UbQ0')
+		const bytes = await txidToRange('I210xM6oaK2G2AnHH1tN49E-Nu_WPWosWHFSLz2UbQ0', 'Yn9PXQvhb1stfjVxJwY4Ei4aIrqUbYVVkwlQiah_8FQ')
 		const chunkStart = 87742364819702n
 		const chunkEnd = 87742365081846n
 		expect(bytes.start).eq(chunkStart)
@@ -25,7 +25,7 @@ describe('txidToRange tests', ()=> {
 
 
 	it('tests a dataItem in a massive, 10,000 dataItem arbundles', async()=> {
-		//parent: MemPKvViQVcXnJdQWRlg9-jwNhSpTDH7g97MtzaQgEY
+		const parentId = 'MemPKvViQVcXnJdQWRlg9-jwNhSpTDH7g97MtzaQgEY'
 		const parent = {
 			size:	11227812n,
 			offset: 88972798718874n,
@@ -43,7 +43,7 @@ describe('txidToRange tests', ()=> {
 		const modEnd = (diRange.end - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE
 		const chunkEnd = diRange.end + (modEnd === 0n ? 0n : CHUNK_SIZE - modEnd)
 
-		const bytes = await txidToRange('0ATaqsTm3_u9HnfS6jj9OKM6ptM_CbbRgYeJYnX0ao8')
+		const bytes = await txidToRange('0ATaqsTm3_u9HnfS6jj9OKM6ptM_CbbRgYeJYnX0ao8', parentId)
 		expect(bytes.start, 'should equal chunkStart').eq(chunkStart)
 		expect(bytes.end, 'should eq chunkEnd').eq(chunkEnd)
 	}).timeout(0)
@@ -53,7 +53,7 @@ describe('txidToRange tests', ()=> {
 
 describe('extra tests', ()=>{
 	it('tests an L1 bundle gets processed', async()=> {
-		const bytes = await txidToRange('i1UYzkLruqwtNYHsHQCANkC-f48E6x7HIce8QXD25KA')
+		const bytes = await txidToRange('i1UYzkLruqwtNYHsHQCANkC-f48E6x7HIce8QXD25KA', null)
 		expect(bytes.start).eq(83105540251894n, `start byte should match`)
 		expect(bytes.end).eq(83106255118582n, `end byte should match`)
 		
@@ -67,7 +67,7 @@ describe('extra tests', ()=>{
 		 * 1 chunk can hold 4096.5 index records => startByte == bundleStart 
 		 * calculations for endByte below.
 		 */
-		const bytes = await txidToRange('XGRfpi5HwZUd4FNPbrRBsoDP4awpZ_oJv1cFcn-DHqk') //first di in the bundle
+		const bytes = await txidToRange('XGRfpi5HwZUd4FNPbrRBsoDP4awpZ_oJv1cFcn-DHqk', 'i1UYzkLruqwtNYHsHQCANkC-f48E6x7HIce8QXD25KA') //first di in the bundle
 		const chunkStart = 83105540251894n //<= this is right
 		const headerLength = 32n + (3000n*64n)
 		const diLength = 1203643n
