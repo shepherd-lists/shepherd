@@ -17,37 +17,37 @@ export interface ByteRange {
 	start: bigint
 	end: bigint
 }
-export const txidToRange = async (id: string) => {
-	/** Plan!
+export const txidToRange = async (id: string, parent: string|null) => {
+	/** 
+	 * Overview:
 	 * determine if L1 or L2
 	 * 	L1 call `/tx/{id}/offset`. end.
 	 * 	L2 check bundle ans102|ans104
 	 * 		ans104
 	 * 			fetch first chunk, get numDataItems
-	 * 			get enough header chunks for entire bundle index
+	 * 			get enough header chunks for entire bundle index 
+	 * 			-- we've reverted to using arweave.net cache. much faster
+	 * 			-- open a stream, then cancel it when have enough header bytes
 	 * 			get size & id arrays from bundle
 	 * 			determine byte ranges to blacklist
 	 * 		ans102 (these are rare)
 	 * 			get entire bundle and calculate byte-range
 	 */
-	//get tx metadata
-	const tx = await gqlTxRetry(id)
-	if(!tx){
-		throw new Error(`[${txidToRange.name}] getTxRetried(${id}) returned undefined. This should not be happening.`)
-	}
-	//handle L1
-	if(!tx.parent || !tx.parent?.id){
+
+	/* handle L1 */
+	if(parent === null){
 		console.log(txidToRange.name, `L1 detected`, id)
 		return offsetL1(id)
 	}
 	//handle L2 ans104 (arbundles)
-	const txParent = await gqlTxRetryMemo(tx.parent.id)
+
+	const txParent = await gqlTxRetryMemo(parent)
 	if(
 		txParent.tags.some(tag => tag.name === 'Bundle-Format' && tag.value === 'binary')
 		&& txParent.tags.some(tag => tag.name === 'Bundle-Version' && tag.value === '2.0.0')
 	){
 		console.log(txidToRange.name, `ans104 detected. parent ${txParent.id}`)
-		return byteRange104(id, tx.parent.id)
+		return byteRange104(id, parent)
 	}
 	//handle L2 ans102 (arweave-bundles)
 	if(
@@ -55,7 +55,7 @@ export const txidToRange = async (id: string) => {
 		&& txParent.tags.some(tag => tag.name === 'Bundle-Version' && tag.value === '1.0.0')
 	){
 		console.log(txidToRange.name, `ans102 detected. parent ${txParent.id}`)
-		return byteRange102(id, tx.parent.id)
+		return byteRange102(id, parent)
 	}
 
 	return {

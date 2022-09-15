@@ -1,16 +1,16 @@
 import { logger } from '../common/utils/logger'
 import { updateTxsDb } from '../common/utils/db-update-txs'
-import { ByteRange, txidToRange } from '../webserver/txidToRange/txidToRange'
+import { ByteRange, txidToRange } from './txidToRange/txidToRange'
 import { slackLogger } from '../common/utils/slackLogger'
 
 
-export const byteRanges = async (id: string) => {
+export const byteRanges = async (id: string, parent: string|null) => {
 
 	/* get byte-range (if applicable) */
 
 	let chunkRange: ByteRange = { start: -1n, end: -1n }
 	try{
-		chunkRange = await txidToRange(id)
+		chunkRange = await txidToRange(id, parent)
 	}catch(e:any){
 		logger(byteRanges.name, "UNHANLDED error", e.name, e.message, e)
 		slackLogger(byteRanges.name, "UNHANLDED error", e.name, e.message)
@@ -26,7 +26,7 @@ export const byteRanges = async (id: string) => {
 		throw new Error(`Error writing byte-range to database! Wanted '${id}'. Returned '${checkId}'.`)
 	}
 
-	return chunkRange; //used for test
+	return chunkRange;
 }
 
 
