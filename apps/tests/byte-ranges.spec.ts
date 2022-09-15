@@ -1,7 +1,7 @@
 process.env['NODE_ENV'] = 'test'
 import 'mocha'
 import { expect } from 'chai'
-import { byteRanges } from '../src/http-api/byteRanges'
+import { byteRanges } from '../src/webserver/byteRanges'
 import dbConnection from '../src/common/utils/db-connection'
 import { TxRecord } from '../src/common/types'
 

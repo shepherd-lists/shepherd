@@ -1,6 +1,6 @@
 import { logger } from '../common/utils/logger'
 import { updateTxsDb } from '../common/utils/db-update-txs'
-import { ByteRange, txidToRange } from './txidToRange/txidToRange'
+import { ByteRange, txidToRange } from '../webserver/txidToRange/txidToRange'
 import { slackLogger } from '../common/utils/slackLogger'
 
 

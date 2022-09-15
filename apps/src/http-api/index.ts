@@ -5,7 +5,6 @@ import { APIFilterResult, FilterErrorResult, FilterResult } from '../common/shep
 import { logger } from '../common/utils/logger'
 import { slackLogger } from '../common/utils/slackLogger'
 import { slackLoggerPositive } from '../common/utils/slackLoggerPositive'
-import { byteRanges } from './byteRanges'
 
 const prefix = 'http-api'
 const app = express()
@@ -54,8 +53,6 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 	if(result.flagged !== undefined){
 		if(result.flagged === true){
 			slackLoggerPositive(body)
-			//just send this off async
-			byteRanges(txid)
 		}
 		// if(result.flag_type === 'classified'){
 		// 	slackLogger(JSON.stringify(body))

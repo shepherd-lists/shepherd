@@ -1,10 +1,10 @@
 process.env['NODE_ENV'] = 'test'
 import 'mocha'
 import { expect } from 'chai'
-import { ByteRange, txidToRange } from '../src/http-api/txidToRange/txidToRange'
-import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from '../src/http-api/txidToRange/constants-byteRange'
-import { ans104HeaderData } from '../src/http-api/txidToRange/ans104HeaderData'
-import { byteRange102 } from '../src/http-api/txidToRange/byteRange102'
+import { ByteRange, txidToRange } from '../src/webserver/txidToRange/txidToRange'
+import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from '../src/webserver/txidToRange/constants-byteRange'
+import { ans104HeaderData } from '../src/webserver/txidToRange/ans104HeaderData'
+import { byteRange102 } from '../src/webserver/txidToRange/byteRange102'
 
 
 describe('txidToRange tests', ()=> {
