@@ -2,11 +2,12 @@ import { Response } from 'express'
 import { TxRecord, StateRecord, HistoryRecord } from '../common/types'
 import getDb from '../common/utils/db-connection'
 import { logger } from '../common/utils/logger'
+import { byteRanges } from './byteRanges'
 
 const knex = getDb()
 
-//serve cache for 5 mins
-const timeout = 5 * 60 * 1000 // min 5 mins between list updates
+//serve cache for 3 mins
+const timeout = 3 * 60 * 1000 // min 5 mins between list updates
 
 let _black =  {
 	last: 0,
@@ -26,9 +27,9 @@ export const getBlacklist = async(res: Response)=> {
 	logger('blacklist tx records retrieved', records.length)
 	let text = ''
 	for (const record of records) {
-		const nl = record.txid + '\n'
-		text += nl
-		res.write(nl)
+		const line = record.txid + '\n'
+		text += line
+		res.write(line)
 	}
 
 	_black.text = text
@@ -51,15 +52,25 @@ export const getRangelist = async(res: Response)=> {
 	const records = await knex<TxRecord>('txs').where({flagged: true})
 	logger('rangelist tx records retrieved', records.length)
 	let text = ''
+	const promises = []
 	for (const record of records) {
 		if(record.byteStart && record.byteStart !== '-1'){ // (-1,-1) denotes an error. e.g. weave data unavailable
-			const nl = `${record.byteStart},${record.byteEnd}\n`
-			text += nl
-			res.write(nl)
+			const line = `${record.byteStart},${record.byteEnd}\n`
+			text += line
+			res.write(line)
 		}else{
-			logger(getRangelist.name, `could not add range values for ${record}`)
+			logger(getRangelist.name, `calculating new byte-range for '${record.txid}'...`)
+			promises.push(async()=>{
+				const {start, end} = await byteRanges(record.txid, record.parent) //db updated internally
+				if(start !== -1n){
+					const line = `${start},${end}\n`
+					text += line
+					res.write(line)
+				}
+			})
 		}
 	}
+	await Promise.all(promises) //all errors are handled internally
 
 	_range.text = text
 }
