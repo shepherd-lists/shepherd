@@ -25,6 +25,11 @@ describe('txidToRange tests', ()=> {
 
 
 	it('tests a dataItem in a massive, 10,000 dataItem arbundles', async()=> {
+		/**
+		 * maybe useful sometime:
+		 * diIds[9999] = 'MItt5-z39ipds_lCcCASBpdb7ZLAWYZffOCYnGibXic'
+		 */
+		
 		const parentId = 'MemPKvViQVcXnJdQWRlg9-jwNhSpTDH7g97MtzaQgEY'
 		const parent = {
 			size:	11227812n,

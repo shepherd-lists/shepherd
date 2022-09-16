@@ -61,6 +61,8 @@ describe('video-prepare tests', ()=> {
 		await knex<TxRecord>('txs').insert({ txid: nodata.txid, content_type: 'video/mp4', content_size: '123'})
 
 		const mockStream = new PassThrough()
+		//@ts-ignore
+		mockStream.setTimeout = (t: number, cb: Function) => setTimeout(cb, 0)
 		const fakeAxios = sinon.stub(axios, 'get').resolves({ 
 			data: mockStream, headers: { 'content-length': 123 }
 		})

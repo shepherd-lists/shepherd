@@ -11,7 +11,7 @@ import { TxRecord } from '../src/common/types'
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const knex = dbConnection()
 
-describe('video bad tx handling tests', ()=> {
+describe('video-badtx video bad tx handling tests', ()=> {
 
 	it('7mRWvWP5KPoDfmpbGYILChc9bjjXpiPhxuhXwlnODik: ffmpeg found corrupt data', async()=>{
 		//@ts-ignore
@@ -59,6 +59,7 @@ describe('video bad tx handling tests', ()=> {
 			txid: 'SxP57BAAiZB0WEipA0_LtyQJ0SY51DwI4vE4N03ykJ0', // error 404
 		}
 		// needs a db entry to update
+		await knex<TxRecord>('txs').where('txid', badData.txid).delete()
 		await knex<TxRecord>('txs').insert({ txid: badData.txid, content_type: 'video/mp4', content_size: '123'})
 		//this does not throw an error, just gets handled.
 		const res = await videoDownload(badData)
