@@ -46,7 +46,7 @@
     "@types/rimraf": "^3.0.1",
     "@types/shelljs": "^0.8.9",
     "ansi-colors": "^4.1.1",
-    "ar-gql": "0.0.6",
+    "arca-gql": "^0.0.9",
     "arweave": "^1.11.6",
     "aws-sdk": "^2.1097.0",
     "axios": "^0.24.0",
