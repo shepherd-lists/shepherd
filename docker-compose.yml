@@ -59,21 +59,7 @@ services:
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
     depends_on:
       - scanner
-  # rating0:
-  #   hostname: ${IMAGE_REPO:-dummy}-shepherd-rating
-  #   build: 
-  #     context: ./apps
-  #     target: rating
-  #   environment: 
-  #     DB_HOST: ${DB_HOST:-pgdb}
-  #     PROCESS_NAME: rating
-  #     SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
-  #     NODE_OPTIONS: '--max-old-space-size=8192'
-  #     TF_ENABLE_ONEDNN_OPTS: '1'
-  #     TASK_ID: 0
-  #   # deploy:
-  #   #   mode: replicated
-  #   #   replicas: 5
-  #   restart: always
-  #   depends_on:
-  #     - scanner
+  plugin:
+    extends:
+      file: ./apps/${PLUGIN}/docker-compose.yml
+      service: ${PLUGIN}
