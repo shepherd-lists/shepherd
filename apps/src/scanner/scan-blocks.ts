@@ -1,6 +1,6 @@
-import * as Gql from 'ar-gql'
-import { GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { imageTypes, videoTypes } from '../common/constants'
+import * as Gql from 'arca-gql'
+import { GQLEdgeInterface } from 'arca-gql/dist/faces'
+import { GQL_URL, imageTypes, videoTypes } from '../common/constants'
 import { TxScanned } from '../common/types'
 import getDbConnection from '../common/utils/db-connection'
 import { logger } from '../common/utils/logger'
@@ -9,6 +9,8 @@ import { performance } from 'perf_hooks'
 
 const knex = getDbConnection()
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+Gql.setEndpointUrl(GQL_URL)
 
 interface IGetIdsResults {
 	numImages: number
@@ -121,6 +123,10 @@ const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string
 					logger('gql-error', 'ECONNRESET')
 					continue;
 				}
+				// if(e.response?.status === 504){
+				// 	logger('gql-error', e.response?.status, ':', e.message)
+				// 	continue;
+				// }
 				logger('gql-error', e.response?.status, ':', e.message)
 				throw e;
 			}

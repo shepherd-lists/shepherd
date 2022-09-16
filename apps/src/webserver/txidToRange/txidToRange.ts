@@ -1,10 +1,12 @@
-import { tx as getTx } from 'ar-gql'
+import { tx as getTx, setEndpointUrl } from 'arca-gql'
 import axios from 'axios'
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, } from './constants-byteRange'
-import { HOST_URL, network_EXXX_codes } from '../../common/constants'
+import { GQL_URL, HOST_URL, network_EXXX_codes } from '../../common/constants'
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
 import memoize from 'micro-memoize'
+
+setEndpointUrl(GQL_URL)
 
 const ans104HeaderDataMemo = memoize(ans104HeaderData, {maxSize: 1000})
 /**
