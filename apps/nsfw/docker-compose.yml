@@ -14,13 +14,16 @@ services:
       PROCESS_NAME: rating
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
       
-      AWS_SQS_INPUT_QUEUE: ${AWS_SQS_INPUT_QUEUE}
-      AWS_INPUT_BUCKET: ${AWS_INPUT_BUCKET}
+      SQS_LOCAL: ${SQS_LOCAL}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-dummy}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-dummytoo}
+      AWS_SQS_INPUT_QUEUE: ${AWS_SQS_INPUT_QUEUE:-http://sqs-local:9324/000000000000/shepherd-s3-events}
+      # AWS_INPUT_BUCKET: ${AWS_INPUT_BUCKET:-}
       
     restart: always
     # depends_on:
     #   - scanner
-    ## AWS configs ##
+    # AWS configs ##
     # deploy:
     #   resources:
     #     limits:

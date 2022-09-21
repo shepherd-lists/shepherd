@@ -61,5 +61,5 @@ services:
       - scanner
   plugin:
     extends:
-      file: ./apps/${PLUGIN}/docker-compose.yml
-      service: ${PLUGIN}
+      file: ./apps/${PLUGIN:-nsfw}/docker-compose.yml
+      service: ${PLUGIN:-nsfw}
