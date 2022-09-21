@@ -1,5 +1,5 @@
 import { SQS, S3 } from 'aws-sdk'
-import { S3EventRecord } from 'aws-lambda'
+import { S3Event } from 'aws-lambda'
 import { logger } from '../common/utils/logger'
 
 const prefix = 'nsfw-main'
@@ -40,10 +40,13 @@ const main = async()=> {
 	while(true){
 		const messages = await getMessages()
 		for (const message of messages) {
-			const s3event = JSON.parse(message.Body!) as S3EventRecord
+			const s3event = JSON.parse(message.Body!) as S3Event
 			/* check if it's an s3 event */
-			if(s3event.eventName && s3event.eventName.startsWith('s3:ObjectCreated:')){
-				logger(prefix, `found s3 event for '${s3event.s3.object.key}'`)
+			if(s3event.Records && s3event.Records.length === 1 
+				&& s3event.Records[0].eventName && s3event.Records[0].eventName.includes('ObjectCreated')
+			){
+				const s3Record = s3event.Records[0]
+				logger(prefix, `found s3 event for '${s3Record.s3.object.key}'`)
 
 				/* process s3 event */
 
