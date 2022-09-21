@@ -27,22 +27,33 @@ export SCRIPT_DIR=$(dirname "$(realpath $0)")
 echo "SCRIPT_DIR=$SCRIPT_DIR" 2>&1 | tee -a setup.log
 
 echo "Remove existing docker ecs context..."
-docker context rm ecs
+docker context rm ecs 2>&1 | tee -a setup.log
 
 echo "Creating docker ecs context ..."
-docker context create ecs ecs --from-env
+docker context create ecs ecs --from-env  2>&1 | tee -a setup.log
 
 export IMAGE_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
-echo $IMAGE_REPO
+echo $IMAGE_REPO  2>&1 | tee -a setup.log
 
-docker logout
-aws ecr get-login-password --region $AWS_DEFAULT_REGION --profile shepherd | docker login --password-stdin --username AWS $IMAGE_REPO
+echo "Docker login ecr..."
+# docker logout
+aws ecr get-login-password | docker login --password-stdin --username AWS $IMAGE_REPO
 
+echo "Docker build..." 2>&1 | tee -a setup.log
 docker compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml build
+
+echo "Docker push..."  2>&1 | tee -a setup.log
 # prime the docker caches first. scanner has no dependencies
 docker compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml push scanner
 docker compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml push
+
+echo "Docker convert..." 2>&1 | tee -a setup.log
 docker --context ecs compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml convert > "cfn.yml.$(date +"%Y.%m.%d-%H:%M").log"
+
+echo "Docker up..." 2>&1 | tee -a setup.log
+# do `docker --debug` if you want extra info
 docker --context ecs compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml up
+
+echo "Docker ps..." 2>&1 | tee -a setup.log
 docker --context ecs compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml ps
 

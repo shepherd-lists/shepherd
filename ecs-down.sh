@@ -18,8 +18,11 @@ echo "SCRIPT_DIR=$SCRIPT_DIR" 2>&1 | tee -a setup.log
 
 
 export IMAGE_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
-docker logout
-aws ecr get-login-password --region $AWS_DEFAULT_REGION --profile shepherd | docker login --password-stdin --username AWS $IMAGE_REPO
 
+echo "Docker login ecr..."
+# docker logout
+aws ecr get-login-password | docker login --password-stdin --username AWS $IMAGE_REPO
+
+echo "Docker down..." 2>&1 | tee -a setup.log
 docker --context ecs compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml down
 

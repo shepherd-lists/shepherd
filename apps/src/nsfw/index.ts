@@ -2,15 +2,17 @@ import { SQS, S3 } from 'aws-sdk'
 import { S3EventRecord } from 'aws-lambda'
 import { logger } from '../common/utils/logger'
 
+const prefix = 'nsfw-main'
+
 /* just gonna put this here until we refactor into its own service */
 if(process.env.SQS_LOCAL === 'yes'){
+	logger(prefix, `starting minioToElastic local-only service...`)
 	import('./minioToElasticmq')
 }
 
 //debug output for sanity
 console.log(`process.env.AWS_SQS_INPUT_QUEUE`, process.env.AWS_SQS_INPUT_QUEUE)
 
-const prefix = 'nsfw-main'
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const sqs = new SQS({

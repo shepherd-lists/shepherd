@@ -11,7 +11,7 @@ export async function seed(knex: Knex): Promise<void> {
 
 	let currentPosition = await getPosition()
 	logger('data-seed', 'scanner_position', currentPosition)
-	if(currentPosition >= /*856599*/ 0){
+	if(currentPosition >= 856599){
 		logger('data-seed', 'shepherd data already above 856599. exiting seed.')
 		return;
 	}
