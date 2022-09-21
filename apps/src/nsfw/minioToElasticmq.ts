@@ -4,7 +4,7 @@
  */
 import { Client,  } from 'minio'
 import { SQS } from 'aws-sdk'
-import { S3EventRecord } from 'aws-lambda'
+import { S3EventRecord, S3Event } from 'aws-lambda'
 import { logger } from '../common/utils/logger'
 
 const prefix = 'minioToElasticmq'
@@ -34,9 +34,12 @@ minio.listenBucketNotification(
 ).on('notification', (record: S3EventRecord) => {
 	logger(prefix, `forwarding '${record.s3.object.key}' event to ${QueueUrl} queue.`)
 	//enclose s3 event and forward on in sqs message
+	const s3event: S3Event = { 
+		Records: [ record ] 
+	}
 	sqs.sendMessage({
 		QueueUrl,
-		MessageBody: JSON.stringify(record),
+		MessageBody: JSON.stringify(s3event),
 	}).promise()
 })
 
