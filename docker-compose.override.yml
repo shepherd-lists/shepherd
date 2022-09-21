@@ -29,6 +29,8 @@ services:
       MINIO_ROOT_PASSWORD: minioroot
       # MINIO_FORCE_NEW_KEYS: 'yes'
       MINIO_DEFAULT_BUCKETS: shepherd-input-mod-local:public
+      # MINIO_NOTIFY_WEBHOOK_ENABLE: on
+      # MINIO_NOTIFY_WEBHOOK_ENDPOINT: http://plugin/minio/events
   sqs-local:
     build: 
       context: ./sqs-local

@@ -58,8 +58,8 @@ export const HOST_URL = 'https://arweave.net'
 // export const HOST_URL = 'https://arweave.live'
 
 /* switch gql endpoints */
-// export const GQL_URL = 'https://arweave-search.goldsky.com/graphql'
-export const GQL_URL = 'https://arweave.net/graphql'
+export const GQL_URL = 'https://arweave-search.goldsky.com/graphql'
+// export const GQL_URL = 'https://arweave.net/graphql'
 
 export const FEEDER_Q_VISIBILITY_TIMEOUT = 900 // 15 minutes
 

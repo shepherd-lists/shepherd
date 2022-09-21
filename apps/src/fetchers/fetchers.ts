@@ -2,7 +2,6 @@ import { SQS } from 'aws-sdk'
 import axios from 'axios'
 import { FEEDER_Q_VISIBILITY_TIMEOUT, FetchersStatus, HOST_URL, NO_STREAM_TIMEOUT, network_EXXX_codes } from '../common/constants'
 import { TxScanned } from '../common/types'
-import dbConnection from '../common/utils/db-connection'
 import { logger } from '../common/utils/logger'
 import { s3Delete, s3UploadStream } from './s3Services'
 import { IncomingMessage } from 'http'
@@ -10,7 +9,6 @@ import { dbNegligibleData, dbNoDataFound, dbNoDataFound404 } from '../common/uti
 
 
 const prefix = 'fetchers'
-const knex = dbConnection() 
 const QueueUrl = process.env.AWS_FEEDER_QUEUE as string
 const STREAMS_PER_FETCHER = Number(process.env.STREAMS_PER_FETCHER)
 
