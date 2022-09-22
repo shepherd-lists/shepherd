@@ -4,7 +4,7 @@ services:
   scanner:
     hostname: ${IMAGE_REPO:-dummy}-shepherd-scanner
     build: 
-      context: ./apps
+      context: ./services
       target: scanner
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
@@ -13,7 +13,7 @@ services:
     restart: always
   webserver:
     build: 
-      context: ./apps
+      context: ./services
       target: webserver
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
@@ -26,7 +26,7 @@ services:
       - scanner
   http-api:
     build: 
-      context: ./apps
+      context: ./services
       target: http-api
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
@@ -40,7 +40,7 @@ services:
       - scanner
   feeder:
     build:
-      context: ./apps
+      context: ./services
       target: feeder
     environment:
       PROCESS_NAME: feeder
@@ -50,7 +50,7 @@ services:
       - scanner
   fetchers:
     build: 
-      context: ./apps
+      context: ./services
       target: fetchers
     environment:
       PROCESS_NAME: fetchers
@@ -61,5 +61,5 @@ services:
       - scanner
   plugin:
     extends:
-      file: ./apps/${PLUGIN:-nsfw}/docker-compose.yml
+      file: ./services/${PLUGIN:-nsfw}/docker-compose.yml
       service: ${PLUGIN:-nsfw}

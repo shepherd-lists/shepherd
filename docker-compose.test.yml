@@ -30,13 +30,12 @@ services:
       - '9325:9325' # for UI
   test:
     build: 
-      context: ./apps
+      context: ./services
       dockerfile: Dockerfile.test
       # target: test
     environment: 
       DB_HOST: pgdb-test
       PROCESS_NAME: test
-      NODE_OPTIONS: '--max-old-space-size=8192'
       SQS_LOCAL: 'yes'
       AWS_ACCESS_KEY_ID: dummy 
       AWS_SECRET_ACCESS_KEY: dummytoo 
