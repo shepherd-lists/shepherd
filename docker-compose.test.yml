@@ -3,7 +3,7 @@ version: '3.7'
 services:
   pgdb-test:
     build: 
-      context: ./postgres
+      context: ./infra-local/postgres
     environment: 
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -24,7 +24,7 @@ services:
       MINIO_DEFAULT_BUCKETS: shepherd-input-mod-local:public
   sqs-local-test:
     build: 
-      context: ./sqs-local
+      context: ./infra-local/sqs-local
     ports:
       - '9324:9324'
       - '9325:9325' # for UI

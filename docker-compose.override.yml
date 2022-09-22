@@ -3,7 +3,7 @@ version: '3.7'
 services:
   pgdb:
     build: 
-      context: ./postgres
+      context: ./infra-local/postgres
     volumes: 
       - pgdata:/var/lib/postgresql/data
     environment: 
@@ -29,11 +29,9 @@ services:
       MINIO_ROOT_PASSWORD: minioroot
       # MINIO_FORCE_NEW_KEYS: 'yes'
       MINIO_DEFAULT_BUCKETS: shepherd-input-mod-local:public
-      # MINIO_NOTIFY_WEBHOOK_ENABLE: on
-      # MINIO_NOTIFY_WEBHOOK_ENDPOINT: http://plugin/minio/events
   sqs-local:
     build: 
-      context: ./sqs-local
+      context: ./infra-local/sqs-local
     ports:
       # - '9324:9324'
       - '9325:9325' # for UI

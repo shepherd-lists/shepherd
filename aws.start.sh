@@ -11,8 +11,15 @@ set -euo pipefail
 # import .env vars
 if [ -f ".env" ]; then
 	export $(egrep -v '^#' .env | xargs)
-	# should probably check for mandatory vars here !!
-	#TODO: if [[ -z $VARNAME1 || -z $VARNAME2 ...etc ]]
+	# check for mandatory vars here
+	if [[ -z $AWS_DEFAULT_REGION || -z $AWS_ACCESS_KEY_ID || -z $AWS_SECRET_ACCESS_KEY ]]; then
+		echo "ERROR: missing mandatory environment variable, check .env.example, exiting"
+		exit 1
+	fi
+	if [[ -z $ROUTETABLE || -z $AWS_VPC_ID ]]; then
+		echo "ERROR: missing previously created environment variable, did previous setup.sh script run OK? exiting"
+		exit 1
+	fi
 	# make sure .env ends in newline
 	lastchar=$(tail -c 1 .env)
 	if [ "$lastchar" != "" ]; then 
