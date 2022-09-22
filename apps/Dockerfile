@@ -36,12 +36,3 @@ FROM base as fetchers
 COPY ./src/common ./src/common
 COPY ./src/fetchers ./src/fetchers
 ENTRYPOINT node -r ts-node/register src/fetchers/index.ts
-
-FROM rosmcmahon/node16-ffmpeg:multi-arch as rating
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev
-COPY . .
-ENV NODE_ENV=production
-ENV TF_CPP_MIN_LOG_LEVEL=2
-ENTRYPOINT node -r ts-node/register src/rating/index.ts

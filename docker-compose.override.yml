@@ -35,6 +35,18 @@ services:
     ports:
       # - '9324:9324'
       - '9325:9325' # for UI
+  localbridge:
+    build: 
+      context: ./infra-local/localbridge
+    environment:
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummytoo
+    depends_on:
+      - sqs-local
+      - s3-local
+    deploy:
+      restart_policy: 
+        condition: always
   feeder:
     environment:
       SQS_LOCAL: 'yes'

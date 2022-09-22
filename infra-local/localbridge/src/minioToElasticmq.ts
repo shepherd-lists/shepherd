@@ -1,13 +1,12 @@
 /**
- * the s3 events on minio are not compatible with standard sqs queues ???
- * so we need to guess the format & manually send these on with an event listening
+ * the s3 event notification system on minio are not compatible with standard sqs queues
+ * so we need to match the aws format & manually send these on with an event listener.
  */
-import { Client,  } from 'minio'
+import { Client } from 'minio'
 import { SQS } from 'aws-sdk'
 import { S3EventRecord, S3Event } from 'aws-lambda'
-import { logger } from '../common/utils/logger'
 
-const prefix = 'minioToElasticmq'
+const prefix = '[localbridge]'
 const bucketName = 'shepherd-input-mod-local'
 const QueueUrl = 'http://sqs-local:9324/000000000000/shepherd-s3-events'
 
@@ -32,7 +31,7 @@ minio.listenBucketNotification(
 	'*',
 	['s3:ObjectCreated:*'],
 ).on('notification', (record: S3EventRecord) => {
-	logger(prefix, `forwarding '${record.s3.object.key}' event to ${QueueUrl} queue.`)
+	console.log(prefix, `forwarding '${record.s3.object.key}' s3 event to '${QueueUrl}' queue.`)
 	//enclose s3 event and forward on in sqs message
 	const s3event: S3Event = { 
 		Records: [ record ] 
