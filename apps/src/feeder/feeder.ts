@@ -3,6 +3,7 @@ import dbConnection from "../common/utils/db-connection"
 import { logger } from "../common/utils/logger"
 import { SQS } from 'aws-sdk'
 import { performance } from 'perf_hooks'
+import { slackLogger } from "../common/utils/slackLogger"
 
 
 const prefix = 'feeder'
@@ -23,21 +24,34 @@ console.log(`process.env.AWS_FEEDER_QUEUE`, process.env.AWS_FEEDER_QUEUE)
 console.log('sqs.config.endpoint', sqs.config.endpoint)
 
 const getTxRecords =async (limit: number) => {
-	const t0 = performance.now()
-	const records = await knex<TxRecord>('txs')
-		.select(['txs.*'])
-		.leftJoin('inflights', 'txs.id', 'inflights.foreign_id')
-		.whereNull('inflights.foreign_id')
-		.whereNull('valid_data')
-		.whereRaw("content_type SIMILAR TO '(image|video)/%'")
-		.orderBy('txs.id', 'desc')
-		.limit(limit)
+	while(true){
+		try {
+			const t0 = performance.now()
+			const records = await knex<TxRecord>('txs')
+				.select(['txs.*'])
+				.leftJoin('inflights', 'txs.id', 'inflights.foreign_id')
+				.whereNull('inflights.foreign_id')
+				.whereNull('valid_data')
+				.whereRaw("content_type SIMILAR TO '(image|video)/%'")
+				.orderBy('txs.id', 'desc')
+				.limit(limit)
+			
+			const length = records.length
+			const duration = performance.now() - t0
+			logger(prefix, length, 'records selected. limit', limit, ` - in ${duration.toFixed(2)}ms`)
 	
-	const length = records.length
-	const duration = performance.now() - t0
-	logger(prefix, length, 'records selected. limit', limit, ` - in ${duration.toFixed(2)}ms`)
-
-	return records;
+			return records;
+		}catch(e){
+			if(e instanceof Error && e.name === 'KnexTimeoutError'){
+				logger(getTxRecords.name, e.name, ':', e.message, `retrying in 5s...`)
+				slackLogger(getTxRecords.name, e.name, ':', e.message, `retrying in 5s...`)
+				await sleep(5000)
+				continue;
+			}
+			console.log(`error in ${getTxRecords.name}`)
+			throw e; 
+		}
+	}
 }
 
 export const feeder = async()=> {
