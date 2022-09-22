@@ -8,13 +8,11 @@ services:
     build: 
       context: ..
       dockerfile: ./nsfw/Dockerfile
-      # target: rating
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
-      PROCESS_NAME: rating
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
       
-      SQS_LOCAL: ${SQS_LOCAL}
+      SQS_LOCAL: ${SQS_LOCAL:-yes}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-dummy}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-dummytoo}
       AWS_SQS_INPUT_QUEUE: ${AWS_SQS_INPUT_QUEUE:-http://sqs-local:9324/000000000000/shepherd-s3-events}
@@ -23,7 +21,7 @@ services:
     restart: always
     # depends_on:
     #   - scanner
-    
+
     # AWS configs ##
     deploy:
       resources:
@@ -43,3 +41,4 @@ services:
       - Effect: Allow
         Action: 's3:*'
         Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}/*'
+ 
