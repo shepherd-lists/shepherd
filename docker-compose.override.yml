@@ -67,6 +67,12 @@ services:
     depends_on:
       - sqs-local
       - s3-local
+  plugin:
+    depends_on:
+      - sqs-local
+      - s3-local
+      - pgdb
+
 volumes:
   pgdata:
   minio:

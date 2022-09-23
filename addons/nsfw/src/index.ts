@@ -1,6 +1,6 @@
 import { SQS, S3 } from 'aws-sdk'
 import { S3Event } from 'aws-lambda'
-import { logger } from '../common/utils/logger'
+import { logger } from './utils/logger'
 
 const prefix = 'nsfw-main'
 

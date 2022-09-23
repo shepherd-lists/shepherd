@@ -8,6 +8,5 @@ ENV TF_ENABLE_ONEDNN_OPTS: '1'
 COPY ./package*.json ./
 RUN npm ci --omit=dev
 
-COPY ./src/common ./src/common
-COPY ./src/nsfw ./src/nsfw
-ENTRYPOINT node -r ts-node/register src/nsfw/index.ts
+COPY ./src ./src
+ENTRYPOINT node -r ts-node/register src/index.ts
