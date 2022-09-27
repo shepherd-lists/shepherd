@@ -2,11 +2,10 @@ require('dotenv').config() //first line of entrypoint
 process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import { createScreencaps } from '../src/rating/video/screencaps'
-import { addToDownloads, videoDownload } from '../src/rating/video/downloader'
-import col from 'ansi-colors'
+import { videoDownload } from '../src/rating/video/downloader'
 import { VidDownloadRecord } from '../src/rating/video/VidDownloads'
-import dbConnection from '../src/common/utils/db-connection'
-import { TxRecord } from '../src/common/types'
+import dbConnection from '../src/utils/db-connection'
+import { TxRecord } from 'shepherd-plugin-interfaces/types'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const knex = dbConnection()

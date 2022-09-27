@@ -1,4 +1,4 @@
-import Config from '../src/common/utils/load-config'
+import Config from '../src/utils/load-config'
 import { expect } from 'chai'
 import fs from 'fs/promises'
 

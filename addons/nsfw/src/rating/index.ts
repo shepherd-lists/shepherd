@@ -1,10 +1,10 @@
 require('dotenv').config() //first line of entrypoint
 import rimraf from 'rimraf'
-import { VID_TMPDIR } from '../common/constants'
-import { logger } from '../common/utils/logger'
+import { VID_TMPDIR } from '../constants'
+import { logger } from '../utils/logger'
+import { slackLogger } from '../utils/slackLogger'
 import { rater } from './rating-queues'
-import loadConfig from '../common/utils/load-config'
-import { slackLogger } from '../common/utils/slackLogger'
+import loadConfig from '../utils/load-config'
 import si from 'systeminformation'
 
 const prefix = 'rating'

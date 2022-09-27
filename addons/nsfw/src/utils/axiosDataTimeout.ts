@@ -1,6 +1,6 @@
 import { PassThrough } from 'stream'
 import axios from "axios"
-import { NO_DATA_TIMEOUT, NO_STREAM_TIMEOUT } from "../constants"
+import { NO_DATA_TIMEOUT, NO_STREAM_TIMEOUT } from '../constants'
 import { logger } from "./logger"
 import { IncomingMessage } from 'http'
 

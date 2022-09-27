@@ -1,10 +1,10 @@
-import { logger } from '../../common/utils/logger'
-import { FfmpegError, TxRecord } from '../../common/types'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe } from '../../common/utils/db-update-txs'
+import { logger } from '../../utils/logger'
+import { FfmpegError, } from 'shepherd-plugin-interfaces/types'
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe } from '../../utils/db-update-txs'
 import { createScreencaps } from './screencaps'
 import { checkFrames } from './check-frames'
-import { VidDownloadRecord, VidDownloads } from './VidDownloads'
-import { slackLogger } from '../../common/utils/slackLogger'
+import { VidDownloads } from './VidDownloads'
+import { slackLogger } from '../../utils/slackLogger'
 
 /* Video download queue */
 const downloads = VidDownloads.getInstance()

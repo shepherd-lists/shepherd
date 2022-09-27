@@ -3,7 +3,7 @@
  * run with: npx ts-node db-scripts/insert-heights.ts 
  */
 import axios from "axios";
-import { TxRecord } from "../src/common/types";
+import { TxRecord } from "../src/common/shepherd-plugin-interfaces/types";
 import dbConnection from "../src/common/utils/db-connection";
 import col from 'ansi-colors'
 import { performance } from 'perf_hooks'

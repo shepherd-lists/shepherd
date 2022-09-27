@@ -1,6 +1,6 @@
 import filetype from 'file-type'
-import { logger } from '../common/utils/logger'
-import { dbNoMimeType, dbWrongMimeType } from '../common/utils/db-update-txs'
+import { logger } from '../utils/logger'
+import { dbNoMimeType, dbWrongMimeType } from '../utils/db-update-txs'
 
 export const checkImageMime = async(buffer: Uint8Array, types: string[], txid: string)=> {
 	const type = await filetype.fromBuffer(buffer)

@@ -1,4 +1,4 @@
-import { HistoryRecord, StateRecord, TxRecord } from "../common/types";
+import { HistoryRecord, StateRecord, TxRecord } from "../common/shepherd-plugin-interfaces/types";
 import dbConnection from "../common/utils/db-connection";
 import { getGqlHeight } from "../common/utils/gql-height";
 

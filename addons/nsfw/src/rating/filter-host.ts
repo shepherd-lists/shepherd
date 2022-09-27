@@ -1,15 +1,18 @@
-import { logger } from '../common/utils/logger'
-import { HOST_URL, NO_DATA_TIMEOUT } from '../common/constants'
-import { axiosDataTimeout } from '../common/utils/axiosDataTimeout'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeType, dbInflightAdd, dbOversizedPngFound, dbPartialImageFound, dbTimeoutInBatch, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb } from '../common/utils/db-update-txs'
+import { NO_DATA_TIMEOUT } from '../constants'
+import { axiosDataTimeout } from '../utils/axiosDataTimeout'
+import { 
+	dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeType, dbInflightAdd, dbOversizedPngFound, dbPartialImageFound, dbTimeoutInBatch, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb 
+} from '../utils/db-update-txs'
 import { getImageMime } from './image-filetype'
-import loadConfig from '../common/utils/load-config'
-import { slackLogger } from '../common/utils/slackLogger'
+import { logger } from '../utils/logger'
+import { slackLogger } from '../utils/slackLogger'
+import loadConfig from '../utils/load-config'
 import si from 'systeminformation'
 
 
 const prefix = 'filter-host'
 
+const HOST_URL = process.env.HOST_URL!
 
 export const checkImageTxid = async(txid: string, contentType: string)=> {
 

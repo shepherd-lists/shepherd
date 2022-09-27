@@ -1,5 +1,5 @@
 import { Knex } from "knex";
-import { StateRecord, TxRecord } from '../src/common/types'
+import { StateRecord, TxRecord } from '../src/common/shepherd-plugin-interfaces/types'
 import { logger } from '../src/common/utils/logger'
 import { parse } from 'csv-parse'
 import col from 'ansi-colors'
@@ -11,7 +11,12 @@ export async function seed(knex: Knex): Promise<void> {
 
 	let currentPosition = await getPosition()
 	logger('data-seed', 'scanner_position', currentPosition)
-	if(currentPosition >= 856599){
+
+	/**
+	 * *** THIS SEED & SCRIPT ARE OUR OF DATE NOW ***
+	 */
+	
+	if(currentPosition >= /* 856599 */ 0){ 
 		logger('data-seed', 'shepherd data already above 856599. exiting seed.')
 		return;
 	}

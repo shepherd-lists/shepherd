@@ -9,5 +9,5 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "node16-ffmpeg"]
+  "exclude": ["node_modules", "node16-ffmpeg"]
 }

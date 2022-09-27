@@ -3,11 +3,11 @@ process.env['NODE_ENV'] = 'test'
 import col from 'ansi-colors'
 import { expect } from 'chai'
 import * as imageFilter from '../src/rating/filter-host'
-import getDbConnection from '../src/common/utils/db-connection'
-import { TxRecord } from '../src/common/types'
+import getDbConnection from '../src/utils/db-connection'
+import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import sinon from 'sinon'
 import axios from 'axios'
-import { NO_DATA_TIMEOUT } from '../src/common/constants'
+import { NO_DATA_TIMEOUT } from '../src/constants'
 
 const db = getDbConnection()
 

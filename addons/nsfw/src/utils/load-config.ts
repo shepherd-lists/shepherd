@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { FilterPluginInterface } from '../shepherd-plugin-interfaces'
+import { FilterPluginInterface } from 'shepherd-plugin-interfaces'
 import { logger } from './logger'
 
 const prefix = 'load-config'

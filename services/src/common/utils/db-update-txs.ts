@@ -1,4 +1,4 @@
-import { InflightsRecord, TxRecord } from '../types'
+import { InflightsRecord, TxRecord } from '../shepherd-plugin-interfaces/types'
 import getDbConnection from './db-connection'
 import { logger } from './logger'
 

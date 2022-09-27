@@ -1,5 +1,5 @@
 import { Response } from 'express'
-import { TxRecord, StateRecord, HistoryRecord } from '../common/types'
+import { TxRecord, StateRecord, HistoryRecord } from '../common/shepherd-plugin-interfaces/types'
 import getDb from '../common/utils/db-connection'
 import { logger } from '../common/utils/logger'
 import { byteRanges } from './byteRanges'

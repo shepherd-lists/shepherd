@@ -1,5 +1,6 @@
 /**
- * Supported types refers to nsfwjs
+ * Supported types refers to nsfwjs.
+ * These will all be removed once gql wildcard searches are enabled.
  */
 
 export const supportedTypes = [
@@ -47,10 +48,6 @@ export const textTypes = [
 // axios/http workaround timeouts
 export const NO_DATA_TIMEOUT = 40000
 export const NO_STREAM_TIMEOUT = 10000
-
-// temp dir for video processing
-export const VID_TMPDIR = './temp-screencaps/'
-export const VID_TMPDIR_MAXSIZE = 8 * 1024 ** 3 // 2 GB <=TODO: should also check actual free disk space
 
 /* switch gateways */
 export const HOST_URL = 'https://arweave.net'

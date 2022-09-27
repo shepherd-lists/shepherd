@@ -1,7 +1,8 @@
 import { Readable } from "stream"
-import type { TxFlaggedOptions } from "../types"
+export * as DbTypes from "./types" //not imported locally
+import * as Types from "./types" //import locally
 
-export interface FilterResult extends TxFlaggedOptions {
+export interface FilterResult extends Types.TxFlaggedOptions {
 	flagged: boolean // main output: whether the image is filtered or not
 
 	/** @deprecated */

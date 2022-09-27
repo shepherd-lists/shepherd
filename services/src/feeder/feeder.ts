@@ -1,4 +1,4 @@
-import { TxRecord, InflightsRecord } from "../common/types"
+import { TxRecord, InflightsRecord } from "../common/shepherd-plugin-interfaces/types"
 import dbConnection from "../common/utils/db-connection"
 import { logger } from "../common/utils/logger"
 import { SQS } from 'aws-sdk'

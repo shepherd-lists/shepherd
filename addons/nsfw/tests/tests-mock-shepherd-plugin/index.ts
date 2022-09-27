@@ -1,4 +1,4 @@
-import { FilterPluginInterface, FilterResult } from '../src/common/shepherd-plugin-interfaces'
+import { FilterPluginInterface, FilterResult } from 'shepherd-plugin-interfaces'
 
 const mockPlugin: FilterPluginInterface = {
 	init: async()=>console.log('mock init called'),

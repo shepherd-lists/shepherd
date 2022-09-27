@@ -1,7 +1,7 @@
 import { SQS } from 'aws-sdk'
 import axios from 'axios'
 import { FEEDER_Q_VISIBILITY_TIMEOUT, FetchersStatus, HOST_URL, NO_STREAM_TIMEOUT, network_EXXX_codes } from '../common/constants'
-import { TxScanned } from '../common/types'
+import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
 import { logger } from '../common/utils/logger'
 import { s3Delete, s3UploadStream } from './s3Services'
 import { IncomingMessage } from 'http'

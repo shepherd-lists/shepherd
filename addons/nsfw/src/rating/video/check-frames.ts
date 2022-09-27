@@ -1,11 +1,12 @@
 import fs from 'fs'
-import { HOST_URL } from '../../common/constants'
-import { logger } from '../../common/utils/logger'
+import { logger } from '../../utils/logger'
 import * as FilterHost from "../filter-host"
-import { updateTxsDb } from '../../common/utils/db-update-txs'
+import { updateTxsDb } from '../../utils/db-update-txs'
 
 
 const prefix = 'check-frames'
+
+const HOST_URL = process.env.HOST_URL!
 
 export const checkFrames = async(frames: string[], txid: string)=> {
 	const videopath = frames.shift()

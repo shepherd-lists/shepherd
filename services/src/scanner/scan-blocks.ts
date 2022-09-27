@@ -1,7 +1,7 @@
 import * as Gql from 'arca-gql'
 import { GQLEdgeInterface } from 'arca-gql/dist/faces'
 import { GQL_URL, imageTypes, videoTypes } from '../common/constants'
-import { TxScanned } from '../common/types'
+import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
 import getDbConnection from '../common/utils/db-connection'
 import { logger } from '../common/utils/logger'
 import { performance } from 'perf_hooks'
