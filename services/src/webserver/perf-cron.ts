@@ -1,5 +1,5 @@
 import { HistoryRecord, StateRecord, TxRecord } from "../common/shepherd-plugin-interfaces/types";
-import dbConnection from "../common/utils/db-connection";
+import dbConnection from "../common/shepherd-plugin-interfaces/db-connection";
 import { getGqlHeight } from "../common/utils/gql-height";
 
 const knex = dbConnection()

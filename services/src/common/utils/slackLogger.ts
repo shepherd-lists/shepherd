@@ -1,5 +1,5 @@
 import { IncomingWebhook } from '@slack/webhook'
-import { logger } from './logger'
+import { logger } from '../shepherd-plugin-interfaces/logger'
 import os from 'os'
 
 console.assert(process.env.SLACK_WEBHOOK, "process.env.SLACK_WEBHOOK is undefined")

@@ -1,6 +1,6 @@
 import { TxRecord, InflightsRecord } from "../common/shepherd-plugin-interfaces/types"
-import dbConnection from "../common/utils/db-connection"
-import { logger } from "../common/utils/logger"
+import dbConnection from "../common/shepherd-plugin-interfaces/db-connection"
+import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { SQS } from 'aws-sdk'
 import { performance } from 'perf_hooks'
 import { slackLogger } from "../common/utils/slackLogger"

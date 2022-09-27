@@ -2,10 +2,10 @@ import { SQS } from 'aws-sdk'
 import axios from 'axios'
 import { FEEDER_Q_VISIBILITY_TIMEOUT, FetchersStatus, HOST_URL, NO_STREAM_TIMEOUT, network_EXXX_codes } from '../common/constants'
 import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
-import { logger } from '../common/utils/logger'
+import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { s3Delete, s3UploadStream } from './s3Services'
 import { IncomingMessage } from 'http'
-import { dbNegligibleData, dbNoDataFound, dbNoDataFound404 } from '../common/utils/db-update-txs'
+import { dbNegligibleData, dbNoDataFound, dbNoDataFound404 } from '../common/shepherd-plugin-interfaces/db-update-txs'
 
 
 const prefix = 'fetchers'

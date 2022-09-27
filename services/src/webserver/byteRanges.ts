@@ -1,5 +1,5 @@
-import { logger } from '../common/utils/logger'
-import { updateTxsDb } from '../common/utils/db-update-txs'
+import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { updateTxsDb } from '../common/shepherd-plugin-interfaces/db-update-txs'
 import { ByteRange, txidToRange } from './txidToRange/txidToRange'
 import { slackLogger } from '../common/utils/slackLogger'
 

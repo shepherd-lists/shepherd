@@ -1,6 +1,6 @@
 import { Knex } from "knex";
 import { StateRecord, TxRecord } from '../src/common/shepherd-plugin-interfaces/types'
-import { logger } from '../src/common/utils/logger'
+import { logger } from '../src/common/shepherd-plugin-interfaces/logger'
 import { parse } from 'csv-parse'
 import col from 'ansi-colors'
 import got from 'got' // needs non-esm 11.8.3

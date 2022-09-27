@@ -1,7 +1,7 @@
 import { Response } from 'express'
 import { TxRecord, StateRecord, HistoryRecord } from '../common/shepherd-plugin-interfaces/types'
-import getDb from '../common/utils/db-connection'
-import { logger } from '../common/utils/logger'
+import getDb from '../common/shepherd-plugin-interfaces/db-connection'
+import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { byteRanges } from './byteRanges'
 
 const knex = getDb()

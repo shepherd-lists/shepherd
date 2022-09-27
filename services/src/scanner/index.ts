@@ -2,8 +2,8 @@
  * We're running knex migrate:latest here programmatically as it makes most sense.
  * Scanner depends-on Pgdb service. All other services depend-on Scanner
  */
-import dbConnection from '../common/utils/db-connection'
-import { logger } from '../common/utils/logger'
+import dbConnection from '../common/shepherd-plugin-interfaces/db-connection'
+import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { scanner } from './scanner'
 import col from 'ansi-colors'
 
