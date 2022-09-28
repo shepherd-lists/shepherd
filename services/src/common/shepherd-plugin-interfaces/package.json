@@ -1,6 +1,6 @@
 {
   "name": "shepherd-plugin-interfaces",
-  "version": "0.2.3",
+  "version": "0.2.8",
   "description": "",
   "main": "index.ts",
   "scripts": {
@@ -10,8 +10,5 @@
   "author": "Ros McMahon <rosmcmahon@gmail.com>",
   "license": "GPL-3.0",
   "homepage": "https://github.com/shepherd-media-classifier/shepherd#shepherd-plugin-interfaces",
-  "dependencies": {
-    "knex": "^2.3.0",
-    "knex-utils": "^5.5.1"
-  }
+  "dependencies": {}
 }

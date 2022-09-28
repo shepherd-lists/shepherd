@@ -1,4 +1,4 @@
-require('dotenv').config() //first line of entrypoint
+// require('dotenv').config() //first line of entrypoint
 process.env['NODE_ENV'] = 'test'
 import col from 'ansi-colors'
 import { expect } from 'chai'

@@ -4,7 +4,7 @@
  */
 import axios from "axios";
 import { TxRecord } from "../src/common/shepherd-plugin-interfaces/types";
-import dbConnection from "../src/common/shepherd-plugin-interfaces/db-connection";
+import dbConnection from "../src/common/utils/db-connection";
 import col from 'ansi-colors'
 import { performance } from 'perf_hooks'
 

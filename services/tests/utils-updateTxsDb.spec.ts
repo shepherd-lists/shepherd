@@ -1,8 +1,8 @@
 process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import { TxRecord } from '../src/common/shepherd-plugin-interfaces/types'
-import dbConnection from '../src/common/shepherd-plugin-interfaces/db-connection'
-import { updateTxsDb } from '../src/common/shepherd-plugin-interfaces/db-update-txs'
+import dbConnection from '../src/common/utils/db-connection'
+import { updateTxsDb } from '../src/common/utils/db-update-txs'
 
 const knex = dbConnection()
 

@@ -1,4 +1,4 @@
-import dbConnection from "../src/common/shepherd-plugin-interfaces/db-connection";
+import dbConnection from "../src/common/utils/db-connection";
 
 const knex = dbConnection()
 

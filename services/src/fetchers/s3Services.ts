@@ -1,7 +1,7 @@
 import { S3 } from 'aws-sdk'
 import { Readable } from 'stream'
 import { FetchersStatus } from '../common/constants'
-import { dbMalformedXMLData } from '../common/shepherd-plugin-interfaces/db-update-txs'
+import { dbMalformedXMLData } from '../common/utils/db-update-txs'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 
 const prefix = 's3stream'

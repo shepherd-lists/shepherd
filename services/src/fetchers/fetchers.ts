@@ -5,7 +5,7 @@ import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { s3Delete, s3UploadStream } from './s3Services'
 import { IncomingMessage } from 'http'
-import { dbNegligibleData, dbNoDataFound, dbNoDataFound404 } from '../common/shepherd-plugin-interfaces/db-update-txs'
+import { dbNegligibleData, dbNoDataFound, dbNoDataFound404 } from '../common/utils/db-update-txs'
 
 
 const prefix = 'fetchers'

@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
 
-  nsfw:
+  test-service:
     hostname: ${IMAGE_REPO:-host}-nsfw-container
     image: ${AWS_ACCOUNT_ID:-acc}.dkr.ecr.${AWS_DEFAULT_REGION:-reg}.amazonaws.com/shepherd:nsfw
     build: 
@@ -18,11 +18,21 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-dummytoo}
       AWS_SQS_INPUT_QUEUE: ${AWS_SQS_INPUT_QUEUE:-http://sqs-local:9324/000000000000/shepherd-s3-events}
       # AWS_INPUT_BUCKET: ${AWS_INPUT_BUCKET:-}
-    restart: always
-    # depends_on:
-    #   - scanner
+      
+    depends_on:
+      - sqs-local-test
+      - pgdb-test
+      - s3-local-test
 
   sqs-local-test:
     extends:
       file: ../../docker-compose.test.yml
       service: sqs-local-test
+  pgdb-test:
+    extends:
+      file: ../../docker-compose.test.yml
+      service: pgdb-test
+  s3-local-test:
+    extends:
+      file: ../../docker-compose.test.yml
+      service: s3-local-test

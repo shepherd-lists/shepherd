@@ -16,7 +16,7 @@ const config = async()=> {
 		return _config
 	}
 
-	const jsonConfig = require('../../../shepherd.config.json')
+	const jsonConfig = require(`${__dirname}/`+'../../shepherd.config.json')
 	const plugins: FilterPluginInterface[] = []
 
 	for (const installString of jsonConfig.plugins as string[]) {

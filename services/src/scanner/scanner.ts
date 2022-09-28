@@ -2,7 +2,7 @@ require('dotenv').config() //first line of entrypoint
 import si from 'systeminformation'
 import { performance } from 'perf_hooks'
 import { scanBlocks } from "./scan-blocks"
-import dbConnection from "../common/shepherd-plugin-interfaces/db-connection"
+import dbConnection from "../common/utils/db-connection"
 import { getGqlHeight } from '../common/utils/gql-height'
 import { StateRecord } from "../common/shepherd-plugin-interfaces/types"
 import { logger } from "../common/shepherd-plugin-interfaces/logger"

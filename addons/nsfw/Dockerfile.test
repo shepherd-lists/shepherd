@@ -2,12 +2,13 @@ FROM rosmcmahon/node16-ffmpeg:multi-arch
 
 # create app directory
 WORKDIR /app
-ENV NODE_ENV=production
+ENV NODE_ENV=test
 ENV TF_CPP_MIN_LOG_LEVEL=2
 ENV TF_ENABLE_ONEDNN_OPTS: '1'
+COPY ./tsconfig.json ./tsconfig.json
 COPY ./package*.json ./
-RUN npm ci
+RUN npm i
 
 COPY ./src ./src
 COPY ./tests ./tests
-ENTRYPOINT npx -y mocha tests/**/*.spec.ts
+COPY ./shepherd.config.test.json shepherd.config.json

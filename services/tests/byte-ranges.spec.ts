@@ -2,7 +2,7 @@ process.env['NODE_ENV'] = 'test'
 import 'mocha'
 import { expect } from 'chai'
 import { byteRanges } from '../src/webserver/byteRanges'
-import dbConnection from '../src/common/shepherd-plugin-interfaces/db-connection'
+import dbConnection from '../src/common/utils/db-connection'
 import { TxRecord } from '../src/common/shepherd-plugin-interfaces/types'
 
 const db = dbConnection()
