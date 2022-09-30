@@ -73,6 +73,10 @@ services:
       - Effect: Allow
         Action: 's3:*'
         Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}/*'
+  plugin:
+    extends:
+      file: ./addons/${PLUGIN:-nsfw}/docker-compose.aws.yml
+      service: ${PLUGIN:-nsfw}
 
 
 networks:

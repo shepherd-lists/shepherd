@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test:grep": "mocha tests/**/*.spec.ts --grep",
-    "test": "mocha -r ts-node/register tests/**/*.spec.ts"
+    "test": "mocha tests/**/*.spec.ts"
   },
   "mocha": {
     "node-option": [

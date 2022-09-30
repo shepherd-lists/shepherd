@@ -12,7 +12,7 @@ services:
     restart: always
     ports:
       - '5432:5432'
-  s3-local-test:
+  s3-local:
     image: bitnami/minio:latest
     ports:
       # - '9000:9000'
@@ -22,7 +22,7 @@ services:
       MINIO_ROOT_PASSWORD: minioroot
       MINIO_FORCE_NEW_KEYS: 'yes'
       MINIO_DEFAULT_BUCKETS: shepherd-input-mod-local:public
-  sqs-local-test:
+  sqs-local:
     build: 
       context: ./infra-local/sqs-local
     ports:
@@ -39,14 +39,14 @@ services:
       SQS_LOCAL: 'yes'
       AWS_ACCESS_KEY_ID: dummy 
       AWS_SECRET_ACCESS_KEY: dummytoo 
-      AWS_FEEDER_QUEUE: http://sqs-local-test:9324/000000000000/shepherd-feeder-q
+      AWS_FEEDER_QUEUE: http://sqs-local:9324/000000000000/shepherd-feeder-q
       AWS_INPUT_BUCKET: shepherd-input-mod-local
       S3_LOCAL: 'yes'
-      S3_LOCAL_ENDPOINT: http://s3-local-test:9000
+      S3_LOCAL_ENDPOINT: http://s3-local:9000
     depends_on: 
       - pgdb-test
-      - s3-local-test
-      - sqs-local-test
+      - s3-local
+      - sqs-local
 
   # ## will there be e2e testing here??
   # plugin:

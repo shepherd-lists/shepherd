@@ -68,6 +68,9 @@ services:
       - sqs-local
       - s3-local
   plugin:
+    extends:
+      file: ./addons/${PLUGIN:-nsfw}/docker-compose.yml
+      service: ${PLUGIN:-nsfw}
     depends_on:
       - sqs-local
       - s3-local
