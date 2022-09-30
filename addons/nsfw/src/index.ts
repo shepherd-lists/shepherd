@@ -17,6 +17,12 @@ const sqs = new SQS({
 })
 const QueueUrl = process.env.AWS_SQS_INPUT_QUEUE as string
 
+const s3 = new S3({
+	apiVersion: '2006-03-01',
+	...(process.env.SQS_LOCAL==='yes' && { endpoint: process.env.S3_LOCAL_ENDPOINT!, region: 'dummy-value' }),
+	maxRetries: 10,
+})
+
 const getMessages = async(): Promise<SQS.Message[]> => {
 	const { Messages } = await sqs.receiveMessage({
 		QueueUrl,
@@ -31,7 +37,19 @@ const getMessages = async(): Promise<SQS.Message[]> => {
 	return msgs;
 }
 
+export const getFile = async(Bucket:string, Key: string)=> {
+	try{
+		console.log({Bucket, Key})
+		const res = await s3.getObject({ Bucket, Key }).promise()
+		return res
+	}catch(e){
+		console.log(`some error happened`)
+		throw e;
+	}
+}
+
 const main = async()=> {
+	console.log(prefix, `main begins`)
 	while(true){
 		const messages = await getMessages()
 		for (const message of messages) {
@@ -41,9 +59,15 @@ const main = async()=> {
 				&& s3event.Records[0].eventName && s3event.Records[0].eventName.includes('ObjectCreated')
 			){
 				const s3Record = s3event.Records[0]
-				logger(prefix, `found s3 event for '${s3Record.s3.object.key}'`)
+				const key = s3Record.s3.object.key
+				const bucket = s3Record.s3.bucket.name
+				logger(prefix, `found s3 event for '${key}' in '${bucket}`)
 
 				/* process s3 event */
+
+				const res = await getFile(bucket, key)
+
+				console.log(`got object. contentType '${res.ContentType}'`)
 
 
 				/* processing succesful, so delete event message from queue */

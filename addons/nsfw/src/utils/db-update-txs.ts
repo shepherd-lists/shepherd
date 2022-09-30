@@ -145,7 +145,7 @@ export const dbTimeoutInBatch = async(txid: string)=> {
 		last_update_date: new Date(),
 	})
 }
-
+/** @deprecated */
 export const dbWrongMimeType = async(txid: string, content_type: string)=> {
 	return updateTxsDb(txid,{
 		// this will be retried in the relevant queue
@@ -154,7 +154,7 @@ export const dbWrongMimeType = async(txid: string, content_type: string)=> {
 		last_update_date: new Date(),
 	})
 }
-
+/** @deprecated */
 export const dbNoMimeType = async(txid: string)=> {
 	return updateTxsDb(txid,{
 		flagged: false,

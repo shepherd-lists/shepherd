@@ -10,6 +10,8 @@ const prefix = '[localbridge]'
 const bucketName = 'shepherd-input-mod-local'
 const QueueUrl = 'http://sqs-local:9324/000000000000/shepherd-s3-events'
 
+console.log(prefix, `starting.`)
+
 const minio = new Client({
 	endPoint: 's3-local',
 	port: 9000,
