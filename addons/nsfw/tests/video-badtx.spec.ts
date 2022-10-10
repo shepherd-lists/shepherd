@@ -6,6 +6,18 @@ import { videoDownload } from '../src/rating/video/downloader'
 import { VidDownloadRecord } from '../src/rating/video/VidDownloads'
 import dbConnection from '../src/utils/db-connection'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
+import { S3 } from "aws-sdk";
+import { readFileSync } from 'fs'
+
+const s3 = new S3({
+	apiVersion: '2006-03-01',
+	...(process.env.SQS_LOCAL==='yes' && { 
+		endpoint: process.env.S3_LOCAL_ENDPOINT!, 
+		region: 'dummy-value',
+		s3ForcePathStyle: true, // *** needed with minio ***
+	}),
+	maxRetries: 10,
+})
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const knex = dbConnection()
@@ -19,6 +31,11 @@ describe('video-badtx video bad tx handling tests', ()=> {
 			content_size: '262144',
 			txid: '7mRWvWP5KPoDfmpbGYILChc9bjjXpiPhxuhXwlnODik', // corrupt video data
 		}
+		await s3.upload({
+			Bucket: 'shepherd-input-mod-local', 
+			Key: badData.txid,
+			Body: readFileSync(`${__dirname}/`+`./assets/7mRWvWP5KPoDfmpbGYILChc9bjjXpiPhxuhXwlnODik.mp4`),
+		}).promise()
 		try{
 			const res = await videoDownload(badData)
 			while(badData.complete === 'FALSE'){ await sleep(500) }
