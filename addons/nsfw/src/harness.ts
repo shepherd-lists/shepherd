@@ -1,12 +1,17 @@
 import { SQS, S3 } from 'aws-sdk'
 import { S3Event } from 'aws-lambda'
 import { logger } from './utils/logger'
+import memoize from 'micro-memoize'
 
 const prefix = 'nsfw-main'
 
-
 //debug output for sanity
 console.log(`process.env.AWS_SQS_INPUT_QUEUE`, process.env.AWS_SQS_INPUT_QUEUE)
+console.log(`process.env.NUM_DOWNLOADS`, process.env.NUM_DOWNLOADS)
+console.log(`process.env.DOWNLOADS_SIZE_GB`, process.env.DOWNLOADS_SIZE_GB)
+const NUM_DOWNLOADS = process.env.NUM_DOWNLOADS!
+const DOWNLOADS_SIZE_GB = process.env.DOWNLOADS_SIZE_GB!
+
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -41,18 +46,17 @@ const getMessages = async(): Promise<SQS.Message[]> => {
 	return msgs;
 }
 
-export const getFile = async(Bucket:string, Key: string)=> {
-	try{
-		console.log({Bucket, Key})
-		const res = await s3.getObject({ Bucket, Key }).promise()
-		return res
-	}catch(e){
-		console.log(prefix, `some error happened in ${getFile.name}. throwing:`)
-		throw e;
-	}
-}
+/** used in unit test for connectivity/package config */ 
+export const getFile = async(Bucket:string, Key: string)=> s3.getObject({ Bucket, Key }).promise()
 
-export const main = async()=> {
+/** memoize this function so we can just re-call it without worrying about performance */
+const getFileSize = memoize(
+	async(Key:string, Bucket:string)=> (await s3.headObject({ Bucket, Key }).promise()).ContentLength,
+	{ maxSize: 100 },
+)
+
+
+export const harness = async()=> {
 	console.log(prefix, `main begins`)
 	while(true){
 		const messages = await getMessages()
@@ -68,6 +72,8 @@ export const main = async()=> {
 				logger(prefix, `found s3 event for '${key}' in '${bucket}`)
 
 				/* process s3 event */
+
+
 
 				const res = await getFile(bucket, key)
 

@@ -21,6 +21,7 @@ services:
       # AWS_INPUT_BUCKET: ${AWS_INPUT_BUCKET:-}
 
       NUM_DOWNLOADS: ${NUM_DOWNLOADS:-50}
+      DOWNLOADS_SIZE_GB: ${DOWNLOADS_SIZE_GB:-10}
     restart: always
     # depends_on:
     #   - scanner
