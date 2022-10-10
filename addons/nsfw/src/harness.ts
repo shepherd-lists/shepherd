@@ -47,7 +47,7 @@ export const getFile = async(Bucket:string, Key: string)=> {
 		const res = await s3.getObject({ Bucket, Key }).promise()
 		return res
 	}catch(e){
-		console.log(prefix, `some error happened in ${getFile.name}. throwing`)
+		console.log(prefix, `some error happened in ${getFile.name}. throwing:`)
 		throw e;
 	}
 }

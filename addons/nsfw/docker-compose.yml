@@ -13,8 +13,8 @@ services:
       
       
       SQS_LOCAL: ${SQS_LOCAL:-yes}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-dummy}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-dummytoo}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioroot}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioroot}
       AWS_SQS_INPUT_QUEUE: ${AWS_SQS_INPUT_QUEUE:-http://sqs-local:9324/000000000000/shepherd-s3-events}
       S3_LOCAL: 'yes'
       S3_LOCAL_ENDPOINT: http://s3-local:9000
