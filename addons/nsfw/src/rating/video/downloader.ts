@@ -2,13 +2,24 @@ import axios from "axios";
 import fs from 'fs'
 import filetype, { FileTypeResult } from "file-type";
 import { IncomingMessage } from "http";
-import { NO_STREAM_TIMEOUT, VID_TMPDIR, VID_TMPDIR_MAXSIZE } from "../../constants";
+import { network_EXXX_codes, NO_STREAM_TIMEOUT, VID_TMPDIR, VID_TMPDIR_MAXSIZE } from "../../constants";
 import { logger } from "../../utils/logger";
 import { dbNoDataFound, dbNoDataFound404, dbNoMimeType, dbPartialVideoFound, dbWrongMimeType } from "../../utils/db-update-txs";
 import { VidDownloadRecord, VidDownloads } from "./VidDownloads";
 import { TxRecord } from "shepherd-plugin-interfaces/types";
 import { slackLogger } from "../../utils/slackLogger";
 import si from 'systeminformation'
+import { S3 } from "aws-sdk";
+
+const s3 = new S3({
+	apiVersion: '2006-03-01',
+	...(process.env.SQS_LOCAL==='yes' && { 
+		endpoint: process.env.S3_LOCAL_ENDPOINT!, 
+		region: 'dummy-value',
+		s3ForcePathStyle: true, // *** needed with minio ***
+	}),
+	maxRetries: 10,
+})
 
 const HOST_URL = process.env.HOST_URL!
 
@@ -46,32 +57,34 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 		fs.mkdirSync(folderpath, { recursive: true })
 		const filewriter = fs.createWriteStream(folderpath + vid.txid, { encoding: 'binary' })
 	
-		const source = axios.CancelToken.source()
-		let timer: NodeJS.Timeout | null = null
+		// const source = axios.CancelToken.source()
+		// let timer: NodeJS.Timeout | null = null
 		
 		try{
 			
-			const { data, headers } = await axios.get(url, {
-				cancelToken: source.token,
-				responseType: 'stream',
-			})
+			// const { data, headers } = await axios.get(url, {
+			// 	cancelToken: source.token,
+			// 	responseType: 'stream',
+			// })
+			const Bucket = 'shepherd-input-mod-local'
+			const stream = s3.getObject({ Bucket, Key: vid.txid }).createReadStream()
 
-			/* Video size might be incorrect */
-			const contentLength = BigInt(headers['content-length'])
-			if(BigInt(vid.content_size) !== contentLength){
-				logger(vid.txid, 'content-length. gql:', vid.content_size, typeof vid.content_size, 'header:', contentLength)
-				vid.content_size = contentLength.toString()
-			}
+			// /* Video size might be incorrect */
+			// const contentLength = BigInt(headers['content-length'])
+			// if(BigInt(vid.content_size) !== contentLength){
+			// 	logger(vid.txid, 'content-length. gql:', vid.content_size, typeof vid.content_size, 'header:', contentLength)
+			// 	vid.content_size = contentLength.toString()
+			// }
 
-			timer = setTimeout( ()=>{
-				source.cancel()
-				logger(vid.txid, `No data timeout ${NO_STREAM_TIMEOUT} ms exceeded`)
-				dbNoDataFound(vid.txid)
-				filewriter.end()
-				resolve('no data timeout')
-			}, NO_STREAM_TIMEOUT )
+			// timer = setTimeout( ()=>{
+			// 	source.cancel()
+			// 	logger(vid.txid, `No data timeout ${NO_STREAM_TIMEOUT} ms exceeded`)
+			// 	dbNoDataFound(vid.txid)
+			// 	filewriter.end()
+			// 	resolve('no data timeout')
+			// }, NO_STREAM_TIMEOUT )
 			
-			const stream: IncomingMessage = data
+			// const stream: IncomingMessage = data
 			
 			let mimeNotFound = true
 			let filehead = new Uint8Array(0)
@@ -94,7 +107,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			}
 			
 			stream.on('data', async(chunk: Uint8Array)=>{
-				clearTimeout(timer!)
+				// clearTimeout(timer!)
 				/* check the file head for mimetype & abort download if necessary */
 				if(mimeNotFound){
 					if(filehead.length < 4100){
@@ -103,9 +116,10 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 						mimeNotFound = false
 						const res = await filetype.fromBuffer(filehead)
 						if(!fileTypeGood(res)){
-							source.cancel()
+							// source.cancel()
 							filesizeDownloaded = 0 //reset so no partial-seed detected
 							vid.complete = 'ERROR'
+							stream.destroy()
 							return;
 						}
 					}
@@ -133,26 +147,27 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				vid.complete === 'TRUE' ? resolve(true) : resolve(false)
 			})
 
-			stream.setTimeout(NO_STREAM_TIMEOUT, ()=> {
+			// stream.setTimeout(NO_STREAM_TIMEOUT, ()=> {
 
-				dbNoDataFound(vid.txid)
-				filewriter.end()
-				resolve('no data timeout')
+			// 	dbNoDataFound(vid.txid)
+			// 	filewriter.end()
+			// 	resolve('no data timeout')
 				
-				source.cancel()
-				const msg = `stream idle for more than ${NO_STREAM_TIMEOUT}`
-				logger(vid.txid, msg)
-				stream.destroy(new Error(msg))
-				vid.complete = 'ERROR'
-				dbPartialVideoFound(vid.txid)
-				resolve('partial. stream idle.')
-			})
+			// 	source.cancel()
+			// 	const msg = `stream idle for more than ${NO_STREAM_TIMEOUT}`
+			// 	logger(vid.txid, msg)
+			// 	stream.destroy(new Error(msg))
+			// 	vid.complete = 'ERROR'
+			// 	dbPartialVideoFound(vid.txid)
+			// 	resolve('partial. stream idle.')
+			// })
 			
 			stream.on('error', (e: any)=>{
 				if(process.env.NODE_ENV!=='test'){
 					logger('** DEBUG **:', JSON.stringify(e), JSON.stringify(vid))
 				}
-				source.cancel()
+				// source.cancel()
+				stream.destroy()
 				filewriter.end()
 				if(e.message && e.message === 'aborted'){
 					logger(vid.txid, 'Error: aborted')
@@ -176,9 +191,9 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			})
 			
 		}catch(e:any){
-			if(timer){
-				clearTimeout(timer)
-			}
+			// if(timer){
+			// 	clearTimeout(timer)
+			// }
 			vid.complete = 'ERROR'
 			filewriter.end()
 
@@ -192,7 +207,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			}else if(
 				status >= 400
 				|| e.message === 'Client network socket disconnected before secure TLS connection was established'
-				|| ['ECONNRESET', 'ETIMEDOUT'].includes(code)
+				|| network_EXXX_codes.includes(code)
 			){
 				logger(vid.txid, e.message, 'Gateway error. Download will be retried')
 				resolve('gateway error')
