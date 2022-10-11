@@ -11,7 +11,7 @@ describe('load-config tests', ()=>{
 		expect(config.plugins[0].init).to.be.a('function')
 		expect(config.plugins[0].checkImage).to.be.a('function')
 
-		const pic = await fs.readFile('./tests/assets/test.png')
+		const pic = await fs.readFile('./tests/fixtures/test.png')
 		const res = await config.plugins[0].checkImage(pic, 'image/png', '123-fake-txid')
 		expect(res.flagged).false
 

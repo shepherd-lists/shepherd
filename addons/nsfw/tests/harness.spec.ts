@@ -23,7 +23,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 describe(`harness tests. s3, sqs, etc`, ()=>{
 	it(`tests we can retrieve an s3 object`, async()=>{
 		/* test set up */
-		const file = readFileSync(`${__dirname}/`+'./assets/test.png')
+		const file = readFileSync(`${__dirname}/`+'./fixtures/test.png')
 		const Bucket = 'shepherd-input-mod-local'
 		const Key = 'test.png'
 		

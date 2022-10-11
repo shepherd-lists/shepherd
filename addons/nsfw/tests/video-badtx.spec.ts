@@ -18,6 +18,11 @@ const s3 = new S3({
 	}),
 	maxRetries: 10,
 })
+const s3Upload = async (txid:string) => s3.upload({
+	Bucket: 'shepherd-input-mod-local', 
+	Key: txid,
+	Body: readFileSync(`${__dirname}/`+`./fixtures/${txid}`),
+}).promise()
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const knex = dbConnection()
@@ -31,11 +36,7 @@ describe('video-badtx video bad tx handling tests', ()=> {
 			content_size: '262144',
 			txid: '7mRWvWP5KPoDfmpbGYILChc9bjjXpiPhxuhXwlnODik', // corrupt video data
 		}
-		await s3.upload({
-			Bucket: 'shepherd-input-mod-local', 
-			Key: badData.txid,
-			Body: readFileSync(`${__dirname}/`+`./assets/7mRWvWP5KPoDfmpbGYILChc9bjjXpiPhxuhXwlnODik.mp4`),
-		}).promise()
+		await s3Upload(badData.txid)
 		try{
 			const res = await videoDownload(badData)
 			while(badData.complete === 'FALSE'){ await sleep(500) }
@@ -55,6 +56,7 @@ describe('video-badtx video bad tx handling tests', ()=> {
 			content_size: '262144',
 			txid: 'u54MK6zX3B0hjRqQqGzHn1m7ZGCsHNTWvFOrc0oBbCQ', // audio only
 		}
+		await s3Upload(badData.txid)
 		try{
 			const res = await videoDownload(badData)
 			while(badData.complete === 'FALSE'){ await sleep(500) }
@@ -65,22 +67,6 @@ describe('video-badtx video bad tx handling tests', ()=> {
 		}catch(e:any){
 			expect(e.message).eq('Output file #0 does not contain any stream')
 		}
-	}).timeout(0)
-	
-	it('SxP57BAAiZB0WEipA0_LtyQJ0SY51DwI4vE4N03ykJ0: expect error 404', async()=>{
-		//@ts-ignore
-		const badData: VidDownloadRecord = {
-			complete: 'FALSE',
-			content_size: '0',
-			txid: 'SxP57BAAiZB0WEipA0_LtyQJ0SY51DwI4vE4N03ykJ0', // error 404
-		}
-		// needs a db entry to update
-		await knex<TxRecord>('txs').where('txid', badData.txid).delete()
-		await knex<TxRecord>('txs').insert({ txid: badData.txid, content_type: 'video/mp4', content_size: '123'})
-		//this does not throw an error, just gets handled.
-		const res = await videoDownload(badData)
-		expect(res).eq(404)
-		expect(badData.complete).eq('ERROR')
 	}).timeout(0)
 
 

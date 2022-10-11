@@ -91,18 +91,19 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			let filesizeDownloaded = 0
 
 			const fileTypeGood = (res: FileTypeResult | undefined)=>{
-				if(res === undefined){
-					logger(vid.txid, 'no file-type found:', res)
-					dbNoMimeType(vid.txid)
-					vid.content_type = 'undefined'
-					return false
-				}else if(!res.mime.startsWith('video/')){
+				// if(res === undefined){
+				// 	logger(vid.txid, 'no file-type found:', res)
+				// 	dbNoMimeType(vid.txid)
+				// 	vid.content_type = 'undefined'
+				// 	return false
+				// }else 
+				if(res && !res.mime.startsWith('video/')){
 					logger(vid.txid, 'invalid video file-type:', res.mime)
 					dbWrongMimeType(vid.txid, res.mime)
 					vid.content_type = res.mime
 					return false
 				}
-				logger(vid.txid, 'detected mime:', res.mime)
+				logger(vid.txid, 'detected mime:', res?.mime)
 				return true
 			}
 			
@@ -116,10 +117,9 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 						mimeNotFound = false
 						const res = await filetype.fromBuffer(filehead)
 						if(!fileTypeGood(res)){
-							// source.cancel()
 							filesizeDownloaded = 0 //reset so no partial-seed detected
 							vid.complete = 'ERROR'
-							stream.destroy()
+							stream.emit('error', new Error('non-vid'))
 							return;
 						}
 					}
@@ -162,16 +162,16 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			// 	resolve('partial. stream idle.')
 			// })
 			
-			stream.on('error', (e: any)=>{
+			stream.on('error', (e: Error)=>{
 				if(process.env.NODE_ENV!=='test'){
 					logger('** DEBUG **:', JSON.stringify(e), JSON.stringify(vid))
 				}
 				// source.cancel()
 				stream.destroy()
 				filewriter.end()
-				if(e.message && e.message === 'aborted'){
+				if(e.message === 'aborted'){
 					logger(vid.txid, 'Error: aborted')
-					if(filesizeDownloaded > 0 && !mimeNotFound && vid.content_type !== 'undefined'){ 
+					if(filesizeDownloaded > 0 && !mimeNotFound && vid.content_type.startsWith('video/')){ 
 						logger(vid.txid, 'partial-seed video found')
 						dbPartialVideoFound(vid.txid) 
 						vid.complete = 'TRUE'
@@ -180,9 +180,13 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 						vid.complete = 'ERROR'
 						resolve('aborted')
 					}
+				}else if(e.message === 'non-vid'){
+					logger(vid.txid, `Error: non-vid`)
+					resolve(false)
 				}else{
 					vid.complete = 'ERROR'
-					reject(JSON.stringify(e))
+					console.log(`rejecting with this now`, `${e.name}:${e.message} => ${JSON.stringify(e.stack)}`)
+					reject(e)
 				}
 			})
 
