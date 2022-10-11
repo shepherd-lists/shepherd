@@ -50,7 +50,7 @@ describe(`harness tests. s3, sqs, etc`, ()=>{
 		}).promise()
 		// console.log(`upload success!`)
 
-		const res = await getFile(Bucket, Key)
+		const res = await getFile(Key)
 		// console.log({ res })
 
 		expect(res.ContentLength).eq(37978)

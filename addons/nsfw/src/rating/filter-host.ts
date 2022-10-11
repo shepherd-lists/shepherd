@@ -8,11 +8,22 @@ import { logger } from '../utils/logger'
 import { slackLogger } from '../utils/slackLogger'
 import loadConfig from '../utils/load-config'
 import si from 'systeminformation'
-
+import { S3 } from 'aws-sdk'
 
 const prefix = 'filter-host'
 
 const HOST_URL = process.env.HOST_URL!
+const Bucket = process.env.AWS_INPUT_BUCKET!
+
+const s3 = new S3({
+	apiVersion: '2006-03-01',
+	...(process.env.SQS_LOCAL==='yes' && { 
+		endpoint: process.env.S3_LOCAL_ENDPOINT!, 
+		region: 'dummy-value',
+		s3ForcePathStyle: true, // *** needed with minio ***
+	}),
+	maxRetries: 10,
+})
 
 export const checkImageTxid = async(txid: string, contentType: string)=> {
 
@@ -22,7 +33,8 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 	
 	try {
 
-		const pic = await axiosDataTimeout(url) //catch errors below
+		// const pic = await axiosDataTimeout(url) //catch errors below
+		const pic = (await s3.getObject({ Key: txid, Bucket }).promise()).Body as Buffer
 
 		const mime = await getImageMime(pic)
 		if(mime === undefined){
@@ -103,10 +115,6 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 		})
 	}else{
 		switch (result.data_reason) {
-			case 'noop':
-				// do nothing, but add it to inflights list
-				await dbInflightAdd(txid)
-				break;
 			case 'corrupt-maybe':
 				await dbCorruptDataMaybe(txid)
 				break;
