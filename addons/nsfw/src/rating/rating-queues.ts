@@ -170,6 +170,6 @@ export const rater = async(lowmem: boolean)=>{
 		//make sure we're not reloading inflight vids
 		const inflight = vidDownloads.listIds()
 		console.log({inflight})
-		vidQueue = vidQueue.filter(item => !inflight.includes(item.id))
+		vidQueue = vidQueue.filter(item => !inflight.includes(item.txid))
 	}
 }

@@ -46,7 +46,7 @@ export const addToDownloads = async(vid: {txid: string; content_size: string, co
 	}
 
 	const mb = 1024*1024
-	logger(vid.txid, vid.content_size, `downloading video ${(downloads.size()/mb).toFixed(1)}MB/${VID_TMPDIR_MAXSIZE/mb}MB`, `${downloads.length()}/10`)
+	logger(vid.txid, vid.content_size, `downloading video ${(downloads.size()/mb).toFixed(1)}MB/${VID_TMPDIR_MAXSIZE/mb}MB`, `${downloads.length()} vids in process.`)
 }
 
 export const videoDownload = async(vid: VidDownloadRecord)=> {

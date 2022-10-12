@@ -78,13 +78,30 @@ const releaseMessage = async(ReceiptHandle: string)=> sqs.changeMessageVisibilit
 	ReceiptHandle,
 }).promise()
 
-
+// sum trues from array of booleans
+const trueCount = (results: boolean[]) => results.reduce((acc, curr)=> curr ? ++acc : acc, 0)
 
 export const harness = async()=> {
 	console.log(prefix, `main begins`)
 	/* message consumer loop */
+	let promises: Promise<boolean>[] = []
+	let booleans: boolean[] = []
 	while(true){
+		logger(prefix, `num true promises on previous loop ${trueCount(booleans)} out of ${promises.length}`)
+		promises = []
+		booleans = []
+		logger(prefix, {_currentNumFiles, _currentTotalSize})
+
+		if(_currentNumFiles === NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
+			await sleep(5000)
+			// await Promise.all(promises) //this needs to go
+			continue;
+		}
+
 		const messages = await getMessages()
+		if(messages.length === 0){
+			await sleep(5000)
+		}
 		for (const message of messages) {
 			const s3event = JSON.parse(message.Body!) as S3Event
 			/* check if it's an s3 event */
@@ -94,7 +111,7 @@ export const harness = async()=> {
 				const s3Record = s3event.Records[0]
 				const key = s3Record.s3.object.key
 				const bucket = s3Record.s3.bucket.name
-				logger(prefix, `found s3 event for '${key}' in '${bucket}`)
+				// logger(prefix, `found s3 event for '${key}' in '${bucket}`)
 
 				/* process s3 event */
 
@@ -121,7 +138,12 @@ export const harness = async()=> {
 					})
 				}else{
 					/* process image */
-					checkImageTxid(key, contentType)
+					promises.push((async(contentLength:number)=>{
+						const res = await checkImageTxid(key, contentType) 
+						_currentNumFiles--
+						_currentTotalSize -= contentLength
+						return res;
+					}) (contentLength) )
 				}
 				//process downloaded videos
 				if(vidDownloads.length() > 0){
@@ -134,7 +156,6 @@ export const harness = async()=> {
 					}
 				}
 
-
 				/* processing succesful, so delete event message from queue */
 				await sqs.deleteMessage({
 					QueueUrl,
@@ -145,7 +166,6 @@ export const harness = async()=> {
 				console.log(`message.Body`, JSON.stringify(s3event, null,2))
 			}
 		}
-		await sleep(5000)
 	}
 }
 
