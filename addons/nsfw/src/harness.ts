@@ -2,19 +2,28 @@ import { SQS, S3 } from 'aws-sdk'
 import { S3Event } from 'aws-lambda'
 import { logger } from './utils/logger'
 import memoize from 'micro-memoize'
+import { VidDownloads } from './rating/video/VidDownloads'
+import { addToDownloads } from './rating/video/downloader'
+import { processVids } from './rating/video/process-files'
+import { checkImageTxid } from './rating/filter-host'
 
 const prefix = 'nsfw-main'
+
+const vidDownloads = VidDownloads.getInstance()
 
 //debug output for sanity
 console.log(`process.env.AWS_SQS_INPUT_QUEUE`, process.env.AWS_SQS_INPUT_QUEUE)
 const QueueUrl = process.env.AWS_SQS_INPUT_QUEUE as string
 console.log(`process.env.AWS_INPUT_BUCKET`, process.env.AWS_INPUT_BUCKET)
 const Bucket = process.env.AWS_INPUT_BUCKET!
-console.log(`process.env.NUM_DOWNLOADS`, process.env.NUM_DOWNLOADS)
-const NUM_DOWNLOADS = process.env.NUM_DOWNLOADS!
-console.log(`process.env.DOWNLOADS_SIZE_GB`, process.env.DOWNLOADS_SIZE_GB)
-const DOWNLOADS_SIZE_GB = process.env.DOWNLOADS_SIZE_GB!
+console.log(`process.env.NUM_FILES`, process.env.NUM_FILES)
+const NUM_FILES = +process.env.NUM_FILES!
+console.log(`process.env.TOTAL_FILESIZE_GB`, process.env.TOTAL_FILESIZE_GB)
+const TOTAL_FILESIZE = +process.env.TOTAL_FILESIZE_GB! * 1024 * 1024 * 1024
 
+//keep track and set limits based on env inputs
+let _currentTotalSize = 0
+let _currentNumFiles = 0
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -52,14 +61,28 @@ const getMessages = async(): Promise<SQS.Message[]> => {
 export const getFile = async(Key: string)=> s3.getObject({ Bucket, Key }).promise()
 
 /** memoize this function so we can just re-call it without worrying about performance */
-const getFileSize = memoize(
-	async(Key: string)=> (await s3.headObject({ Bucket, Key }).promise()).ContentLength,
-	{ maxSize: 100 },
+const getFileHead = memoize(
+	async(Key: string):Promise<{contentType: string, contentLength: number}>=> {
+		const head = await s3.headObject({ Bucket, Key }).promise()
+		return {
+			contentType: head.ContentType!, 
+			contentLength: head.ContentLength!,
+		}
+	},
+	{ maxSize: 2 * NUM_FILES },
 )
+
+const releaseMessage = async(ReceiptHandle: string)=> sqs.changeMessageVisibility({
+	QueueUrl,
+	VisibilityTimeout: 0,
+	ReceiptHandle,
+}).promise()
+
 
 
 export const harness = async()=> {
 	console.log(prefix, `main begins`)
+	/* message consumer loop */
 	while(true){
 		const messages = await getMessages()
 		for (const message of messages) {
@@ -75,11 +98,41 @@ export const harness = async()=> {
 
 				/* process s3 event */
 
+				//check we have room to add a new item
+				const {contentLength, contentType} = await getFileHead(key)
+				if(
+					_currentNumFiles + 1 > NUM_FILES
+					|| _currentTotalSize + contentLength > TOTAL_FILESIZE
+				){
+					//release this message back and try another
+					await releaseMessage(message.ReceiptHandle!)
+					continue;
+				}
+				_currentNumFiles++
+				_currentTotalSize += contentLength
 
-
-				const res = await getFile(key)
-
-				console.log(`got object. contentType '${res.ContentType}'`)
+				//send to vid or image processing
+				if(contentType.startsWith('video')){
+					/* add to video download queue */
+					await addToDownloads({
+						content_size: contentLength.toString(),
+						content_type: contentType,
+						txid: key,
+					})
+				}else{
+					/* process image */
+					checkImageTxid(key, contentType)
+				}
+				//process downloaded videos
+				if(vidDownloads.length() > 0){
+					await processVids()
+					//cleanup aborted/errored downloads
+					for (const dl of vidDownloads) {
+						if(dl.complete === 'ERROR'){
+							vidDownloads.cleanup(dl)
+						}
+					}
+				}
 
 
 				/* processing succesful, so delete event message from queue */

@@ -10,4 +10,5 @@ COPY ./package*.json ./
 RUN npm ci --omit=dev
 
 COPY ./src ./src
+COPY ./shepherd.config.json ./shepherd.config.json
 ENTRYPOINT node -r ts-node/register src/index.ts

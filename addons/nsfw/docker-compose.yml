@@ -18,10 +18,10 @@ services:
       AWS_SQS_INPUT_QUEUE: ${AWS_SQS_INPUT_QUEUE:-http://sqs-local:9324/000000000000/shepherd-s3-events}
       S3_LOCAL: 'yes'
       S3_LOCAL_ENDPOINT: http://s3-local:9000
-      AWS_INPUT_BUCKET: ${AWS_INPUT_BUCKET}
+      AWS_INPUT_BUCKET: ${AWS_INPUT_BUCKET:-shepherd-input-mod-local}
 
-      NUM_DOWNLOADS: ${NUM_DOWNLOADS:-50}
-      DOWNLOADS_SIZE_GB: ${DOWNLOADS_SIZE_GB:-10}
+      NUM_FILES: ${NUM_FILES:-50}
+      TOTAL_FILESIZE_GB: ${TOTAL_FILESIZE_GB:-10}
     restart: always
     # depends_on:
     #   - scanner

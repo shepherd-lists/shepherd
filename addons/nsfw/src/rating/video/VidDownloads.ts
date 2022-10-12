@@ -4,7 +4,10 @@ import { TxRecord } from "shepherd-plugin-interfaces/types"
 import { logger } from "../../utils/logger"
 
 
-export interface VidDownloadRecord extends TxRecord {
+export interface VidDownloadRecord  {
+	txid: string
+	content_size: string
+	content_type: string
 	complete: 'TRUE' | 'FALSE' | 'ERROR' | (string & {})
 	retried: boolean
 }
@@ -45,9 +48,9 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 	}
 
 	public listIds = ()=> {
-		let ids: number[] = []
+		let ids: string[] = []
 		for (const item of this) {
-			ids.push(item.id)
+			ids.push(item.txid)
 		}
 		return ids
 	}
