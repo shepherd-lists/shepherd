@@ -1,2 +1,2 @@
 #!/bin/bash
-docker-compose logs -f --tail=15
+docker compose logs -f --tail=15
