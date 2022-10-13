@@ -1,6 +1,0 @@
-{
-	"plugins": [ 
-		"./tests-mock-shepherd-plugin"
-	],
-	"lowmem": false
-}

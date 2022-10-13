@@ -9,4 +9,4 @@ RUN npm install -g knex ts-node
 COPY package*.json ./
 RUN npm ci
 COPY . .
-COPY shepherd.config.test.json shepherd.config.json
+# COPY shepherd.config.test.json shepherd.config.json
