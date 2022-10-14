@@ -9,7 +9,7 @@ import { checkImageTxid } from './rating/filter-host'
 
 const prefix = 'nsfw-main'
 
-const vidDownloads = VidDownloads.getInstance()
+const _currentVideos = VidDownloads.getInstance()
 
 //debug output for sanity
 console.log(`process.env.AWS_SQS_INPUT_QUEUE`, process.env.AWS_SQS_INPUT_QUEUE)
@@ -94,7 +94,7 @@ export const harness = async()=> {
 
 		if(_currentNumFiles === NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
 			logger(prefix, `internal queue full. waiting 5000ms...`)
-			logger(prefix, {vids: vidDownloads.listIds() })
+			logger(prefix, {vids: _currentVideos.listIds() })
 			await sleep(5000)
 			// await Promise.all(promises) //this needs to go
 			continue;
@@ -114,6 +114,7 @@ export const harness = async()=> {
 				const s3Record = s3event.Records[0]
 				const key = s3Record.s3.object.key
 				const bucket = s3Record.s3.bucket.name
+				const receiptHandle = message.ReceiptHandle!
 				logger(prefix, `found s3 event for '${key}' in '${bucket}`)
 
 				/* process s3 event */
@@ -138,38 +139,54 @@ export const harness = async()=> {
 						content_size: contentLength.toString(),
 						content_type: contentType,
 						txid: key,
+						receiptHandle,
 					})
 				}else{
 					/* process image */
 					promises.push((async(contentLength:number)=>{
 						const res = await checkImageTxid(key, contentType) 
+						cleanupAfterProcessing(receiptHandle, key)
 						_currentNumFiles--
 						_currentTotalSize -= contentLength
 						return res;
 					}) (contentLength) )
 				}
 				//process downloaded videos
-				if(vidDownloads.length() > 0){
+				if(_currentVideos.length() > 0){
 					await processVids()
 					//cleanup aborted/errored downloads
-					for (const dl of vidDownloads) {
-						if(dl.complete === 'ERROR'){
-							vidDownloads.cleanup(dl)
+					for (const item of _currentVideos) {
+						if(item.complete === 'ERROR'){
+							_currentVideos.cleanup(item)
+							cleanupAfterProcessing(item.receiptHandle, item.txid)
 						}
 					}
 				}
 
-				/* processing succesful, so delete event message from queue */
-				await sqs.deleteMessage({
-					QueueUrl,
-					ReceiptHandle: message.ReceiptHandle!,
-				}).promise()
+				
 			}else{
 				logger(prefix, `error! unrecognized body. MessageId '${message.MessageId}'. not processing.`)
 				console.log(`message.Body`, JSON.stringify(s3event, null,2))
 			}
 		}
 	}
+}
+
+/* processing succesful, so delete event message + object */
+const cleanupAfterProcessing = (ReceiptHandle: string, Key: string)=> {
+	sqs.deleteMessage({
+		QueueUrl,
+		ReceiptHandle,
+	}).promise()
+		.then(()=> logger(Key, `deleted message`))
+		.catch((e: AWSError) => logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
+	
+	s3.deleteObject({
+		Bucket,
+		Key,
+	}).promise()
+		.then(()=> logger(Key, `deleted object`))
+		.catch((e: AWSError) => logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
 }
 
 

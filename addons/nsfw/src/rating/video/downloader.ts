@@ -25,7 +25,7 @@ const HOST_URL = process.env.HOST_URL!
 
 const downloads = VidDownloads.getInstance()
 
-export const addToDownloads = async(vid: {txid: string; content_size: string, content_type: string})=> {
+export const addToDownloads = async(vid: {txid: string; content_size: string, content_type: string, receiptHandle: string})=> {
 
 	// convert TxRecord to a new VidDownloadRecord
 	let dl: VidDownloadRecord = Object.assign({	complete: 'FALSE', retried: false }, vid)

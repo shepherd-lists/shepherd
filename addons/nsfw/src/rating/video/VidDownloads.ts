@@ -8,6 +8,7 @@ export interface VidDownloadRecord  {
 	txid: string
 	content_size: string
 	content_type: string
+	receiptHandle: string
 	complete: 'TRUE' | 'FALSE' | 'ERROR' | (string & {})
 	retried: boolean
 }
