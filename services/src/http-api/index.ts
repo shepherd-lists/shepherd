@@ -94,6 +94,7 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 		
 			default:
 				logger(prefix, 'UNHANDLED plugin result in http-api', txid)
+				slackLogger(prefix, 'UNHANDLED plugin result in http-api', txid)
 				await dbInflightDel(txid)
 				throw new Error('UNHANDLED plugin result in http-api:\n' + JSON.stringify(result))
 		}
