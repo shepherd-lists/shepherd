@@ -113,7 +113,7 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 			valid_data: true,
 			last_update_date: new Date(),
 		})
-		await dbInflightDel(txid)
+		dbInflightDel(txid)
 	}else{
 		switch (result.data_reason) {
 			case 'corrupt-maybe':

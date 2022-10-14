@@ -28,7 +28,7 @@ export const checkFrames = async(frames: string[], txid: string)=> {
 	}
 	logger(txid, 'video', ((flagged) ? 'flagged' : 'clean'), vidUrl)
 
-	await dbInflightDel(txid)
+	dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		flagged,
 		valid_data: true,

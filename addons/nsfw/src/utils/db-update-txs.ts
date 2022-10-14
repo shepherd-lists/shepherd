@@ -9,8 +9,9 @@ const knex = getDbConnection()
 export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
 	try{
 		const checkId = await knex<TxRecord>('txs').where({txid}).update(updates, 'txid')
-		if(checkId[0].txid !== txid){
+		if(checkId[0]?.txid !== txid){
 			logger(txid, 'ERROR UPDATING DATABASE!', JSON.stringify(updates))
+			return;
 		}
 		return checkId[0].txid;
 
@@ -23,12 +24,13 @@ export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
 export const dbInflightDel = async(txid: string)=> {
 	try{
 		const ret = await knex<InflightsRecord>('inflights').where({ txid, }).del('txid')
-		if(ret[0].txid !== txid){
-			logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS', ret)
+		if(ret[0]?.txid !== txid){
+			logger(txid, 'warning. DB_ERROR DELETING FROM INFLIGHTS', ret)
+			return;
 		}
 		return ret[0].txid;
 	}catch(e:any){
-		logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS', e.name, ':', e.message)
+		logger(txid, 'warning (no ret). DB_ERROR DELETING FROM INFLIGHTS', e.name, ':', e.message)
 		logger(txid, e) // `throw e` does nothing, use the return
 	}
 }
