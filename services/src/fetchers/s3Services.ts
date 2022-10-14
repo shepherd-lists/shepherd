@@ -3,6 +3,7 @@ import { Readable } from 'stream'
 import { FetchersStatus } from '../common/constants'
 import { dbMalformedXMLData } from '../common/utils/db-update-txs'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { slackLogger } from '../common/utils/slackLogger'
 
 const prefix = 's3stream'
 
@@ -39,6 +40,7 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 			uploader.abort()
 		}else{
 			logger(prefix, 'UNHANDLED error event', e.message, txid, e)
+			slackLogger(prefix, 'UNHANDLED error event', e.message, txid, e)
 			throw e
 		}
 	})
@@ -73,7 +75,9 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 				return 'MalformedXML';
 			}
 			//@ts-ignore
-			logger(prefix, 'UNHANDLED S3 ERROR', `${e.name}:${e.message}. code? ${e.code}`, txid)
+			const code = e.code
+			logger(prefix, 'UNHANDLED S3 ERROR', `${e.name}:${e.message}. code? ${code}`, txid)
+			slackLogger(prefix, 'UNHANDLED S3 ERROR', `${e.name}:${e.message}. code? ${code}`, txid)
 		}
 		//just throw errors like NoSuchBucket, UnknownEndpoint, etc. needs to be handled externally
 		throw e;

@@ -37,6 +37,7 @@ export const addToDownloads = async(vid: {txid: string; content_size: string, co
 		logger(dl.txid, 'finished downloading', res)
 	}).catch(e => {
 		logger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code)
+		slackLogger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code)
 		throw e;
 	})
 

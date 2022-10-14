@@ -6,6 +6,7 @@ import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { s3Delete, s3UploadStream } from './s3Services'
 import { IncomingMessage } from 'http'
 import { dbNegligibleData, dbNoDataFound, dbNoDataFound404 } from '../common/utils/db-update-txs'
+import { slackLogger } from '../common/utils/slackLogger'
 
 
 const prefix = 'fetchers'
@@ -129,6 +130,7 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 				}
 				else{
 					logger(fetcherLoop.name, 'Unhandled error', txid, e.name, e.message)
+					slackLogger(fetcherLoop.name, 'Unhandled error', txid, e.name, e.message)
 					throw e;
 				}
 			}
@@ -184,6 +186,7 @@ export const dataStream = async(txid: string)=> {
 				incoming.emit('end') //end the stream so consumers can finish processing.
 			}else{
 				logger(dataStream.name, 'UNHANDLED. Something unexpected happened before `end` was emitted', txid, received, contentLength)
+				slackLogger(dataStream.name, 'UNHANDLED. Something unexpected happened before `end` was emitted', txid, received, contentLength)
 			}
 		}else{ //end was called
 			if(received < 125n){
