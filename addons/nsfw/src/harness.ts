@@ -1,4 +1,4 @@
-import { SQS, S3 } from 'aws-sdk'
+import { SQS, S3, AWSError } from 'aws-sdk'
 import { S3Event } from 'aws-lambda'
 import { logger } from './utils/logger'
 import memoize from 'micro-memoize'
@@ -87,12 +87,14 @@ export const harness = async()=> {
 	let promises: Promise<boolean>[] = []
 	let booleans: boolean[] = []
 	while(true){
-		logger(prefix, `num true promises on previous loop ${trueCount(booleans)} out of ${promises.length}`)
-		promises = []
-		booleans = []
+		// logger(prefix, `num true promises on previous loop ${trueCount(booleans)} out of ${promises.length}`)
+		// promises = []
+		// booleans = []
 		logger(prefix, {_currentNumFiles, _currentTotalSize})
 
 		if(_currentNumFiles === NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
+			logger(prefix, `internal queue full. waiting 5000ms...`)
+			logger(prefix, {vids: vidDownloads.listIds() })
 			await sleep(5000)
 			// await Promise.all(promises) //this needs to go
 			continue;
@@ -101,6 +103,7 @@ export const harness = async()=> {
 		const messages = await getMessages()
 		if(messages.length === 0){
 			await sleep(5000)
+			continue;
 		}
 		for (const message of messages) {
 			const s3event = JSON.parse(message.Body!) as S3Event
@@ -111,7 +114,7 @@ export const harness = async()=> {
 				const s3Record = s3event.Records[0]
 				const key = s3Record.s3.object.key
 				const bucket = s3Record.s3.bucket.name
-				// logger(prefix, `found s3 event for '${key}' in '${bucket}`)
+				logger(prefix, `found s3 event for '${key}' in '${bucket}`)
 
 				/* process s3 event */
 

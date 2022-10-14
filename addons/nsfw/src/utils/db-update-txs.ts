@@ -93,6 +93,7 @@ export const dbMalformedXMLData = async(txid: string)=> {
 }
 
 export const dbCorruptDataConfirmed = async(txid: string)=> {
+	await dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		flagged: false,
 		valid_data: false,
@@ -102,6 +103,7 @@ export const dbCorruptDataConfirmed = async(txid: string)=> {
 }
 
 export const dbCorruptDataMaybe = async(txid: string)=> {
+	await dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		// flagged: false, <= try filetype detection first
 		valid_data: false,
@@ -111,6 +113,7 @@ export const dbCorruptDataMaybe = async(txid: string)=> {
 }
 
 export const dbPartialImageFound = async(txid: string)=> {
+	await dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		// flagged: <= cannot flag yet! display with puppeteer & rate again
 		valid_data: false, // this removes it from current queue
@@ -120,6 +123,7 @@ export const dbPartialImageFound = async(txid: string)=> {
 }
 
 export const dbPartialVideoFound = async(txid: string)=> {
+	await dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		// flagged: undefined,  // this gets set in the normal way in another call
 		// valid_data: undefined,
@@ -129,6 +133,7 @@ export const dbPartialVideoFound = async(txid: string)=> {
 }
 
 export const dbOversizedPngFound = async(txid: string)=> {
+	await dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		// flagged: <= cannot flag yet! use tinypng, then rate again
 		valid_data: false, // this removes it from current queue
@@ -138,6 +143,7 @@ export const dbOversizedPngFound = async(txid: string)=> {
 }
 
 export const dbTimeoutInBatch = async(txid: string)=> {
+	await dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		// flagged: <= need recheck: may be due to other delay during timeout or data not seeded yet
 		valid_data: false,
@@ -147,6 +153,7 @@ export const dbTimeoutInBatch = async(txid: string)=> {
 }
 /** @deprecated */
 export const dbWrongMimeType = async(txid: string, content_type: string)=> {
+	await dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		// this will be retried in the relevant queue
 		content_type,
@@ -156,6 +163,7 @@ export const dbWrongMimeType = async(txid: string, content_type: string)=> {
 }
 /** @deprecated */
 export const dbNoMimeType = async(txid: string)=> {
+	await dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		flagged: false,
 		content_type: 'undefined',
@@ -165,6 +173,7 @@ export const dbNoMimeType = async(txid: string)=> {
 }
 
 export const dbUnsupportedMimeType = async(txid: string)=> {
+	await dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		// flagged: <= cannot flag yet! display with puppeteer & rate again
 		valid_data: false, // this removes it from current queue

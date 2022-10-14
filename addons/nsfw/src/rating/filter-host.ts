@@ -1,7 +1,7 @@
 import { NO_DATA_TIMEOUT } from '../constants'
 import { axiosDataTimeout } from '../utils/axiosDataTimeout'
 import { 
-	dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeType, dbInflightAdd, dbOversizedPngFound, dbPartialImageFound, dbTimeoutInBatch, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb 
+	dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeType, dbInflightAdd, dbOversizedPngFound, dbPartialImageFound, dbTimeoutInBatch, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb, dbInflightDel 
 } from '../utils/db-update-txs'
 import { getImageMime } from './image-filetype'
 import { logger } from '../utils/logger'
@@ -29,7 +29,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 
 	/* handle all downloading & mimetype problems before sending to FilterPlugins */
 
-	const url = `${HOST_URL}/${txid}`
+	// const url = `${HOST_URL}/${txid}`
 	
 	try {
 
@@ -58,35 +58,35 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		/* catch network issues & no data situations */
 		const status = Number(e.response?.status) || 0
 
-		if(status === 404){
-			logger(prefix, 'no data found (404)', contentType, url)
-			await dbNoDataFound404(txid)
-			return true;
-		}
+		// if(status === 404){
+		// 	logger(prefix, 'no data found (404)', contentType, url)
+		// 	await dbNoDataFound404(txid)
+		// 	return true;
+		// }
 
 		if(e.message === 'End-Of-Stream'){
-			logger(prefix, `End-Of-Stream`, contentType, url)
+			logger(prefix, `End-Of-Stream`, contentType, txid)
 			await dbCorruptDataConfirmed(txid)
 			return true;
 		}
 		
-		else if(
-			(e.message === `Timeout of ${NO_DATA_TIMEOUT}ms exceeded`)
-		){
-			logger(prefix, 'connection timed out in batch. check again alone', contentType, url)
-			await dbTimeoutInBatch(txid)
-		}
+		// if(
+		// 	(e.message === `Timeout of ${NO_DATA_TIMEOUT}ms exceeded`)
+		// ){
+		// 	logger(prefix, 'connection timed out in batch. check again alone', contentType, url)
+		// 	await dbTimeoutInBatch(txid)
+		// }
 		
-		else if(
-			status >= 500
-			|| ( e.code && ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND'].includes(e.code) )
-		){
-			// error in the gateway somewhere, not important to us
-			logger(txid, e.message, 'image will automatically retry downloading') //do nothing, record remains in unprocessed queue
-		}
+		// else if(
+		// 	status >= 500
+		// 	|| ( e.code && ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND'].includes(e.code) )
+		// ){
+		// 	// error in the gateway somewhere, not important to us
+		// 	logger(txid, e.message, 'image will automatically retry downloading') //do nothing, record remains in unprocessed queue
+		// }
 		
 		else{
-			logger(prefix, 'UNHANDLED Error processing', url + ' ', status, ':', e.message)
+			logger(prefix, 'UNHANDLED Error processing', txid + ' ', status, ':', e.message)
 			await slackLogger(prefix, 'UNHANDLED Error processing', txid, status, ':', e.message)
 			logger(prefix, 'UNHANDLED', e)
 			logger(prefix, await si.mem())
@@ -113,6 +113,7 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 			valid_data: true,
 			last_update_date: new Date(),
 		})
+		await dbInflightDel(txid)
 	}else{
 		switch (result.data_reason) {
 			case 'corrupt-maybe':

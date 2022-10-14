@@ -31,19 +31,14 @@ export const addToDownloads = async(vid: {txid: string; content_size: string, co
 	let dl: VidDownloadRecord = Object.assign({	complete: 'FALSE', retried: false }, vid)
 	downloads.push(dl)
 
-	try{
-		//call async as likely large download
-		videoDownload( dl )
-		.then( (res)=> {
-			logger(dl.txid, 'finished downloading', res)
-		}).catch(e => {
-			logger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code)
-			throw e;
-		})
-	}catch(e:any){
-		logger(dl.txid, e.message)
-		throw e
-	}
+	//call async as likely large download
+	videoDownload( dl )
+	.then( (res)=> {
+		logger(dl.txid, 'finished downloading', res)
+	}).catch(e => {
+		logger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code)
+		throw e;
+	})
 
 	const mb = 1024*1024
 	logger(vid.txid, vid.content_size, `downloading video ${(downloads.size()/mb).toFixed(1)}MB/${VID_TMPDIR_MAXSIZE/mb}MB`, `${downloads.length()} vids in process.`)
@@ -91,12 +86,12 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			let filesizeDownloaded = 0
 
 			const fileTypeGood = (res: FileTypeResult | undefined)=>{
-				// if(res === undefined){
-				// 	logger(vid.txid, 'no file-type found:', res)
-				// 	dbNoMimeType(vid.txid)
-				// 	vid.content_type = 'undefined'
-				// 	return false
-				// }else 
+				if(res === undefined){
+					logger(vid.txid, 'no file-type found:', res)
+					dbNoMimeType(vid.txid)
+					vid.content_type = 'undefined'
+					return false
+				}else 
 				if(res && !res.mime.startsWith('video/')){
 					logger(vid.txid, 'invalid video file-type:', res.mime)
 					dbWrongMimeType(vid.txid, res.mime)

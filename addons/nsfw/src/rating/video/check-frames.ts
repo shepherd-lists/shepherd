@@ -1,7 +1,7 @@
 import fs from 'fs'
 import { logger } from '../../utils/logger'
 import * as FilterHost from "../filter-host"
-import { updateTxsDb } from '../../utils/db-update-txs'
+import { dbInflightDel, updateTxsDb } from '../../utils/db-update-txs'
 
 
 const prefix = 'check-frames'
@@ -28,6 +28,7 @@ export const checkFrames = async(frames: string[], txid: string)=> {
 	}
 	logger(txid, 'video', ((flagged) ? 'flagged' : 'clean'), vidUrl)
 
+	await dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		flagged,
 		valid_data: true,
