@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@slack/webhook": "^6.1.0",
     "@types/aws-lambda": "^8.10.104",
     "@types/minio": "^7.0.13",
     "aws-sdk": "^2.1221.0",

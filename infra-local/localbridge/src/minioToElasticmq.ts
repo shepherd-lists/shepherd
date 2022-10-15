@@ -3,8 +3,9 @@
  * so we need to match the aws format & manually send these on with an event listener.
  */
 import { Client } from 'minio'
-import { SQS } from 'aws-sdk'
+import { SQS, AWSError } from 'aws-sdk'
 import { S3EventRecord, S3Event } from 'aws-lambda'
+import { slackLogger } from './utils/slackLogger'
 
 const prefix = '[localbridge]'
 const bucketName = 'shepherd-input-mod-local'
@@ -33,8 +34,11 @@ minio.listenBucketNotification(
 	'*',
 	['s3:ObjectCreated:*'],
 ).on('notification', (record: S3EventRecord) => {
-	console.log(prefix, `forwarding '${record.s3.object.key}' s3 event to '${QueueUrl}' queue.`)
-	//enclose s3 event and forward on in sqs message
+	const key = record.s3.object.key
+
+	// console.log(prefix, `forwarding '${key}' s3 event to '${QueueUrl}' queue.`)
+
+	/* enclose s3 event and forward on in sqs message */
 	const s3event: S3Event = { 
 		Records: [ record ] 
 	}
@@ -42,5 +46,8 @@ minio.listenBucketNotification(
 		QueueUrl,
 		MessageBody: JSON.stringify(s3event),
 	}).promise()
+		.catch((e: AWSError) => 
+			slackLogger(prefix, key, `error forwarding message! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`)
+		)
 })
 

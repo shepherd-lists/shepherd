@@ -41,6 +41,7 @@ services:
     environment:
       AWS_ACCESS_KEY_ID: dummy
       AWS_SECRET_ACCESS_KEY: dummytoo
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
     depends_on:
       - sqs-local
       - s3-local
