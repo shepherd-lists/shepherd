@@ -158,7 +158,6 @@ export const harness = async()=> {
 					for (const item of _currentVideos) {
 						if(item.complete === 'ERROR'){
 							_currentVideos.cleanup(item)
-							cleanupAfterProcessing(item.receiptHandle, item.txid)
 						}
 					}
 				}
@@ -173,7 +172,7 @@ export const harness = async()=> {
 }
 
 /* processing succesful, so delete event message + object */
-const cleanupAfterProcessing = (ReceiptHandle: string, Key: string)=> {
+export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string)=> {
 	sqs.deleteMessage({
 		QueueUrl,
 		ReceiptHandle,

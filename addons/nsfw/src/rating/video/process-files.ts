@@ -21,7 +21,9 @@ export const processVids = async()=> {
 			//create screencaps & handle errors
 			let frames: string[] = []
 			try{
+
 				frames = await createScreencaps(dl.txid)
+				
 			}catch(err: any){
 				const e: FfmpegError = err
 				if(e.message === 'Output file #0 does not contain any stream'){
@@ -62,7 +64,7 @@ export const processVids = async()=> {
 			//let tfjs run through the screencaps & write to db
 			if(frames.length < 2){
 				logger(dl.txid, 'ERROR: No frames to process!')
-				throw new Error(dl.txid + ' No frames to process!')
+				slackLogger(dl.txid, ' No frames to process!')
 			}else{ 
 				await checkFrames(frames, dl.txid)
 			}

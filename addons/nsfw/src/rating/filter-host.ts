@@ -46,8 +46,8 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 			await dbWrongMimeType(txid, mime)
 			return true
 		}else if(mime !== contentType){
-			logger(prefix, `updating '${contentType}' to '${mime}' and resuming`, txid)
-			await dbWrongMimeType(txid, mime)
+			logger(prefix, `warning. expected '${contentType}' !== detected '${mime}'`, txid)
+			// await dbWrongMimeType(txid, mime) //this is an unnecessary db call.
 		}
 
 		await checkImagePluginResults(pic, mime, txid)
@@ -56,7 +56,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 	} catch(e:any) {
 
 		/* catch network issues & no data situations */
-		const status = Number(e.response?.status) || 0
+		// const status = Number(e.response?.status) || 0
 
 		// if(status === 404){
 		// 	logger(prefix, 'no data found (404)', contentType, url)
@@ -86,8 +86,8 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		// }
 		
 		else{
-			logger(prefix, 'UNHANDLED Error processing', txid + ' ', status, ':', e.message)
-			await slackLogger(prefix, 'UNHANDLED Error processing', txid, status, ':', e.message)
+			logger(prefix, 'UNHANDLED Error processing', txid + ' ', e.name, ':', e.message)
+			await slackLogger(prefix, 'UNHANDLED Error processing', txid, e.name, ':', e.message)
 			logger(prefix, 'UNHANDLED', e)
 			logger(prefix, await si.mem())
 		}

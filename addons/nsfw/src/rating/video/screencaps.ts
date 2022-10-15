@@ -48,7 +48,7 @@ export const createScreencaps = async(txid: string)=> {
 		){
 			throw err
 		}else{
-			logger(txid, 'Not throwing:', errMsg)
+			logger(txid, 'possibly not throwing:', errMsg)
 		}
 		
 		// /* give correct error when there is no video stream in the file */

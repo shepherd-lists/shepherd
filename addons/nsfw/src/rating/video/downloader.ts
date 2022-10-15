@@ -38,7 +38,7 @@ export const addToDownloads = async(vid: {txid: string; content_size: string, co
 	}).catch(e => {
 		logger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code)
 		slackLogger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code)
-		throw e;
+		// throw e;
 	})
 
 	const mb = 1024*1024
@@ -48,7 +48,7 @@ export const addToDownloads = async(vid: {txid: string; content_size: string, co
 export const videoDownload = async(vid: VidDownloadRecord)=> {
 	return new Promise(async(resolve, reject)=> {
 
-		const url = HOST_URL + '/' + vid.txid
+		// const url = HOST_URL + '/' + vid.txid
 		const folderpath = VID_TMPDIR + vid.txid + '/'
 		fs.mkdirSync(folderpath, { recursive: true })
 		const filewriter = fs.createWriteStream(folderpath + vid.txid, { encoding: 'binary' })
@@ -181,7 +181,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 					resolve(false)
 				}else{
 					vid.complete = 'ERROR'
-					console.log(`rejecting with this now`, `${e.name}:${e.message} => ${JSON.stringify(e.stack)}`)
+					console.log(vid.txid,`rejecting with this now`, `${e.name}:${e.message} => ${JSON.stringify(e.stack)}`)
 					reject(e)
 				}
 			})
