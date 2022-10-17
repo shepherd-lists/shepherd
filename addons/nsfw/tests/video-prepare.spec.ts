@@ -15,6 +15,7 @@ import { PassThrough } from 'stream'
 import axios from 'axios'
 import { S3 } from "aws-sdk";
 import { readFileSync } from 'fs'
+import * as harness from '../src/harness'
 
 const s3 = new S3({
 	apiVersion: '2006-03-01',
@@ -51,6 +52,8 @@ describe('video-prepare tests', ()=> {
 			done()
 		})
 	})
+
+	afterEach(()=> sinon.restore())
 
 	it('1. videoDownload: downloads a video', async()=> {
 		//@ts-ignore
@@ -157,7 +160,12 @@ describe('video-prepare tests', ()=> {
 		await knex<TxRecord>('txs').where('txid', vid.txid).delete()
 		await knex<TxRecord>('txs').insert(vid)
 
-		await addToDownloads(vid)
+		await addToDownloads({
+			content_size: vid.content_size,
+			content_type: vid.content_type,
+			txid: vid.txid,
+			receiptHandle: 'dummy-receiptHandle',
+		})
 		//@ts-ignore
 		let dl: VidDownloadRecord = {}
 		for (const d of VidDownloads.getInstance()){
@@ -165,6 +173,7 @@ describe('video-prepare tests', ()=> {
 		}
 		while(dl.complete === 'FALSE') await sleep(500)
 		expect(dl.complete).to.eq('TRUE')
+		sinon.stub(harness, 'cleanupAfterProcessing').resolves()
 		await processVids()
 		expect( VidDownloads.getInstance().length() ).eq(0)
 
