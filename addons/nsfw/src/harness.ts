@@ -24,6 +24,7 @@ const TOTAL_FILESIZE = +process.env.TOTAL_FILESIZE_GB! * 1024 * 1024 * 1024
 //keep track and set limits based on env inputs
 let _currentTotalSize = 0
 let _currentNumFiles = 0
+let _currentImageIds: {[name:string]:any} = {}
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -90,11 +91,11 @@ export const harness = async()=> {
 		// logger(prefix, `num true promises on previous loop ${trueCount(booleans)} out of ${promises.length}`)
 		// promises = []
 		// booleans = []
-		logger(prefix, {_currentNumFiles, _currentTotalSize})
+		logger(prefix, {_currentNumFiles, _currentTotalSize, vids: _currentVideos.listIds(), imgs: _currentImageIds})
 
 		if(_currentNumFiles === NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
 			logger(prefix, `internal queue full. waiting 5000ms...`)
-			logger(prefix, {vids: _currentVideos.listIds() })
+			logger(prefix, {vids: _currentVideos.listIds(), imgs: _currentImageIds })
 			await sleep(5000)
 			// await Promise.all(promises) //this needs to go
 			continue;
@@ -125,6 +126,7 @@ export const harness = async()=> {
 					_currentNumFiles + 1 > NUM_FILES
 					|| _currentTotalSize + contentLength > TOTAL_FILESIZE
 				){
+					logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releaseing back to queue`)
 					//release this message back and try another
 					await releaseMessage(message.ReceiptHandle!)
 					continue;
@@ -143,13 +145,22 @@ export const harness = async()=> {
 					})
 				}else{
 					/* process image */
-					promises.push((async(contentLength:number)=>{
-						const res = await checkImageTxid(key, contentType) 
-						cleanupAfterProcessing(receiptHandle, key)
-						_currentNumFiles--
-						_currentTotalSize -= contentLength
+					promises.push((async(
+						key: string,
+						contentLength:number,
+						receiptHandle:string,
+					)=>{
+						_currentImageIds[key] = 1
+						let res = false
+						try{
+							res = await checkImageTxid(key, contentType) 
+						}catch(e){
+							console.log(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
+						}
+						cleanupAfterProcessing(receiptHandle, key, contentLength)
+						delete _currentImageIds[key]
 						return res;
-					}) (contentLength) )
+					}) (key, contentLength, receiptHandle) )
 				}
 				//process downloaded videos
 				if(_currentVideos.length() > 0){
@@ -172,7 +183,10 @@ export const harness = async()=> {
 }
 
 /* processing succesful, so delete event message + object */
-export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string)=> {
+export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, contentLength: number)=> {
+	_currentNumFiles--
+	_currentTotalSize -= contentLength
+
 	sqs.deleteMessage({
 		QueueUrl,
 		ReceiptHandle,

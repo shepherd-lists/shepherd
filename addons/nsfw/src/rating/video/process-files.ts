@@ -13,6 +13,8 @@ export const processVids = async()=> {
 	
 	/* check if any vids finished downloading & process */
 
+	/* debug */ console.log(processVids.name, {downloads: downloads.listIds()})
+
 	for (const dl of downloads) {
 		if(dl.complete === 'TRUE'){
 			dl.complete = 'FALSE' //stop processing from beginning again
@@ -23,7 +25,7 @@ export const processVids = async()=> {
 			try{
 
 				frames = await createScreencaps(dl.txid)
-				
+
 			}catch(err: any){
 				const e: FfmpegError = err
 				if(e.message === 'Output file #0 does not contain any stream'){
@@ -42,13 +44,18 @@ export const processVids = async()=> {
 				){
 					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
 					dbCorruptDataMaybe(dl.txid)
-				}else if(e.message === 'spawnSync /bin/sh ENOMEM'){
+				}else if(
+					[
+						'spawnSync /bin/sh ENOMEM', 
+						'ffout[1]:Error marking filters as finished',
+					].includes(e.message)
+				){
 					if(dl.retried === false){
-						logger(dl.txid, 'ffmpeg: spawnSync /bin/sh ENOMEM. Will retry once.')
+						logger(dl.txid, `ffmpeg: ${e.message}. Will retry once.`)
 						dl.retried = true
 						continue; //skip cleanup()
 					}else{
-						logger(dl.txid, 'ffmpeg: spawnSync /bin/sh ENOMEM. Already retried. Shelving.')
+						logger(dl.txid, `ffmpeg: ${e.message}. Already retried. Shelving.`)
 						dbCorruptDataMaybe(dl.txid)
 					}
 				}else{

@@ -10,6 +10,7 @@ const HOST_URL = process.env.HOST_URL!
 
 export const checkFrames = async(frames: string[], txid: string)=> {
 	const videopath = frames.shift()
+	/* debug */ console.log(checkFrames.name, {frames})
 	if(frames.length === 0) throw new Error(txid + ' Error: no frames to check')
 
 	const vidUrl = HOST_URL + '/' + videopath!.split('/').pop()

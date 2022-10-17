@@ -63,7 +63,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			// 	responseType: 'stream',
 			// })
 			const Bucket = 'shepherd-input-mod-local'
-			const stream = s3.getObject({ Bucket, Key: vid.txid }).createReadStream()
+			const stream = s3.getObject({ Bucket, Key: vid.txid }).createReadStream() //.pipe(filewriter)
 
 			// /* Video size might be incorrect */
 			// const contentLength = BigInt(headers['content-length'])
