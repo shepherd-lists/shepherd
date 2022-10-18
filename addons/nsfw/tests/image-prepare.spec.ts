@@ -131,7 +131,7 @@ describe('image-prepare tests', ()=> {
 		
 		const check = await db<TxRecord>('txs').where({ txid: txWrongImageMime})
 		expect(check.length).eq(1)
-		expect(check[0].content_type).eq('image/png')
+		expect(check[0].content_type).eq('image/jpeg') //we dont change these anymore
 	}).timeout(0)
 
 	it('tests handling corrupt image: mimetype undefined', async()=>{
