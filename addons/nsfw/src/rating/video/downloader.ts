@@ -9,7 +9,7 @@ import { VidDownloadRecord, VidDownloads } from "./VidDownloads";
 import { TxRecord } from "shepherd-plugin-interfaces/types";
 import { slackLogger } from "../../utils/slackLogger";
 import si from 'systeminformation'
-import { S3 } from "aws-sdk";
+import { S3, AWSError } from "aws-sdk";
 
 const s3 = new S3({
 	apiVersion: '2006-03-01',
@@ -143,33 +143,18 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				}
 				vid.complete === 'TRUE' ? resolve(true) : resolve(false)
 			})
-
-			// stream.setTimeout(NO_STREAM_TIMEOUT, ()=> {
-
-			// 	dbNoDataFound(vid.txid)
-			// 	filewriter.end()
-			// 	resolve('no data timeout')
-				
-			// 	source.cancel()
-			// 	const msg = `stream idle for more than ${NO_STREAM_TIMEOUT}`
-			// 	logger(vid.txid, msg)
-			// 	stream.destroy(new Error(msg))
-			// 	vid.complete = 'ERROR'
-			// 	dbPartialVideoFound(vid.txid)
-			// 	resolve('partial. stream idle.')
-			// })
 			
-			stream.on('error', (e: Error)=>{
+			stream.on('error', (e: AWSError)=>{
 				if(process.env.NODE_ENV!=='test'){
-					logger('** DEBUG **:', JSON.stringify(e), JSON.stringify(vid))
+					logger(`** DEBUG **:${videoDownload.name}`, JSON.stringify(e), JSON.stringify(vid))
 				}
-				// source.cancel()
 				stream.destroy()
 				filewriter.end()
 				if(e.message === 'aborted'){
 					logger(vid.txid, 'Error: aborted')
 					if(filesizeDownloaded > 0 && !mimeNotFound && vid.content_type.startsWith('video/')){ 
 						logger(vid.txid, 'partial-seed video found')
+						slackLogger(vid.txid, `CHECK THIS! being marked as partial-seed`)
 						dbPartialVideoFound(vid.txid) 
 						vid.complete = 'TRUE'
 						resolve(true)
@@ -180,6 +165,14 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				}else if(e.message === 'non-vid'){
 					logger(vid.txid, `Error: non-vid`)
 					resolve(false)
+				}else if(
+					[
+						'TimeoutError',
+						...network_EXXX_codes,
+					].includes(e.code)
+				){
+					logger(vid.txid, `WARNING! ${e.name}:f${e.message}`, e)
+					slackLogger(vid.txid, `WARNING! ${e.name}:f${e.message}`)
 				}else{
 					vid.complete = 'ERROR'
 					console.log(vid.txid,`rejecting with this now`, `${e.name}:${e.message} => ${JSON.stringify(e.stack)}`)
