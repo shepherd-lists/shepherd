@@ -22,6 +22,7 @@ const s3 = new S3({
 })
 
 const HOST_URL = process.env.HOST_URL!
+const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET!
 
 const downloads = VidDownloads.getInstance()
 
@@ -36,7 +37,7 @@ export const addToDownloads = async(vid: {txid: string; content_size: string, co
 	.then( (res)=> {
 		logger(dl.txid, 'finished downloading', res)
 	}).catch(async e => {
-		logger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code)
+		logger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code, e)
 		slackLogger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code)
 		logger(dl.txid, await si.fsSize())
 		// throw e;
@@ -63,8 +64,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			// 	cancelToken: source.token,
 			// 	responseType: 'stream',
 			// })
-			const Bucket = 'shepherd-input-mod-local'
-			const stream = s3.getObject({ Bucket, Key: vid.txid }).createReadStream() //.pipe(filewriter)
+			const stream = s3.getObject({ Bucket: AWS_INPUT_BUCKET, Key: vid.txid }).createReadStream() //.pipe(filewriter)
 
 			// /* Video size might be incorrect */
 			// const contentLength = BigInt(headers['content-length'])
