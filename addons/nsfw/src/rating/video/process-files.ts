@@ -13,7 +13,9 @@ export const processVids = async()=> {
 	
 	/* check if any vids finished downloading & process */
 
-	/* debug */ console.log(processVids.name, {downloads: downloads.listIds()})
+	/* debug */ const items = []
+	/* debug */ for (const item of downloads) items.push(item)
+	/* debug */ console.log(processVids.name, { items })
 
 	for (const dl of downloads) {
 		if(dl.complete === 'TRUE'){

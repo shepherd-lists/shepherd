@@ -27,17 +27,18 @@ const downloads = VidDownloads.getInstance()
 
 export const addToDownloads = async(vid: {txid: string; content_size: string, content_type: string, receiptHandle: string})=> {
 
-	// convert TxRecord to a new VidDownloadRecord
+	// convert to a new VidDownloadRecord
 	let dl: VidDownloadRecord = Object.assign({	complete: 'FALSE', retried: false }, vid)
 	downloads.push(dl)
 
-	//call async as likely large download
+	//ensure this is called async
 	videoDownload( dl )
 	.then( (res)=> {
 		logger(dl.txid, 'finished downloading', res)
-	}).catch(e => {
+	}).catch(async e => {
 		logger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code)
 		slackLogger(dl.txid, `UNHANDLED error in ${videoDownload.name}`, e.name, e.message, e.code)
+		logger(dl.txid, await si.fsSize())
 		// throw e;
 	})
 
