@@ -64,7 +64,8 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			// 	cancelToken: source.token,
 			// 	responseType: 'stream',
 			// })
-			const stream = s3.getObject({ Bucket: AWS_INPUT_BUCKET, Key: vid.txid }).createReadStream() //.pipe(filewriter)
+			const request = s3.getObject({ Bucket: AWS_INPUT_BUCKET, Key: vid.txid })
+			const stream = request.createReadStream() //.pipe(filewriter)
 
 			// /* Video size might be incorrect */
 			// const contentLength = BigInt(headers['content-length'])
@@ -148,7 +149,14 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				if(process.env.NODE_ENV!=='test'){
 					logger(`** DEBUG **:${videoDownload.name}`, JSON.stringify(e), JSON.stringify(vid))
 				}
-				stream.destroy()
+				if( [ 'TimeoutError', ...network_EXXX_codes ].includes(e.code) ){
+					logger(vid.txid, `WARNING! ${e.name}:f${e.message}`, e)
+					slackLogger(vid.txid, `WARNING! ${e.name}:f${e.message}`)
+					return;
+				}
+				if(vid.complete === 'TRUE') return;
+				/* end streams */
+				request.abort()
 				filewriter.end()
 				if(e.message === 'aborted'){
 					logger(vid.txid, 'Error: aborted')
@@ -164,18 +172,12 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 					}
 				}else if(e.message === 'non-vid'){
 					logger(vid.txid, `Error: non-vid`)
+					vid.complete = 'ERROR'
 					resolve(false)
-				}else if(
-					[
-						'TimeoutError',
-						...network_EXXX_codes,
-					].includes(e.code)
-				){
-					logger(vid.txid, `WARNING! ${e.name}:f${e.message}`, e)
-					slackLogger(vid.txid, `WARNING! ${e.name}:f${e.message}`)
 				}else{
 					vid.complete = 'ERROR'
-					console.log(vid.txid,`rejecting with this now`, `${e.name}:${e.message} => ${JSON.stringify(e.stack)}`)
+					logger(vid.txid,`potentially improperly unhandled rejection`, `${e.name}:${e.message}`, {vid, e})
+					slackLogger(vid.txid,`potentially improperly unhandled rejection`, `${e.name}:${e.message}`, {vid, e})
 					reject(e)
 				}
 			})
@@ -191,28 +193,14 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			vid.complete = 'ERROR'
 			filewriter.end()
 
-			const status = Number(e.response?.status) || 0
 			const code = e.response?.code || e.code || 'no-code'
 
-			if(status === 404){
-				logger(vid.txid, 'Error 404 :', e.message)
-				dbNoDataFound404(vid.txid)
-				resolve(404)
-			}else if(
-				status >= 400
-				|| e.message === 'Client network socket disconnected before secure TLS connection was established'
-				|| network_EXXX_codes.includes(code)
-			){
-				logger(vid.txid, e.message, 'Gateway error. Download will be retried')
-				resolve('gateway error')
-			}else{
-				logger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', code, ':', status, ':', e.message)
-				logger(vid.txid, 'Full error e:', e)
-				if(e.response){ logger(vid.txid, 'Full error e.response:', e.response) }
-				slackLogger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', code, ':', status, ':', e.message)
-				logger(vid.txid, await si.mem())
-				reject(e)
-			}
+			logger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', code, ':', e.message)
+			logger(vid.txid, 'Full error e:', e)
+			if(e.response){ logger(vid.txid, 'Full error e.response:', e.response) }
+			slackLogger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', code, ':', e.message)
+			logger(vid.txid, await si.mem())
+			reject(e)
 		}
 	})//end Promise
 }
