@@ -6,7 +6,8 @@ services:
     extends: 
       file: ./docker-compose.yml
       service: nsfw
-    
+    depends_on:
+      - scanner
     # AWS configs ##
     image: ${AWS_ACCOUNT_ID:-acc}.dkr.ecr.${AWS_DEFAULT_REGION:-reg}.amazonaws.com/shepherd:nsfw
 
@@ -15,10 +16,14 @@ services:
         limits:
           cpus: '4.0'
           memory: 30G
+      update_config:
+        parallelism: 10
+        # order: start-first #unsupported
+      replicas: 10
       x-aws-autoscaling:
-        min: 1
+        min: 2
         max: 20
-        cpu: 75
+        cpu: 50
     x-aws-role:
       Version: '2012-10-17'
       Statement:
@@ -28,4 +33,3 @@ services:
       - Effect: Allow
         Action: 's3:*'
         Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}/*'
- 
