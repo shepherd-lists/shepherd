@@ -91,12 +91,12 @@ export const harness = async()=> {
 		// logger(prefix, `num true promises on previous loop ${trueCount(booleans)} out of ${promises.length}`)
 		// promises = []
 		// booleans = []
-		logger(prefix, {_currentNumFiles, _currentTotalSize, vids: _currentVideos.listIds(), imgs: _currentImageIds})
+		logger(prefix, {_currentNumFiles, _currentTotalSize: _currentTotalSize.toLocaleString(), vids: _currentVideos.length(), imgs: Object.keys(_currentImageIds).length})
 
 		if(_currentNumFiles === NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
-			logger(prefix, `internal queue full. waiting 5000ms...`)
+			logger(prefix, `internal queue full. waiting 1000ms...`)
 			logger(prefix, {vids: _currentVideos.listIds(), imgs: _currentImageIds })
-			await sleep(5000)
+			await sleep(1000)
 			// await Promise.all(promises) //this needs to go
 			continue;
 		}
@@ -106,7 +106,7 @@ export const harness = async()=> {
 			await sleep(5000)
 			continue;
 		}
-		for (const message of messages) {
+		messages.forEach(async message => {
 			const s3event = JSON.parse(message.Body!) as S3Event
 			/* check if it's an s3 event */
 			if(s3event.Records && s3event.Records.length === 1 
@@ -114,9 +114,9 @@ export const harness = async()=> {
 			){
 				const s3Record = s3event.Records[0]
 				const key = s3Record.s3.object.key
-				const bucket = s3Record.s3.bucket.name
 				const receiptHandle = message.ReceiptHandle!
-				logger(prefix, `found s3 event for '${key}' in '${bucket}`)
+				// const bucket = s3Record.s3.bucket.name
+				// logger(prefix, `found s3 event for '${key}' in '${bucket}`)
 
 				/* process s3 event */
 
@@ -129,7 +129,7 @@ export const harness = async()=> {
 					logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releaseing back to queue`)
 					//release this message back and try another
 					await releaseMessage(message.ReceiptHandle!)
-					continue;
+					return;
 				}
 				_currentNumFiles++
 				_currentTotalSize += contentLength
@@ -164,26 +164,27 @@ export const harness = async()=> {
 				}
 				//process downloaded videos
 				if(_currentVideos.length() > 0){
-					await processVids()
-					//cleanup aborted/errored downloads
-					for (const item of _currentVideos) {
-						if(item.complete === 'ERROR'){
-							_currentVideos.cleanup(item)
+					processVids().then(()=>{
+						//cleanup aborted/errored downloads
+						for (const item of _currentVideos) {
+							if(item.complete === 'ERROR'){
+								_currentVideos.cleanup(item)
+							}
 						}
-					}
+					})
 				}
 
-				
 			}else{
 				logger(prefix, `error! unrecognized body. MessageId '${message.MessageId}'. not processing.`)
 				console.log(`message.Body`, JSON.stringify(s3event, null,2))
 			}
-		}
+		})// end messages.forEach
 	}
 }
 
 /* processing succesful, so delete event message + object */
 export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, contentLength: number)=> {
+	logger(cleanupAfterProcessing.name, `called for ${Key}`)
 	_currentNumFiles--
 	_currentTotalSize -= contentLength
 
@@ -191,14 +192,14 @@ export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, conte
 		QueueUrl,
 		ReceiptHandle,
 	}).promise()
-		.then(()=> logger(Key, `deleted message`))
+		// .then(()=> logger(Key, `deleted message`))
 		.catch((e: AWSError) => logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
 	
 	s3.deleteObject({
 		Bucket,
 		Key,
 	}).promise()
-		.then(()=> logger(Key, `deleted object`))
+		// .then(()=> logger(Key, `deleted object`))
 		.catch((e: AWSError) => logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
 }
 
