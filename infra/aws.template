@@ -206,6 +206,7 @@ Resources:
     Properties:
       QueueName: shepherd-input-q
       MessageRetentionPeriod: 1209600 # 14 days (AWS max value)
+      VisibilityTimeout: 900 # 15 minutes
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt SQSInputQueueDLQ.Arn
         maxReceiveCount: 10
