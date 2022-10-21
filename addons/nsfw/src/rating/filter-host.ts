@@ -1,29 +1,17 @@
-import { NO_DATA_TIMEOUT } from '../constants'
-import { axiosDataTimeout } from '../utils/axiosDataTimeout'
 import { 
-	dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoDataFound404, dbNoMimeType, dbInflightAdd, dbOversizedPngFound, dbPartialImageFound, dbTimeoutInBatch, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb, dbInflightDel 
+	dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoMimeType, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb, dbInflightDel 
 } from '../utils/db-update-txs'
 import { getImageMime } from './image-filetype'
 import { logger } from '../utils/logger'
 import { slackLogger } from '../utils/slackLogger'
 import loadConfig from '../utils/load-config'
 import si from 'systeminformation'
-import { S3 } from 'aws-sdk'
+import { s3, AWS_INPUT_BUCKET } from '../utils/aws-services'
 
 const prefix = 'filter-host'
 
 const HOST_URL = process.env.HOST_URL!
-const Bucket = process.env.AWS_INPUT_BUCKET!
 
-const s3 = new S3({
-	apiVersion: '2006-03-01',
-	...(process.env.SQS_LOCAL==='yes' && { 
-		endpoint: process.env.S3_LOCAL_ENDPOINT!, 
-		region: 'dummy-value',
-		s3ForcePathStyle: true, // *** needed with minio ***
-	}),
-	maxRetries: 10,
-})
 
 export const checkImageTxid = async(txid: string, contentType: string)=> {
 
@@ -34,7 +22,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 	try {
 
 		// const pic = await axiosDataTimeout(url) //catch errors below
-		const pic = (await s3.getObject({ Key: txid, Bucket }).promise()).Body as Buffer
+		const pic = (await s3.getObject({ Key: txid, Bucket: AWS_INPUT_BUCKET }).promise()).Body as Buffer
 
 		const mime = await getImageMime(pic)
 		if(mime === undefined){

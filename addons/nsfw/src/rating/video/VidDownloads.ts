@@ -1,6 +1,5 @@
 import rimraf from "rimraf"
 import { VID_TMPDIR } from "../../constants"
-import { TxRecord } from "shepherd-plugin-interfaces/types"
 import { logger } from "../../utils/logger"
 import { cleanupAfterProcessing } from "../../harness"
 import { slackLogger } from "../../utils/slackLogger"

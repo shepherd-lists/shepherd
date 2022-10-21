@@ -1,28 +1,16 @@
-import axios from "axios";
 import fs from 'fs'
 import filetype, { FileTypeResult } from "file-type";
-import { IncomingMessage } from "http";
-import { network_EXXX_codes, NO_STREAM_TIMEOUT, VID_TMPDIR, VID_TMPDIR_MAXSIZE } from "../../constants";
+import { network_EXXX_codes, VID_TMPDIR, VID_TMPDIR_MAXSIZE } from "../../constants";
 import { logger } from "../../utils/logger";
-import { dbNoDataFound, dbNoDataFound404, dbNoMimeType, dbPartialVideoFound, dbWrongMimeType } from "../../utils/db-update-txs";
+import { dbNoMimeType, dbPartialVideoFound, dbWrongMimeType } from "../../utils/db-update-txs";
 import { VidDownloadRecord, VidDownloads } from "./VidDownloads";
-import { TxRecord } from "shepherd-plugin-interfaces/types";
 import { slackLogger } from "../../utils/slackLogger";
 import si from 'systeminformation'
-import { S3, AWSError } from "aws-sdk";
+import { AWSError } from "aws-sdk";
+import { s3, AWS_INPUT_BUCKET } from '../../utils/aws-services'
 
-const s3 = new S3({
-	apiVersion: '2006-03-01',
-	...(process.env.SQS_LOCAL==='yes' && { 
-		endpoint: process.env.S3_LOCAL_ENDPOINT!, 
-		region: 'dummy-value',
-		s3ForcePathStyle: true, // *** needed with minio ***
-	}),
-	maxRetries: 10,
-})
 
 const HOST_URL = process.env.HOST_URL!
-const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET!
 
 const downloads = VidDownloads.getInstance()
 
