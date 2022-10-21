@@ -73,12 +73,27 @@ services:
       - Effect: Allow
         Action: 's3:*'
         Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}/*'
+
   plugin:
     extends:
       file: ./addons/${PLUGIN:-nsfw}/docker-compose.aws.yml
       service: ${PLUGIN:-nsfw}
-    
-
+    # depends_on:
+    #   - scanner
+    # PluginTaskRole doesn't get created when this comes from the extended file. bug?
+    x-aws-role:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Action: 'sqs:*' 
+        Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-input-q'
+      - Effect: Allow
+        Action: 's3:*'
+        Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}/*'
+      # this one is needed for headObject
+      - Effect: Allow
+        Action: 's3:*' # 's3:ListBucket'
+        Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}'
 
 networks:
   default:
