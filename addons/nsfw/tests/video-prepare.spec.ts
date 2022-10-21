@@ -24,7 +24,7 @@ const s3 = new S3({
 		region: 'dummy-value',
 		s3ForcePathStyle: true, // *** needed with minio ***
 	}),
-	maxRetries: 10,
+	maxRetries: 1,
 })
 
 const knex = dbConnection()
