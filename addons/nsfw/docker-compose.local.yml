@@ -6,11 +6,15 @@ services:
     extends: 
       file: ./docker-compose.base.yml
       service: nsfw
+    deploy:
+      mode: replicated
+      replicas: 1 #4
     environment: 
       SQS_LOCAL: 'yes'
+      S3_LOCAL: 'yes'
       AWS_ACCESS_KEY_ID: minioroot
       AWS_SECRET_ACCESS_KEY: minioroot
+      # AWS_DEFAULT_REGION: dummy-region
       AWS_SQS_INPUT_QUEUE: http://sqs-local:9324/000000000000/shepherd-s3-events
-      S3_LOCAL: 'yes'
-      S3_LOCAL_ENDPOINT: http://s3-local:9000
       AWS_INPUT_BUCKET: shepherd-input-mod-local
+      S3_LOCAL_ENDPOINT: http://s3-local:9000

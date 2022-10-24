@@ -30,12 +30,12 @@ console.log(`process.env.S3_LOCAL`, process.env.S3_LOCAL)
 console.log(`process.env.AWS_SQS_INPUT_QUEUE`, process.env.AWS_SQS_INPUT_QUEUE)
 console.log(`process.env.AWS_INPUT_BUCKET`, process.env.AWS_INPUT_BUCKET)
 
-//check aws role
+//check aws role (dont call locally)
 const checkAwsRole = async () => {
 	const sts = new STS({apiVersion: '2011-06-15'})
 	const identity = await sts.getCallerIdentity().promise()
 	console.log(`*** CALLER IDENTITY ***`, identity)
 }
-checkAwsRole()
+process.env.SQS_LOCAL !== 'yes' && checkAwsRole()
 console.log(`sqs.config.endpoint`, sqs.config.endpoint)
 console.log(`s3.config.endpoint`, s3.config.endpoint)
