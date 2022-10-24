@@ -46,16 +46,21 @@ export const getFile = async(Key: string)=> s3.getObject({ Bucket: AWS_INPUT_BUC
 
 /** memoize this function so we can just re-call it without worrying about performance */
 const getFileHead = memoize(
-	async(Key: string):Promise<{contentType: string, contentLength: number}>=> {
+	async(Key: string, ReceiptHandle: string):Promise<{contentType: string, contentLength: number} | undefined>=> {
 		while(true){
 			try {
 				const head = await s3.headObject({ Bucket: AWS_INPUT_BUCKET, Key }).promise()
+				logger(`getFileHead`, Key, `info. head returned ${head.ContentType}, OK.`)
 				return {
 					contentType: head.ContentType!, 
 					contentLength: head.ContentLength!,
 				}
 			}catch(err){
 				let e = err as AWSError
+				if(e.statusCode === 404){
+					deleteMessage(Key, ReceiptHandle)
+					return undefined;
+				}
 				logger(`getFileHead`, Key, `warning! ${e.name}(${e.statusCode}):${e.message}. retrying...`, e)
 				slackLogger(`getFileHead`, Key, `warning! ${e.name}(${e.statusCode}):${e.message}. retrying...`, e)
 			}
@@ -112,13 +117,16 @@ export const harness = async()=> {
 
 				/* process s3 event */
 
-				//check we have room to add a new item
-				const {contentLength, contentType} = await getFileHead(key)
+				//check we have room to add a new item (& that object exists)
+				const headRes = await getFileHead(key, receiptHandle)
+				if(!headRes) return false;
+
+				const {contentLength, contentType} = headRes
 				if(
 					_currentNumFiles + 1 > NUM_FILES
 					|| _currentTotalSize + contentLength > TOTAL_FILESIZE
 				){
-					logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releaseing back to queue`)
+					logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releasing back to queue`)
 					//release this message back and try another
 					await releaseMessage(message.ReceiptHandle!)
 					return;
@@ -150,6 +158,7 @@ export const harness = async()=> {
 							console.log(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
 							slackLogger(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
 						}
+						logger(key, `checkImageTxid`, res)
 						cleanupAfterProcessing(receiptHandle, key, contentLength)
 						delete _currentImageIds[key]
 						return res;
@@ -181,12 +190,7 @@ export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, conte
 	_currentNumFiles--
 	_currentTotalSize -= contentLength
 
-	sqs.deleteMessage({
-		QueueUrl: AWS_SQS_INPUT_QUEUE,
-		ReceiptHandle,
-	}).promise()
-		// .then(()=> logger(Key, `deleted message`))
-		.catch((e: AWSError) => logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
+	deleteMessage(ReceiptHandle, Key)
 	
 	s3.deleteObject({
 		Bucket: AWS_INPUT_BUCKET,
@@ -195,5 +199,12 @@ export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, conte
 		// .then(()=> logger(Key, `deleted object`))
 		.catch((e: AWSError) => logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
 }
+
+const deleteMessage = (ReceiptHandle: string, Key: string)=> sqs.deleteMessage({
+	QueueUrl: AWS_SQS_INPUT_QUEUE,
+	ReceiptHandle,
+}).promise()
+	// .then(()=> logger(Key, `deleted message`))
+	.catch((e: AWSError) => logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
 
 
