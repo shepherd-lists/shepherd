@@ -3,21 +3,61 @@ version: '3.7'
 services:
   pgdb-test:
     build: 
-      context: ./postgres
+      context: ./infra-local/postgres
     environment: 
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: arblacklist
       PGDATA: /var/lib/postgresql/data/pgdata
     restart: always
+    ports:
+      - '5432:5432'
+  s3-local:
+    image: bitnami/minio:latest
+    ports:
+      # - '9000:9000'
+      - '9001:9001' # for UI
+    environment:
+      MINIO_ROOT_USER: minioroot
+      MINIO_ROOT_PASSWORD: minioroot
+      MINIO_FORCE_NEW_KEYS: 'yes'
+      MINIO_DEFAULT_BUCKETS: shepherd-input-mod-local:public
+  sqs-local:
+    build: 
+      context: ./infra-local/sqs-local
+    ports:
+      - '9324:9324'
+      - '9325:9325' # for UI
   test:
     build: 
-      context: ./apps
+      context: ./services
       dockerfile: Dockerfile.test
       # target: test
     environment: 
       DB_HOST: pgdb-test
       PROCESS_NAME: test
-      NODE_OPTIONS: '--max-old-space-size=8192'
+      SQS_LOCAL: 'yes'
+      AWS_ACCESS_KEY_ID: dummy 
+      AWS_SECRET_ACCESS_KEY: dummytoo 
+      AWS_FEEDER_QUEUE: http://sqs-local:9324/000000000000/shepherd-feeder-q
+      AWS_INPUT_BUCKET: shepherd-input-mod-local
+      S3_LOCAL: 'yes'
+      S3_LOCAL_ENDPOINT: http://s3-local:9000
     depends_on: 
       - pgdb-test
+      - s3-local
+      - sqs-local
+
+  # ## will there be e2e testing here??
+  # plugin:
+  #   extends:
+  #     file: ./addons/${PLUGIN:-nsfw}/docker-compose.yml
+  #     service: ${PLUGIN:-nsfw}
+  #   depends_on:
+  #     - sqs-local-test
+  #     - s3-local-test
+  #     - pgdb-test
+  #   entrypoint: ["npm", "test"]
+
+# networks:
+#   shep-test-nw:

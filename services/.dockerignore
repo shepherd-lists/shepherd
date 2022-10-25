@@ -1,0 +1,7 @@
+.git
+node_modules
+*.log
+postgres*
+*.txt
+*.tgz
+temp-screencaps

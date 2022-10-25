@@ -4,7 +4,7 @@ services:
   scanner:
     hostname: ${IMAGE_REPO:-dummy}-shepherd-scanner
     build: 
-      context: ./apps
+      context: ./services
       target: scanner
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
@@ -13,8 +13,8 @@ services:
     restart: always
   webserver:
     build: 
-      context: ./apps
-      target: web
+      context: ./services
+      target: webserver
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: webserver
@@ -26,28 +26,37 @@ services:
       - scanner
   http-api:
     build: 
-      context: ./apps
-      target: web
+      context: ./services
+      target: http-api
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: http-api
       SLACK_WEBHOOK: ${SLACK_WEBHOOK}
+      SLACK_POSITIVE: ${SLACK_POSITIVE}
     # ports: 
     #   - '84:84'
     restart: always
     depends_on:
       - scanner
-  rating:
-    hostname: ${IMAGE_REPO:-dummy}-shepherd-rating
-    build: 
-      context: ./apps
-      target: rating
-    environment: 
+  feeder:
+    build:
+      context: ./services
+      target: feeder
+    environment:
+      PROCESS_NAME: feeder
       DB_HOST: ${DB_HOST:-pgdb}
-      PROCESS_NAME: rating
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
-      NODE_OPTIONS: '--max-old-space-size=8192'
-      TF_ENABLE_ONEDNN_OPTS: '1'
-    restart: always
+    depends_on: 
+      - scanner
+  fetchers:
+    build: 
+      context: ./services
+      target: fetchers
+    environment:
+      PROCESS_NAME: fetchers
+      DB_HOST: ${DB_HOST:-pgdb}
+      STREAMS_PER_FETCHER: ${STREAMS_PER_FETCHER:-50}
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
     depends_on:
       - scanner
+  

@@ -4,6 +4,9 @@
 #   Prequisite: install aws-cli v2   #
 ######################################
 
+# exit on errors
+set -euo pipefail
+
 echo "+====================================================+"			2>&1 | tee -a setup.log
 echo "| Starting $(realpath $0) @ $(date "+%Y-%m-%d %H:%M:%S%z") |"		2>&1 | tee -a setup.log
 echo "+====================================================+"			2>&1 | tee -a setup.log
@@ -21,25 +24,30 @@ export SCRIPT_DIR=$(dirname "$(realpath $0)")
 echo "SCRIPT_DIR=$SCRIPT_DIR" 2>&1 | tee -a setup.log
 
 
-echo "Creating awscli shepherd profile ..." 2>&1 | tee -a setup.log
-
-aws configure set profile.shepherd.region $AWS_DEFAULT_REGION
-aws configure set profile.shepherd.aws_access_key_id $AWS_ACCESS_KEY_ID
-aws configure set profile.shepherd.aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-
-echo "Getting AWS_ACCOUNT_ID ..." 2>&1 | tee -a setup.log
-
-export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile shepherd --query Account --output text)
-sed -i '/^AWS_ACCOUNT_ID/d' .env  # remove old line before adding new
-echo "AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID" | tee -a .env
-
 echo "Creating ecr repositories..." 2>&1 | tee -a setup.log
 
-aws ecr create-repository --repository-name shepherd-webserver  2>&1 | tee -a setup.log
-aws ecr create-repository --repository-name shepherd-scanner    2>&1 | tee -a setup.log
-aws ecr create-repository --repository-name shepherd-rating     2>&1 | tee -a setup.log
-aws ecr create-repository --repository-name shepherd-http-api   2>&1 | tee -a setup.log
-echo -e "\n\n** N.B. Errors above about RepositoryAlreadyExistsException can be ignored. **\n\n"
+function create_repo {
+	if ! aws ecr describe-repositories --repository-names $1 2>&-; then
+		echo "creating ecr repo $1..."
+		aws ecr create-repository --repository-name $1  2>&1 | tee -a setup.log
+	fi
+}
+function delete_repo {
+	if aws ecr describe-repositories --repository-names $1 2>&-; then
+		echo "deleting ecr repo $1..."
+		aws ecr delete-repository --repository-name $1 --force  2>&1 | tee -a setup.log
+	fi
+}
+
+create_repo 'shepherd'
+# these are removed
+delete_repo 'shepherd-webserver'
+delete_repo 'shepherd-scanner'
+delete_repo 'shepherd-http-api'
+delete_repo 'shepherd-feeder'
+delete_repo 'shepherd-fetchers'
+delete_repo 'shepherd-rating'
+
 
 echo "Deploying stack using aws.template..." 2>&1 | tee -a setup.log
 
@@ -49,11 +57,17 @@ aws cloudformation deploy \
 
 echo 
 
+export AWS_ACCOUNT_ID=$(aws cloudformation describe-stacks \
+  --stack-name shepherd-aws-stack \
+  --query "Stacks[0].Outputs[?OutputKey=='AwsAccountId'].OutputValue" \
+  --output text)
+sed -i '/^AWS_ACCOUNT_ID/d' .env  # remove old line before adding new
+echo "AWS_ACCOUNT_ID=$AWS_ACCOUNT_ID" | tee -a .env
+
 export AWS_VPC_ID=$(aws cloudformation describe-stacks \
   --stack-name shepherd-aws-stack \
   --query "Stacks[0].Outputs[?OutputKey=='ShepherdVPC'].OutputValue" \
   --output text)
-
 sed -i '/^AWS_VPC_ID/d' .env  # remove old line before adding new
 echo "AWS_VPC_ID=$AWS_VPC_ID" | tee -a .env
 
@@ -70,6 +84,27 @@ export DB_HOST=$(aws cloudformation describe-stacks \
 	--output text)
 sed -i '/^DB_HOST/d' .env  # remove old line before adding new
 echo "DB_HOST=$DB_HOST" | tee -a .env
+
+export AWS_FEEDER_QUEUE=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='SQSFeederQueue'].OutputValue" \
+	--output text)
+sed -i '/^AWS_FEEDER_QUEUE/d' .env  # remove old line before adding new
+echo "AWS_FEEDER_QUEUE=$AWS_FEEDER_QUEUE" | tee -a .env
+
+export AWS_INPUT_BUCKET=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='S3Bucket'].OutputValue" \
+	--output text)
+sed -i '/^AWS_INPUT_BUCKET/d' .env  # remove old line before adding new
+echo "AWS_INPUT_BUCKET=$AWS_INPUT_BUCKET" | tee -a .env
+
+export AWS_SQS_INPUT_QUEUE=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='SQSInputQueue'].OutputValue" \
+	--output text)
+sed -i '/^AWS_SQS_INPUT_QUEUE/d' .env  # remove old line before adding new
+echo "AWS_SQS_INPUT_QUEUE=$AWS_SQS_INPUT_QUEUE" | tee -a .env
 
 export SUBNET1=$(aws cloudformation describe-stacks \
 	--stack-name "shepherd-aws-stack" \

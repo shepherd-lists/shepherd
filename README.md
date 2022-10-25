@@ -1,4 +1,4 @@
-<img src="./logo-github.png">
+<img src="./docs/logo-github.png">
 
 # shepherd
 

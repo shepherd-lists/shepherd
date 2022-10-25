@@ -1,0 +1,12 @@
+FROM rosmcmahon/node16-ffmpeg:multi-arch as base
+
+
+# create app directory
+WORKDIR /app
+
+FROM base as test
+RUN npm install -g knex ts-node
+COPY package*.json ./
+RUN npm ci
+COPY . .
+# COPY shepherd.config.test.json shepherd.config.json

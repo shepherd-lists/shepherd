@@ -3,7 +3,7 @@ version: '3.7'
 services:
   pgdb:
     build: 
-      context: ./postgres
+      context: ./infra-local/postgres
     volumes: 
       - pgdata:/var/lib/postgresql/data
     environment: 
@@ -12,8 +12,71 @@ services:
       POSTGRES_DB: arblacklist
       PGDATA: /var/lib/postgresql/data/pgdata
     restart: always
+    # ports:
+    #   - '5432:5432'
   scanner:
     depends_on: 
       - pgdb
+  s3-local:
+    image: bitnami/minio:latest
+    # volumes:
+    #   - minio:/data
+    ports:
+      # - '9000:9000'
+      - '9001:9001' # for UI
+    environment:
+      MINIO_ROOT_USER: minioroot
+      MINIO_ROOT_PASSWORD: minioroot
+      # MINIO_FORCE_NEW_KEYS: 'yes'
+      MINIO_DEFAULT_BUCKETS: shepherd-input-mod-local:public
+  sqs-local:
+    build: 
+      context: ./infra-local/sqs-local
+    ports:
+      # - '9324:9324'
+      - '9325:9325' # for UI
+  localbridge:
+    build: 
+      context: ./infra-local/localbridge
+    environment:
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummytoo
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
+    depends_on:
+      - sqs-local
+      - s3-local
+    deploy:
+      restart_policy: 
+        condition: always
+  feeder:
+    environment:
+      SQS_LOCAL: 'yes'
+      AWS_ACCESS_KEY_ID: dummy 
+      AWS_SECRET_ACCESS_KEY: dummytoo 
+      AWS_FEEDER_QUEUE: http://sqs-local:9324/000000000000/shepherd-feeder-q
+    depends_on:
+      - sqs-local
+  fetchers:
+    environment:
+      SQS_LOCAL: 'yes'
+      AWS_ACCESS_KEY_ID: dummy 
+      AWS_SECRET_ACCESS_KEY: dummytoo 
+      AWS_FEEDER_QUEUE: http://sqs-local:9324/000000000000/shepherd-feeder-q
+      S3_LOCAL: 'yes'
+      S3_LOCAL_ENDPOINT: http://s3-local:9000
+      AWS_INPUT_BUCKET: shepherd-input-mod-local
+    depends_on:
+      - sqs-local
+      - s3-local
+  plugin:
+    extends:
+      file: ./addons/${PLUGIN:-nsfw}/docker-compose.local.yml
+      service: ${PLUGIN:-nsfw}
+    depends_on:
+      - sqs-local
+      - s3-local
+      - pgdb
+
 volumes:
   pgdata:
+  # minio:

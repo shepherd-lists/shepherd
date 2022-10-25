@@ -6,37 +6,94 @@ x-aws-vpc: arn:aws:ec2:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:vpc/${AWS_VPC_ID}
 
 services:
   webserver:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-webserver:${IMAGE_TAG:-latest}
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:webserver
     platform: linux/amd64
+    environment:
+      BLACKLIST_ALLOWED: ${BLACKLIST_ALLOWED:-}
+      RANGELIST_ALLOWED: ${RANGELIST_ALLOWED:-}
     deploy:
       resources:
         limits:
           cpus: '1.0'
           memory: 2G
   http-api:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-http-api:${IMAGE_TAG:-latest}
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:http-api
     platform: linux/amd64
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 2G
+          cpus: '2.0'
+          memory: 4G
   scanner:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-scanner:${IMAGE_TAG:-latest}
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:scanner
     platform: linux/amd64
     deploy:
       resources:
         limits:
           cpus: '4.0'
           memory: 16G
-  rating:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd-rating:${IMAGE_TAG:-latest}
+  feeder:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:feeder
     platform: linux/amd64
     deploy:
       resources:
         limits:
-          cpus: '4.0'
-          memory: 30G
+          cpus: '2.0'
+          memory: 8G
+    environment:
+      AWS_FEEDER_QUEUE: ${AWS_FEEDER_QUEUE}
+    x-aws-role:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Action: 'sqs:*' 
+        Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-feeder-q'
+  fetchers:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:fetchers
+    platform: linux/amd64
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 8G
+      x-aws-autoscaling:
+        min: 1
+        max: 20
+        cpu: 75
+    environment:
+      AWS_FEEDER_QUEUE: ${AWS_FEEDER_QUEUE}
+      AWS_INPUT_BUCKET: ${AWS_INPUT_BUCKET}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+    x-aws-role:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Action: 'sqs:*' 
+        Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-feeder-q'
+      - Effect: Allow
+        Action: 's3:*'
+        Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}/*'
+
+  plugin:
+    extends:
+      file: ./addons/${PLUGIN:-nsfw}/docker-compose.aws.yml
+      service: ${PLUGIN:-nsfw}
+    # depends_on:
+    #   - scanner
+    # PluginTaskRole doesn't get created when this comes from the extended file. bug?
+    x-aws-role:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Action: 'sqs:*' 
+        Resource: 'arn:aws:sqs:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:shepherd-input-q'
+      - Effect: Allow
+        Action: 's3:*'
+        Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}/*'
+      # this one is needed for headObject
+      - Effect: Allow
+        Action: 's3:*' # 's3:ListBucket'
+        Resource: 'arn:aws:s3:::${AWS_INPUT_BUCKET}'
 
 networks:
   default:
