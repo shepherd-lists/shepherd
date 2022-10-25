@@ -16,6 +16,8 @@ import axios from 'axios'
 import { S3 } from "aws-sdk";
 import { readFileSync } from 'fs'
 import * as harness from '../src/harness'
+import shelljs from 'shelljs'
+import { VID_TMPDIR } from '../src/constants'
 
 const s3 = new S3({
 	apiVersion: '2006-03-01',
@@ -36,6 +38,8 @@ const s3Upload = async (txid:string) => s3.upload({
 	Key: txid,
 	Body: readFileSync(`${__dirname}/`+`./fixtures/${txid}`),
 }).promise()
+	.catch(e => {throw new Error(`ERROR IN TEST PREPARATION UPLOADING ${txid}`)})
+	
 
 describe('video-prepare tests', ()=> {
 
@@ -116,11 +120,13 @@ describe('video-prepare tests', ()=> {
 			txid: 'MudCCqbbf--ktx1b0EMrhSdNWP3ZT9XnMJP-oC486cM',
 			content_type: 'video/mp4',
 		}
-		await s3Upload(vid.txid)
 		await knex<TxRecord>('txs').where('txid', vid.txid).delete()
 		await knex<TxRecord>('txs').insert({ txid: vid.txid, content_type: 'video/mp4', content_size: '123'})
-		await videoDownload(vid)
-		while(vid.complete !== 'TRUE') await sleep(500)
+		 
+		const folderpath = VID_TMPDIR + vid.txid + '/'
+		shelljs.mkdir('-p', folderpath)
+		shelljs.cp(`${__dirname}/fixtures/${vid.txid}`, folderpath)
+		
 		const frames = await createScreencaps(vid.txid) 
 		expect(frames.length).greaterThan(1)
 		expect(frames.length).lessThanOrEqual(4) //ffmpeg sometimes creates 2,3,4 screencaps. not an error.
@@ -131,15 +137,16 @@ describe('video-prepare tests', ()=> {
 		const vid: VidDownloadRecord = {
 			complete: 'FALSE',
 			content_size: '229455',
-			txid: 'Uq1EEdlNvM-rjqerjPHhPMv3oBAHu9DysIjQNq0YTdk',
+			txid: 'MudCCqbbf--ktx1b0EMrhSdNWP3ZT9XnMJP-oC486cM',
 			content_type: 'video/mp4',
 		}
-		await s3Upload(vid.txid)
-		// exec(`ffplay https://arweave.net/${vid.txid}`)
 		await knex<TxRecord>('txs').where('txid', vid.txid).delete()
 		await knex<TxRecord>('txs').insert({ txid: vid.txid, content_type: 'video/mp4', content_size: '123'})
-		await videoDownload(vid)
-		while(vid.complete === 'FALSE') await sleep(500)
+
+		const folderpath = VID_TMPDIR + vid.txid + '/'
+		shelljs.mkdir('-p', folderpath)
+		shelljs.cp(`${__dirname}/fixtures/${vid.txid}`, folderpath)
+		
 		const frames = await createScreencaps(vid.txid) 
 		expect(frames.length).greaterThan(1)
 		const checkId = await checkFrames(frames, vid.txid) 

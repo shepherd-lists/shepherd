@@ -36,7 +36,6 @@
     "rimraf": "^3.0.2",
     "shelljs": "^0.8.5",
     "shepherd-plugin-interfaces": "^0.2.8",
-    "shepherd-plugin-nsfw": "^0.1.11",
     "systeminformation": "^5.12.6",
     "tests-mock-shepherd-plugin": "file:tests/tests-mock-shepherd-plugin",
     "ts-node": "^10.9.1",

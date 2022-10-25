@@ -138,7 +138,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 					logger(`** DEBUG **:${videoDownload.name}`, JSON.stringify(e), JSON.stringify(vid))
 				}
 				if( [ 'TimeoutError', ...network_EXXX_codes ].includes(e.code) ){
-					logger(vid.txid, `WARNING! ${e.name}(${e.code}):${e.message}`, e)
+					logger(vid.txid, `Warning. ${e.name}(${e.code}):${e.message}`)
 					// slackLogger(vid.txid, `WARNING! ${e.name}(${e.code}):${e.message}`, e)
 					return;
 				}
