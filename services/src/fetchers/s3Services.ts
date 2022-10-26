@@ -76,8 +76,12 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 			}
 			//@ts-ignore
 			const code = e.code
-			logger(prefix, 'UNHANDLED S3 ERROR', `${e.name}:${e.message}. code? ${code}`, txid)
-			slackLogger(prefix, 'UNHANDLED S3 ERROR', `${e.name}:${e.message}. code? ${code}`, txid)
+			logger(prefix, txid, 'UNHANDLED S3 ERROR', `${e.name}(${code}):${e.message}.`, e)
+			if(typeof +code === 'number' && +code >=400){
+				//no need to slackLogger this, let bubble up
+			}else{
+				slackLogger(prefix, txid, 'UNHANDLED S3 ERROR', `${e.name}(${code}):${e.message}.`)
+			}
 		}
 		//just throw errors like NoSuchBucket, UnknownEndpoint, etc. needs to be handled externally
 		throw e;
