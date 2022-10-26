@@ -27,10 +27,10 @@ let _currentImageIds: {[name:string]:any} = {}
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const getMessages = async(): Promise<SQS.Message[]> => {
+const getMessages = async(maxNumberOfMessages: number): Promise<SQS.Message[]> => {
 	const { Messages } = await sqs.receiveMessage({
 		QueueUrl: AWS_SQS_INPUT_QUEUE,
-		MaxNumberOfMessages: 10,
+		MaxNumberOfMessages: Math.min(10, maxNumberOfMessages),
 		MessageAttributeNames: ['All'],
 		VisibilityTimeout: 900, //15mins
 		WaitTimeSeconds: 0,
@@ -58,7 +58,7 @@ const getFileHead = memoize(
 			}catch(err){
 				let e = err as AWSError
 				if(e.statusCode === 404){
-					deleteMessage(Key, ReceiptHandle)
+					deleteMessage(ReceiptHandle, Key)
 					return undefined;
 				}
 				logger(`getFileHead`, Key, `warning! ${e.name}(${e.statusCode}):${e.message}. retrying...`, e)
@@ -90,7 +90,7 @@ export const harness = async()=> {
 		// booleans = []
 		logger(prefix, {_currentNumFiles, _currentTotalSize: _currentTotalSize.toLocaleString(), vids: _currentVideos.length(), imgs: Object.keys(_currentImageIds).length})
 
-		if(_currentNumFiles === NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
+		if(_currentNumFiles >= NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
 			logger(prefix, `internal queue full. waiting 1000ms...`)
 			logger(prefix, {vids: _currentVideos.listIds(), imgs: _currentImageIds })
 			await sleep(1000)
@@ -98,7 +98,7 @@ export const harness = async()=> {
 			continue;
 		}
 
-		const messages = await getMessages()
+		const messages = await getMessages( Math.max(0, NUM_FILES - _currentNumFiles) )
 		if(messages.length === 0){
 			await sleep(5000)
 			continue;
@@ -122,17 +122,16 @@ export const harness = async()=> {
 				if(!headRes) return false;
 
 				const {contentLength, contentType} = headRes
-				if(
-					_currentNumFiles + 1 > NUM_FILES
-					|| _currentTotalSize + contentLength > TOTAL_FILESIZE
-				){
-					logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releasing back to queue`)
-					//release this message back and try another
-					await releaseMessage(message.ReceiptHandle!)
+				const videoLength = contentType.startsWith('video/') ? contentLength : 0 //images don't get stored in VID_TMPDIR
+				if(_currentTotalSize + videoLength > TOTAL_FILESIZE){
+					logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releasing back to queue (aware DLQ)`, {_currentNumFiles, _currentTotalSize})
+					await releaseMessage(message.ReceiptHandle!) //message may end up in DLQ if this is excessive.
 					return;
 				}
+				if(_currentNumFiles > NUM_FILES) logger(prefix, `Warning. queue overflow`, {_currentNumFiles})
+				
 				_currentNumFiles++
-				_currentTotalSize += contentLength
+				_currentTotalSize += videoLength
 
 				//send to vid or image processing
 				if(contentType.startsWith('video')){
@@ -147,7 +146,7 @@ export const harness = async()=> {
 					/* process image */
 					promises.push((async(
 						key: string,
-						contentLength:number,
+						videoLength:number,
 						receiptHandle:string,
 					)=>{
 						_currentImageIds[key] = 1
@@ -159,10 +158,10 @@ export const harness = async()=> {
 							slackLogger(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
 						}
 						logger(key, `checkImageTxid`, res)
-						cleanupAfterProcessing(receiptHandle, key, contentLength)
+						cleanupAfterProcessing(receiptHandle, key, videoLength)
 						delete _currentImageIds[key]
 						return res;
-					}) (key, contentLength, receiptHandle) )
+					}) (key, videoLength, receiptHandle) )
 				}
 				//process downloaded videos
 				if(_currentVideos.length() > 0){
@@ -185,10 +184,10 @@ export const harness = async()=> {
 }
 
 /* processing succesful, so delete event message + object */
-export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, contentLength: number)=> {
+export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, videoLength: number)=> {
 	logger(cleanupAfterProcessing.name, `called for ${Key}`)
 	_currentNumFiles--
-	_currentTotalSize -= contentLength
+	_currentTotalSize -= videoLength
 
 	deleteMessage(ReceiptHandle, Key)
 	
@@ -197,7 +196,7 @@ export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, conte
 		Key,
 	}).promise()
 		// .then(()=> logger(Key, `deleted object`))
-		.catch((e: AWSError) => logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
+		.catch((e: AWSError) => logger(Key, `ERROR DELETING OBJECT! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
 }
 
 const deleteMessage = (ReceiptHandle: string, Key: string)=> sqs.deleteMessage({
