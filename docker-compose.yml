@@ -10,6 +10,8 @@ services:
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: scanner
       SLACK_WEBHOOK: ${SLACK_WEBHOOK}
+      HOST_URL: ${HOST_URL:-https://arweave.net}
+      GQL_URL: ${GQL_URL:-'https://arweave-search.goldsky.com/graphql'}
     restart: always
   webserver:
     build: 
@@ -19,6 +21,8 @@ services:
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: webserver
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
+      HOST_URL: ${HOST_URL:-https://arweave.net}
+      GQL_URL: ${GQL_URL:-'https://arweave-search.goldsky.com/graphql'}
     ports: 
       - '80:80'
     restart: always
