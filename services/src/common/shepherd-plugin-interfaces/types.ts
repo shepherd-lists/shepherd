@@ -39,7 +39,7 @@ export interface TxFlaggedOptions {
 }
 
 export interface StateRecord {
-	pname: 'scanner_position' | 'rating_position' | (string & {}) //intellisense hack
+	pname: ('scanner_position' | 'rating_position' | 'seed_position')
 	value: number
 }
 
