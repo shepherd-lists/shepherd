@@ -68,11 +68,9 @@ export const scanner = async()=> {
 					topBlock = await waitForNewBlock(max + TRAIL_BEHIND)
 				}
 
-				const res = await scanBlocks(min, max)
+				const numMediaFiles = await scanBlocks(min, max)
 				logger('results', 
-					'images:', res.numImages, ',',
-					'videos:', res.numVideos, ',',
-					'texts:', res.numTexts, ',',
+					'media files:', numMediaFiles, ',',
 					'scanner_position:', max, ',',
 					'topBlock:', topBlock, 
 				)

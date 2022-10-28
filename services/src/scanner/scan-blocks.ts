@@ -5,38 +5,23 @@ import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
 import getDbConnection from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { performance } from 'perf_hooks'
+import { slackLogger } from '../common/utils/slackLogger'
 
 
 const knex = getDbConnection()
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 Gql.setEndpointUrl(GQL_URL)
 
-interface IGetIdsResults {
-	numImages: number
-	numVideos: number
-	numTexts: number
-}
 
-export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IGetIdsResults> => {
+export const scanBlocks = async (minBlock: number, maxBlock: number) => {
 	try{
 
-		/* get supported types metadata */
+		/* get images and videos */
 
-		logger('info', `making two scans of ${((maxBlock - minBlock) + 1)} blocks, from block ${minBlock} to ${maxBlock}`)
-		const numImages = await getRecords(minBlock, maxBlock, imageTypes)
-		const numVideos = await getRecords(minBlock, maxBlock, videoTypes)
-		
-		/* not needed yet */
-		const numTexts = 0 //await getRecords(textTypes)
+		logger('info', `making 1 scans of ${((maxBlock - minBlock) + 1)} blocks, from block ${minBlock} to ${maxBlock}`)
+		return await getRecords(minBlock, maxBlock)
 
-		return {
-			numImages,
-			numVideos,
-			numTexts,
-		}
-
-	} catch(e:any){
+	}catch(e:any){
 
 		let status = Number(e.response?.status) || 0
 
@@ -55,18 +40,18 @@ export const scanBlocks = async (minBlock: number, maxBlock: number): Promise<IG
 
 /* Generic getRecords */
 
-const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string[]) => {
+const getRecords = async (minBlock: number, maxBlock: number) => {
 
 	/* our general parametrized query */
 
-	const query = `query($cursor: String, $mediaTypes: [String!]!, $minBlock: Int, $maxBlock: Int) {
+	const query = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 		transactions(
 			block: {
 				min: $minBlock,
 				max: $maxBlock,
 			}
 			tags: [
-				{ name: "Content-Type", values: $mediaTypes}
+				{ name: "Content-Type", values: ["video/*", "image/*"], match: WILDCARD}
 			]
 			first: 100
 			after: $cursor
@@ -110,7 +95,6 @@ const getRecords = async (minBlock: number, maxBlock: number, mediaTypes: string
 				res = (await Gql.run(query, { 
 					minBlock,
 					maxBlock,
-					mediaTypes,
 					cursor,
 				})).data.transactions
 				break;
@@ -156,6 +140,9 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 		const height = item.node.block.height
 		const parent = item.node.parent?.id || null
 
+		//sanity
+		if(!height) slackLogger(`HeightError : no height for '${txid}'`)
+
 		// this content_type is missing for dataItems
 		if(!content_type){ 
 			for(const tag of item.node.tags){
@@ -181,7 +168,7 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 		if(e.code && Number(e.code) === 23505){
 			logger('info', 'Duplicate key value violates unique constraint', e.detail)
 		} else if(e.code && Number(e.code) === 23502){
-			logger('Error!', 'Null value in column violates not-null constraint', e.detail) 
+			logger('Error!', 'Null value in column violates not-null constraint', e.detail)
 			throw e
 		} else { 
 			if(e.code) logger('Error!', e.code)
