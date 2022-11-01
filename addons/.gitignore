@@ -1,0 +1,6 @@
+# ignore everything
+*
+
+# exept this file and the default addon
+!.gitignore
+!nsfw/
