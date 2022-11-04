@@ -32,6 +32,8 @@ services:
   sqs-local:
     build: 
       context: ./infra-local/sqs-local
+      args:
+        EXTRA_QUEUES: ${EXTRA_QUEUES:-}
     ports:
       # - '9324:9324'
       - '9325:9325' # for UI
