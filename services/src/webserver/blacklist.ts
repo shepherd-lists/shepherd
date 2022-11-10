@@ -19,12 +19,12 @@ export const getBlacklist = async(res: Response)=> {
 	
 	if(now - _black.last > timeout) _black.last = now
 	else{ 
-		logger('serving cached blacklist')
+		logger('blacklist', 'serving cache')
 		return res.write(_black.text);
 	}
 
 	const records = await knex<TxRecord>('txs').where({flagged: true})
-	logger('blacklist tx records retrieved', records.length)
+	logger('blacklist', 'tx records retrieved', records.length)
 	let text = ''
 	for (const record of records) {
 		const line = record.txid + '\n'
@@ -45,12 +45,12 @@ export const getRangelist = async(res: Response)=> {
 	
 	if(now - _range.last > timeout) _range.last = now
 	else{ 
-		logger('serving cached rangelist')
+		logger('rangelist', 'serving cache')
 		return res.write(_range.text);
 	}
 
 	const records = await knex<TxRecord>('txs').where({flagged: true})
-	logger('rangelist tx records retrieved', records.length)
+	logger('rangelist', 'tx records retrieved', records.length)
 	let text = ''
 	const promises = []
 	for (const record of records) {
