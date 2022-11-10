@@ -1,8 +1,8 @@
-import { Response } from 'express'
 import { TxRecord } from '../common/shepherd-plugin-interfaces/types'
 import getDb from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { byteRanges } from './byteRanges'
+import { Writable } from 'stream'
 
 const knex = getDb()
 
@@ -13,7 +13,7 @@ let _black =  {
 	last: 0,
 	text: '',
 }
-export const getBlacklist = async(res: Response)=> {
+export const getBlacklist = async(res: Writable)=> {
 
 	const now = new Date().valueOf()
 	
@@ -39,7 +39,7 @@ const _range = {
 	last: 0,
 	text: '',
 }
-export const getRangelist = async(res: Response)=> {
+export const getRangelist = async(res: Writable)=> {
 
 	const now = new Date().valueOf()
 	
@@ -60,14 +60,14 @@ export const getRangelist = async(res: Response)=> {
 			res.write(line)
 		}else{
 			logger(getRangelist.name, `calculating new byte-range for '${record.txid}'...`)
-			promises.push(async()=>{
-				const {start, end} = await byteRanges(record.txid, record.parent) //db updated internally
+			promises.push((async(txid, parent)=>{
+				const {start, end} = await byteRanges(txid, parent) //db updated internally
 				if(start !== -1n){
 					const line = `${start},${end}\n`
 					text += line
 					res.write(line)
 				}
-			})
+			}) (record.txid, record.parent) )
 		}
 	}
 	await Promise.all(promises) //all errors are handled internally
