@@ -21,6 +21,11 @@ const cronjob = async()=> {
 		totalTxs += +count
 	}
 
+	//fix crash when txs table empty
+	if(results.length === 0){
+		output.unflagged = "0"
+	}
+
 	output.total_txs = totalTxs.toString()
 	output.gql_height = await getGqlHeight()
 	output.scanner_position = (await knex<StateRecord>('states').where({pname: 'scanner_position'}))[0].value
