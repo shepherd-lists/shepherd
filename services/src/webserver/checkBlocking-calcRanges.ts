@@ -5,6 +5,7 @@
  * 	 build up and crash the system.
  */
 import { Readable, PassThrough } from "stream";
+import readline from 'readline'
 import { logger } from "../common/shepherd-plugin-interfaces/logger";
 import { slackLogger } from "../common/utils/slackLogger";
 import { slackLoggerPositive } from "../common/utils/slackLoggerPositive";
@@ -31,8 +32,8 @@ console.log(prefix, `accessRangelist (RANGELIST_ALLOWED)`, accessRangelist)
 accessBlacklist.shift()
 accessRangelist.shift()
 
-let _lastBlack = []
-let _lastRange = []
+let _lastBlack: string[] = []
+let _lastRange: string[] = []
 
 setInterval(async()=> {
 
@@ -43,24 +44,25 @@ setInterval(async()=> {
 	
 	await getBlacklist(rwBlack)  
 	rwBlack.end()
-	// const rl = readline
-	const txids = (await streamToString(rwBlack)).split('\n')
-	txids.pop() // eof has newline
-	console.log({ txids })
-	if(txids.length === _lastBlack.length){
-		return console.log(`no new entries, nothing to do`)
+
+	const txids = readline.createInterface(rwBlack)
+	for await (const txid of txids){
+		console.log(`readline txid`, txid)
+
+		//TODO: be smarter later and not recheck txids confirmed blocked
+
+		gwUrls.forEach(async gw => {
+			const { aborter, res: {status} } = await fetchRetryConnection(`${gw}/${txid}`)
+			aborter?.abort()
+			if(status !== 404){
+				logger(prefix, `WARNING! ${txid} not blocked on ${gw} (status: ${status})`)
+				slackLoggerPositive('warning', `[${prefix}] ${txid} not blocked on ${gw} (status: ${status})`)
+				return;
+			}
+			logger(prefix, `OK. ${txid} blocked on ${gw} (status:${status})`)
+			slackLogger(prefix, `OK. ${txid} blocked on ${gw} (status:${status})`) //remove this noise later
+		})
 	}
-	txids.forEach(txid => gwUrls.forEach(async gw => {
-		const { aborter, res: {status} } = await fetchRetryConnection(`${gw}/${txid}`)
-		aborter?.abort()
-		if(status !== 404){
-			logger(prefix, `WARNING! ${txid} not blocked on ${gw} (status: ${status})`)
-			slackLoggerPositive('warning', `[${prefix}] ${txid} not blocked on ${gw} (status: ${status})`)
-			return;
-		}
-		logger(prefix, `OK. ${txid} blocked on ${gw} (status:${status})`)
-		slackLogger(prefix, `OK. ${txid} blocked on ${gw} (status:${status})`)
-	}) )
 
 }, INTERVAL);
 
