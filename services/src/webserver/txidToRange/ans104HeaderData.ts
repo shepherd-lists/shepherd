@@ -7,6 +7,7 @@
 import { ReadableStreamDefaultReader } from 'stream/web'
 import Arweave from 'arweave'
 import { fetchRetryConnection } from './fetch-retry'
+import { HOST_URL } from '../../common/constants'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -55,7 +56,7 @@ const fetchHeader = async(parent: string)=> {
 
 			let header = new Uint8Array(0)
 
-			const { aborter, res: { status, body: stream} } = await fetchRetryConnection(`/${parent}`)
+			const { aborter, res: { status, body: stream} } = await fetchRetryConnection(`${HOST_URL}/${parent}`)
 			//pass 404s up
 			if(status === 404) return {
 				status,

@@ -5,6 +5,7 @@
  * `unbundleData` filters dataItems that don't validate, so this will interefere with our size calculations.
  */
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from './constants-byteRange'
+import { HOST_URL } from '../../common/constants'
 import { fetchFullRetried } from './fetch-retry'
 import memoize from 'micro-memoize'
 
@@ -29,7 +30,7 @@ const fetchHeaderInfo = async(txid: string, parent: string)=> {
 
 	/* fetch the entire L1 parent data & sanity check */
 
-	const { status, json: bundleJson } = await fetchFullRetried(`/${parent}`)
+	const { status, json: bundleJson } = await fetchFullRetried(`${HOST_URL}/${parent}`)
 	if(status === 404) return{
 		status,
 		diSizes: [] as number[], indexTxid: -1, //keep ts happy
@@ -67,7 +68,7 @@ export const byteRange102 = async(txid: string, parent: string)=> {
 
 	/* get weave offset & sanity check */
 	
-	const { status: statusOffset, json } = await fetchFullRetriedMemo(`/tx/${parent}/offset`)
+	const { status: statusOffset, json } = await fetchFullRetriedMemo(`${HOST_URL}/tx/${parent}/offset`)
 	if(statusOffset === 404) return {
 		status: statusOffset, 
 		start: -1n, end: -1n,
