@@ -11,6 +11,7 @@ services:
     environment:
       BLACKLIST_ALLOWED: ${BLACKLIST_ALLOWED:-}
       RANGELIST_ALLOWED: ${RANGELIST_ALLOWED:-}
+      GW_URLS: ${GW_URLS:-}
     deploy:
       resources:
         limits:

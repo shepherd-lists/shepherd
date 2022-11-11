@@ -5,6 +5,7 @@ import { getBlacklist, getRangelist } from './blacklist'
 import { getPerfHistory, getStatsTestOnly } from './metrics'
 import si from 'systeminformation'
 import './perf-cron' //starts automatically
+import './checkBlocking-calcRanges' //starts automatically
 
 const app = express()
 const port = 80
@@ -15,7 +16,7 @@ const port = 80
 const accessBlacklist: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
 console.log(`accessList (BLACKLIST_ALLOWED) for '/blacklist.txt' access`, accessBlacklist)
 const accessRangelist: string[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
-console.log(`accessList (RANGELIST_ALLOWED) for '/blacklist.txt' access`, accessRangelist)
+console.log(`accessList (RANGELIST_ALLOWED) for '/rangelist.txt' access`, accessRangelist)
 
 const ipAllowBlacklist = (ip: string)=>{
 	/* convert from `::ffff:192.0.0.1` => `192.0.0.1` */
