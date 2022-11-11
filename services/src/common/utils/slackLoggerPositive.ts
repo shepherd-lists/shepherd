@@ -12,26 +12,21 @@ if(process.env.SLACK_POSITIVE){
 let _last = { text: 'dummy', time: 0}
 const timeout = 60*60*1000 //1 hour
 
-export const slackLoggerPositive = async (result: APIFilterResult) => {
+export const slackLoggerPositive = async (level: ('matched'|'warning'|'test'), text: string) => {
 	if(!process.env.SLACK_POSITIVE){
 		return; //silently exit if no SLACK_POSITIVE integration
 	}
 
-	if(result.filterResult.flagged === undefined){
-		return; //we need this for TS to work
-	}
 	let prefix = os.hostname() + ' 🐐 '
-	const type = result.filterResult.flag_type
 	
-	prefix += (type === 'matched') ? '⛔ *RED ALERT !!!* ⛔' : (
-		(type === 'test') ? '✅ *Just a test match* ✅' : '⭐️ *WARNING unflagged match by classification* ⭐️'
+	prefix += (level === 'matched') ? '⛔ *MATCHED FILE FOUND* ⛔' : (
+		(level === 'warning') ? '⭐️ *WARNING* ⭐️' : '✅ *Test Message* ✅'
 	)
 	
 	if(process.env.NODE_ENV !== 'production'){
 		prefix = '***Ignore these test posts***'
 	}
 
-	let text = JSON.stringify(result)
 	const time = Date.now()
 
 	if(text === _last.text && (_last.time + timeout) > time ){
@@ -60,6 +55,8 @@ export const slackLoggerPositive = async (result: APIFilterResult) => {
 		})
 		return res
 	}catch(e:any){
-		logger('slackLoggerPositive', 'DID NOT WRITE TO SLACK_POSITIVE', (e.code)?`${e.code}:`:'', e.message)
+		logger(slackLoggerPositive.name, 'DID NOT WRITE TO SLACK_POSITIVE', (e.code)?`${e.code}:`:'', e.message)
 	}
 }
+
+
