@@ -9,17 +9,12 @@ import readline from 'readline'
 import { logger } from "../common/shepherd-plugin-interfaces/logger";
 import { slackLogger } from "../common/utils/slackLogger";
 import { slackLoggerPositive } from "../common/utils/slackLoggerPositive";
-import { getBlacklist } from "./blacklist";
+import { getBlacklist, getRangelist } from "./blacklist";
 import { fetchRetryConnection } from "./txidToRange/fetch-retry";
 
-const INTERVAL = 1000 * 10 //*60*5 // 5 minutes
+const INTERVAL = 1_000 * 60 * 5 // 5 minutes
 const prefix = 'check-blocked'
 
-/**
- * !!!!!!!!!!!!!! REMOVE THESE !!!!!!!!!!!!!!
- */
-process.env.BLACKLIST_ALLOWED='["18.133.229.130","18.232.24.99","52.70.33.161","54.89.25.96","35.167.46.23","44.242.134.33"]'
-process.env.GW_URLS='["https://arweave.net","https://arweave.dev"]'
 
 /* load the IP access lists */
 const accessBlacklist: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
@@ -39,38 +34,54 @@ setInterval(async()=> {
 
 	/* check all blacklist txids against GWs */
 	
-	// we're reusing the server's streaming function
-	const rwBlack = new PassThrough()
+	if(gwUrls.length === 0){
+		logger(prefix, `gwUrls empty`)
+	}else{
+		// we're reusing the server's streaming function
+		const rwBlack = new PassThrough()
+		
+		getBlacklist(rwBlack).then(()=> rwBlack.end() )
+		
+		const txids = readline.createInterface(rwBlack)
+		for await (const txid of txids){
+			console.log(`readline txid`, txid)
 	
-	await getBlacklist(rwBlack)  
-	rwBlack.end()
+			//TODO: be smarter later and not recheck txids confirmed blocked
+	
+			gwUrls.forEach(gw => checkBlocked(`${gw}/${txid}`, txid) )
+		}
+		rwBlack.destroy(); txids.close();
+	}
 
-	const txids = readline.createInterface(rwBlack)
-	for await (const txid of txids){
-		console.log(`readline txid`, txid)
+	/* check all ranges against nodes (and GWs too?) */
 
-		//TODO: be smarter later and not recheck txids confirmed blocked
-
-		gwUrls.forEach(async gw => {
-			const { aborter, res: {status} } = await fetchRetryConnection(`${gw}/${txid}`)
-			aborter?.abort()
-			if(status !== 404){
-				logger(prefix, `WARNING! ${txid} not blocked on ${gw} (status: ${status})`)
-				slackLoggerPositive('warning', `[${prefix}] ${txid} not blocked on ${gw} (status: ${status})`)
-				return;
-			}
-			logger(prefix, `OK. ${txid} blocked on ${gw} (status:${status})`)
-			slackLogger(prefix, `OK. ${txid} blocked on ${gw} (status:${status})`) //remove this noise later
-		})
+	if(gwUrls.length === 0 && accessRangelist.length === 0){
+		logger(prefix, `gwUrls & accessRangelist empty`)
+	}else{
+		const rwRange = new PassThrough()
+		getRangelist(rwRange).then(()=> rwRange.end() )
+		
+		const ranges = readline.createInterface(rwRange)
+		for await (const range of ranges){
+			console.log(`readline range`, range)
+			const [range1, range2] = range.split(',')
+	
+			accessRangelist.forEach(ip => checkBlocked(`http://${ip}:1984/chunk/${range1 + 1}`, range) )
+			gwUrls.forEach(gw => checkBlocked(`${gw}/chunk/${range1 + 1}`, range))
+		}
+		rwRange.destroy(); ranges.close();
 	}
 
 }, INTERVAL);
 
-const streamToString = async(stream: Readable)=> {
-	const chunks = [];
-	for await (const chunk of stream) {
-		// console.log(`pushing chunk`, (chunk as Buffer).toString('utf-8'))
-		chunks.push(Buffer.from(chunk));
+const checkBlocked = async(url: string, item: string)=> {
+	const {aborter, res:{ status } } = await fetchRetryConnection(url)
+	aborter?.abort()
+	if(status !== 404){
+		logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status})`)
+		slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on ${url} (status: ${status})`)
+		return;
 	}
-	return Buffer.concat(chunks).toString("utf-8");
+	logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
+	slackLogger(prefix, `OK. ${item} blocked on ${url} (status:${status})`) //remove this noise later
 }
