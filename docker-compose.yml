@@ -23,6 +23,9 @@ services:
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
       HOST_URL: ${HOST_URL:-https://arweave.net}
       GQL_URL: ${GQL_URL:-https://arweave-search.goldsky.com/graphql}
+      BLACKLIST_ALLOWED: ${BLACKLIST_ALLOWED:-}
+      RANGELIST_ALLOWED: ${RANGELIST_ALLOWED:-}
+      GW_URLS: ${GW_URLS:-}
     ports: 
       - '80:80'
     restart: always

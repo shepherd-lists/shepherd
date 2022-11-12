@@ -9,6 +9,9 @@ if [ -f ".env" ]; then
 	# check vars
 	echo "EXTRA_QUEUES=$EXTRA_QUEUES"
 	echo "PLUGIN=$PLUGIN"
+	echo "BLACKLIST_ALLOWED=$BLACKLIST_ALLOWED"
+	echo "RANGELIST_ALLOWED=$RANGELIST_ALLOWED"
+	echo "GW_URLS=$GW_URLS"
 	if [[ -z $PLUGIN || -z $EXTRA_QUEUES ]]; then
 		echo "INFO: some environment variables not set, using defaults. check .env.example"
 	fi

@@ -17,20 +17,24 @@ const prefix = 'check-blocked'
 
 
 /* load the IP access lists */
+// pop off first IP. this should always be a test IP
 const accessBlacklist: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
+accessBlacklist.shift() // pop off first IP. this should always be a test IP
 logger(prefix, `accessBlacklist (BLACKLIST_ALLOWED)`, accessBlacklist)
+
+// pop off first IP. this should always be a test IP
+const accessRangelist: string[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
+accessRangelist.shift() // pop off first IP. this should always be a test IP
+logger(prefix, `accessRangelist (RANGELIST_ALLOWED)`, accessRangelist)
+
 const gwUrls: string[] = JSON.parse(process.env.GW_URLS || '[]')
 logger(prefix, `gwUrls`, gwUrls)
-const accessRangelist: string[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
-console.log(prefix, `accessRangelist (RANGELIST_ALLOWED)`, accessRangelist)
-// pop off first IP. this should always be a test IP
-accessBlacklist.shift()
-accessRangelist.shift()
 
 let _lastBlack: string[] = []
 let _lastRange: string[] = []
 
-setInterval(async()=> {
+
+const streamLists = async()=> {
 
 	/* check all blacklist txids against GWs */
 	
@@ -46,7 +50,7 @@ setInterval(async()=> {
 		for await (const txid of txids){
 			console.log(`readline txid`, txid)
 	
-			//TODO: be smarter later and not recheck txids confirmed blocked
+			//TODO: be smarter later and not recheck txids confirmed as blocked
 	
 			gwUrls.forEach(gw => checkBlocked(`${gw}/${txid}`, txid) )
 		}
@@ -71,8 +75,7 @@ setInterval(async()=> {
 		}
 		rwRange.destroy(); ranges.close();
 	}
-
-}, INTERVAL);
+}
 
 const checkBlocked = async(url: string, item: string)=> {
 	const {aborter, res:{ status } } = await fetchRetryConnection(url)
@@ -85,3 +88,8 @@ const checkBlocked = async(url: string, item: string)=> {
 	logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
 	slackLogger(prefix, `OK. ${item} blocked on ${url} (status:${status})`) //remove this noise later
 }
+
+/** main entrypoint */
+setInterval(streamLists, INTERVAL);
+/** run once at load also */
+streamLists();

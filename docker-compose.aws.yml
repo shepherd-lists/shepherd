@@ -8,10 +8,6 @@ services:
   webserver:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:webserver
     platform: linux/amd64
-    environment:
-      BLACKLIST_ALLOWED: ${BLACKLIST_ALLOWED:-}
-      RANGELIST_ALLOWED: ${RANGELIST_ALLOWED:-}
-      GW_URLS: ${GW_URLS:-}
     deploy:
       resources:
         limits:
