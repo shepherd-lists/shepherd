@@ -4,3 +4,5 @@
 # exept this file and the default addon
 !.gitignore
 !nsfw/
+!nsfw/**/*
+node_modules

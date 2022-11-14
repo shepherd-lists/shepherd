@@ -1,0 +1,6 @@
+{
+	"plugins": [ 
+		"shepherd-plugin-nsfw@latest"
+	],
+	"lowmem": false
+}
