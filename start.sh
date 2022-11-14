@@ -1,13 +1,18 @@
 #!/bin/bash
 
 # exit on errors
-set -euo pipefail
+set -eo pipefail
 
 # import .env vars
 if [ -f ".env" ]; then
 	export $(egrep -v '^#' .env | xargs)
 	# check vars
-	echo "EXTRA_QUEUES=$EXTRA_QUEUES"
+	if [[ -z $EXTRA_QUEUES ]]; then
+		echo "INFO: EXTRA_QUEUES undefined"
+	else
+		echo "EXTRA_QUEUES=$EXTRA_QUEUES"
+	fi
+		
 	echo "PLUGIN=$PLUGIN"
 	echo "BLACKLIST_ALLOWED=$BLACKLIST_ALLOWED"
 	echo "RANGELIST_ALLOWED=$RANGELIST_ALLOWED"

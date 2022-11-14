@@ -70,8 +70,8 @@ const streamLists = async()=> {
 			console.log(`readline range`, range)
 			const [range1, range2] = range.split(',')
 	
-			accessRangelist.forEach(ip => checkBlocked(`http://${ip}:1984/chunk/${range1 + 1}`, range) )
-			gwUrls.forEach(gw => checkBlocked(`${gw}/chunk/${range1 + 1}`, range))
+			accessRangelist.forEach(ip => checkBlocked(`http://${ip}:1984/chunk/${+range1 + 1}`, range) )
+			gwUrls.forEach(gw => checkBlocked(`${gw}/chunk/${+range1 + 1}`, range))
 		}
 		rwRange.destroy(); ranges.close();
 	}
@@ -82,11 +82,11 @@ const checkBlocked = async(url: string, item: string)=> {
 	aborter?.abort()
 	if(status !== 404){
 		logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status})`)
-		slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on ${url} (status: ${status})`)
+		slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${url}\` (status: ${status})`)
 		return;
 	}
 	logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
-	slackLogger(prefix, `OK. ${item} blocked on ${url} (status:${status})`) //remove this noise later
+	slackLogger(prefix, `✅ OK. ${item} blocked on \`${url}\` (status:${status})`) //remove this noise later
 }
 
 /** main entrypoint */

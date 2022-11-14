@@ -21,6 +21,7 @@ services:
       DB_HOST: ${DB_HOST:-pgdb}
       PROCESS_NAME: webserver
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
+      SLACK_POSITIVE: ${SLACK_POSITIVE:-}
       HOST_URL: ${HOST_URL:-https://arweave.net}
       GQL_URL: ${GQL_URL:-https://arweave-search.goldsky.com/graphql}
       BLACKLIST_ALLOWED: ${BLACKLIST_ALLOWED:-}
