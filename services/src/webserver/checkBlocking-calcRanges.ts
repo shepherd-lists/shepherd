@@ -86,7 +86,7 @@ const checkBlocked = async(url: string, item: string)=> {
 		return;
 	}
 	logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
-	slackLogger(prefix, `✅ OK. ${item} blocked on \`${url}\` (status:${status})`) //remove this noise later
+	// slackLogger(prefix, `✅ OK. ${item} blocked on \`${url}\` (status:${status})`) //remove this noise later
 }
 
 /** main entrypoint */
