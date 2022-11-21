@@ -23,14 +23,16 @@ export const getBlacklist = async(res: Writable)=> {
 		return res.write(_black.text);
 	}
 
-	const records = await knex<TxRecord>('txs').where({flagged: true})
-	logger('blacklist', 'tx records retrieved', records.length)
+	const records = knex<TxRecord>('txs').where({flagged: true}).stream()
 	let text = ''
-	for (const record of records) {
+	let count = 0
+	for await (const record of records) {
 		const line = record.txid + '\n'
 		text += line
 		res.write(line)
+		if(++count % 10000 === 0) logger('blacklist', count, `records retrieved...`)
 	}
+	logger('blacklist', 'tx records retrieved', count)
 
 	_black.text = text
 }
@@ -49,17 +51,17 @@ export const getRangelist = async(res: Writable)=> {
 		return res.write(_range.text);
 	}
 
-	const records = await knex<TxRecord>('txs').where({flagged: true})
-	logger('rangelist', 'tx records retrieved', records.length)
+	const records = knex<TxRecord>('txs').where({flagged: true}).stream()
 	let text = ''
 	let promises = []
+	let count = 0
 
-	for (const record of records) {
+	for await (const record of records) {
 		if(record.byteStart && record.byteStart !== '-1'){ // (-1,-1) denotes an error. e.g. weave data unavailable
 			const line = `${record.byteStart},${record.byteEnd}\n`
 			text += line
 			res.write(line)
-		}else{
+		}else if(!record.byteStart){
 			logger(getRangelist.name, `calculating new byte-range for '${record.txid}'...`)
 			
 			promises.push((async(txid, parent)=>{
@@ -77,9 +79,11 @@ export const getRangelist = async(res: Writable)=> {
 				promises = []
 			}
 		}
+		if(++count % 10000 === 0) logger('rangelist', count, `records processed/retrieved...`)
 	}
 	await Promise.all(promises) //all errors are handled internally
 
+	logger('rangelist', 'tx records retrieved', count)
 	_range.text = text
 }
 
