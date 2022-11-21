@@ -3,7 +3,7 @@ version: '3.7'
 services:
 
   nsfw:
-    hostname: ${IMAGE_REPO:-host}-nsfw-container
+    hostname: ${IMAGE_REPO:-local}-nsfw-container
     build: 
       context: .
     environment: 
