@@ -163,7 +163,7 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 	}
 
 	try{
-		await knex<TxScanned>('txs').insert(records).onConflict('txid').ignore()
+		await knex<TxScanned>('txs').insert(records).onConflict('txid').merge(['height', 'parent'])
 	}	catch(e:any){
 		if(e.code && Number(e.code) === 23505){
 			logger('info', 'Duplicate key value violates unique constraint', e.detail)
