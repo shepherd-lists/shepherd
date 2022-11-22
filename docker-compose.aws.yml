@@ -11,8 +11,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 2G
+          cpus: '2.0'
+          memory: 4G
   http-api:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:http-api
     platform: linux/amd64
