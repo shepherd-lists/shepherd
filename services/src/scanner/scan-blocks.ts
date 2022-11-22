@@ -37,51 +37,117 @@ export const scanBlocks = async (minBlock: number, maxBlock: number) => {
 	}
 }
 
+/* our specialised queries */
+
+const queryGoldskyWild = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
+	transactions(
+		block: {
+			min: $minBlock,
+			max: $maxBlock,
+		}
+		tags: [
+			{ name: "Content-Type", values: ["video/*", "image/*"], match: WILDCARD}
+		]
+		first: 100
+		after: $cursor
+	) {
+		pageInfo {
+			hasNextPage
+		}
+		edges {
+			cursor
+			node{
+				id
+				data{
+					size
+					type
+				}
+				tags{ 
+					name 
+					value
+				}
+				block{
+					height
+				}
+				parent{
+					id
+				}
+			}
+		}
+	}
+}`
+
+const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
+	transactions(
+		block: {
+			min: $minBlock,
+			max: $maxBlock,
+		}
+		tags: [
+			{ name: "Content-Type", values: [
+				"image/bmp",
+				"image/jpeg",
+				"image/jpg",
+				"image/png",
+				"image/gif",
+				"image/tiff",
+				"image/webp",
+				"image/x-ms-bmp",
+				"image/svg+xml",
+				"image/apng",
+				"image/heic",
+				"video/3gpp",
+				"video/3gpp2",
+				"video/mp2t",
+				"video/mp4",
+				"video/mpeg",
+				"video/ogg",
+				"video/quicktime",
+				"video/webm",
+				"video/x-flv",
+				"video/x-m4v",
+				"video/x-msvideo",
+				"video/x-ms-wmv",
+			] }
+		]
+		first: 100
+		after: $cursor
+	) {
+		pageInfo {
+			hasNextPage
+		}
+		edges {
+			cursor
+			node{
+				id
+				data{
+					size
+					type
+				}
+				tags{ 
+					name 
+					value
+				}
+				block{
+					height
+				}
+				parent{
+					id
+				}
+			}
+		}
+	}
+}`
+
+let query = queryArio
+if(GQL_URL.includes('goldsky')){
+	query = queryGoldskyWild
+}
+
 
 /* Generic getRecords */
 
 const getRecords = async (minBlock: number, maxBlock: number) => {
-
-	/* our general parametrized query */
-
-	const query = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
-		transactions(
-			block: {
-				min: $minBlock,
-				max: $maxBlock,
-			}
-			tags: [
-				{ name: "Content-Type", values: ["video/*", "image/*"], match: WILDCARD}
-			]
-			first: 100
-			after: $cursor
-		) {
-			pageInfo {
-				hasNextPage
-			}
-			edges {
-				cursor
-				node{
-					id
-					data{
-						size
-						type
-					}
-					tags{ 
-						name 
-						value
-					}
-					block{
-						height
-					}
-					parent{
-						id
-					}
-				}
-			}
-		}
-	}`
-
 
 	let hasNextPage = true
 	let cursor = ''
