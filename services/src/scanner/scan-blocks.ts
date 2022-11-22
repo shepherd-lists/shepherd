@@ -181,16 +181,19 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 				throw e;
 			}
 		}
+		let edges = res.edges
+		if(edges && edges.length){
+			cursor = edges[edges.length - 1].cursor
 
-		if(res.edges && res.edges.length){
-			//do something with res.edges
-			numRecords += await insertRecords(res.edges)
-			cursor = res.edges[res.edges.length - 1].cursor
+			/* filter dupes from edges. batch insert does not like dupes */
+			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
+
+			numRecords += await insertRecords(edges)
 		}
 		hasNextPage = res.pageInfo.hasNextPage
 
 		const tProcess = performance.now() - t0
-		logger('info', `processed gql page of ${res.edges.length} results in ${tProcess.toFixed(0)} ms. cursor: ${cursor}. Total ${numRecords} records.`)
+		logger('info', `processed gql page of ${edges.length} results in ${tProcess.toFixed(0)} ms. cursor: ${cursor}. Total ${numRecords} records.`)
 	}
 
 	return numRecords
