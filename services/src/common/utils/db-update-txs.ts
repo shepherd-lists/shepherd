@@ -26,8 +26,9 @@ export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
 export const dbInflightDel = async(txid: string)=> {
 	try{
 		const ret = await knex<InflightsRecord>('inflights').where({ txid, }).del('txid')
-		if(ret[0].txid !== txid){
+		if(ret[0]?.txid !== txid){
 			logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS', ret)
+			return;
 		}
 		return ret[0].txid;
 	}catch(e:any){
