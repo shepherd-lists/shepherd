@@ -1,5 +1,5 @@
-import * as Gql from 'arca-gql'
-import { GQLEdgeInterface } from 'arca-gql/dist/faces'
+import * as Gql from 'ar-gql'
+import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { GQL_URL, imageTypes, videoTypes } from '../common/constants'
 import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
 import getDbConnection from '../common/utils/db-connection'

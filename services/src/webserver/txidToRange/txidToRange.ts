@@ -1,4 +1,4 @@
-import { tx as getTx, setEndpointUrl } from 'arca-gql'
+import { tx as getTx, setEndpointUrl } from 'ar-gql'
 import axios from 'axios'
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, } from './constants-byteRange'
 import { GQL_URL, HOST_URL, network_EXXX_codes } from '../../common/constants'
