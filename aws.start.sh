@@ -8,6 +8,10 @@ set -euo pipefail
 # 	exit 1
 # fi
 
+# for relative paths
+export SCRIPT_DIR=$(dirname "$(realpath $0)")
+echo "SCRIPT_DIR=$SCRIPT_DIR" 2>&1 | tee -a setup.log
+
 # import .env vars
 if [ -f ".env" ]; then
 	export $(egrep -v '^#' .env | xargs)
@@ -20,6 +24,31 @@ if [ -f ".env" ]; then
 		echo "ERROR: missing previously created environment variable, did previous setup.sh script run OK? exiting"
 		exit 1
 	fi
+	PLUGIN_CHECKER=${PLUGIN:-}
+	if [[ -z $PLUGIN_CHECKER ]]; then
+		echo "PLUGIN var not found. defaulting to 'nsfw'" 2>&1 | tee -a setup.log
+		export PLUGIN=nsfw
+	else
+		echo "PLUGIN=$PLUGIN" 2>&1 | tee -a setup.log
+	fi
+	if [ "$PLUGIN" == 'nsfw' ]; then
+			# check if `shepherd.config.json` exists, if not create default.
+		CONFIG_FILE="$SCRIPT_DIR/addons/nsfw/shepherd.config.json"
+		if [ ! -f "$CONFIG_FILE" ]; then
+			echo "$CONFIG_FILE not found. creating default..." 2>&1 | tee -a setup.log
+			### beginning of indentation mess after this line
+			cat <<EOF > "$CONFIG_FILE"
+{
+	"plugins": [ 
+		"shepherd-plugin-nsfw@latest"
+	],
+	"lowmem": false
+}
+EOF
+			### end of indentation mess
+		fi
+	fi
+
 	# make sure .env ends in newline
 	lastchar=$(tail -c 1 .env)
 	if [ "$lastchar" != "" ]; then 
@@ -29,9 +58,7 @@ else
 	echo "file .env not found. exiting"
 	exit 1
 fi
-# for any relative paths
-export SCRIPT_DIR=$(dirname "$(realpath $0)")
-echo "SCRIPT_DIR=$SCRIPT_DIR" 2>&1 | tee -a setup.log
+
 
 echo "Remove existing docker ecs context..."
 docker context rm ecs 2>&1 | tee -a setup.log
@@ -46,21 +73,32 @@ echo "Docker login ecr..."
 # docker logout
 aws ecr get-login-password | docker login --password-stdin --username AWS $IMAGE_REPO
 
+shopt -s expand_aliases
+alias docker-compose-ymls="docker compose \
+	-f $SCRIPT_DIR/docker-compose.yml \
+	-f $SCRIPT_DIR/docker-compose.aws.yml \
+	-f $SCRIPT_DIR/addons/$PLUGIN/docker-compose.aws.yml"
+ 
 echo "Docker build..." 2>&1 | tee -a setup.log
-docker compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml build
+docker-compose-ymls build
 
 echo "Docker push..."  2>&1 | tee -a setup.log
 # prime the docker caches first. scanner has no dependencies
-docker compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml push scanner
-docker compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml push
+docker-compose-ymls push scanner
+docker-compose-ymls push
+
+alias docker-ecs-compose-ymls="docker --context ecs compose \
+	-f $SCRIPT_DIR/docker-compose.yml \
+	-f $SCRIPT_DIR/docker-compose.aws.yml \
+	-f $SCRIPT_DIR/addons/$PLUGIN/docker-compose.aws.yml"
 
 echo "Docker convert..." 2>&1 | tee -a setup.log
-docker --context ecs compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml convert > "cfn.yml.$(date +"%Y.%m.%d-%H:%M").log"
+docker-ecs-compose-ymls convert > "cfn.yml.$(date +"%Y.%m.%d-%H:%M").log"
 
 echo "Docker up..." 2>&1 | tee -a setup.log
 # do `docker --debug` if you want extra info
-docker --context ecs compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml up
+docker-ecs-compose-ymls up
 
 echo "Docker ps..." 2>&1 | tee -a setup.log
-docker --context ecs compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml ps
+docker-ecs-compose-ymls ps
 
