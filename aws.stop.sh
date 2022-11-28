@@ -23,6 +23,12 @@ echo "Docker login ecr..."
 # docker logout
 aws ecr get-login-password | docker login --password-stdin --username AWS $IMAGE_REPO
 
+shopt -s expand_aliases
+alias docker-ecs-compose-ymls="docker --context ecs compose \
+	-f $SCRIPT_DIR/docker-compose.yml \
+	-f $SCRIPT_DIR/docker-compose.aws.yml \
+	-f $SCRIPT_DIR/addons/$PLUGIN/docker-compose.aws.yml"
+
 echo "Docker down..." 2>&1 | tee -a setup.log
-docker --context ecs compose -f $SCRIPT_DIR/docker-compose.yml -f $SCRIPT_DIR/docker-compose.aws.yml down
+docker-ecs-compose-ymls down
 
