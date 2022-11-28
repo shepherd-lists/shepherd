@@ -19,7 +19,7 @@ export const getBlacklist = async(res: Writable)=> {
 	
 	if(now - _black.last > timeout) _black.last = now
 	else{ 
-		logger('blacklist', 'serving cache')
+		logger('blacklist', `serving cache, ${_black.text.length} bytes`)
 		return res.write(_black.text);
 	}
 
@@ -47,7 +47,7 @@ export const getRangelist = async(res: Writable)=> {
 	
 	if(now - _range.last > timeout) _range.last = now
 	else{ 
-		logger('rangelist', 'serving cache')
+		logger('rangelist', `serving cache, ${_range.text.length} bytes`)
 		return res.write(_range.text);
 	}
 
