@@ -86,7 +86,16 @@ export const checkBlocked = async (url: string, item: string) => {
 	aborter?.abort()
 	if (status !== 404) {
 		logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status})`)
-		slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${url}\` (status: ${status})`)
+
+		/* make sure Slack doesn't display anything */
+		
+		let nodisplay = url.split('/')
+		let display = url
+		if(nodisplay.length === 4){
+			nodisplay.pop()
+			display = nodisplay.join('/')
+		} 
+		slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${display}\` (status: ${status})`)
 		return;
 	}
 	logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
