@@ -2,10 +2,10 @@ version: '3.7'
 
 services:
 
-  nsfw:
+  plugin:
     extends: 
-      file: ./docker-compose.base.yml
-      service: nsfw
+      file: addons/nsfw/docker-compose.base.yml
+      service: plugin
     environment:
       SQS_LOCAL: 'no'
       S3_LOCAL: 'no'
@@ -26,7 +26,7 @@ services:
         # order: start-first # unsupported for ecs
       x-aws-autoscaling:
         min: 1
-        max: 100
+        max: 20
         cpu: 40
     # # cannot add the PluginTaskRole here in an extended compose file. bug?
     # x-aws-role:

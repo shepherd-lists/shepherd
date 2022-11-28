@@ -2,10 +2,10 @@ version: '3.7'
 
 services:
 
-  nsfw:
+  plugin:
     extends: 
       file: ./docker-compose.base.yml
-      service: nsfw
+      service: plugin
     deploy:
       mode: replicated
       replicas: 4
