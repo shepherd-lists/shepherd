@@ -74,7 +74,7 @@ services:
     container_name: ${PLUGIN:-nsfw}
     extends:
       file: ./addons/${PLUGIN:-nsfw}/docker-compose.local.yml
-      service: ${PLUGIN:-nsfw}
+      service: plugin
     depends_on:
       - sqs-local
       - s3-local
