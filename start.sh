@@ -7,24 +7,19 @@ set -euo pipefail
 export SCRIPT_DIR=$(dirname "$(realpath $0)")
 echo "SCRIPT_DIR=$SCRIPT_DIR"
 
-function create_nsfw_config_file {
-	# check if `shepherd.config.json` exists, if not create default.
-	CONFIG_FILE="$SCRIPT_DIR/addons/nsfw/shepherd.config.json"
-	if [ ! -f "$CONFIG_FILE" ]; then
-		echo "$CONFIG_FILE not found. creating default..." 2>&1 | tee -a setup.log
-		### beginning of indentation mess after this line
-		cat <<EOF > "$CONFIG_FILE"
+# check if `shepherd.config.json` exists, if not create default.
+CONFIG_FILE="$SCRIPT_DIR/addons/nsfw/shepherd.config.json"
+if [ ! -f "$CONFIG_FILE" ]; then
+	echo "$CONFIG_FILE not found. creating default..." 2>&1 | tee -a setup.log
+	cat <<EOF > "$CONFIG_FILE"
 {
-	"plugins": [ 
-		"shepherd-plugin-nsfw@latest"
-	],
-	"lowmem": false
+"plugins": [ 
+	"shepherd-plugin-nsfw@latest"
+],
+"lowmem": false
 }
 EOF
-		### end of indentation mess
-	fi
-}
-
+fi
 
 # import .env vars
 if [ -f ".env.local" ]; then
@@ -44,8 +39,6 @@ if [ -f ".env.local" ]; then
 	else
 		echo "PLUGIN=$PLUGIN"
 	fi
-
-	create_nsfw_config_file
 		
 	echo "BLACKLIST_ALLOWED=$BLACKLIST_ALLOWED"
 	echo "RANGELIST_ALLOWED=$RANGELIST_ALLOWED"
