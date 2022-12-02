@@ -57,7 +57,8 @@ const getFileHead = memoize(
 				}
 			}catch(err){
 				let e = err as AWSError
-				if(e.statusCode === 404){
+				if(e.statusCode === 404 || e.statusCode === 403){
+					logger(`getFileHead`, Key, `warning! ${e.name}(${e.statusCode}):${e.message}. deleting message...`)
 					deleteMessage(ReceiptHandle, Key)
 					return undefined;
 				}
