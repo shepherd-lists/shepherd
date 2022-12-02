@@ -148,7 +148,8 @@ Resources:
       DBSubnetGroupName: 
         Ref: DBSubnetGroup
       AllocatedStorage: 40
-      DBInstanceClass: "db.t3.xlarge"
+      PubliclyAccessible: true # useful for debugging using psql, add your ip to SG
+      DBInstanceClass: "db.r6g.2xlarge"
       StorageType: gp2
       Engine: postgres
       EngineVersion: "13.3"

@@ -26,7 +26,7 @@ services:
         # order: start-first # unsupported for ecs
       x-aws-autoscaling:
         min: 1
-        max: 20
+        max: 10
         cpu: 40
     # # cannot add the PluginTaskRole here in an extended compose file. bug?
     # x-aws-role:
