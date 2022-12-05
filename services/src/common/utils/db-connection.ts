@@ -19,6 +19,8 @@ export default () => {
 		client: 'pg',
 		pool: {
 			propagateCreateError: false,
+			min: 1,
+			max: 5000,
 		},
 		connection: {
 			host: process.env.DB_HOST,
