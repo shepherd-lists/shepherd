@@ -9,7 +9,7 @@ export default () => {
     logger("using cached db connection");
     return cachedConnection;
   }
-	let connTimeout = 60000 //default value
+	let connTimeout = 120000 //default value
 	if(process.env.NODE_ENV === 'test'){
 		connTimeout = 5000
 	}
