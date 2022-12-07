@@ -1,7 +1,7 @@
 require('dotenv').config() //first line of entrypoint
 import si from 'systeminformation'
 import { performance } from 'perf_hooks'
-import { scanBlocks } from "./scan-blocks"
+import { scanBlocks } from "./index-blocks"
 import dbConnection from "../common/utils/db-connection"
 import { getGqlHeight } from '../common/utils/gql-height'
 import { StateRecord } from "../common/shepherd-plugin-interfaces/types"
@@ -26,7 +26,7 @@ const waitForNewBlock =  async (height: number) => {
 	}
 }
 
-export const scanner = async()=> {
+export const indexer = async()=> {
 	try {
 		/**
 		 * numOfBlocks - to scan at once
@@ -42,7 +42,7 @@ export const scanner = async()=> {
 		let topBlock = await getGqlHeight()
 		const initialHeight = topBlock // we do not want to keep calling getTopBlock during initial catch up phase
 
-		logger('initialising', 'Starting scanner position', position, 'and weave height', topBlock)
+		logger('initialising', 'Starting indexer position', position, 'and weave height', topBlock)
 
 		const calcBulkBlocks = (position: number) => {
 			if(position < 150000) return 1000
@@ -75,7 +75,7 @@ export const scanner = async()=> {
 					'topBlock:', topBlock, 
 				)
 
-				// there might be more than 1 scanner running (replacing)
+				// there might be more than 1 indexer running (replacing)
 				const dbPosition = await readPosition()
 				if(dbPosition < max){
 					await db<StateRecord>('states')
@@ -95,15 +95,15 @@ export const scanner = async()=> {
 				// await sleep(timeout) //slow down, we're getting rate-limited 
 
 			} catch(e:any) {
-				logger('Error!', 'Scanner fell over. Waiting 30 seconds to try again.')
+				logger('Error!', 'Indexer fell over. Waiting 30 seconds to try again.')
 				logger(await si.mem())
 				await sleep(30000)
 			}
 		}///end while(true)
 	} catch(e:any) {
-		logger('UNHANDLED Error in scanner!', e.name, ':', e.message)
+		logger('UNHANDLED Error in indexer!', e.name, ':', e.message)
 		logger(await si.mem())
-		slackLogger('UNHANDLED Error in scanner!', e.name, ':', e.message)
+		slackLogger('UNHANDLED Error in indexer!', e.name, ':', e.message)
 	}
 }
 

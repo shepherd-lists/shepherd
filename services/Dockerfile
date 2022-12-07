@@ -20,12 +20,12 @@ COPY ./src/common ./src/common
 COPY ./src/http-api ./src/http-api
 ENTRYPOINT node -r ts-node/register src/http-api/index.ts
 
-FROM base as scanner
+FROM base as indexer
 COPY ./migrations ./migrations
 COPY ./seeds ./seeds
 COPY ./src/common ./src/common
-COPY ./src/scanner ./src/scanner
-ENTRYPOINT node -r ts-node/register src/scanner/index.ts
+COPY ./src/indexer ./src/indexer
+ENTRYPOINT node -r ts-node/register src/indexer/index.ts
 
 FROM base as feeder
 COPY ./src/common ./src/common

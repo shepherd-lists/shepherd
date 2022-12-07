@@ -1,14 +1,14 @@
 version: '3.7'
 
 services:
-  scanner:
-    hostname: ${IMAGE_REPO:-dummy}-shepherd-scanner
+  indexer:
+    hostname: ${IMAGE_REPO:-dummy}-shepherd-indexer
     build: 
       context: ./services
-      target: scanner
+      target: indexer
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
-      PROCESS_NAME: scanner
+      PROCESS_NAME: indexer
       SLACK_WEBHOOK: ${SLACK_WEBHOOK}
       HOST_URL: ${HOST_URL:-https://arweave.net}
       GQL_URL: ${GQL_URL:-https://arweave-search.goldsky.com/graphql}
@@ -31,7 +31,7 @@ services:
       - '80:80'
     restart: always
     depends_on:
-      - scanner
+      - indexer
   http-api:
     build: 
       context: ./services
@@ -45,7 +45,7 @@ services:
     #   - '84:84'
     restart: always
     depends_on:
-      - scanner
+      - indexer
   feeder:
     build:
       context: ./services
@@ -55,7 +55,7 @@ services:
       DB_HOST: ${DB_HOST:-pgdb}
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
     depends_on: 
-      - scanner
+      - indexer
   fetchers:
     build: 
       context: ./services
@@ -66,5 +66,5 @@ services:
       STREAMS_PER_FETCHER: ${STREAMS_PER_FETCHER:-50}
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
     depends_on:
-      - scanner
+      - indexer
   

@@ -1,10 +1,10 @@
 /**
  * We're running knex migrate:latest here programmatically as it makes most sense.
- * Scanner depends-on Pgdb service. All other services depend-on Scanner
+ * Indexer depends-on Pgdb service. All other services depend-on Indexer
  */
 import dbConnection from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
-import { scanner } from './scanner'
+import { indexer } from './indexer'
 import col from 'ansi-colors'
 
 const db = dbConnection()
@@ -12,7 +12,7 @@ const db = dbConnection()
 const start = async()=> {
 	try{
 		/**
-		 * Database updates happen here before scanner and other services start
+		 * Database updates happen here before indexer and other services start
 		 */
 		const [ batchNo, logs] = await db.migrate.latest({ directory: `${__dirname}/../../migrations/`})
 		
@@ -25,7 +25,7 @@ const start = async()=> {
 		const seed = await db.seed.run({ directory: `${__dirname}/../../seeds/`})
 		logger('info', 'applied the following seed files', seed)
 		
-		scanner()
+		indexer()
 		
 	}catch(e){
 		logger('Error!', 'error upgrading database', e)

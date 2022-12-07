@@ -83,8 +83,8 @@ echo "Docker build..." 2>&1 | tee -a setup.log
 docker-compose-ymls build
 
 echo "Docker push..."  2>&1 | tee -a setup.log
-# prime the docker caches first. scanner has no dependencies
-docker-compose-ymls push scanner
+# prime the docker caches first. indexer has no dependencies
+docker-compose-ymls push indexer
 docker-compose-ymls push
 
 alias docker-ecs-compose-ymls="docker --context ecs compose \

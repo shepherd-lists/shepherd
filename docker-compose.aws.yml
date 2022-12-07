@@ -21,8 +21,8 @@ services:
         limits:
           cpus: '2.0'
           memory: 4G # (2 vCPU) Between 4 GB and 16 GB in 1 GB increments
-  scanner:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:scanner
+  indexer:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:indexer
     platform: linux/amd64
     deploy:
       resources:
@@ -74,7 +74,7 @@ services:
   plugin:
     container_name: ${PLUGIN:-nsfw} # not implemented in docker ecs yet
     depends_on:
-      - scanner
+      - indexer
     # x-aws-* doesn't get created when this comes from the extended file. bug!
     x-aws-role:
       Version: '2012-10-17'

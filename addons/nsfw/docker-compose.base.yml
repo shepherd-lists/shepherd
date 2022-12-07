@@ -14,4 +14,4 @@ services:
       TOTAL_FILESIZE_GB: ${TOTAL_FILESIZE_GB:-10}
     restart: always
     # depends_on:
-    #   - scanner
+    #   - indexer

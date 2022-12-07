@@ -14,7 +14,7 @@ services:
     restart: always
     # ports:
     #   - '5432:5432'
-  scanner:
+  indexer:
     depends_on: 
       - pgdb
   s3-local:

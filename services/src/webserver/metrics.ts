@@ -9,8 +9,8 @@ export const getStatsTestOnly = async(res: Response)=> {
 	const txsCount = await knex<TxRecord>('txs').count('id')
 	res.write(`<h1>Total records: ${txsCount[0].count}</h1>`)
 
-	const scanPosn = await knex<StateRecord>('states').where({ pname: 'scanner_position'})
-	res.write(`Scanner Position: ${scanPosn[0].value}`)
+	const indexPosn = await knex<StateRecord>('states').where({ pname: 'scanner_position'})
+	res.write(`Indexer Position: ${indexPosn[0].value}`)
 
 	const inflightNoop = await knex<TxRecord>('inflights').count('id')
 	res.write(`<h2>Inflight noop: ${inflightNoop[0].count}</h2>`)
