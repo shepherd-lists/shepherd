@@ -10,7 +10,7 @@ import { slackLogger } from "../common/utils/slackLogger"
 
 //leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
 //update: this is now bleeding edge for earlier detection times
-const TRAIL_BEHIND = 1
+const TRAIL_BEHIND = 15
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
