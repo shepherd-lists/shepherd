@@ -95,15 +95,19 @@ export const indexer = async()=> {
 				// await sleep(timeout) //slow down, we're getting rate-limited 
 
 			} catch(e:any) {
+				let status = Number(e.response?.status) || 0
+				if( status >= 500 ){
+					logger(`GATEWAY ERROR! ${e.name}(${status}) : ${e.message}`)
+				}
 				logger('Error!', 'Indexer fell over. Waiting 30 seconds to try again.')
 				logger(await si.mem())
 				await sleep(30000)
 			}
 		}///end while(true)
 	} catch(e:any) {
-		logger('UNHANDLED Error in indexer!', e.name, ':', e.message)
+		logger('UNHANDLED Fatal error in indexer!', e.name, ':', e.message)
 		logger(await si.mem())
-		slackLogger('UNHANDLED Error in indexer!', e.name, ':', e.message)
+		slackLogger('UNHANDLED Fatal error in indexer!', e.name, ':', e.message)
 	}
 }
 

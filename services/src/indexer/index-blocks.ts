@@ -14,31 +14,15 @@ Gql.setEndpointUrl(GQL_URL)
 
 
 export const scanBlocks = async (minBlock: number, maxBlock: number) => {
-	try{
 
-		/* get images and videos */
+	/* get images and videos */
 
-		logger('info', `making 1 scans of ${((maxBlock - minBlock) + 1)} blocks, from block ${minBlock} to ${maxBlock}`)
-		return await getRecords(minBlock, maxBlock)
-
-	}catch(e:any){
-
-		let status = Number(e.response?.status) || 0
-
-		if( status >= 500 ){
-			logger('GATEWAY ERROR!', e.message, 'Waiting for 30 seconds...')
-			throw e
-		}else{
-			logger('Error!', e.code, ':', e.message)
-			logger(e)
-			logger("Error in scanBlocks. See above.")
-			throw e 
-		}
-	}
+	logger('info', `making 1 scans of ${((maxBlock - minBlock) + 1)} blocks, from block ${minBlock} to ${maxBlock}`)
+	return await getRecords(minBlock, maxBlock)
 }
 
 /* our specialised queries */
-
+ 
 const queryGoldskyWild = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 	transactions(
 		block: {
