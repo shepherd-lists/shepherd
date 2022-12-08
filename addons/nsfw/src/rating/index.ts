@@ -1,4 +1,3 @@
-require('dotenv').config() //first line of entrypoint
 import rimraf from 'rimraf'
 import { VID_TMPDIR } from '../constants'
 import { logger } from '../utils/logger'

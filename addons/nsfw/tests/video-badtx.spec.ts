@@ -1,4 +1,3 @@
-require('dotenv').config() //first line of entrypoint
 process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import { createScreencaps } from '../src/rating/video/screencaps'

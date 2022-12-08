@@ -1,4 +1,3 @@
-require('dotenv').config() //first line of entrypoint
 process.env['NODE_ENV'] = 'test'
 import 'mocha'
 import { expect } from 'chai'
