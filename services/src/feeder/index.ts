@@ -1,4 +1,3 @@
-require('dotenv').config() //first line of entrypoint
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { slackLogger } from '../common/utils/slackLogger'
 import si from 'systeminformation'

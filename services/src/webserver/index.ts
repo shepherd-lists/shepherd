@@ -1,4 +1,3 @@
-require('dotenv').config() //first line of entrypoint
 import express from 'express'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { getBlacklist, getRangelist } from './blacklist'

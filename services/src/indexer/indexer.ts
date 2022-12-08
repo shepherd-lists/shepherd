@@ -1,4 +1,3 @@
-require('dotenv').config() //first line of entrypoint
 import si from 'systeminformation'
 import { performance } from 'perf_hooks'
 import { scanBlocks } from "./index-blocks"
@@ -10,7 +9,8 @@ import { slackLogger } from "../common/utils/slackLogger"
 
 
 //leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
-const TRAIL_BEHIND = 15 
+//update: this is now bleeding edge for earlier detection times
+const TRAIL_BEHIND = 1
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
