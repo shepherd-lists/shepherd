@@ -50,15 +50,14 @@ export const NO_DATA_TIMEOUT = 40000
 export const NO_STREAM_TIMEOUT = 10000
 
 /* switch gateways */
-export const HOST_URL = process.env.HOST_URL || 'https://arweave.net'
+/** DON'T SET DEFAULTS HERE! THAT HAPPENS IN COMPOSE FILES */
+export const HOST_URL = process.env.HOST_URL
 console.log(`HOST_URL`, HOST_URL)
-// export const HOST_URL = 'https://arweave.dev'
-// export const HOST_URL = 'https://arweave.live'
 
 /* switch gql endpoints */
-export const GQL_URL = process.env.GQL_URL || 'https://arweave-search.goldsky.com/graphql'
+/** DON'T SET DEFAULTS HERE! THAT HAPPENS IN COMPOSE FILES */
+export const GQL_URL = process.env.GQL_URL
 console.log(`GQL_URL`, GQL_URL)
-// export const GQL_URL = 'https://arweave.net/graphql'
 
 export const FEEDER_Q_VISIBILITY_TIMEOUT = 900 // 15 minutes
 

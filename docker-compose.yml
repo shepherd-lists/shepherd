@@ -11,7 +11,7 @@ services:
       PROCESS_NAME: indexer
       SLACK_WEBHOOK: ${SLACK_WEBHOOK}
       HOST_URL: ${HOST_URL:-https://arweave.net}
-      GQL_URL: ${GQL_URL:-https://arweave-search.goldsky.com/graphql}
+      GQL_URL: ${GQL_URL:-https://arweave.net/graphql}
     restart: always
   webserver:
     build: 
@@ -23,7 +23,7 @@ services:
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
       SLACK_POSITIVE: ${SLACK_POSITIVE:-}
       HOST_URL: ${HOST_URL:-https://arweave.net}
-      GQL_URL: ${GQL_URL:-https://arweave-search.goldsky.com/graphql}
+      GQL_URL: ${GQL_URL:-https://arweave.net/graphql}
       BLACKLIST_ALLOWED: ${BLACKLIST_ALLOWED:-}
       RANGELIST_ALLOWED: ${RANGELIST_ALLOWED:-}
       GW_URLS: ${GW_URLS:-}
