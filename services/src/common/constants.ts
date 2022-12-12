@@ -51,12 +51,12 @@ export const NO_STREAM_TIMEOUT = 10000
 
 /* switch gateways */
 /** DON'T SET DEFAULTS HERE! THAT HAPPENS IN COMPOSE FILES */
-export const HOST_URL = process.env.HOST_URL
+export const HOST_URL = process.env.HOST_URL as string
 console.log(`HOST_URL`, HOST_URL)
 
 /* switch gql endpoints */
 /** DON'T SET DEFAULTS HERE! THAT HAPPENS IN COMPOSE FILES */
-export const GQL_URL = process.env.GQL_URL
+export const GQL_URL = process.env.GQL_URL as string
 console.log(`GQL_URL`, GQL_URL)
 
 export const FEEDER_Q_VISIBILITY_TIMEOUT = 900 // 15 minutes
