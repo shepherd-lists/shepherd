@@ -8,7 +8,6 @@ import memoize from 'micro-memoize'
 
 setEndpointUrl(GQL_URL)
 
-const ans104HeaderDataMemo = memoize(ans104HeaderData, {maxSize: 1000})
 /**
  * 
  * @param id either L1 or L2 id
@@ -19,7 +18,7 @@ export interface ByteRange {
 	start: bigint
 	end: bigint
 }
-export const txidToRange = async (id: string, parent: string|null) => {
+export const txidToRange = async (id: string, parent: string|null, parents: string[] | undefined) => {
 	/** 
 	 * Overview:
 	 * determine if L1 or L2
@@ -49,7 +48,7 @@ export const txidToRange = async (id: string, parent: string|null) => {
 		&& txParent.tags.some(tag => tag.name === 'Bundle-Version' && tag.value === '2.0.0')
 	){
 		console.log(txidToRange.name, `ans104 detected. parent ${txParent.id}`)
-		return byteRange104(id, parent)
+		return byteRange104(id, parent, parents)
 	}
 	//handle L2 ans102 (arweave-bundles)
 	if(
@@ -79,11 +78,11 @@ const offsetL1 = async (id: string): Promise<ByteRange> => {
 	}
 }
 
-const byteRange104 = async (txid: string, parent: string) => {
+const byteRange104 = async (txid: string, parent: string, parents: string[] | undefined) => {
 	
 	/* 1. fetch the bundle offsets */
 
-	//TODO: check the parent was mined, via 404, while getting offset
+	const l1Parent = parents ? parents[parents.length - 1] : parent
 
 	const { data: { offset: strBundleEnd , size: strBundleSize} } = await axiosRetryMemo(`/tx/${parent}/offset`, txid)
 	const bundleWeaveEnd = BigInt(strBundleEnd)
@@ -92,7 +91,7 @@ const byteRange104 = async (txid: string, parent: string) => {
 	
 	/* 2. fetch the bundle index data */
 	
-	const { status, numDataItems, diIds, diSizes} = await ans104HeaderDataMemo(parent)
+	const { status, numDataItems, diIds, diSizes} = await ans104HeaderData(parent)
 	if(status === 404) return {
 		status,
 		start: -1n,

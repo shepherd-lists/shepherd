@@ -9,7 +9,7 @@ export interface TxScanned {
 	content_size: string //knex.bigInteger returns a string, convert to BigInt
 	height: number
 	parent: string | null
-	parents?: string[]
+	parents?: string[] | undefined
 }
 export interface TxRecord extends TxScanned, TxFlaggedOptions {
 	readonly id: number

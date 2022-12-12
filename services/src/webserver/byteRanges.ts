@@ -4,13 +4,13 @@ import { ByteRange, txidToRange } from './txidToRange/txidToRange'
 import { slackLogger } from '../common/utils/slackLogger'
 
 
-export const byteRanges = async (id: string, parent: string|null) => {
+export const byteRanges = async (id: string, parent: string | null, parents: string[] | undefined) => {
 
 	/* get byte-range (if applicable) */
 
 	let chunkRange: ByteRange = { start: -1n, end: -1n }
 	try{
-		chunkRange = await txidToRange(id, parent)
+		chunkRange = await txidToRange(id, parent, parents)
 	}catch(e:any){
 		logger(byteRanges.name, "UNHANLDED error", e.name, e.message, e)
 		slackLogger(byteRanges.name, "UNHANLDED error", e.name, e.message)

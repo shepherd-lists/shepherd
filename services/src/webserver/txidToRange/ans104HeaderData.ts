@@ -8,6 +8,8 @@ import { ReadableStreamDefaultReader } from 'stream/web'
 import Arweave from 'arweave'
 import { fetchRetryConnection } from './fetch-retry'
 import { HOST_URL } from '../../common/constants'
+import memoize from 'micro-memoize'
+
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -101,20 +103,8 @@ const fetchHeader = async(parent: string)=> {
 	}
 }
 
-let _last = {
-	parent: '',
-	value: {
-    status: -1,
-    numDataItems: -1,
-    diIds: [] as string[],
-    diSizes: [] as number[],
-	}
-}
-export const ans104HeaderData = async(parent: string)=> {
+const ans104HeaderDataUnmemoized = async(parent: string)=> {
 
-	//perf hack. likely subsequent calls are for same parent
-	if(_last.parent === parent) return _last.value
-	
 	/* get data stream */	
 
 	let { status, header, numDataItems } = await fetchHeader(parent)
@@ -148,13 +138,11 @@ export const ans104HeaderData = async(parent: string)=> {
 	//ensure buffer available for gc
 	header = null as any
 
-	const value = {
+	return {
 		status,
 		numDataItems,
 		diIds,
 		diSizes,
-	}
-	_last = { parent, value}
-	return value;
+	};
 }
-
+export const ans104HeaderData = memoize(ans104HeaderDataUnmemoized, { maxSize: 1000})
