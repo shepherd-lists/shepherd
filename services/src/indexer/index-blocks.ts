@@ -229,7 +229,7 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 			content_size,
 			height,
 			parent,
-			parents,
+			...(parents.length > 0 && {parents}), //leave `parents` null if not nested
 		})
 	}
 
