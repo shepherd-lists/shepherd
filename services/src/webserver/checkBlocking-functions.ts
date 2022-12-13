@@ -63,7 +63,14 @@ export const streamLists = async () => {
 	/* check all ranges against nodes (and GWs too?) */
 
 	if (gwUrls.length === 0 && accessRangelist.length === 0) {
-		logger(prefix, `gwUrls & accessRangelist empty`)
+		logger(prefix, `gwUrls & accessRangelist empty`, `running getRangelist to prevent backlog`)
+
+		/* need to run this once in a while to prevent backlog */
+
+		const rwRange = new PassThrough()
+		await getRangelist(rwRange)
+		rwRange.end()
+		rwRange.destroy();
 	} else {
 		const rwRange = new PassThrough()
 		getRangelist(rwRange).then(() => rwRange.end())
