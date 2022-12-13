@@ -42,7 +42,7 @@ export const txidToRange = async (id: string, parent: string|null, parents: stri
 	}
 	//handle L2 ans104 (arbundles)
 
-	const txParent = await gqlTxRetryMemo(parent)
+	const txParent = await gqlTxRetry(parent)
 	if(
 		txParent.tags.some(tag => tag.name === 'Bundle-Format' && tag.value === 'binary')
 		&& txParent.tags.some(tag => tag.name === 'Bundle-Version' && tag.value === '2.0.0')
@@ -66,7 +66,7 @@ export const txidToRange = async (id: string, parent: string|null, parents: stri
 }
 
 const offsetL1 = async (id: string): Promise<ByteRange> => {
-	const { data: { offset: end, size} } = await axiosRetry(`/tx/${id}/offset`, id)
+	const { data: { offset: end, size} } = await axiosRetryUnmemoized(`/tx/${id}/offset`, id)
 	const modEnd = (BigInt(end) - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE
 	const addEnd = modEnd === 0n ? 0n : CHUNK_SIZE - modEnd
 
@@ -82,36 +82,75 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 	
 	/* 1. fetch the bundle offsets */
 
-	const l1Parent = parents ? parents[parents.length - 1] : parent
+	const L1Parent = parents ? parents[parents.length - 1] : parent
 
-	const { data: { offset: strBundleEnd , size: strBundleSize} } = await axiosRetryMemo(`/tx/${parent}/offset`, txid)
-	const bundleWeaveEnd = BigInt(strBundleEnd)
-	const bundleWeaveSize = BigInt(strBundleSize)
-	const bundleWeaveStart = bundleWeaveEnd - bundleWeaveSize
+	const { data: { offset: strL1End , size: strL1Size} } = await axiosRetry(`/tx/${L1Parent}/offset`, txid)
+	const L1WeaveEnd = BigInt(strL1End)
+	const L1WeaveSize = BigInt(strL1Size)
+	const L1WeaveStart = L1WeaveEnd - L1WeaveSize
 	
 	/* 2. fetch the bundle index data */
+
+	const headerDatas: {
+    status: number
+    numDataItems: number
+    diIds: string[]
+    diSizes: number[]
+		headerLength: bigint
+	}[] = []
+
 	
-	const { status, numDataItems, diIds, diSizes} = await ans104HeaderData(parent)
-	if(status === 404) return {
-		status,
+	const header0 = await ans104HeaderData(parent)
+	if(header0.status === 404) return {
+		status: header0.status,
 		start: -1n,
 		end: -1n,
 	}
 
+	if(parents){
+		for(let i = 0; i < parents.length; i++){
+			const header = await ans104HeaderData(parents[i])
+			if(header.status === 404) return {
+				status: header0.status,
+				start: -1n,
+				end: -1n,
+			}
+			headerDatas.push(header)
+		}
+	}
+
 	/* now we can calculate the byte ranges for a dataItem */
 	
-	//calculate relative to bundle
-	let start = BigInt(32 + numDataItems * 64)
-	const indexTxid = diIds.indexOf(txid)
+	let start = 0n
+
+	//calculate start relative to first parent
+	start = header0.headerLength 
+	const indexTxid = header0.diIds.indexOf(txid)
 	for(let i = 0; i < indexTxid; i++) {
-		start += BigInt(diSizes[i])
+		start += BigInt(header0.diSizes[i])
 	}
-	let end = start + BigInt(diSizes[indexTxid])
-	if(process.env.NODE_ENV ==='test') console.log(`bundle relative`, {start, end, indexTxid})
+
+	if(process.env.NODE_ENV ==='test') console.log(`1st parent, start`, start)
+
+	//loop through nested parents if they exist
+	if(parents){ 
+		for (let i = 0; i < headerDatas.length; i++) {
+			start += headerDatas[i].headerLength 
+			const indexParent = i == 0 ? headerDatas[i].diIds.indexOf(parent) : headerDatas[i].diIds.indexOf(parents[i - 1])
+			for (let j = 0; j < indexParent; j++) {
+				start += BigInt(headerDatas[i].diSizes[j])				
+			}
+			if(process.env.NODE_ENV ==='test') console.log(`parent[${i}]`, {start, indexParent})
+		}
+	}
+
+	const size = BigInt(header0.diSizes[indexTxid])
+	let end = start + size
+	if(process.env.NODE_ENV ==='test') console.log(`bundle relative`, {start, end, size, indexTxid, parent, parents })
 
 	//unaligned dataItem range
-	let weaveStartUnaligned = start + bundleWeaveStart 
-	let weaveEndUnaligned = end + bundleWeaveStart
+	let weaveStartUnaligned = start + L1WeaveStart 
+	let weaveEndUnaligned = end + L1WeaveStart
 	//aligned to chunks
 	let modStart = (weaveStartUnaligned - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE
 	let modEnd = (weaveEndUnaligned - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE
@@ -120,29 +159,29 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 	modEnd = modEnd < 0n ? -modEnd : modEnd
 	const addEnd = modEnd === 0n ? 0n : CHUNK_SIZE - modEnd
 
-	if(process.env.NODE_ENV ==='test') console.log('weave actual', {startActual: weaveStartUnaligned, endActual: weaveEndUnaligned, bundleStart: bundleWeaveStart}, 'mods', {modStart, modEnd, addEnd})
+	if(process.env.NODE_ENV ==='test') console.log('weave actual', {startActual: weaveStartUnaligned, endActual: weaveEndUnaligned, L1WeaveStart}, 'mods', {modStart, modEnd, addEnd})
 
 	let weaveStart = weaveStartUnaligned - modStart
 	let weaveEnd = weaveEndUnaligned + addEnd
 
 	/* hack for older pre-aligned weave */
 
-	if(bundleWeaveStart < CHUNK_ALIGN_GENESIS){
-		console.info(`${txid}: ${bundleWeaveStart} is less than CHUNK_ALIGN_GENESIS`)
+	if(L1WeaveStart < CHUNK_ALIGN_GENESIS){
+		console.info(`${txid}: ${L1WeaveStart} is less than CHUNK_ALIGN_GENESIS`)
 		//clamp the byte range to bundle limits
-		if(weaveStart < bundleWeaveStart) weaveStart = bundleWeaveStart
-		if(weaveEnd > bundleWeaveEnd) weaveEnd = bundleWeaveEnd
+		if(weaveStart < L1WeaveStart) weaveStart = L1WeaveStart
+		if(weaveEnd > L1WeaveEnd) weaveEnd = L1WeaveEnd
 	}
 
 	/* final sanity checks */
-	if(bundleWeaveStart >= CHUNK_ALIGN_GENESIS){
+	if(L1WeaveStart >= CHUNK_ALIGN_GENESIS){
 		if((weaveStart - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE !== 0n) throw new Error(`post-CHUNK_ALIGN_GENESIS weaveStart not on chunk alignment`)
 		if((weaveEnd - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE !== 0n) throw new Error(`post-CHUNK_ALIGN_GENESIS weaveEnd not on chunk alignment`)
 	}
 	if(weaveStart > weaveEnd) throw new Error(`weaveStart cannot be greater than weaveEnd`)
-	if((weaveEnd - weaveStart) < BigInt(diSizes[indexTxid])) throw new Error(`byte range too small to contain dataItem`)
-	if(weaveStart < bundleWeaveStart) throw new Error(`weaveStart out of range`)
-	if(weaveEnd > (bundleWeaveEnd + addEnd)) throw new Error(`weaveEnd out of range`) //not the cleanest test
+	if((weaveEnd - weaveStart) < BigInt(header0.diSizes[indexTxid])) throw new Error(`byte range too small to contain dataItem`)
+	if(weaveStart < L1WeaveStart) throw new Error(`weaveStart out of range`)
+	if(weaveEnd > (L1WeaveEnd + addEnd)) throw new Error(`weaveEnd out of range`) //not the cleanest test
 
 	/* final values */
 	if(process.env.NODE_ENV === 'test') console.info(`return`, {weaveStart, weaveEnd})
@@ -153,7 +192,7 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-const axiosRetry = async (url: string, id: string) => {
+const axiosRetryUnmemoized = async (url: string, id: string) => {
 	while(true){
 		try{
 			return await axios.get(HOST_URL + url)
@@ -161,17 +200,17 @@ const axiosRetry = async (url: string, id: string) => {
 			//no point retrying 404 errors?
 			const status = Number(e.response?.status) || Number(e.statusCode) || null
 			if(status === 404){
-				console.log (axiosRetry.name, `Error fetching byte-range data with '${HOST_URL + url}' Not retrying.`, e.name, e.message, '. child-id', id)
+				console.log (axiosRetryUnmemoized.name, `Error fetching byte-range data with '${HOST_URL + url}' Not retrying.`, e.name, e.message, '. child-id', id)
 
 				throw e;
 			}
-			console.log (axiosRetry.name, `Error fetching byte-range data with '${HOST_URL + url}' Retrying in 10secs..`, e.name, e.message, id)
+			console.log (axiosRetryUnmemoized.name, `Error fetching byte-range data with '${HOST_URL + url}' Retrying in 10secs..`, e.name, e.message, id)
 			await sleep(10000)
 		}
 	}
 }
-const axiosRetryMemo = memoize(axiosRetry, { maxSize: 1000 })
-const gqlTxRetry = async (id: string) => {
+const axiosRetry = memoize(axiosRetryUnmemoized, { maxSize: 1000 })
+const gqlTxRetryUnmemoized = async (id: string) => {
 	while(true){
 		try{
 			return await getTx(id)
@@ -180,7 +219,7 @@ const gqlTxRetry = async (id: string) => {
 			const code = e.response?.code || e.code || 'no-code'
 
 			if(status === 429 || network_EXXX_codes.includes(code) || (status && status >= 500)){
-				console.log(gqlTxRetry.name, `gql-fetch-error: '${e.message}', for '${id}'. retrying in 10secs...`)
+				console.log(gqlTxRetryUnmemoized.name, `gql-fetch-error: '${e.message}', for '${id}'. retrying in 10secs...`)
 				await sleep(10000)
 			}else{
 				console.log(e)
@@ -189,4 +228,4 @@ const gqlTxRetry = async (id: string) => {
 		}
 	}
 }
-const gqlTxRetryMemo = memoize(gqlTxRetry, { maxSize: 1000 })
+const gqlTxRetry = memoize(gqlTxRetryUnmemoized, { maxSize: 1000 })
