@@ -8,6 +8,8 @@ import { ReadableStreamDefaultReader } from 'stream/web'
 import Arweave from 'arweave'
 import { fetchRetryConnection } from './fetch-retry'
 import { HOST_URL } from '../../common/constants'
+import memoize from 'micro-memoize'
+
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -62,6 +64,7 @@ const fetchHeader = async(parent: string)=> {
 				status,
 				header,
 				numDataItems: -1,
+				headerLength: 0n,
 			}
 			
 			/* fetch the bytes we're interested in */
@@ -72,12 +75,12 @@ const fetchHeader = async(parent: string)=> {
 			const numDataItems = byteArrayToNumber(header.slice(0, 32))
 			const totalHeaderLength = 64 * numDataItems + 32
 			
-			if(process.env['NODE_ENV'] === 'test') console.log(header.length, {numDataItems, totalHeaderLength})
+			if(process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`, {numDataItems, totalHeaderLength})
 			
 			//read bytes for the rest of the header index
 			header = await readEnoughBytes(reader, header, totalHeaderLength)
 		
-			if(process.env['NODE_ENV'] === 'test') console.log(header.length)
+			if(process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`)
 		
 			/* close the stream & return results */
 			aborter!.abort()
@@ -88,6 +91,7 @@ const fetchHeader = async(parent: string)=> {
 				status,
 				header,
 				numDataItems,
+				headerLength: BigInt(totalHeaderLength),
 			}
 
 		}catch(e){
@@ -101,28 +105,17 @@ const fetchHeader = async(parent: string)=> {
 	}
 }
 
-let _last = {
-	parent: '',
-	value: {
-    status: -1,
-    numDataItems: -1,
-    diIds: [] as string[],
-    diSizes: [] as number[],
-	}
-}
-export const ans104HeaderData = async(parent: string)=> {
+const ans104HeaderDataUnmemoized = async(parent: string)=> {
 
-	//perf hack. likely subsequent calls are for same parent
-	if(_last.parent === parent) return _last.value
-	
 	/* get data stream */	
 
-	let { status, header, numDataItems } = await fetchHeader(parent)
+	let { status, header, numDataItems, headerLength } = await fetchHeader(parent)
 	if(status === 404) return {
 		status, 
 		numDataItems,
 		diIds: [] as string[],
 		diSizes: [] as number[],
+		headerLength: 0n,
 	}
 	
 	/* process the return data */
@@ -148,13 +141,12 @@ export const ans104HeaderData = async(parent: string)=> {
 	//ensure buffer available for gc
 	header = null as any
 
-	const value = {
+	return {
 		status,
 		numDataItems,
 		diIds,
 		diSizes,
-	}
-	_last = { parent, value}
-	return value;
+		headerLength,
+	};
 }
-
+export const ans104HeaderData = memoize(ans104HeaderDataUnmemoized, { maxSize: 1000})

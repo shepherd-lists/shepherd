@@ -64,14 +64,14 @@ export const getRangelist = async(res: Writable)=> {
 		}else if(!record.byteStart){
 			logger(getRangelist.name, `calculating new byte-range for '${record.txid}'...`)
 			
-			promises.push((async(txid, parent)=>{
-				const {start, end} = await byteRanges(txid, parent) //db updated internally
+			promises.push((async(txid, parent, parents)=>{
+				const {start, end} = await byteRanges(txid, parent, parents) //db updated internally
 				if(start !== -1n){
 					const line = `${start},${end}\n`
 					text += line
 					res.write(line)
 				}
-			}) (record.txid, record.parent) )
+			}) (record.txid, record.parent, record.parents) )
 
 			// batch them a bit
 			if(promises.length >= 100){

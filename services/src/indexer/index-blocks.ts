@@ -6,6 +6,7 @@ import getDbConnection from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { performance } from 'perf_hooks'
 import { slackLogger } from '../common/utils/slackLogger'
+import memoize from 'micro-memoize'
 
 
 const knex = getDbConnection()
@@ -123,11 +124,7 @@ const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 	}
 }`
 
-let query = queryArio
-if(GQL_URL.includes('goldsky')){
-	query = queryGoldskyWild
-}
-
+const query = GQL_URL.includes('goldsky') ? queryGoldskyWild : queryArio
 
 /* Generic getRecords */
 
@@ -183,6 +180,14 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 	return numRecords
 }
 
+const getParent = memoize(
+	async(p: string)=> {
+		const res = await Gql.tx(p)
+		return res.parent?.id || null
+	},
+	{ maxSize: 1000},
+)
+
 const insertRecords = async(metas: GQLEdgeInterface[])=> {
 	let records: TxScanned[] = []
 
@@ -191,10 +196,14 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 		let content_type = item.node.data.type
 		const content_size = item.node.data.size.toString()
 		const height = item.node.block.height
-		const parent = item.node.parent?.id || null
+		const parent = item.node.parent?.id || null // the direct parent, if exists
+		const parents: string[] = []
 
-		//sanity
-		if(!height) slackLogger(`HeightError : no height for '${txid}'`)
+		// sanity
+		if(!height){
+			logger(`HeightError` , `no height for '${txid}'`)
+			slackLogger(`HeightError : no height for '${txid}'`)
+		}
 
 		// this content_type is missing for dataItems
 		if(!content_type){ 
@@ -206,22 +215,30 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 			}
 		}
 
+		// loop to find all nested parents
+		if(parent){
+			let p: string | null = parent
+			do{
+				p = await getParent(p)
+			}while(p && parents.push(p))
+		}
+
 		records.push({
 			txid, 
 			content_type,
 			content_size,
 			height,
 			parent,
+			...(parents.length > 0 && {parents}), //leave `parents` null if not nested
 		})
 	}
 
 	try{
-		await knex<TxScanned>('txs').insert(records).onConflict('txid').merge(['height', 'parent'])
+		await knex<TxScanned>('txs').insert(records).onConflict('txid').merge(['height', 'parent', 'parents'])
 	}	catch(e:any){
-		if(e.code && Number(e.code) === 23505){
-			logger('info', 'Duplicate key value violates unique constraint', e.detail)
-		} else if(e.code && Number(e.code) === 23502){
+		if(e.code && Number(e.code) === 23502){
 			logger('Error!', 'Null value in column violates not-null constraint', e.detail)
+			slackLogger('Error!', 'Null value in column violates not-null constraint', e.detail)
 			throw e
 		} else { 
 			if(e.code) logger('Error!', e.code)
