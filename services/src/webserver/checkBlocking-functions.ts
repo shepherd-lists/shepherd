@@ -89,23 +89,26 @@ export const streamLists = async () => {
 }
 
 export const checkBlocked = async (url: string, item: string) => {
-	const { aborter, res: { status } } = await fetchRetryConnection(url)
-	aborter?.abort()
-	if (status !== 404) {
-		logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status})`)
-
-		/* make sure Slack doesn't display anything */
-		
-		let nodisplay = url.split('/')
-		let display = url
-		if(nodisplay.length === 4){
-			nodisplay.pop()
-			display = nodisplay.join('/')
-		} 
-		slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${display}\` (status: ${status})`)
-		return;
+	try{
+		const { aborter, res: { status } } = await fetchRetryConnection(url)
+		aborter?.abort()
+		if (status !== 404) {
+			logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status})`)
+	
+			/* make sure Slack doesn't display anything */
+			
+			let nodisplay = url.split('/')
+			let display = url
+			if(nodisplay.length === 4){
+				nodisplay.pop()
+				display = nodisplay.join('/')
+			} 
+			slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${display}\` (status: ${status})`)
+			return;
+		}
+		logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
+	}catch(e:any){
+		logger(prefix, `${e.name} : ${e.message}`)
 	}
-	logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
-	// slackLogger(prefix, `✅ OK. ${item} blocked on \`${url}\` (status:${status})`) //remove this noise later
 }
 

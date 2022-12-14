@@ -1,4 +1,5 @@
 import { fetch, Response } from 'undici'
+import { slackLogger } from '../../common/utils/slackLogger'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -13,6 +14,7 @@ const retryMs = 10_000
 export const fetchRetryConnection = async(url: string)=> {
 	let res: Response | null = null
 	let aborter: AbortController | null = null
+	let connErrCount = 0
 	while(true){
 		try{
 			aborter = new AbortController()
@@ -32,6 +34,12 @@ export const fetchRetryConnection = async(url: string)=> {
 				aborter,
 			}
 		}catch(e:any){
+			connErrCount++
+			if(connErrCount > 30){
+				slackLogger(fetchRetryConnection.name, `Error for '${url}'. Already retried 30 times over 5m. Giving up.`)
+				console.log(fetchRetryConnection.name, `Error for '${url}'. Already retried 30 times over 5m. Giving up.`)
+				throw new Error(`${fetchRetryConnection.name} giving up after 30 retries. ${e.message}`)
+			}
 			//retry all of these connection errors
 			console.log(fetchRetryConnection.name, `Error for '${url}'. Retrying in ${retryMs} ms...`)
 			console.log(e)
