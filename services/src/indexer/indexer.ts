@@ -6,6 +6,7 @@ import { getGqlHeight } from '../common/utils/gql-height'
 import { StateRecord } from "../common/shepherd-plugin-interfaces/types"
 import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../common/utils/slackLogger"
+import { GQL_URL } from '../common/constants'
 
 
 //leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
@@ -89,16 +90,24 @@ export const indexer = async()=> {
 				max = min + numOfBlocks - 1
 
 				const tProcess = performance.now() - t0
-				// let timeout = 2000 - tProcess
-				// if(timeout < 0) timeout = 0
-				console.log(`scanned ${numOfBlocks} blocks in ${tProcess} ms.`)// pausing for ${timeout}ms`)
-				// await sleep(timeout) //slow down, we're getting rate-limited 
+				console.log(`scanned ${numOfBlocks} blocks in ${tProcess} ms.`)
+
+				/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
+				if(GQL_URL.includes('arweave.net')){
+					let timeout = 2000 - tProcess
+					if(timeout < 0) timeout = 0
+					console.log(`pausing for ${timeout}ms`)
+					await sleep(timeout)
+				}
 
 			} catch(e:any) {
 				let status = Number(e.response?.status) || 0
 				if( status >= 500 ){
 					logger(`GATEWAY ERROR! ${e.name}(${status}) : ${e.message}`)
 				}
+				// if( status === 429 ){
+				// 	logger(`${e.name}(${status}) : ${e.message}`)
+				// }
 				logger('Error!', 'Indexer fell over. Waiting 30 seconds to try again.', `${e.name}(${status}) : ${e.message}`)
 				logger(await si.mem())
 				await sleep(30000)
