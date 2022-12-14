@@ -53,6 +53,9 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 		if(result.flagged === true){
 			slackLoggerPositive('matched', JSON.stringify(body))
 		}
+		if(result.flag_type === 'test'){
+			slackLogger('✅ *Test Message* ✅', JSON.stringify(body))
+		}
 
 		const res = await updateTxsDb(txid, {
 			flagged: result.flagged,
