@@ -13,6 +13,7 @@ const knex = getDbConnection()
 
 Gql.setEndpointUrl(GQL_URL)
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export const scanBlocks = async (minBlock: number, maxBlock: number) => {
 
@@ -175,6 +176,14 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 
 		const tProcess = performance.now() - t0
 		logger('info', `processed gql page of ${edges.length} results in ${tProcess.toFixed(0)} ms. cursor: ${cursor}. Total ${numRecords} records.`)
+
+		/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
+		if(GQL_URL.includes('arweave.net')){
+			let timeout = 2000 - tProcess
+			if(timeout < 0) timeout = 0
+			console.log(`pausing for ${timeout}ms`)
+			await sleep(timeout)
+		}
 	}
 
 	return numRecords
@@ -185,7 +194,7 @@ const getParent = memoize(
 		const res = await Gql.tx(p)
 		return res.parent?.id || null
 	},
-	{ maxSize: 1000},
+	{ maxSize: 10000},
 )
 
 const insertRecords = async(metas: GQLEdgeInterface[])=> {

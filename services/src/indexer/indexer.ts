@@ -92,14 +92,6 @@ export const indexer = async()=> {
 				const tProcess = performance.now() - t0
 				console.log(`scanned ${numOfBlocks} blocks in ${tProcess} ms.`)
 
-				/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
-				if(GQL_URL.includes('arweave.net')){
-					let timeout = 2000 - tProcess
-					if(timeout < 0) timeout = 0
-					console.log(`pausing for ${timeout}ms`)
-					await sleep(timeout)
-				}
-
 			} catch(e:any) {
 				let status = Number(e.response?.status) || 0
 				if( status >= 500 ){
