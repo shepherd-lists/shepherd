@@ -69,3 +69,5 @@ export type FetchersStatus =
 	| (string & {})
 
 export const network_EXXX_codes = ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN']
+
+export const ARIO_DELAY_MS = /* 600reqs / 5mins = 120/min ~= min 500ms per requeast */ 500

@@ -1,6 +1,6 @@
 import * as Gql from 'ar-gql'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { GQL_URL, imageTypes, videoTypes } from '../common/constants'
+import { ARIO_DELAY_MS, GQL_URL, } from '../common/constants'
 import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
 import getDbConnection from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
@@ -175,15 +175,16 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 		hasNextPage = res.pageInfo.hasNextPage
 
 		const tProcess = performance.now() - t0
-		logger('info', `processed gql page of ${edges.length} results in ${tProcess.toFixed(0)} ms. cursor: ${cursor}. Total ${numRecords} records.`)
+		let logstring = `processed gql page of ${edges.length} results in ${tProcess.toFixed(0)} ms. cursor: ${cursor}. Total ${numRecords} records.`
 
 		/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
 		if(GQL_URL.includes('arweave.net')){
-			let timeout = 2000 - tProcess
+			let timeout = ARIO_DELAY_MS - tProcess
 			if(timeout < 0) timeout = 0
-			console.log(`pausing for ${timeout}ms`)
+			logstring += ` pausing for ${timeout}ms.`
 			await sleep(timeout)
 		}
+		logger('info', logstring)
 	}
 
 	return numRecords
@@ -194,7 +195,11 @@ const getParent = memoize(
 		const res = await Gql.tx(p)
 		return res.parent?.id || null
 	},
-	{ maxSize: 10000},
+	{ 
+		maxSize: 10000, //allows for caching of maxSize number of bundles per query (1 block).
+		// onCacheHit: ()=>console.log(`getParent cache hit`),
+		// onCacheAdd: async(cache, options)=> console.log(cache.keys, cache.values),
+	},
 )
 
 const insertRecords = async(metas: GQLEdgeInterface[])=> {
@@ -228,7 +233,27 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 		if(parent){
 			let p: string | null = parent
 			do{
+				const t0 = performance.now()
+				const p0 = p
+
 				p = await getParent(p)
+				
+				const t1 = performance.now() - t0
+
+				/* if time less than 10ms, it's definitely a cache hit */
+				if(t1 > 10){
+					let logstring = `got parent ${p0} details in ${t1.toFixed(0)}ms.`
+
+					/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
+					if(GQL_URL.includes('arweave.net')){
+						let timeout = ARIO_DELAY_MS - t1
+						if(timeout < 0) timeout = 0
+						logstring += ` pausing for ${timeout.toFixed(0)}ms`
+						await sleep(timeout)
+					}
+					logger(txid, logstring)
+				}
+
 			}while(p && parents.push(p))
 		}
 
