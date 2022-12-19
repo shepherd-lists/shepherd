@@ -61,7 +61,14 @@ export const streamLists = async () => {
 
 			//TODO: be smarter later and not recheck txids confirmed as blocked
 
-			gwUrls.forEach(gw => checkBlocked(`${gw}/${txid}`, txid))
+			gwUrls.forEach(async gw => {
+				try{
+					await checkBlocked(`${gw}/${txid}`, txid)
+				}catch(e:any){
+					logger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/${txid}`, txid)
+					slackLogger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/${txid}`, txid)
+				}
+			})
 		}
 		rwBlack.destroy(); txids.close();
 	}
@@ -87,13 +94,20 @@ export const streamLists = async () => {
 
 			const [range1, range2] = range.split(',')
 
-			gwUrls.forEach(gw => checkBlocked(`${gw}/chunk/${+range1 + 1}`, range))
-			rangeIPs.forEach(rangeIp => {
+			gwUrls.forEach(async gw => {
 				try{
-					checkBlocked(`http://${rangeIp.ip}:1984/chunk/${+range1 + 1}`, range)
+					await checkBlocked(`${gw}/chunk/${+range1 + 1}`, range)
+				}catch(e:any){
+					logger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/chunk/${+range1 + 1}`, range)
+					slackLogger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/chunk/${+range1 + 1}`, range)
+				}
+			})
+			rangeIPs.forEach(async rangeIp => {
+				try{
+					await checkBlocked(`http://${rangeIp.ip}:1984/chunk/${+range1 + 1}`, range)
 					rangeIp.lastResponse = Date.now()
 				}catch(e:any){
-					logger(prefix, `${e.name} : ${e.message}`)
+					// logger(prefix, `${e.name} : ${e.message}`)
 					const now = Date.now()
 					if(now - rangeIp.lastResponse > hour_ms){
 						logger(prefix, `node '${rangeIp.ip}' is unresponsive for the last hour`)
