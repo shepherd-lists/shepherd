@@ -1,4 +1,3 @@
-import { fetch, Response } from 'undici'
 import { slackLogger } from '../../common/utils/slackLogger'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
