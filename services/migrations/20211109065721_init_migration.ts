@@ -28,7 +28,7 @@ export async function up(knex: Knex): Promise<void> {
 		table.integer('value').notNullable()
 	})
 	await knex('states').insert([
-		{ pname: 'scanner_position', value: 0},
+		{ pname: 'scanner_position', value: 90_000}, // there's nothing down there except 1 tx with a bug for ario gql
 		{ pname: 'rating_position', value: 0},
 	])
 }
