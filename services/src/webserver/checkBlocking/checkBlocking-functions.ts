@@ -12,7 +12,7 @@ import { logger } from "../../common/shepherd-plugin-interfaces/logger";
 import { slackLogger } from "../../common/utils/slackLogger";
 import { slackLoggerPositive } from "../../common/utils/slackLoggerPositive";
 import { getBlacklist, getRangelist } from "../blacklist";
-import { fetch_checkBlocking } from "./fetch-retry";
+import { fetch_checkBlocking } from "./fetch-checkBlocking";
 
 
 const prefix = 'check-blocked'

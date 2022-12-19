@@ -41,7 +41,9 @@ export const fetch_checkBlocking = async(url: string)=> {
 			}
 			//retry all of these connection errors
 			console.log(fetch_checkBlocking.name, `Error for '${url}'. ${e.name}:${e.message}. Retrying in ${retryMs} ms...`)
-			console.log(e)
+			if(e.code && e.code !== 'ECONNREFUSED'){
+				console.log(e)
+			}
 			//clean up any stream resources
 			aborter?.abort()
 			res && res.body?.cancel()
