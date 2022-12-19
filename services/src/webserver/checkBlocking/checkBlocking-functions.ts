@@ -8,11 +8,11 @@
  */
 import { PassThrough } from "stream";
 import readline from 'readline'
-import { logger } from "../common/shepherd-plugin-interfaces/logger";
-import { slackLogger } from "../common/utils/slackLogger";
-import { slackLoggerPositive } from "../common/utils/slackLoggerPositive";
-import { getBlacklist, getRangelist } from "./blacklist";
-import { fetchRetryConnection } from "./txidToRange/fetch-retry";
+import { logger } from "../../common/shepherd-plugin-interfaces/logger";
+import { slackLogger } from "../../common/utils/slackLogger";
+import { slackLoggerPositive } from "../../common/utils/slackLoggerPositive";
+import { getBlacklist, getRangelist } from "../blacklist";
+import { fetchRetryConnection } from "./fetch-retry";
 
 
 const prefix = 'check-blocked'

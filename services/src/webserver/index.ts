@@ -4,7 +4,7 @@ import { getBlacklist, getRangelist } from './blacklist'
 import { getPerfHistory, getStatsTestOnly } from './metrics'
 import si from 'systeminformation'
 import './perf-cron' //starts automatically
-import './checkBlocking-timer' //starts automatically
+import './checkBlocking/checkBlocking-timer' //starts automatically
 
 const prefix = 'webserver'
 const app = express()
