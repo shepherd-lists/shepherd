@@ -1,4 +1,4 @@
-FROM rosmcmahon/node16-ffmpeg:multi-arch
+FROM rosmcmahon/node18-ffmpeg:multi-arch
 
 # create app directory
 WORKDIR /app

@@ -4,7 +4,6 @@ import { expect } from 'chai'
 import { getFile } from '../src/harness'
 import { S3 } from 'aws-sdk'
 import { readFileSync } from 'fs'
-import { fetch } from 'undici'
 import readline from 'readline'
 
 
