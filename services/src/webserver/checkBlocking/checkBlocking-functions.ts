@@ -12,10 +12,12 @@ import { logger } from "../../common/shepherd-plugin-interfaces/logger";
 import { slackLogger } from "../../common/utils/slackLogger";
 import { slackLoggerPositive } from "../../common/utils/slackLoggerPositive";
 import { getBlacklist, getRangelist } from "../blacklist";
-import { fetchRetryConnection } from "./fetch-retry";
+import { fetch_checkBlocking } from "./fetch-retry";
 
 
 const prefix = 'check-blocked'
+
+const hour_ms = 60 * 60 * 1000
 
 
 /* load the IP access lists */
@@ -29,6 +31,10 @@ logger(prefix, `accessBlacklist (BLACKLIST_ALLOWED)`, accessBlacklist)
 const accessRangelist: string[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
 accessRangelist.shift() // pop off first IP. this should always be a test IP
 logger(prefix, `accessRangelist (RANGELIST_ALLOWED)`, accessRangelist)
+const rangeIPs: { ip: string, lastResponse: number}[] = accessRangelist.map(ip => {return {
+	ip,
+	lastResponse: Date.now()
+}})
 
 const gwUrls: string[] = JSON.parse(process.env.GW_URLS || '[]')
 logger(prefix, `gwUrls`, gwUrls)
@@ -62,7 +68,7 @@ export const streamLists = async () => {
 
 	/* check all ranges against nodes (and GWs too?) */
 
-	if (gwUrls.length === 0 && accessRangelist.length === 0) {
+	if (gwUrls.length === 0 && rangeIPs.length === 0) {
 		logger(prefix, `gwUrls & accessRangelist empty`, `running getRangelist to prevent backlog`)
 
 		/* need to run this once in a while to prevent backlog */
@@ -81,34 +87,43 @@ export const streamLists = async () => {
 
 			const [range1, range2] = range.split(',')
 
-			accessRangelist.forEach(ip => checkBlocked(`http://${ip}:1984/chunk/${+range1 + 1}`, range))
 			gwUrls.forEach(gw => checkBlocked(`${gw}/chunk/${+range1 + 1}`, range))
+			rangeIPs.forEach(rangeIp => {
+				try{
+					checkBlocked(`http://${rangeIp.ip}:1984/chunk/${+range1 + 1}`, range)
+					rangeIp.lastResponse = Date.now()
+				}catch(e:any){
+					logger(prefix, `${e.name} : ${e.message}`)
+					const now = Date.now()
+					if(now - rangeIp.lastResponse > hour_ms){
+						logger(prefix, `node '${rangeIp.ip}' is unresponsive for the last hour`)
+						slackLogger(prefix, `node '${rangeIp.ip}' is unresponsive for the last hour`)
+						rangeIp.lastResponse = Date.now() //reset message timer for another hour
+					}
+				}
+			})
 		}
 		rwRange.destroy(); ranges.close();
 	}
 }
 
 export const checkBlocked = async (url: string, item: string) => {
-	try{
-		const { aborter, res: { status } } = await fetchRetryConnection(url)
-		aborter?.abort()
-		if (status !== 404) {
-			logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status})`)
-	
-			/* make sure Slack doesn't display anything */
-			
-			let nodisplay = url.split('/')
-			let display = url
-			if(nodisplay.length === 4){
-				nodisplay.pop()
-				display = nodisplay.join('/')
-			} 
-			slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${display}\` (status: ${status})`)
-			return;
-		}
-		logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
-	}catch(e:any){
-		logger(prefix, `${e.name} : ${e.message}`)
+	const { aborter, res: { status } } = await fetch_checkBlocking(url)
+	aborter?.abort()
+	if (status !== 404) {
+		logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status})`)
+
+		/* make sure Slack doesn't display anything */
+		
+		let nodisplay = url.split('/')
+		let display = url
+		if(nodisplay.length === 4){
+			nodisplay.pop()
+			display = nodisplay.join('/')
+		} 
+		slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${display}\` (status: ${status})`)
+		return;
 	}
+	logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
 }
 
