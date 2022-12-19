@@ -7,6 +7,7 @@ RUN npm config set update-notifier false
 # create app directory
 WORKDIR /app
 ENV NODE_ENV=production
+COPY tsconfig.json tsconfig.json
 COPY package*.json ./
 RUN npm ci --omit=dev
 
