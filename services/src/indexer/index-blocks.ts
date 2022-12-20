@@ -196,6 +196,7 @@ const getParent = memoize(
 		return res.parent?.id || null
 	},
 	{ 
+		isPromise: true,
 		maxSize: 10000, //allows for caching of maxSize number of bundles per query (1 block).
 		// onCacheHit: ()=>console.log(`getParent cache hit`),
 		// onCacheAdd: async(cache, options)=> console.log(cache.keys, cache.values),
