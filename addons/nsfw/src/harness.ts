@@ -196,7 +196,7 @@ export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, video
 		Bucket: AWS_INPUT_BUCKET,
 		Key,
 	}).promise()
-		// .then(()=> logger(Key, `deleted object`))
+		.then(()=> logger(Key, `deleted object`))
 		.catch((e: AWSError) => logger(Key, `ERROR DELETING OBJECT! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
 }
 
@@ -204,7 +204,7 @@ const deleteMessage = (ReceiptHandle: string, Key: string)=> sqs.deleteMessage({
 	QueueUrl: AWS_SQS_INPUT_QUEUE,
 	ReceiptHandle,
 }).promise()
-	// .then(()=> logger(Key, `deleted message`))
+	.then(()=> logger(Key, `deleted message`))
 	.catch((e: AWSError) => logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
 
 
