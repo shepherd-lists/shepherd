@@ -122,12 +122,12 @@ export const streamLists = async () => {
 }
 
 export const checkBlocked = async (url: string, item: string) => {
-	const { aborter, res: { status } } = await fetch_checkBlocking(url)
-	aborter?.abort()
+	const { aborter, res: { status, headers } } = await fetch_checkBlocking(url)
+	
 	if (status !== 404) {
-		logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status})`)
+		logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status}), xtrace: '${headers.get('x-trace')}', age: '${headers.get('age')}', content-length: '${headers.get('content-length')}'`)
 
-		/* make sure Slack doesn't display anything */
+		/* make sure Slack doesn't display link contents */
 		
 		let nodisplay = url.split('/')
 		let display = url
@@ -135,9 +135,11 @@ export const checkBlocked = async (url: string, item: string) => {
 			nodisplay.pop()
 			display = nodisplay.join('/')
 		} 
-		slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${display}\` (status: ${status})`)
-		return;
+		slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${display}\` (status: ${status}), xtrace: '${headers.get('x-trace')}', age: '${headers.get('age')}', content-length: '${headers.get('content-length')}'`)
+	}else{
+		logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
 	}
-	logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
+
+	aborter?.abort() 
 }
 
