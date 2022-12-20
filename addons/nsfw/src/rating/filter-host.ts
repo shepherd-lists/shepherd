@@ -26,59 +26,31 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 
 		const mime = await getImageMime(pic)
 		if(mime === undefined){
-			logger(prefix, 'image mime-type found to be `undefined`. omitting from rating. Original:', contentType, txid)
-			await dbNoMimeType(txid)
-			return true
+			logger(prefix, 'image mime-type found to be `undefined`. try rating anyway. Original:', contentType, txid)
 		}else if(!mime.startsWith('image/')){
 			logger(prefix, `image mime-type found to be '${mime}'. updating record; will be automatically requeued. Original:`, contentType, txid)
 			await dbWrongMimeType(txid, mime)
 			return true
 		}else if(mime !== contentType){
 			logger(prefix, `warning. expected '${contentType}' !== detected '${mime}'`, txid)
-			// await dbWrongMimeType(txid, mime) //this is an unnecessary db call.
 		}
 
-		await checkImagePluginResults(pic, mime, txid)
+		await checkImagePluginResults(pic, mime || contentType, txid)
 
 		return true;
 	} catch(e:any) {
-
-		/* catch network issues & no data situations */
-		// const status = Number(e.response?.status) || 0
-
-		// if(status === 404){
-		// 	logger(prefix, 'no data found (404)', contentType, url)
-		// 	await dbNoDataFound404(txid)
-		// 	return true;
-		// }
 
 		if(e.message === 'End-Of-Stream'){
 			logger(prefix, `End-Of-Stream`, contentType, txid)
 			await dbCorruptDataConfirmed(txid)
 			return true;
 		}
-		
-		// if(
-		// 	(e.message === `Timeout of ${NO_DATA_TIMEOUT}ms exceeded`)
-		// ){
-		// 	logger(prefix, 'connection timed out in batch. check again alone', contentType, url)
-		// 	await dbTimeoutInBatch(txid)
-		// }
-		
-		// else if(
-		// 	status >= 500
-		// 	|| ( e.code && ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND'].includes(e.code) )
-		// ){
-		// 	// error in the gateway somewhere, not important to us
-		// 	logger(txid, e.message, 'image will automatically retry downloading') //do nothing, record remains in unprocessed queue
-		// }
-		
-		else{
-			logger(prefix, 'UNHANDLED Error processing', txid + ' ', e.name, ':', e.message)
-			await slackLogger(prefix, 'UNHANDLED Error processing', txid, e.name, ':', e.message)
-			logger(prefix, 'UNHANDLED', e)
-			logger(prefix, await si.mem())
-		}
+
+		logger(prefix, 'UNHANDLED Error processing', txid + ' ', e.name, ':', e.message)
+		await slackLogger(prefix, 'UNHANDLED Error processing', txid, e.name, ':', e.message)
+		logger(prefix, 'UNHANDLED', e)
+		logger(prefix, await si.mem())
+
 		return false;
 	}
 }
@@ -99,6 +71,10 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 		await updateTxsDb(txid, {
 			flagged: result.flagged,
 			valid_data: true,
+			...( result.top_score_name && { 
+				top_score_name: result.top_score_name, 
+				top_score_value: result.top_score_value
+			}),
 			last_update_date: new Date(),
 		})
 		dbInflightDel(txid)

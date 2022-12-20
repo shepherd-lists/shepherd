@@ -77,12 +77,12 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			let filesizeDownloaded = 0
 
 			const fileTypeGood = (res: FileTypeResult | undefined)=>{
-				if(res === undefined){
-					logger(vid.txid, 'no file-type found:', res)
-					dbNoMimeType(vid.txid)
-					vid.content_type = 'undefined'
-					return false
-				}else 
+				// if(res === undefined){
+				// 	logger(vid.txid, 'no file-type found:', res)
+				// 	dbNoMimeType(vid.txid)
+				// 	vid.content_type = 'undefined'
+				// 	return false
+				// }else 
 				if(res && !res.mime.startsWith('video/')){
 					logger(vid.txid, 'invalid video file-type:', res.mime)
 					dbWrongMimeType(vid.txid, res.mime)

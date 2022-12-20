@@ -16,6 +16,7 @@ export const checkFrames = async(frames: string[], txid: string)=> {
 	const vidUrl = HOST_URL + '/' + videopath!.split('/').pop()
 
 	let flagged = false
+	let top_score_name, top_score_value
 	
 	//loop through caps. break if flagged image found
 	for (const frame of frames) {
@@ -24,6 +25,8 @@ export const checkFrames = async(frames: string[], txid: string)=> {
 
 		if(result.flagged !== undefined && result.flagged === true){
 			flagged = true
+			top_score_name = result.top_score_name
+			top_score_value = result.top_score_value
 			break;
 		}
 	}
@@ -32,6 +35,10 @@ export const checkFrames = async(frames: string[], txid: string)=> {
 	dbInflightDel(txid)
 	return updateTxsDb(txid,{
 		flagged,
+		...( top_score_name && { 
+			top_score_name, 
+			top_score_value,
+		}),
 		valid_data: true,
 		last_update_date: new Date(),
 	})
