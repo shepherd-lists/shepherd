@@ -19,6 +19,7 @@ const getImages = async(batch: number)=> {
 	.where( function(){
 		this.orWhere({ content_type: 'image/bmp'})
 		.orWhere({ content_type: 'image/jpeg'})
+		.orWhere({ content_type: 'image/jpg'})
 		.orWhere({ content_type: 'image/png'})
 	})
 	.orderBy('last_update_date', 'desc')
@@ -130,7 +131,7 @@ export const rater = async(lowmem: boolean)=>{
 			const numToAdd = 10 - vidDownloads.length() 
 			logger(prefix, `downloading ${numToAdd} from ${vidQueue.length} videos`)
 			for(let i = 0; i < numToAdd; i++) {
-				await addToDownloads( vidQueue.pop() as TxRecord )
+				await addToDownloads( vidQueue.pop() as TxRecord & {receiptHandle: string} )
 			}
 		}
 		//process downloaded videos
