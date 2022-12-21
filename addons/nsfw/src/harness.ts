@@ -154,7 +154,14 @@ export const harness = async()=> {
 						let res = false
 						try{
 							res = await checkImageTxid(key, contentType) 
-						}catch(e){
+						}catch(e:any){
+							if(e.name === 'RequestTimeTooSkewed'){
+								//this item has spent too much time in the internal queue, another plugin instance has already run `cleanupAfterProcessing`
+								logger(key, `${e.name}:${e.message}. Assumed another instance has run 'cleanupAfterProcessing'.`)
+								delete _currentImageIds[key]
+								return false;
+							}
+							//we should never get here
 							console.log(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
 							slackLogger(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
 						}

@@ -21,7 +21,6 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 	
 	try {
 
-		// const pic = await axiosDataTimeout(url) //catch errors below
 		const pic = (await s3.getObject({ Key: txid, Bucket: AWS_INPUT_BUCKET }).promise()).Body as Buffer
 
 		const mime = await getImageMime(pic)
@@ -44,6 +43,10 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 			logger(prefix, `End-Of-Stream`, contentType, txid)
 			await dbCorruptDataConfirmed(txid)
 			return true;
+		}
+
+		if(e.name === 'RequestTimeTooSkewed'){
+			throw e; //bubble up to `harness` handler
 		}
 
 		logger(prefix, 'UNHANDLED Error processing', txid + ' ', e.name, ':', e.message)
