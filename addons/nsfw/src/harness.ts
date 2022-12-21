@@ -53,7 +53,7 @@ const getMessages = async(maxNumberOfMessages: number): Promise<SQS.Message[]> =
 		msgs = [...msgs, ...newMsgs]
 	}
 
-	logger(prefix, `received ${msgs.length} messages`)
+	logger(getMessages.name, `received ${msgs.length} messages`)
 	
 	return msgs;
 }
@@ -100,19 +100,13 @@ export const harness = async()=> {
 	console.log(prefix, `main begins`)
 	
 	/* message consumer loop */
-	let promises: Promise<boolean>[] = [] // <== this is currently a memory leak!
-	let booleans: boolean[] = []
 	while(true){
-		logger(prefix, {_currentNumFiles, _currentTotalSize: _currentTotalSize.toLocaleString(), vids: _currentVideos.length(), imgs: Object.keys(_currentImageIds).length})
+		logger(prefix, {_currentNumFiles, _currentTotalSize: _currentTotalSize.toLocaleString(), vidsProcessing: _currentVideos.length(), imgsProcessing: Object.keys(_currentImageIds).length})
 
 		if(_currentNumFiles >= NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
-			logger(prefix, `internal queue full. waiting for first 10 images to resolve`)
-			logger(prefix, {vids: _currentVideos.listIds(), imgs: _currentImageIds })
-			if(promises.length > 10){
-				await Promise.all(promises.splice(0, 10)) //remove oldest
-			}else{
-				await sleep(1000)
-			}
+			logger(prefix, `internal queue full. waiting 1s.`)
+			await sleep(1000)
+			// logger(prefix, {vids: _currentVideos.listIds(), imgs: _currentImageIds })
 			continue;
 		}
 
@@ -121,6 +115,7 @@ export const harness = async()=> {
 			await sleep(5000)
 			continue;
 		}
+
 		messages.forEach(async message => {
 			const s3event = JSON.parse(message.Body!) as S3Event
 			/* check if it's an s3 event */
@@ -146,8 +141,9 @@ export const harness = async()=> {
 					await releaseMessage(message.ReceiptHandle!) //message may end up in DLQ if this is excessive.
 					return;
 				}
-				if(_currentNumFiles > NUM_FILES) logger(prefix, `Warning. queue overflow`, {_currentNumFiles})
-				
+				if(_currentNumFiles > NUM_FILES){
+					logger(prefix, `Warning. queue overflow`, {_currentNumFiles})
+				}
 				_currentNumFiles++
 				_currentTotalSize += videoLength
 
@@ -162,7 +158,7 @@ export const harness = async()=> {
 					})
 				}else{
 					/* process image */
-					promises.push((async(
+					(async(
 						key: string,
 						videoLength:number,
 						receiptHandle:string,
@@ -176,6 +172,7 @@ export const harness = async()=> {
 								//this item has spent too much time in the internal queue, another plugin instance has already run `cleanupAfterProcessing`
 								logger(key, `${e.name}:${e.message}. Assumed another instance has run 'cleanupAfterProcessing'.`)
 								delete _currentImageIds[key]
+								_currentNumFiles--
 								return false;
 							}
 							//we should never get here
@@ -186,7 +183,7 @@ export const harness = async()=> {
 						cleanupAfterProcessing(receiptHandle, key, videoLength)
 						delete _currentImageIds[key]
 						return res;
-					}) (key, videoLength, receiptHandle) )
+					}) (key, videoLength, receiptHandle);
 				}
 				//process downloaded videos
 				if(_currentVideos.length() > 0){
