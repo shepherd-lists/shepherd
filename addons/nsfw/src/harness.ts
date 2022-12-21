@@ -28,14 +28,31 @@ let _currentImageIds: {[name:string]:any} = {}
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const getMessages = async(maxNumberOfMessages: number): Promise<SQS.Message[]> => {
-	const { Messages } = await sqs.receiveMessage({
-		QueueUrl: AWS_SQS_INPUT_QUEUE,
-		MaxNumberOfMessages: Math.min(10, maxNumberOfMessages),
-		MessageAttributeNames: ['All'],
-		VisibilityTimeout: 900, //15mins
-		WaitTimeSeconds: 0,
-	}).promise()
-	const msgs = Messages! || []
+	//dont waste a n/w request
+	if(maxNumberOfMessages === 0) return []
+
+	const getMax10Messages =async (numberOfMessages: number) => {
+		const { Messages } = await sqs.receiveMessage({
+			QueueUrl: AWS_SQS_INPUT_QUEUE,
+			MaxNumberOfMessages: Math.min(10, numberOfMessages),
+			MessageAttributeNames: ['All'],
+			VisibilityTimeout: 900, //15mins
+			WaitTimeSeconds: 0,
+		}).promise()
+		return Messages || []
+	}
+
+	let toBeDone = maxNumberOfMessages
+	let msgs: SQS.Message[] = []
+	while(toBeDone > 0){
+		const newMsgs = await getMax10Messages(toBeDone)
+
+		if(newMsgs.length === 0) break; //no new messages
+
+		toBeDone -= newMsgs.length
+		msgs = [...msgs, ...newMsgs]
+	}
+
 	logger(prefix, `received ${msgs.length} messages`)
 	
 	return msgs;
