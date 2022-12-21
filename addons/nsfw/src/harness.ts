@@ -83,19 +83,19 @@ export const harness = async()=> {
 	console.log(prefix, `main begins`)
 	
 	/* message consumer loop */
-	let promises: Promise<boolean>[] = []
+	let promises: Promise<boolean>[] = [] // <== this is currently a memory leak!
 	let booleans: boolean[] = []
 	while(true){
-		// logger(prefix, `num true promises on previous loop ${trueCount(booleans)} out of ${promises.length}`)
-		// promises = []
-		// booleans = []
 		logger(prefix, {_currentNumFiles, _currentTotalSize: _currentTotalSize.toLocaleString(), vids: _currentVideos.length(), imgs: Object.keys(_currentImageIds).length})
 
 		if(_currentNumFiles >= NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
-			logger(prefix, `internal queue full. waiting 1000ms...`)
+			logger(prefix, `internal queue full. waiting for first 10 images to resolve`)
 			logger(prefix, {vids: _currentVideos.listIds(), imgs: _currentImageIds })
-			await sleep(1000)
-			// await Promise.all(promises) //this needs to go
+			if(promises.length > 10){
+				await Promise.all(promises.splice(0, 10)) //remove oldest
+			}else{
+				await sleep(1000)
+			}
 			continue;
 		}
 
