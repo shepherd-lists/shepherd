@@ -125,7 +125,8 @@ const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 	}
 }`
 
-const query = GQL_URL.includes('goldsky') ? queryGoldskyWild : queryArio
+const gqlProvider = GQL_URL.includes('goldsky') ? 'gold' : 'ario'
+const query = gqlProvider === 'gold' ? queryGoldskyWild : queryArio
 
 /* Generic getRecords */
 
@@ -148,18 +149,18 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 				break;
 			}catch(e:any){
 				if(e instanceof TypeError){
-					logger('gql-error', 'data: null. errors in res.data.errors')
+					logger('gql-error', 'data: null. errors in res.data.errors', gqlProvider)
 					continue;
 				}
 				if(e.code && e.code === 'ECONNRESET'){
-					logger('gql-error', 'ECONNRESET')
+					logger('gql-error', 'ECONNRESET', gqlProvider)
 					continue;
 				}
 				// if(e.response?.status === 504){
 				// 	logger('gql-error', e.response?.status, ':', e.message)
 				// 	continue;
 				// }
-				logger('gql-error', e.response?.status, ':', e.message)
+				logger('gql-error', e.response?.status, ':', e.message, gqlProvider)
 				throw e;
 			}
 		}
@@ -184,7 +185,7 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 			logstring += ` pausing for ${timeout}ms.`
 			await sleep(timeout)
 		}
-		logger('info', logstring)
+		logger('info', logstring, gqlProvider)
 	}
 
 	return numRecords
@@ -216,8 +217,8 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 
 		// sanity
 		if(!height){
-			logger(`HeightError` , `no height for '${txid}'`)
-			slackLogger(`HeightError : no height for '${txid}'`)
+			logger(`HeightError` , `no height for '${txid}'`, gqlProvider)
+			slackLogger(`HeightError : no height for '${txid}'`, gqlProvider)
 		}
 
 		// this content_type is missing for dataItems
@@ -243,16 +244,16 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 
 				/* if time less than 10ms, it's definitely a cache hit */
 				if(t1 > 10){
-					let logstring = `got parent ${p0} details in ${t1.toFixed(0)}ms.`
+					let logstring = `got parent ${p0} details in ${t1.toFixed(0)}ms. `
 
 					/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
 					if(GQL_URL.includes('arweave.net')){
 						let timeout = ARIO_DELAY_MS - t1
 						if(timeout < 0) timeout = 0
-						logstring += ` pausing for ${timeout.toFixed(0)}ms`
+						logstring += ` pausing for ${timeout.toFixed(0)}ms.`
 						await sleep(timeout)
 					}
-					logger(txid, logstring)
+					logger(txid, logstring, gqlProvider)
 				}
 
 			}while(p && parents.push(p))
@@ -272,11 +273,11 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 		await knex<TxScanned>('txs').insert(records).onConflict('txid').merge(['height', 'parent', 'parents'])
 	}	catch(e:any){
 		if(e.code && Number(e.code) === 23502){
-			logger('Error!', 'Null value in column violates not-null constraint', e.detail)
-			slackLogger('Error!', 'Null value in column violates not-null constraint', e.detail)
+			logger('Error!', 'Null value in column violates not-null constraint', e.detail, gqlProvider)
+			slackLogger('Error!', 'Null value in column violates not-null constraint', e.detail, gqlProvider)
 			throw e
 		} else { 
-			if(e.code) logger('Error!', e.code)
+			if(e.code) logger('Error!', e.code, gqlProvider)
 			throw e
 		}
 	}
