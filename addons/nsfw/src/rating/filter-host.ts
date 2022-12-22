@@ -25,7 +25,13 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 
 		const mime = await getImageMime(pic)
 		if(mime === undefined){
-			logger(prefix, 'image mime-type found to be `undefined`. try rating anyway. Original:', contentType, txid)
+			if(contentType.startsWith('image/')){
+				logger(prefix, 'image mime-type found to be `undefined`. try rating anyway. Original:', contentType, txid)
+			}else{
+				logger(prefix, `image mime-type found to be '${mime}'. will be automatically requeued using:`, contentType, txid)
+				await dbWrongMimeType(txid, contentType) //shouldn't get here..
+				return true;
+			}
 		}else if(!mime.startsWith('image/')){
 			logger(prefix, `image mime-type found to be '${mime}'. updating record; will be automatically requeued. Original:`, contentType, txid)
 			await dbWrongMimeType(txid, mime)
