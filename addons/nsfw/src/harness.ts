@@ -216,19 +216,26 @@ export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, video
 
 	deleteMessage(ReceiptHandle, Key)
 	
-	s3.deleteObject({
-		Bucket: AWS_INPUT_BUCKET,
-		Key,
-	}).promise()
-		.then(()=> logger(Key, `deleted object`))
-		.catch((e: AWSError) => logger(Key, `ERROR DELETING OBJECT! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
+	s3.deleteObject(
+		{
+			Bucket: AWS_INPUT_BUCKET,
+			Key,
+		},
+		(e, data) => {
+			if(e) logger(Key, `ERROR DELETING OBJECT! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`)
+			else logger(Key, `deleted object`)
+		}
+	)
 }
 
-const deleteMessage = (ReceiptHandle: string, Key: string)=> sqs.deleteMessage({
-	QueueUrl: AWS_SQS_INPUT_QUEUE,
-	ReceiptHandle,
-}).promise()
-	.then(()=> logger(Key, `deleted message`))
-	.catch((e: AWSError) => logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`))
-
+const deleteMessage = (ReceiptHandle: string, Key: string)=> sqs.deleteMessage(
+	{
+		QueueUrl: AWS_SQS_INPUT_QUEUE,
+		ReceiptHandle,
+	},
+	(e, data) => {
+		if(e) logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`)
+		else logger(Key, `deleted message`)
+	}
+)
 
