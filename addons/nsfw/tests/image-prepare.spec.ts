@@ -42,12 +42,6 @@ describe('image-prepare tests', ()=> {
 		this.timeout(0)
 
 		try{
-			// /* set up data for 404 test */
-			// const res404 = await db<TxRecord>('txs').where({ txid: tx404 })
-			// if(res404.length !== 1){
-			// 	await db<TxRecord>('txs').insert({txid: tx404, content_type: 'image/png', content_size: '0'})
-			// }
-			// await db<TxRecord>('txs').where({ txid: tx404}).update({ data_reason: 'timeout'}) //set to !404
 
 			/* set up data for corrupt file test */
 			await s3Upload(txCorrupt)
@@ -56,13 +50,6 @@ describe('image-prepare tests', ()=> {
 				await db<TxRecord>('txs').insert({txid: txCorrupt, content_type: 'image/png', content_size: '123'})
 			}
 			await db<TxRecord>('txs').where({ txid: txCorrupt}).update({ data_reason: 'timeout'}) //set to !mimetype
-
-			// /* set up data for file timeout test */
-			// const resTimeout = await db<TxRecord>('txs').where({ txid: txTimeout })
-			// if(resTimeout.length !== 1){
-			// 	await db<TxRecord>('txs').insert({txid: txTimeout, content_type: 'image/png', content_size: '123'})
-			// }
-			// await db<TxRecord>('txs').where({ txid: txCorrupt}).update({ data_reason: 'partial'}) //set to !timeout
 
 			/* set up data for non-image mimetype test */
 			await s3Upload(txNonImageMime)
@@ -106,15 +93,6 @@ describe('image-prepare tests', ()=> {
 	afterEach(()=> sinon.restore())
 
 
-	// it('tests handling 404 image', async()=>{
-	// 	const res = await imageFilter.checkImageTxid(tx404, 'image/png')
-	// 	expect(res).true // true: handled the 404
-		
-	// 	const check = await db<TxRecord>('txs').where({ txid: tx404})
-	// 	expect(check.length).eq(1)
-	// 	expect(check[0].data_reason).eq('404')
-	// }).timeout(0)
-
 	it('tests handling image with non-image mimetype', async()=>{
 		const res = await imageFilter.checkImageTxid(txNonImageMime, 'image/png')
 		expect(res).true // true: handled the wrong mimetype
@@ -133,28 +111,19 @@ describe('image-prepare tests', ()=> {
 		expect(check[0].content_type).eq('image/jpeg') //we dont change these anymore
 	}).timeout(0)
 
-	it('tests handling corrupt image: mimetype undefined', async()=>{
-		const res = await imageFilter.checkImageTxid(txCorrupt, 'image/png')
-		expect(res).true // true: handled it
-		
-		const check = await db<TxRecord>('txs').where({ txid: txCorrupt})
-		expect(check.length).eq(1)
-		expect(check[0].data_reason).eq('mimetype')
-	}).timeout(0)
 
-	// it('tests handling image file timeout while downloading', async()=>{
+	// /* this should be handled by the hosted plugin, not the harness */
+	// it('tests handling corrupt image: mimetype undefined', async()=>{
+	// 	const res = await imageFilter.checkImageTxid(txCorrupt, 'image/png')
+	// 	expect(res).true // true: handled it
 		
-	// 	const fakeAxios = sinon.stub(axios, 'get').returns(
-	// 		new Promise(resolve => setTimeout(resolve, NO_DATA_TIMEOUT+1000))
-	// 	)
+	// 	const check = await db<TxRecord>('txs').where({ txid: txCorrupt})
 
-	// 	const res = await imageFilter.checkImageTxid(txTimeout, 'image/png')
-	// 	expect(fakeAxios.called).true
-	// 	expect(res).false // false: will handle later
-		
-	// 	const check = await db<TxRecord>('txs').where({ txid: txTimeout})
+	// 	console.log({res, check})
+
 	// 	expect(check.length).eq(1)
-	// 	expect(check[0].data_reason).eq('timeout')
+	// 	expect(check[0].valid_data).false
+	// 	expect(check[0].data_reason).eq('corrupt')
 	// }).timeout(0)
 
 	
