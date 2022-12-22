@@ -86,7 +86,7 @@ const getFileHead = memoize(
 	},
 	{ 
 		maxSize: 2 * NUM_FILES,
-		maxAge:  900000, //15 minutes: 15 * 60 * 1000 = 900000 ms
+		maxAge:  900_000, //15 minutes: 15 * 60 * 1000 = 900000 ms
 	},
 )
 
@@ -171,9 +171,9 @@ export const harness = async()=> {
 						try{
 							res = await checkImageTxid(key, contentType) 
 						}catch(e:any){
-							if(e.name === 'RequestTimeTooSkewed'){
+							if(['RequestTimeTooSkewed', 'NoSuchKey'].includes(e.name)){
 								//this item has spent too much time in the internal queue, another plugin instance has already run `cleanupAfterProcessing`
-								logger(key, `${e.name}:${e.message}. Assumed another instance has run 'cleanupAfterProcessing'.`)
+								logger(key, `${e.name}:${e.message}. Assuming another instance has run 'cleanupAfterProcessing'.`)
 								delete _currentImageIds[key]
 								_currentNumFiles--
 								return false;
@@ -223,7 +223,7 @@ export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, video
 		},
 		(e, data) => {
 			if(e) logger(Key, `ERROR DELETING OBJECT! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`)
-			else logger(Key, `deleted object`)
+			else logger(Key, `deleted object.`, data)
 		}
 	)
 }
@@ -235,7 +235,7 @@ const deleteMessage = (ReceiptHandle: string, Key: string)=> sqs.deleteMessage(
 	},
 	(e, data) => {
 		if(e) logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`)
-		else logger(Key, `deleted message`)
+		else logger(Key, `deleted message.`, JSON.stringify(data))
 	}
 )
 

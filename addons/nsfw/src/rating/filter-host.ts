@@ -51,7 +51,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 			return true;
 		}
 
-		if(e.name === 'RequestTimeTooSkewed'){
+		if(['RequestTimeTooSkewed', 'NoSuchKey'].includes(e.name)){
 			throw e; //bubble up to `harness` handler
 		}
 

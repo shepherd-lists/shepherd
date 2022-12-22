@@ -1,7 +1,7 @@
 import { SQS, S3, STS } from 'aws-sdk'
  
-
 /* exports */
+export { AWSError } from 'aws-sdk'
 
 export const AWS_SQS_INPUT_QUEUE = process.env.AWS_SQS_INPUT_QUEUE as string
 export const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET as string
