@@ -2,7 +2,7 @@ import { AWSError, SQS } from 'aws-sdk'
 import { s3, sqs, AWS_INPUT_BUCKET, AWS_SQS_INPUT_QUEUE } from './utils/aws-services'
 import { S3Event } from 'aws-lambda'
 import { logger } from './utils/logger'
-import memoize from 'micro-memoize'
+import memoize from 'moize'
 import { VidDownloads } from './rating/video/VidDownloads'
 import { addToDownloads } from './rating/video/downloader'
 import { processVids } from './rating/video/process-files'
@@ -84,7 +84,10 @@ const getFileHead = memoize(
 			}
 		}
 	},
-	{ maxSize: 2 * NUM_FILES },
+	{ 
+		maxSize: 2 * NUM_FILES,
+		maxAge:  900000, //15 minutes: 15 * 60 * 1000 = 900000 ms
+	},
 )
 
 const releaseMessage = async(ReceiptHandle: string)=> sqs.changeMessageVisibility({
