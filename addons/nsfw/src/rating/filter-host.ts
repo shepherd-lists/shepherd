@@ -57,7 +57,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 
 		logger(prefix, 'UNHANDLED Error processing', txid + ' ', e.name, ':', e.message)
 		await slackLogger(prefix, 'UNHANDLED Error processing', txid, e.name, ':', e.message)
-		logger(prefix, 'UNHANDLED', e)
+		logger(prefix, 'UNHANDLED', txid, e)
 		logger(prefix, await si.mem())
 
 		return false;
