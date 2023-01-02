@@ -1,5 +1,5 @@
 import { 
-	dbCorruptDataConfirmed, dbCorruptDataMaybe, dbNoMimeType, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb, dbInflightDel 
+	dbCorruptDataConfirmed, dbCorruptDataMaybe, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb, dbInflightDel 
 } from '../utils/db-update-txs'
 import { getImageMime } from './image-filetype'
 import { logger } from '../utils/logger'
@@ -86,7 +86,7 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 			}),
 			last_update_date: new Date(),
 		})
-		dbInflightDel(txid)
+		await dbInflightDel(txid)
 	}else{
 		switch (result.data_reason) {
 			case 'corrupt-maybe':

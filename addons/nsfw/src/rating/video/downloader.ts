@@ -2,7 +2,7 @@ import fs from 'fs'
 import filetype, { FileTypeResult } from "file-type";
 import { network_EXXX_codes, VID_TMPDIR, VID_TMPDIR_MAXSIZE } from "../../constants";
 import { logger } from "../../utils/logger";
-import { dbNoMimeType, dbPartialVideoFound, dbWrongMimeType } from "../../utils/db-update-txs";
+import { dbPartialVideoFound, dbWrongMimeType } from "../../utils/db-update-txs";
 import { VidDownloadRecord, VidDownloads } from "./VidDownloads";
 import { slackLogger } from "../../utils/slackLogger";
 import si from 'systeminformation'
@@ -42,47 +42,17 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 		const folderpath = VID_TMPDIR + vid.txid + '/'
 		fs.mkdirSync(folderpath, { recursive: true })
 		const filewriter = fs.createWriteStream(folderpath + vid.txid, { encoding: 'binary' })
-	
-		// const source = axios.CancelToken.source()
-		// let timer: NodeJS.Timeout | null = null
 		
 		try{
-			
-			// const { data, headers } = await axios.get(url, {
-			// 	cancelToken: source.token,
-			// 	responseType: 'stream',
-			// })
+
 			const request = s3.getObject({ Bucket: AWS_INPUT_BUCKET, Key: vid.txid })
 			const stream = request.createReadStream() //.pipe(filewriter)
 
-			// /* Video size might be incorrect */
-			// const contentLength = BigInt(headers['content-length'])
-			// if(BigInt(vid.content_size) !== contentLength){
-			// 	logger(vid.txid, 'content-length. gql:', vid.content_size, typeof vid.content_size, 'header:', contentLength)
-			// 	vid.content_size = contentLength.toString()
-			// }
-
-			// timer = setTimeout( ()=>{
-			// 	source.cancel()
-			// 	logger(vid.txid, `No data timeout ${NO_STREAM_TIMEOUT} ms exceeded`)
-			// 	dbNoDataFound(vid.txid)
-			// 	filewriter.end()
-			// 	resolve('no data timeout')
-			// }, NO_STREAM_TIMEOUT )
-			
-			// const stream: IncomingMessage = data
-			
 			let mimeNotFound = true
 			let filehead = new Uint8Array(0)
 			let filesizeDownloaded = 0
 
 			const fileTypeGood = (res: FileTypeResult | undefined)=>{
-				// if(res === undefined){
-				// 	logger(vid.txid, 'no file-type found:', res)
-				// 	dbNoMimeType(vid.txid)
-				// 	vid.content_type = 'undefined'
-				// 	return false
-				// }else 
 				if(res && !res.mime.startsWith('video/')){
 					logger(vid.txid, 'invalid video file-type:', res.mime)
 					dbWrongMimeType(vid.txid, res.mime)
