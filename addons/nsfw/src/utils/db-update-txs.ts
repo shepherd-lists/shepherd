@@ -57,131 +57,80 @@ export const dbInflightAdd = async(txid: string)=> {
 	}	
 }
 
-
-export const dbNoDataFound404 = async(txid: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
-		flagged: false,
-		valid_data: false,
-		data_reason: '404',
-		last_update_date: new Date(),
-	})
-}
-
-export const dbNoDataFound = async(txid: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
-		flagged: false,
-		valid_data: false,
-		data_reason: 'nodata',
-		last_update_date: new Date(),
-	})
-}
-export const dbNegligibleData = async(txid: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
-		flagged: false,
-		valid_data: false,
-		data_reason: 'negligible-data',
-		last_update_date: new Date(),
-	})
-}
-export const dbMalformedXMLData = async(txid: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
-		flagged: false,
-		valid_data: false,
-		data_reason: 'MalformedXML-data',
-		last_update_date: new Date(),
-	})
-}
-
 export const dbCorruptDataConfirmed = async(txid: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
+	const res = await updateTxsDb(txid,{
 		flagged: false,
 		valid_data: false,
 		data_reason: 'corrupt',
 		last_update_date: new Date(),
 	})
+	await dbInflightDel(txid)
+	return res;
 }
 
 export const dbCorruptDataMaybe = async(txid: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
+	const res = await updateTxsDb(txid,{
 		// flagged: false, <= try filetype detection first
 		valid_data: false,
 		data_reason: 'corrupt-maybe',
 		last_update_date: new Date(),
 	})
+	await dbInflightDel(txid)
+	return res;
 }
 
 export const dbPartialImageFound = async(txid: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
+	const res = await updateTxsDb(txid,{
 		// flagged: <= cannot flag yet! display with puppeteer & rate again
 		valid_data: false, // this removes it from current queue
 		data_reason: 'partial',
 		last_update_date: new Date(),
 	})
+	await dbInflightDel(txid)
+	return res;
 }
 
 export const dbPartialVideoFound = async(txid: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
+	const res = await updateTxsDb(txid,{
 		// flagged: undefined,  // this gets set in the normal way in another call
 		// valid_data: undefined,
 		data_reason: 'partial-seed', //check later if fully seeded
 		last_update_date: new Date(),
 	})
+	await dbInflightDel(txid)
+	return res;
 }
 
 export const dbOversizedPngFound = async(txid: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
+	const res = await updateTxsDb(txid,{
 		// flagged: <= cannot flag yet! use tinypng, then rate again
 		valid_data: false, // this removes it from current queue
 		data_reason: 'oversized',
 		last_update_date: new Date(),
 	})
+	await dbInflightDel(txid)
+	return res;
 }
 
-export const dbTimeoutInBatch = async(txid: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
-		// flagged: <= need recheck: may be due to other delay during timeout or data not seeded yet
-		valid_data: false,
-		data_reason: 'timeout',
-		last_update_date: new Date(),
-	})
-}
 /** @deprecated */
 export const dbWrongMimeType = async(txid: string, content_type: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
+	const res = await updateTxsDb(txid,{
 		// this will be retried in the relevant queue
 		content_type,
 		data_reason: 'mimetype',
 		last_update_date: new Date(),
 	})
-}
-/** @deprecated */
-export const dbNoMimeType = async(txid: string)=> {
 	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
-		flagged: false,
-		content_type: 'undefined',
-		data_reason: 'mimetype',
-		last_update_date: new Date(),
-	})
+	return res;
 }
 
 export const dbUnsupportedMimeType = async(txid: string)=> {
-	await dbInflightDel(txid)
-	return updateTxsDb(txid,{
+	const res = await updateTxsDb(txid,{
 		// flagged: <= cannot flag yet! display with puppeteer & rate again
 		valid_data: false, // this removes it from current queue
 		data_reason: 'unsupported',
 		last_update_date: new Date(),
 	})
+	await dbInflightDel(txid)
+	return res;
 }
