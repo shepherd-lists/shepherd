@@ -54,17 +54,38 @@ const getTxRecords =async (limit: number) => {
 	}
 }
 
+const inflightsSize = async()=> {
+	while(true){
+		try{
+			return +(await knex.raw(`SELECT reltuples::bigint AS estimate FROM pg_class where relname = 'inflights'`)).rows[0].estimate 
+		}catch(e:any){
+			logger(inflightsSize.name, `some error getting table size. ${e.name}:${e.message}. waiting 30s...`)
+			slackLogger(inflightsSize.name, `some error getting table size. ${e.name}:${e.message}. waiting 30s...`)
+			await sleep(30000)
+		}
+	}
+}
+
 export const feeder = async()=> {
 
 	// some constants we might finesse later
-	const WORKING_RECORDS = 25000 //aim of min 100k/hr: ~ 15mins of txs
+	const WORKING_RECORDS = 25_000 //aim of min 100k/hr: ~ 15mins of txs
 	const ABSOLUTE_TIMEOUT = 1 * 60 * 1000 //1 mins
+	const INFLIGHTS_MAX = 100_000 //deletions get really slow when inflights table in the millions
 
 
 	while(true){
-		const numSqsMsgs = await approximateNumberOfMessages()
+		const numSqsMsgs = await approximateNumberOfMessages() 
 		logger(prefix, 'approximateNumberOfMessages', numSqsMsgs)
-		if(numSqsMsgs < WORKING_RECORDS ){
+
+		const numInflights = await inflightsSize()
+		logger(prefix, 'approx. inflights size', numInflights)
+
+		/**
+		 *  FUTURE IMPROVEMENT, CHECK THE TOTAL SIZE OF S3 INPUT BUCKET 
+		 */ 
+
+		if(numSqsMsgs < WORKING_RECORDS && numInflights < INFLIGHTS_MAX ){
 			await sendToSqs( await getTxRecords(WORKING_RECORDS) )
 		}
 		logger(prefix, 'sleeping for 1 minutes...')
