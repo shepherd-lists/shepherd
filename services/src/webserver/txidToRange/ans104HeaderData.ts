@@ -4,7 +4,6 @@
  * (https://github.com/Bundlr-Network/arbundles/blob/c6aa659a63d386066504e7cd8cab415d422d4f8f/stream/index.ts#L1-L195).
  * The license of the shepherd repo is LGPL-3.0-or-later which is compatible.
  */
-import { ReadableStreamDefaultReader } from 'stream/web'
 import Arweave from 'arweave'
 import { fetchRetryConnection } from './fetch-retry'
 import { HOST_URL } from '../../common/constants'
@@ -52,7 +51,7 @@ const concatByteArray = (a: Uint8Array, b: Uint8Array) => {
 /* handle errors during the stream */
 const fetchHeader = async(parent: string)=> {
 	while(true){
-		let reader: ReadableStreamDefaultReader<any>
+		let reader: ReadableStreamDefaultReader<Uint8Array>
 		try{
 			/* start the stream connection */
 
