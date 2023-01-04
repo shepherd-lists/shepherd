@@ -33,13 +33,17 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 	public [Symbol.iterator] = ()=> VidDownloads.array[Symbol.iterator]()
 	public length = ()=> VidDownloads.array.length	//it's become a function
 	public push = (vdl: VidDownloadRecord)=> {
+		let retry = false /* we have a weird hacky clause */
 		for (const item of VidDownloads.array) {
 			if(vdl.txid === item.txid){
-				slackLogger(`FATAL VidDownloadsError: item '${vdl.txid}' already in array.`)
-				throw new Error(`VidDownloadsError: item '${vdl.txid}' already in array`)
+				if(item.retried){
+					retry = true
+				}else{
+					throw new Error(`VidDownloadsError: item '${vdl.txid}' already in array. retried: ${item.retried}`)
+				}
 			}
 		}
-		VidDownloads.array.push(vdl)
+		if(!retry) VidDownloads.array.push(vdl)
 	}
 
 	/* extra methods */
