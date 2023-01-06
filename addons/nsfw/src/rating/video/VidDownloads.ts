@@ -2,7 +2,6 @@ import rimraf from "rimraf"
 import { VID_TMPDIR } from "../../constants"
 import { logger } from "../../utils/logger"
 import { cleanupAfterProcessing } from "../../harness"
-import { slackLogger } from "../../utils/slackLogger"
 
 
 export interface VidDownloadRecord  {
@@ -11,7 +10,6 @@ export interface VidDownloadRecord  {
 	content_type: string
 	receiptHandle: string
 	complete: 'TRUE' | 'FALSE' | 'ERROR' | (string & {})
-	retried: boolean
 }
 
 export class VidDownloads implements Iterable<VidDownloadRecord> {
@@ -33,17 +31,12 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 	public [Symbol.iterator] = ()=> VidDownloads.array[Symbol.iterator]()
 	public length = ()=> VidDownloads.array.length	//it's become a function
 	public push = (vdl: VidDownloadRecord)=> {
-		let retry = false /* we have a weird hacky clause */
 		for (const item of VidDownloads.array) {
 			if(vdl.txid === item.txid){
-				if(item.retried){
-					retry = true
-				}else{
-					throw new Error(`VidDownloadsError: item '${vdl.txid}' already in array. retried: ${item.retried}`)
-				}
+				throw new Error(`VidDownloadsError: item '${vdl.txid}' already in array.`)
 			}
 		}
-		if(!retry) VidDownloads.array.push(vdl)
+		VidDownloads.array.push(vdl)
 	}
 
 	/* extra methods */

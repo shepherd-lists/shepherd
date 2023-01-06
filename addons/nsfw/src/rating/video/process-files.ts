@@ -46,20 +46,21 @@ export const processVids = async()=> {
 				){
 					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
 					dbCorruptDataMaybe(dl.txid)
+					downloads.cleanup(dl)
+					continue; //dont checkFrames
 				}else if(
 					[
 						'spawnSync /bin/sh ENOMEM', 
 						'ffout[1]:Error marking filters as finished',
 					].includes(e.message)
 				){
-					if(dl.retried === false){
-						logger(dl.txid, `ffmpeg: ${e.message}. Will retry once.`)
-						dl.retried = true
-						continue; //skip cleanup()
-					}else{
-						logger(dl.txid, `ffmpeg: ${e.message}. Already retried. Shelving.`)
-						dbCorruptDataMaybe(dl.txid)
-					}
+					/**
+					 * using local retry on these errors is causing transactions to completely fill up the 
+					 * internal queues. better to retry using the SQS queues.
+					 */
+					logger(dl.txid, `${e.name}:${e.message}. Cleaning up and releasing back to SQS queue.`)
+					downloads.cleanup(dl)
+					continue; //dont checkFrames
 				}else{
 					logger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
 					slackLogger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
@@ -67,7 +68,6 @@ export const processVids = async()=> {
 				}
 				//delete the temp files
 				downloads.cleanup(dl)
-				continue; //skip to next `dl`
 			}
 
 			//let tfjs run through the screencaps & write to db
