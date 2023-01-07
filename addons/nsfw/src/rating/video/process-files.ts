@@ -33,6 +33,8 @@ export const processVids = async()=> {
 				if(e.message === 'Output file #0 does not contain any stream'){
 					logger(dl.txid, 'ffmpeg: Output file #0 does not contain any stream')
 					dbCorruptDataConfirmed(dl.txid)
+					downloads.cleanup(dl)
+					continue; //dont checkFrames
 				}else if(e.message === 'No such file or directory'){
 					//we should not be in createScreencaps if there is no video file
 					throw e
