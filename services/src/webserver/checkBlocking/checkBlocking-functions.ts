@@ -111,7 +111,7 @@ export const streamLists = async () => {
 					const now = Date.now()
 					if(now - rangeIp.lastResponse > hour_ms){
 						logger(prefix, `node '${rangeIp.ip}' is unresponsive for the last hour`)
-						slackLogger(prefix, `node '${rangeIp.ip}' is unresponsive for the last hour`)
+						// slackLogger(prefix, `node '${rangeIp.ip}' is unresponsive for the last hour`)
 						rangeIp.lastResponse = Date.now() //reset message timer for another hour
 					}
 				}
