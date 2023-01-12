@@ -1,6 +1,6 @@
 import { logger } from '../../utils/logger'
 import { FfmpegError, } from 'shepherd-plugin-interfaces/types'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe } from '../../utils/db-update-txs'
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel } from '../../utils/db-update-txs'
 import { createScreencaps } from './screencaps'
 import { checkFrames } from './check-frames'
 import { VidDownloads } from './VidDownloads'
@@ -61,6 +61,7 @@ export const processVids = async()=> {
 					 * internal queues. better to retry using the SQS queues.
 					 */
 					logger(dl.txid, `${e.name}:${e.message}. Cleaning up and releasing back to SQS queue.`)
+					dbInflightDel(dl.txid)
 					downloads.cleanup(dl)
 					continue; //dont checkFrames
 				}else{
