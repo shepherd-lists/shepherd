@@ -12,8 +12,8 @@ export const byteRanges = async (id: string, parent: string | null, parents: str
 	try{
 		chunkRange = await txidToRange(id, parent, parents)
 	}catch(e:any){
-		logger(byteRanges.name, "UNHANLDED error", e.name, e.message, {id, parent, parents}, e)
-		slackLogger(byteRanges.name, "UNHANLDED error", e.name, e.message, {id, parent, parents})
+		logger(byteRanges.name, "UNHANLDED error", e.name, e.message, `id:${id}, parent:${parent}, parents:${parents}}`, e)
+		slackLogger(byteRanges.name, "UNHANLDED error", e.name, e.message, `id:${id}, parent:${parent}, parents:${parents}}`)
 	}
 
 	/* update database - (expensive to do this separately, consider combined operation) */
