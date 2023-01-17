@@ -211,15 +211,9 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 		const txid = item.node.id
 		let content_type = item.node.data.type
 		const content_size = item.node.data.size.toString()
-		const height = item.node.block.height
+		const height = item.node.block.height // missing height should not happen and cause `TypeError : Cannot read properties of null (reading 'height')`
 		const parent = item.node.parent?.id || null // the direct parent, if exists
 		const parents: string[] = []
-
-		// sanity
-		if(!height){
-			logger(`HeightError` , `no height for '${txid}'`, gqlProvider)
-			slackLogger(`HeightError : no height for '${txid}'`, gqlProvider)
-		}
 
 		// this content_type is missing for dataItems
 		if(!content_type){ 

@@ -97,15 +97,17 @@ export const indexer = async()=> {
 				if( status >= 500 ){
 					logger(`GATEWAY ERROR! ${e.name}(${status}) : ${e.message}`)
 				}
+				
 				if( status === 429 ){
 					logger(`${e.name}(${status}) : ${e.message}. Waiting 5 minutes to try and timeout rate-limit.`)
 					logger(await si.mem())
 					await sleep(300_000)
-				}else{
-					logger('Error!', 'Indexer fell over. Waiting 30 seconds to try again.', `${e.name}(${status}) : ${e.message}`)
-					logger(await si.mem())
-					await sleep(30000)
+					continue;
 				}
+
+				logger('Error!', 'Indexer fell over. Waiting 30 seconds to try again.', `${e.name}(${status}) : ${e.message}`)
+				logger(await si.mem())
+				await sleep(30000)
 			}
 		}///end while(true)
 	} catch(e:any) {
