@@ -5,6 +5,8 @@ import { getPerfHistory, getStatsTestOnly } from './metrics'
 import si from 'systeminformation'
 import './perf-cron' //starts automatically
 import './checkBlocking/checkBlocking-timer' //starts automatically
+import { slackLogger } from '../common/utils/slackLogger'
+import { network_EXXX_codes } from '../common/constants'
 
 const prefix = 'webserver'
 const app = express()
@@ -102,6 +104,21 @@ app.get('/perf', async (req, res) => {
 	res.status(200).end()
 })
 
-app.listen(port, () => logger(`started on http://localhost:${port}`))
+const server = app.listen(port, () => logger(`started on http://localhost:${port}`))
+
+server.on('clientError', (e: any, socket)=> {
+
+	slackLogger(`express-clientError`, `${e.name} (${e.code}) : ${e.message}.`)
+	logger(`express-clientError`, `${e.name} (${e.code}) : ${e.message}. \n${e.stack}`)
+
+	//make sure connection still open
+	if(
+		( e.code && network_EXXX_codes.includes(e.code) )
+		|| !socket.writable) {
+    return;
+  }
+
+	socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
+})
 
 
