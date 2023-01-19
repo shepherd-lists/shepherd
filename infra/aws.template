@@ -147,12 +147,12 @@ Resources:
         - Ref: ShepherdSecurityGroup
       DBSubnetGroupName: 
         Ref: DBSubnetGroup
-      AllocatedStorage: 40
+      AllocatedStorage: 50
       PubliclyAccessible: true # useful for debugging using psql, add your ip to SG
-      DBInstanceClass: "db.r6g.2xlarge"
+      DBInstanceClass: "db.t4g.xlarge"
       StorageType: gp2
       Engine: postgres
-      EngineVersion: "13.3"
+      EngineVersion: "13.8"
       # DeleteAutomatedBackups: false
       DBName: arblacklist
       MasterUsername: postgres
