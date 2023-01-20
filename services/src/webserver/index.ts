@@ -106,6 +106,10 @@ app.get('/perf', async (req, res) => {
 
 const server = app.listen(port, () => logger(`started on http://localhost:${port}`))
 
+/**
+ * catch malformed client requests.
+ * useful for testing: curl -v -X POST -H 'content-length: 3' --data-raw 'aaaa' http://localhost
+ */
 server.on('clientError', (e: any, socket)=> {
 
 	slackLogger(`express-clientError`, `${e.name} (${e.code}) : ${e.message}.`)
