@@ -112,8 +112,7 @@ const server = app.listen(port, () => logger(`started on http://localhost:${port
  */
 server.on('clientError', (e: any, socket)=> {
 
-	slackLogger(`express-clientError`, `${e.name} (${e.code}) : ${e.message}.`)
-	logger(`express-clientError`, `${e.name} (${e.code}) : ${e.message}. \n${e.stack}`)
+	logger(`express-clientError`, `${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
 
 	//make sure connection still open
 	if(
