@@ -1,7 +1,7 @@
 import express from 'express'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { getBlacklist, getRangelist } from './blacklist'
-import { getPerfHistory, getStatsTestOnly } from './metrics'
+import { getPerfHistory, getDevStats } from './metrics'
 import si from 'systeminformation'
 import './perf-cron' //starts automatically
 import './checkBlocking/checkBlocking-timer' //starts automatically
@@ -93,8 +93,13 @@ app.get('/rangelist.txt', async (req, res) => {
 })
 
 app.get('/nocache-stats.html', async (req, res) => {
-	res.setHeader('Content-Type', 'text/html')
-	await getStatsTestOnly(res)
+	res.writeHead(200, {
+		'Content-Type': 'text/html',
+		'Cache-Control': 'no-cache',
+		'Connection': 'keep-alive',
+	})
+	res.flushHeaders()
+	await getDevStats(res)
 	res.end()
 })
 

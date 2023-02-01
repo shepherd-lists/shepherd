@@ -3,32 +3,43 @@ import { TxRecord, StateRecord, HistoryRecord } from '../common/shepherd-plugin-
 import getDb from '../common/utils/db-connection'
 const knex = getDb()
 
-export const getStatsTestOnly = async(res: Response)=> {
+export const getDevStats = async(res: Response)=> {
+	console.log(getDevStats.name, `starting /nocache-stats.html response`)
 	res.write('<html><body style="font-family:\'Courier New\',monospace;">')
 
-	const txsCount = await knex<TxRecord>('txs').count('id')
-	res.write(`<h1>Total records: ${txsCount[0].count}</h1>`)
-
-	const indexPosn = await knex<StateRecord>('states').where({ pname: 'scanner_position'})
-	res.write(`Indexer Position: ${indexPosn[0].value}`)
-
-	const inflightNoop = await knex<TxRecord>('inflights').count('id')
-	res.write(`<h2>Inflight noop: ${inflightNoop[0].count}</h2>`)
-
-	const unfinished = await knex<TxRecord>('txs').whereNull('flagged').count('id')
-	res.write(`<h2>Flagged: ${Number(txsCount[0].count) - Number(unfinished[0].count)}</h2>`)
-	res.write(`<h2>Unflagged: ${unfinished[0].count}</h2>`)
-
-	//select content_type, count(*) from txs where valid_data is null group by content_type;
-	const results = await knex<TxRecord>('txs').select('content_type').count('content_type').whereNull('valid_data').groupBy('content_type')
-
-	res.write('<table>')
-	for (const result of results) {
-		res.write(`<tr><td>${result.content_type}</td><td>${result.count}</td><tr>`)
-	}
-	res.write('</table>')
+	// SELECT reltuples AS estimate FROM pg_class WHERE relname = 'table_name';
+	const txsCount = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'txs' })
+	console.log(getDevStats.name, {txsCount} )
+	res.write(`<h1>Total records: ${txsCount[0].estimate}</h1>\n`)
 	
-	res.write('</body></html>')
+	const indexPosn = await knex<StateRecord>('states').where({ pname: 'scanner_position'})
+	console.log(getDevStats.name, {indexPosn} )
+	res.write(`Indexer Position: ${indexPosn[0].value}\n`)
+
+	const inflightNoop = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'inflights' })
+	console.log(getDevStats.name, {inflightNoop} )
+	res.write(`<h2>Inflight noop: ${inflightNoop[0].estimate}</h2>\n`)
+
+	// res.write(`<h2>N.B. number of flagged, unflagged appears to be too expensive. Skipping</h2>\n`)
+	const unfinished = await knex<TxRecord>('txs').whereNull('flagged').count('*')
+	//@ts-ignore
+	const unfinishedCount = unfinished[0].count
+	console.log(getDevStats.name, {unfinished})
+	res.write(`<h2>Flagged: ${+txsCount[0].estimate - +unfinishedCount}</h2>\n`)
+	res.write(`<h2>Unflagged: ${unfinishedCount}</h2>\n`)
+
+	res.write(`<h2>N.B. aggregated counts by content-type appear to be too expensive. Skipping until fixed</h2>\n`)
+	// //select content_type, count(*) from txs where valid_data is null group by content_type;
+	// const results = await knex<TxRecord>('txs').select('content_type').count('content_type').whereNull('valid_data').groupBy('content_type')
+	// console.log(`aggregated counts by content_type received`)
+
+	// res.write('<table>')
+	// for (const result of results) {
+	// 	res.write(`<tr><td>${result.content_type}</td><td>${result.count}</td><tr>`)
+	// }
+	// res.write('</table>')
+	
+	res.write('</body></html>\n')
 }
 
 export const getPerfHistory = async(res: Response)=> {
