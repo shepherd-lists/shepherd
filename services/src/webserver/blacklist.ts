@@ -7,21 +7,23 @@ import { Writable } from 'stream'
 const knex = getDb()
 
 //serve cache for 3 mins
-const timeout = 3 * 60 * 1000 // min 5 mins between list updates
+const CACHE_TIMEOUT = 3 * 60 * 1000 
 
 let _black =  {
 	last: 0,
 	text: '',
+	inProgress: false,
 }
 export const getBlacklist = async(res: Writable)=> {
 
 	const now = new Date().valueOf()
-	
-	if(now - _black.last > timeout) _black.last = now
-	else{ 
-		logger('blacklist', `serving cache, ${_black.text.length} bytes`)
+
+	if(_black.inProgress || now - _black.last < CACHE_TIMEOUT){
+		logger('blacklist', `serving cache, ${_black.text.length} bytes. inProgress: ${_black.inProgress}`)
 		return res.write(_black.text);
 	}
+	_black.inProgress = true
+	_black.last = now
 
 	const records = knex<TxRecord>('txs').where({flagged: true}).stream()
 	let text = ''
@@ -35,21 +37,24 @@ export const getBlacklist = async(res: Writable)=> {
 	logger('blacklist', 'tx records retrieved', count)
 
 	_black.text = text
+	_black.inProgress = false
 }
 
 const _range = {
 	last: 0,
 	text: '',
+	inProgress: false,
 }
 export const getRangelist = async(res: Writable)=> {
 
 	const now = new Date().valueOf()
 	
-	if(now - _range.last > timeout) _range.last = now
-	else{ 
-		logger('rangelist', `serving cache, ${_range.text.length} bytes`)
+	if(_range.inProgress || now - _range.last < CACHE_TIMEOUT){
+		logger('rangelist', `serving cache, ${_range.text.length} bytes. inProgress: ${_range.inProgress}`)
 		return res.write(_range.text);
 	}
+	_range.inProgress = true
+	_range.last = now
 
 	const records = knex<TxRecord>('txs').where({flagged: true}).stream()
 	let text = ''
@@ -85,6 +90,7 @@ export const getRangelist = async(res: Writable)=> {
 
 	logger('rangelist', 'tx records retrieved', count)
 	_range.text = text
+	_range.inProgress = false
 }
 
 
