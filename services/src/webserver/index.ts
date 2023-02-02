@@ -92,11 +92,12 @@ app.get('/rangelist.txt', async (req, res) => {
 	res.status(200).end()
 })
 
-app.get('/nocache-stats.html', async (req, res) => {
+app.get('/stats', async (req, res) => {
 	res.writeHead(200, {
 		'Content-Type': 'text/html',
 		'Cache-Control': 'no-cache',
 		'Connection': 'keep-alive',
+		'Keep-Alive': 'timeout=60, max=1',
 	})
 	res.flushHeaders()
 	await getDevStats(res)
