@@ -2,7 +2,7 @@ import { Knex } from "knex";
 
 
 export async function up(knex: Knex): Promise<void> {
-	await knex.schema.raw('CREATE INDEX txs_flagged_null ON txs(flagged) WHERE flagged IS NULL;')
+	await knex.schema.raw('CREATE INDEX IF NOT EXISTS txs_flagged_null ON txs(flagged) WHERE flagged IS NULL;')
 }
 
 

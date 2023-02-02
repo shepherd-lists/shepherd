@@ -22,10 +22,10 @@ const hour_ms = 60 * 60 * 1000
 
 /* load the IP access lists */
 
-// pop off first IP. this should always be a test IP
-const accessBlacklist: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
-accessBlacklist.shift() // pop off first IP. this should always be a test IP
-logger(prefix, `accessBlacklist (BLACKLIST_ALLOWED)`, accessBlacklist)
+// // pop off first IP. this should always be a test IP
+// const accessBlacklist: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
+// accessBlacklist.shift() // pop off first IP. this should always be a test IP
+// logger(prefix, `accessBlacklist (BLACKLIST_ALLOWED)`, accessBlacklist)
 
 // pop off first IP. this should always be a test IP
 const accessRangelist: string[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
