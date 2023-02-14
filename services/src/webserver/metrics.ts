@@ -15,9 +15,13 @@ export const getDevStats = memoize(
 		console.log(getDevStats.name, {txsCount} )
 		res.write(`<h1>Total records: ${txsCount[0].estimate}</h1>\n`)
 		
-		const indexPosn = await knex<StateRecord>('states').where({ pname: 'scanner_position'})
-		console.log(getDevStats.name, {indexPosn} )
-		res.write(`Indexer Position: ${indexPosn[0].value}\n`)
+		const indexPosn1 = await knex<StateRecord>('states').where({ pname: 'indexer_pass1'})
+		console.log(getDevStats.name, {indexPosn: indexPosn1} )
+		res.write(`Indexer Pass 1 Position: ${indexPosn1[0].value}\n`)
+		
+		const indexPosn2 = await knex<StateRecord>('states').where({ pname: 'indexer_pass2'})
+		console.log(getDevStats.name, {indexPosn2} )
+		res.write(`Indexer Pass 2 Position: ${indexPosn2[0].value}\n`)
 
 		const inflightNoop = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'inflights' })
 		console.log(getDevStats.name, {inflightNoop} )

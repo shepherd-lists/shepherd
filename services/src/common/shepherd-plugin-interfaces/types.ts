@@ -40,14 +40,14 @@ export interface TxFlaggedOptions {
 }
 
 export interface StateRecord {
-	pname: ('scanner_position' | 'rating_position' | 'seed_position')
+	pname: ('indexer_pass1' | 'indexer_pass2' | 'seed_position')
 	value: number
 }
 
 export interface HistoryRecord {
 	total_txs: string
 	unflagged: string
-	scanner_position: number
+	indexer_pass1: number
 	gql_height: number
 }
 

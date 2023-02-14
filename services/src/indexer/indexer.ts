@@ -38,7 +38,7 @@ export const indexer = async()=> {
 		 * keep pace once at the top: 1
 		 */
 		const db = dbConnection()
-		const readPosition = async()=> (await db<StateRecord>('states').where({pname: 'scanner_position'}))[0].value
+		const readPosition = async()=> (await db<StateRecord>('states').where({pname: 'indexer_pass1'}))[0].value
 		let position = await readPosition()
 		let topBlock = await getGqlHeight()
 		const initialHeight = topBlock // we do not want to keep calling getTopBlock during initial catch up phase
@@ -72,7 +72,7 @@ export const indexer = async()=> {
 				const numMediaFiles = await scanBlocks(min, max)
 				logger('results', 
 					'media files:', numMediaFiles, ',',
-					'scanner_position:', max, ',',
+					'indexer_pass1:', max, ',',
 					'topBlock:', topBlock, 
 				)
 
@@ -80,7 +80,7 @@ export const indexer = async()=> {
 				const dbPosition = await readPosition()
 				if(dbPosition < max){
 					await db<StateRecord>('states')
-						.where({pname: 'scanner_position'})
+						.where({pname: 'indexer_pass1'})
 						.update({value: max})
 				}else{
 					max = dbPosition

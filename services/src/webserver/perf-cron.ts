@@ -28,7 +28,7 @@ const cronjob = async()=> {
 
 	output.total_txs = totalTxs.toString()
 	output.gql_height = await getGqlHeight()
-	output.scanner_position = (await knex<StateRecord>('states').where({pname: 'scanner_position'}))[0].value
+	output.indexer_pass1 = (await knex<StateRecord>('states').where({pname: 'indexer_pass1'}))[0].value
 
 	console.log('[perf-cron]', output)
 	await knex<HistoryRecord>('history').insert(output)
