@@ -40,7 +40,7 @@ export interface TxFlaggedOptions {
 }
 
 export interface StateRecord {
-	pname: ('indexer_pass1' | 'indexer_pass2' | 'seed_position')
+	pname: 'indexer_pass1' | 'indexer_pass2' | 'seed_position' | (string & {})
 	value: number
 }
 

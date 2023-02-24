@@ -7,7 +7,7 @@ import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { indexer } from './indexer'
 import col from 'ansi-colors'
 import arGql from 'ar-gql'
-import { GQL_URL } from '../common/constants'
+import { GQL_URL, GQL_URL_SECONDARY, INDEX_FIRST_PASS, INDEX_SECOND_PASS } from '../common/constants'
 
 const db = dbConnection()
 
@@ -27,15 +27,24 @@ const start = async()=> {
 		const seed = await db.seed.run({ directory: `${__dirname}/../../seeds/`})
 		logger('info', 'applied the following seed files', seed)
 		
-
-		//leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
-		
 		
 		/** first pass indexer.
 		 * this is bleeding edge for earlier detection times
 		 */
-		const BLEEDING_EDGE = 1
-		indexer(arGql(GQL_URL), BLEEDING_EDGE)
+		indexer(arGql(GQL_URL), INDEX_FIRST_PASS)
+
+		/** second pass indexer
+		 * - leave some space from weave head (trail behind) to pick up reorged txs.
+		 * - recheck 404s that may have been uploaded since.
+		 */
+		indexer(arGql(GQL_URL_SECONDARY), INDEX_SECOND_PASS)
+
+		
+		//TODO! recheck 404s 
+		//TODO! recheck 404s - need to bring height checking into this module?
+		//TODO! recheck 404s 
+
+
 		
 	}catch(e){
 		logger('Error!', 'error upgrading database', e)
