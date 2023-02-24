@@ -9,14 +9,9 @@ import { slackLogger } from "../common/utils/slackLogger"
 import { ArGql } from 'ar-gql'
 
 
-//leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
-//update: this is now bleeding edge for earlier detection times
-const TRAIL_BEHIND = 15
-
-
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const waitForNewBlock =  async (height: number) => {
+const waitForNewBlock =  async (height: number, TRAIL_BEHIND: number) => {
 	while(true){
 		let h = await getGqlHeight()
 		if(h >= height){
@@ -27,7 +22,7 @@ const waitForNewBlock =  async (height: number) => {
 	}
 }
 
-export const indexer = async(gql: ArGql)=> {
+export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 	try {
 		/**
 		 * numOfBlocks - to scan at once
@@ -66,7 +61,7 @@ export const indexer = async(gql: ArGql)=> {
 				} else if(max + TRAIL_BEHIND >= topBlock){ // wait until we have enough blocks ahead
 					numOfBlocks = 1
 					max = min
-					topBlock = await waitForNewBlock(max + TRAIL_BEHIND)
+					topBlock = await waitForNewBlock(max + TRAIL_BEHIND, TRAIL_BEHIND)
 				}
 
 				const numMediaFiles = await scanBlocks(min, max, gql)
