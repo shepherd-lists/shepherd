@@ -1,4 +1,4 @@
-import * as Gql from 'ar-gql'
+import Gql from 'ar-gql'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { ARIO_DELAY_MS, GQL_URL, } from '../common/constants'
 import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
@@ -11,7 +11,7 @@ import memoize from 'micro-memoize'
 
 const knex = getDbConnection()
 
-Gql.setEndpointUrl(GQL_URL)
+const gql = Gql(GQL_URL)
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -141,7 +141,7 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 		let res; 
 		while(true){
 			try{
-				res = (await Gql.run(query, { 
+				res = (await gql.run(query, { 
 					minBlock,
 					maxBlock,
 					cursor,
@@ -193,7 +193,7 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 
 const getParent = memoize(
 	async(p: string)=> {
-		const res = await Gql.tx(p)
+		const res = await gql.tx(p)
 		return res.parent?.id || null
 	},
 	{ 
