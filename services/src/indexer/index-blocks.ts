@@ -1,4 +1,4 @@
-import Gql from 'ar-gql'
+import { ArGql } from 'ar-gql'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { ARIO_DELAY_MS, GQL_URL, } from '../common/constants'
 import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
@@ -11,16 +11,14 @@ import memoize from 'micro-memoize'
 
 const knex = getDbConnection()
 
-const gql = Gql(GQL_URL)
-
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-export const scanBlocks = async (minBlock: number, maxBlock: number) => {
+export const scanBlocks = async (minBlock: number, maxBlock: number, gql: ArGql) => {
 
 	/* get images and videos */
 
 	logger('info', `making 1 scans of ${((maxBlock - minBlock) + 1)} blocks, from block ${minBlock} to ${maxBlock}`)
-	return await getRecords(minBlock, maxBlock)
+	return await getRecords(minBlock, maxBlock, gql)
 }
 
 /* our specialised queries */
@@ -130,7 +128,7 @@ const query = gqlProvider === 'gold' ? queryGoldskyWild : queryArio
 
 /* Generic getRecords */
 
-const getRecords = async (minBlock: number, maxBlock: number) => {
+const getRecords = async (minBlock: number, maxBlock: number, gql: ArGql) => {
 
 	let hasNextPage = true
 	let cursor = ''
@@ -171,7 +169,7 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
-			numRecords += await insertRecords(edges)
+			numRecords += await insertRecords(edges, gql)
 		}
 		hasNextPage = res.pageInfo.hasNextPage
 
@@ -192,7 +190,7 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 }
 
 const getParent = memoize(
-	async(p: string)=> {
+	async(p: string, gql: ArGql)=> {
 		const res = await gql.tx(p)
 		return res.parent?.id || null
 	},
@@ -204,7 +202,7 @@ const getParent = memoize(
 	},
 )
 
-const insertRecords = async(metas: GQLEdgeInterface[])=> {
+const insertRecords = async(metas: GQLEdgeInterface[], gql: ArGql)=> {
 	let records: TxScanned[] = []
 
 	for (const item of metas) {
@@ -232,7 +230,7 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 				const t0 = performance.now()
 				const p0 = p
 
-				p = await getParent(p)
+				p = await getParent(p, gql)
 				
 				const t1 = performance.now() - t0
 

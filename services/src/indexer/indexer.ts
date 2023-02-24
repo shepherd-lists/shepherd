@@ -6,7 +6,7 @@ import { getGqlHeight } from '../common/utils/gql-height'
 import { StateRecord } from "../common/shepherd-plugin-interfaces/types"
 import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../common/utils/slackLogger"
-import { GQL_URL } from '../common/constants'
+import { ArGql } from 'ar-gql'
 
 
 //leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
@@ -27,7 +27,7 @@ const waitForNewBlock =  async (height: number) => {
 	}
 }
 
-export const indexer = async()=> {
+export const indexer = async(gql: ArGql)=> {
 	try {
 		/**
 		 * numOfBlocks - to scan at once
@@ -69,7 +69,7 @@ export const indexer = async()=> {
 					topBlock = await waitForNewBlock(max + TRAIL_BEHIND)
 				}
 
-				const numMediaFiles = await scanBlocks(min, max)
+				const numMediaFiles = await scanBlocks(min, max, gql)
 				logger('results', 
 					'media files:', numMediaFiles, ',',
 					'indexer_pass1:', max, ',',

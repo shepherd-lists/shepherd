@@ -6,6 +6,8 @@ import dbConnection from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { indexer } from './indexer'
 import col from 'ansi-colors'
+import arGql from 'ar-gql'
+import { GQL_URL } from '../common/constants'
 
 const db = dbConnection()
 
@@ -25,7 +27,7 @@ const start = async()=> {
 		const seed = await db.seed.run({ directory: `${__dirname}/../../seeds/`})
 		logger('info', 'applied the following seed files', seed)
 		
-		indexer()
+		indexer(arGql(GQL_URL))
 		
 	}catch(e){
 		logger('Error!', 'error upgrading database', e)
