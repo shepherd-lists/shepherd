@@ -58,6 +58,11 @@ console.log(`HOST_URL`, HOST_URL)
 /** DON'T SET DEFAULTS HERE! THAT HAPPENS IN COMPOSE FILES */
 export const GQL_URL = process.env.GQL_URL as string
 console.log(`GQL_URL`, GQL_URL)
+export const GQL_URL_SECONDARY = process.env.GQL_URL_SECONDARY as string
+console.log(`GQL_URL2`, GQL_URL_SECONDARY)
+if(GQL_URL_SECONDARY && GQL_URL === GQL_URL_SECONDARY){
+	console.log(`Warning GQL_URL === GQL_URL_SECONDARY. This is not a good for a backup situation.`)
+}
 
 export const FEEDER_Q_VISIBILITY_TIMEOUT = 900 // 15 minutes
 

@@ -12,6 +12,7 @@ services:
       SLACK_WEBHOOK: ${SLACK_WEBHOOK}
       HOST_URL: ${HOST_URL:-https://arweave.net}
       GQL_URL: ${GQL_URL:-https://arweave.net/graphql}
+      GQL_URL_SECONDARY: ${GQL_URL_SECONDARY:-https://arweave-search.goldsky.com/graphql}
     restart: always
   webserver:
     build: 
