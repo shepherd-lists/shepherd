@@ -1,12 +1,12 @@
-import { tx as getTx, setEndpointUrl } from 'ar-gql'
 import axios from 'axios'
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, } from './constants-byteRange'
 import { GQL_URL, HOST_URL, network_EXXX_codes } from '../../common/constants'
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
 import memoize from 'micro-memoize'
+import arGql from 'ar-gql'
 
-setEndpointUrl(GQL_URL)
+const gql = arGql(GQL_URL)
 
 /**
  * 
@@ -213,18 +213,21 @@ const axiosRetry = memoize(axiosRetryUnmemoized, { maxSize: 1000 })
 const gqlTxRetryUnmemoized = async (id: string) => {
 	while(true){
 		try{
-			return await getTx(id)
-		}catch(e:any){
-			const status = Number(e.response?.status) || Number(e.statusCode) || null
-			const code = e.response?.code || e.code || 'no-code'
+			
+			return await gql.tx(id)
 
-			if(status === 429 || network_EXXX_codes.includes(code) || (status && status >= 500)){
-				console.log(gqlTxRetryUnmemoized.name, `gql-fetch-error: '${e.message}', for '${id}'. retrying in 10secs...`)
-				await sleep(10000)
-			}else{
+		}catch(e:any){
+			const status = e.cause || null
+
+			// test errors connection || rate-limit || server
+			if(!status || status !== 429 || !(status && status >= 500) ){
 				console.log(e)
 				throw new Error(`unexpected gql-fetch-error: ${e.message} for id ${id}`)
 			}
+
+			console.log(gqlTxRetryUnmemoized.name, `gql-fetch-error: '${e.message}', for '${id}'. retrying in 10secs...`)
+			await sleep(10000)
+
 		}
 	}
 }
