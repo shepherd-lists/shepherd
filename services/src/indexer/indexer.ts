@@ -12,9 +12,9 @@ import { INDEX_FIRST_PASS, INDEX_SECOND_PASS } from '../common/constants'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const waitForNewBlock =  async (height: number, TRAIL_BEHIND: number) => {
+const waitForNewBlock =  async (height: number, TRAIL_BEHIND: number, gqlEndpoint: string) => {
 	while(true){
-		let h = await getGqlHeight()
+		let h = await getGqlHeight(gqlEndpoint)
 		if(h >= height){
 			return h; //stop waiting
 		}
@@ -25,6 +25,7 @@ const waitForNewBlock =  async (height: number, TRAIL_BEHIND: number) => {
 
 export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 	const indexName = (TRAIL_BEHIND === INDEX_FIRST_PASS) ? 'indexer_pass1' : 'indexer_pass2'
+	const gqlEndpoint = gql.getConfig().endpointUrl
 	try {
 		/**
 		 * numOfBlocks - to scan at once
@@ -37,7 +38,7 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 		const knex = dbConnection()
 		const readPosition = async()=> (await knex<StateRecord>('states').where({ pname: indexName }))[0].value
 		let position = await readPosition()
-		let topBlock = await getGqlHeight()
+		let topBlock = await getGqlHeight(gqlEndpoint)
 		const initialHeight = topBlock // we do not want to keep calling getTopBlock during initial catch up phase
 
 		logger('initialising', `Starting ${indexName} at position ${position}. Weave height ${topBlock}`)
@@ -63,7 +64,7 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 				} else if(max + TRAIL_BEHIND >= topBlock){ // wait until we have enough blocks ahead
 					numOfBlocks = 1
 					max = min
-					topBlock = await waitForNewBlock(max + TRAIL_BEHIND, TRAIL_BEHIND)
+					topBlock = await waitForNewBlock(max + TRAIL_BEHIND, TRAIL_BEHIND, gqlEndpoint)
 				}
 
 				const numMediaFiles = await scanBlocks(min, max, gql, indexName)
