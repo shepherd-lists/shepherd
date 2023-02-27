@@ -1,3 +1,4 @@
+import { GQL_URL } from "../common/constants";
 import { HistoryRecord, StateRecord, TxRecord } from "../common/shepherd-plugin-interfaces/types";
 import dbConnection from "../common/utils/db-connection";
 import { getGqlHeight } from "../common/utils/gql-height";
@@ -27,7 +28,7 @@ const cronjob = async()=> {
 	}
 
 	output.total_txs = totalTxs.toString()
-	output.gql_height = await getGqlHeight()
+	output.gql_height = await getGqlHeight(GQL_URL)
 	output.indexer_pass1 = (await knex<StateRecord>('states').where({pname: 'indexer_pass1'}))[0].value
 
 	console.log('[perf-cron]', output)
