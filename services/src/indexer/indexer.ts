@@ -3,11 +3,11 @@ import { performance } from 'perf_hooks'
 import { scanBlocks } from "./index-blocks"
 import dbConnection from "../common/utils/db-connection"
 import { getGqlHeight } from '../common/utils/gql-height'
-import { StateRecord } from "../common/shepherd-plugin-interfaces/types"
+import { StateRecord, TxRecord } from "../common/shepherd-plugin-interfaces/types"
 import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../common/utils/slackLogger"
 import { ArGql } from 'ar-gql'
-import { INDEX_FIRST_PASS } from '../common/constants'
+import { INDEX_FIRST_PASS, INDEX_SECOND_PASS } from '../common/constants'
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -34,8 +34,8 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 		 * above ~350,000 <=> 657796: 50 appears ~optimal
 		 * keep pace once at the top: 1
 		 */
-		const db = dbConnection()
-		const readPosition = async()=> (await db<StateRecord>('states').where({ pname: indexName }))[0].value
+		const knex = dbConnection()
+		const readPosition = async()=> (await knex<StateRecord>('states').where({ pname: indexName }))[0].value
 		let position = await readPosition()
 		let topBlock = await getGqlHeight()
 		const initialHeight = topBlock // we do not want to keep calling getTopBlock during initial catch up phase
@@ -73,10 +73,24 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 					`topBlock: ${topBlock}`, 
 				)
 
-				// there might be more than 1 indexer running (replacing)
+				const tProcess = performance.now() - t0
+				logger(indexName, `scanned ${numOfBlocks} blocks in ${tProcess} ms.`)
+
+				/** mark 404s for reprocessing on second pass */
+				if(TRAIL_BEHIND === INDEX_SECOND_PASS){
+					const t404 = performance.now()
+					const count404s = await knex('txs')
+						.update({ flagged: null, valid_data: null })
+						.whereBetween('height', [min, max])
+						.andWhere({ data_reason: '404' })
+					const t404total = performance.now() - t404
+					logger(indexName, `unmarked ${count404s} 404 records, between heights ${min} & ${max}, in ${t404total.toFixed(0)} ms`)
+				}
+
+				// index position may have changed externally
 				const dbPosition = await readPosition()
 				if(dbPosition < max){
-					await db<StateRecord>('states')
+					await knex<StateRecord>('states')
 						.where({pname: indexName})
 						.update({value: max})
 				}else{
@@ -85,9 +99,6 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 
 				min = max + 1 
 				max = min + numOfBlocks - 1
-
-				const tProcess = performance.now() - t0
-				logger(indexName, `scanned ${numOfBlocks} blocks in ${tProcess} ms.`)
 
 			} catch(e:any) {
 				let status = Number(e.response?.status) || 0
