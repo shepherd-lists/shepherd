@@ -40,12 +40,6 @@ const start = async()=> {
 		indexer(arGql(GQL_URL_SECONDARY), INDEX_SECOND_PASS)
 
 		
-		//TODO! recheck 404s 
-		//TODO! recheck 404s - need to bring height checking into this module?
-		//TODO! recheck 404s 
-
-
-		
 	}catch(e){
 		logger('Error!', 'error upgrading database', e)
 	}

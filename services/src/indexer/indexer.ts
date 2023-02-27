@@ -3,7 +3,7 @@ import { performance } from 'perf_hooks'
 import { scanBlocks } from "./index-blocks"
 import dbConnection from "../common/utils/db-connection"
 import { getGqlHeight } from '../common/utils/gql-height'
-import { StateRecord, TxRecord } from "../common/shepherd-plugin-interfaces/types"
+import { StateRecord } from "../common/shepherd-plugin-interfaces/types"
 import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../common/utils/slackLogger"
 import { ArGql } from 'ar-gql'
@@ -27,14 +27,6 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 	const indexName = (TRAIL_BEHIND === INDEX_FIRST_PASS) ? 'indexer_pass1' : 'indexer_pass2'
 	const gqlEndpoint = gql.getConfig().endpointUrl
 	try {
-		/**
-		 * numOfBlocks - to scan at once
-		 * very rough guide:
-		 * early weave this should be high: ~1000
-		 * mid weave about 100?
-		 * above ~350,000 <=> 657796: 50 appears ~optimal
-		 * keep pace once at the top: 1
-		 */
 		const knex = dbConnection()
 		const readPosition = async()=> (await knex<StateRecord>('states').where({ pname: indexName }))[0].value
 		let position = await readPosition()
@@ -43,6 +35,14 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 
 		logger('initialising', `Starting ${indexName} at position ${position}. Weave height ${topBlock}`)
 
+		/**
+		 * numOfBlocks - to scan at once
+		 * very rough guide:
+		 * early weave this should be high: ~1000
+		 * mid weave about 100?
+		 * above ~350,000 <=> 657796: 50 appears ~optimal
+		 * keep pace once at the top: 1
+		 */
 		const calcBulkBlocks = (position: number) => {
 			if(position < 150000) return 1000
 			if(position < 350000) return 100
@@ -88,7 +88,7 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 					logger(indexName, `unmarked ${count404s} 404 records, between heights ${min} & ${max}, in ${t404total.toFixed(0)} ms`)
 				}
 
-				// index position may have changed externally
+				/** index position may have changed externally */
 				const dbPosition = await readPosition()
 				if(dbPosition < max){
 					await knex<StateRecord>('states')
@@ -102,7 +102,7 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 				max = min + numOfBlocks - 1
 
 			} catch(e:any) {
-				let status = Number(e.response?.status) || 0
+				let status = e.cause || Number(e.response?.status) || 0
 				if( status >= 500 ){
 					logger(indexName, `GATEWAY ERROR! ${e.name}(${status}) : ${e.message}`)
 				}
@@ -117,7 +117,7 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 				logger('Error!', `${indexName} fell over. Waiting 30 seconds to try again.`, `${e.name}(${status}) : ${e.message}`)
 				slackLogger(`${indexName} fell over. Waiting 30 seconds to try again.`, `${e.name}(${status}) : ${e.message}`)
 				logger(await si.mem())
-				await sleep(30000)
+				await sleep(30_000)
 			}
 		}///end while(true)
 	} catch(e:any) {
