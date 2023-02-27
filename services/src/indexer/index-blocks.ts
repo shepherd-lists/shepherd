@@ -148,19 +148,12 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGql, indexN
 				})).data.transactions
 				break;
 			}catch(e:any){
-				if(e instanceof TypeError){
-					logger(indexName, 'gql-error', 'data: null. errors in res.data.errors', gqlProvider)
+				if(!e.cause){
+					logger(indexName, `gql-error '${e.message}'. trying again`, gqlProvider)
 					continue;
 				}
-				if(e.code && e.code === 'ECONNRESET'){
-					logger(indexName, 'gql-error', 'ECONNRESET', gqlProvider)
-					continue;
-				}
-				// if(e.response?.status === 504){
-				// 	logger('gql-error', e.response?.status, ':', e.message)
-				// 	continue;
-				// }
-				logger(indexName, 'gql-error', e.response?.status, ':', e.message, gqlProvider)
+
+				logger(indexName, 'gql-error', e.status, ':', e.message, gqlProvider)
 				throw e;
 			}
 		}
