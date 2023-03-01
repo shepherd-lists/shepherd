@@ -12,13 +12,13 @@ import { INDEX_FIRST_PASS, INDEX_SECOND_PASS } from '../common/constants'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const waitForNewBlock =  async (height: number, TRAIL_BEHIND: number, gqlEndpoint: string) => {
+const waitForNewBlock =  async (height: number, TRAIL_BEHIND: number, gqlEndpoint: string, indexName: string) => {
 	while(true){
 		let h = await getGqlHeight(gqlEndpoint)
 		if(h >= height){
 			return h; //stop waiting
 		}
-		logger('info', 'weave height', h, 'synced to height', (h - TRAIL_BEHIND))
+		logger('info', 'weave height', h, `${indexName} synced to height`, (h - TRAIL_BEHIND))
 		await sleep(30000)
 	}
 }
@@ -64,7 +64,7 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 				} else if(max + TRAIL_BEHIND >= topBlock){ // wait until we have enough blocks ahead
 					numOfBlocks = 1
 					max = min
-					topBlock = await waitForNewBlock(max + TRAIL_BEHIND, TRAIL_BEHIND, gqlEndpoint)
+					topBlock = await waitForNewBlock(max + TRAIL_BEHIND, TRAIL_BEHIND, gqlEndpoint, indexName)
 				}
 
 				const numMediaFiles = await scanBlocks(min, max, gql, indexName)
