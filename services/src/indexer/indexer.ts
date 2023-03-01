@@ -85,7 +85,7 @@ export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
 						.whereBetween('height', [min, max])
 						.andWhere({ data_reason: '404' })
 					const t404total = performance.now() - t404
-					logger(indexName, `unmarked ${count404s} 404 records, between heights ${min} & ${max}, in ${t404total.toFixed(0)} ms`)
+					logger(`${indexName} 404`, `unmarked ${count404s} 404 records, between heights ${min} & ${max}, in ${t404total.toFixed(0)} ms`)
 				}
 
 				/** index position may have changed externally */

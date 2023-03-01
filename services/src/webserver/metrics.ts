@@ -7,13 +7,13 @@ const knex = getDb()
 
 export const getDevStats = memoize(
 	async(res: Response)=> {
-		console.log(getDevStats.name, `starting /nocache-stats.html response`)
+		console.log(getDevStats.name, `starting /stats response`)
 		res.write('<html><body style="font-family:\'Courier New\',monospace;">')
 
 		// SELECT reltuples AS estimate FROM pg_class WHERE relname = 'table_name';
 		const txsCount = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'txs' })
 		console.log(getDevStats.name, {txsCount} )
-		res.write(`<h1>Total records: ${txsCount[0].estimate}</h1>\n`)
+		res.write(`<h1>Total records (estimate): ${txsCount[0].estimate}</h1>\n`)
 		
 		const indexPosn1 = await knex<StateRecord>('states').where({ pname: 'indexer_pass1'})
 		console.log(getDevStats.name, {indexPosn: indexPosn1} )
@@ -32,7 +32,7 @@ export const getDevStats = memoize(
 		//@ts-ignore
 		const unfinishedCount = unfinished[0].count
 		console.log(getDevStats.name, {unfinished})
-		res.write(`<h2>Flagged: ${+txsCount[0].estimate - +unfinishedCount}</h2>\n`)
+		res.write(`<h2>Flagged (estimate): ${+txsCount[0].estimate - +unfinishedCount}</h2>\n`)
 		res.write(`<h2>Unflagged: ${unfinishedCount}</h2>\n`)
 
 		res.write(`<h2>N.B. aggregated counts by content-type appear to be too expensive. Skipping until fixed</h2>\n`)
@@ -40,7 +40,7 @@ export const getDevStats = memoize(
 		// const results = await knex<TxRecord>('txs').select('content_type').count('content_type').whereNull('valid_data').groupBy('content_type')
 		// console.log(`aggregated counts by content_type received`)
 
-		// res.write('<table>')
+	     	// res.write('<table>')
 		// for (const result of results) {
 		// 	res.write(`<tr><td>${result.content_type}</td><td>${result.count}</td><tr>`)
 		// }
