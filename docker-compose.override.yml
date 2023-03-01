@@ -2,6 +2,7 @@ version: '3.7'
 
 services:
   pgdb:
+    shm_size: 4gb
     build: 
       context: ./infra-local/postgres
     volumes: 

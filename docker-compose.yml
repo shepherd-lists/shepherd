@@ -25,6 +25,7 @@ services:
       SLACK_POSITIVE: ${SLACK_POSITIVE:-}
       HOST_URL: ${HOST_URL:-https://arweave.net}
       GQL_URL: ${GQL_URL:-https://arweave.net/graphql}
+      GQL_URL_SECONDARY: ${GQL_URL_SECONDARY:-https://arweave-search.goldsky.com/graphql}
       BLACKLIST_ALLOWED: ${BLACKLIST_ALLOWED:-}
       RANGELIST_ALLOWED: ${RANGELIST_ALLOWED:-}
       GW_URLS: ${GW_URLS:-}
