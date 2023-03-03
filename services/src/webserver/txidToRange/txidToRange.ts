@@ -43,6 +43,10 @@ export const txidToRange = async (id: string, parent: string|null, parents: stri
 	//handle L2 ans104 (arbundles)
 
 	const txParent = await gqlTxRetry(parent)
+	if(!txParent){
+		throw new Error(`Parent ${parent} not found using ${gql.getConfig().endpointUrl}`)
+	}
+
 	if(
 		txParent.tags.some(tag => tag.name === 'Bundle-Format' && tag.value === 'binary')
 		&& txParent.tags.some(tag => tag.name === 'Bundle-Version' && tag.value === '2.0.0')
