@@ -5,54 +5,54 @@ import memoize from 'moize'
 
 const knex = getDb()
 
-export const getDevStats = memoize(
-	async(res: Response)=> {
-		console.log(getDevStats.name, `starting /stats response`)
-		res.write('<html><body style="font-family:\'Courier New\',monospace;">')
+export const getDevStats = async(res: Response)=> {
+	console.log(getDevStats.name, `starting /stats response`)
+	res.write('<html><body style="font-family:\'Courier New\',monospace;">\n')
 
-		// SELECT reltuples AS estimate FROM pg_class WHERE relname = 'table_name';
-		const txsCount = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'txs' })
-		console.log(getDevStats.name, {txsCount} )
-		res.write(`<h1>Total records (estimate): ${txsCount[0].estimate}</h1>\n`)
-		
-		const indexPosn1 = await knex<StateRecord>('states').where({ pname: 'indexer_pass1'})
-		console.log(getDevStats.name, {indexPosn: indexPosn1} )
-		res.write(`Indexer Pass 1 Position: ${indexPosn1[0].value}\n`)
-		
-		const indexPosn2 = await knex<StateRecord>('states').where({ pname: 'indexer_pass2'})
-		console.log(getDevStats.name, {indexPosn2} )
-		res.write(`Indexer Pass 2 Position: ${indexPosn2[0].value}\n`)
+	// SELECT reltuples AS estimate FROM pg_class WHERE relname = 'table_name';
+	const txsCount = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'txs' })
+	console.log(getDevStats.name, {txsCount} )
+	res.write(`<h1>Total records (estimate): ${txsCount[0].estimate}</h1>\n`)
+	
+	const indexPosn1 = await knex<StateRecord>('states').where({ pname: 'indexer_pass1'})
+	console.log(getDevStats.name, {indexPosn: indexPosn1} )
+	res.write(`Indexer Pass 1 Position: ${indexPosn1[0].value}\n`)
+	
+	const indexPosn2 = await knex<StateRecord>('states').where({ pname: 'indexer_pass2'})
+	console.log(getDevStats.name, {indexPosn2} )
+	res.write(`Indexer Pass 2 Position: ${indexPosn2[0].value}\n`)
 
-		const inflightNoop = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'inflights' })
-		console.log(getDevStats.name, {inflightNoop} )
-		res.write(`<h2>Inflight noop: ${inflightNoop[0].estimate}</h2>\n`)
+	const inflightNoop = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'inflights' })
+	console.log(getDevStats.name, {inflightNoop} )
+	res.write(`<h2>Inflight noop (estimate): ${inflightNoop[0].estimate}</h2>\n`)
 
-		// res.write(`<h2>N.B. number of flagged, unflagged appears to be too expensive. Skipping</h2>\n`)
-		const unfinished = await knex<TxRecord>('txs').whereNull('flagged').count('*')
-		//@ts-ignore
-		const unfinishedCount = unfinished[0].count
-		console.log(getDevStats.name, {unfinished})
-		res.write(`<h2>Flagged (estimate): ${+txsCount[0].estimate - +unfinishedCount}</h2>\n`)
-		res.write(`<h2>Unflagged: ${unfinishedCount}</h2>\n`)
+	// res.write(`<h2>N.B. number of flagged, unflagged appears to be too expensive. Skipping</h2>\n`)
+	const unfinishedMemoized = memoize(
+		async()=> await knex<TxRecord>('txs').count('*').whereNull('flagged'),
+		{ isPromise: true, maxSize: 1, maxAge: 5 * 60_000 },
+	)
+	const unfinished = await unfinishedMemoized()
+	console.log({unfinished})
+	//@ts-ignore
+	const unfinishedCount = unfinished[0]?.count || "0"
+	console.log(getDevStats.name, {unfinishedCount})
+	res.write(`<h2>Unflagged (cached for 5 mins): ${unfinishedCount}</h2>\n`)
+	res.write(`<h2>Flagged (total estimate - cached): ${+txsCount[0].estimate - +unfinishedCount}</h2>\n`)
 
-		res.write(`<h2>N.B. aggregated counts by content-type appear to be too expensive. Skipping until fixed</h2>\n`)
-		// //select content_type, count(*) from txs where valid_data is null group by content_type;
-		// const results = await knex<TxRecord>('txs').select('content_type').count('content_type').whereNull('valid_data').groupBy('content_type')
-		// console.log(`aggregated counts by content_type received`)
+	res.write(`N.B. aggregated counts by content-type appear to be too expensive. Skipping until fixed\n`)
+	// //select content_type, count(*) from txs where valid_data is null group by content_type;
+	// const results = await knex<TxRecord>('txs').select('content_type').count('content_type').whereNull('valid_data').groupBy('content_type')
+	// console.log(`aggregated counts by content_type received`)
 
-	     	// res.write('<table>')
-		// for (const result of results) {
-		// 	res.write(`<tr><td>${result.content_type}</td><td>${result.count}</td><tr>`)
-		// }
-		// res.write('</table>')
-		
-		res.write('</body></html>\n')
-	},
-	{
-		maxSize: 1,
-		maxAge: 5 * 60_000,
-	}
-)
+	// res.write('<table>')
+	// for (const result of results) {
+	// 	res.write(`<tr><td>${result.content_type}</td><td>${result.count}</td><tr>`)
+	// }
+	// res.write('</table>')
+	
+	res.write('</body></html>\n')
+}
+
 
 export const getPerfHistory = async(res: Response)=> {
 	res.write(
