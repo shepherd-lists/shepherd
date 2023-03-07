@@ -7,7 +7,7 @@ import got from 'got' // needs non-esm 11.8.3
 
 export async function seed(knex: Knex): Promise<void> {
 
-	const getPosition = async()=> (await knex<StateRecord>('states').where({pname: 'scanner_position'}))[0].value
+	const getPosition = async()=> (await knex<StateRecord>('states').where({pname: 'indexer_pass1'}))[0].value
 
 	let currentPosition = await getPosition()
 	logger('data-seed', 'scanner_position', currentPosition)
@@ -72,7 +72,7 @@ export async function seed(knex: Knex): Promise<void> {
 
 	logger('data-seed', col.green(`\ndone processing ${count} records :-)`))
 
-	await knex<StateRecord>('states').update({ value: 856599}).where({ pname: 'scanner_position'})
+	await knex<StateRecord>('states').update({ value: 856599}).where({ pname: 'indexer_pass1'})
 	logger('data-seed', 'updated scanner_position', await getPosition())
 
 };

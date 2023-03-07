@@ -6,29 +6,35 @@ import { getGqlHeight } from '../common/utils/gql-height'
 import { StateRecord } from "../common/shepherd-plugin-interfaces/types"
 import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../common/utils/slackLogger"
-import { GQL_URL } from '../common/constants'
-
-
-//leave some space from weave head (trail behind) to avoid orphan forks and allow tx data to be uploaded
-//update: this is now bleeding edge for earlier detection times
-const TRAIL_BEHIND = 15
+import { ArGql } from 'ar-gql'
+import { INDEX_FIRST_PASS, INDEX_SECOND_PASS } from '../common/constants'
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const waitForNewBlock =  async (height: number) => {
+const waitForNewBlock =  async (height: number, TRAIL_BEHIND: number, gqlEndpoint: string, indexName: string) => {
 	while(true){
-		let h = await getGqlHeight()
+		let h = await getGqlHeight(gqlEndpoint)
 		if(h >= height){
 			return h; //stop waiting
 		}
-		logger('info', 'weave height', h, 'synced to height', (h - TRAIL_BEHIND))
+		logger('info', 'weave height', h, `${indexName} synced to height`, (h - TRAIL_BEHIND))
 		await sleep(30000)
 	}
 }
 
-export const indexer = async()=> {
+export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
+	const indexName = (TRAIL_BEHIND === INDEX_FIRST_PASS) ? 'indexer_pass1' : 'indexer_pass2'
+	const gqlEndpoint = gql.getConfig().endpointUrl
 	try {
+		const knex = dbConnection()
+		const readPosition = async()=> (await knex<StateRecord>('states').where({ pname: indexName }))[0].value
+		let position = await readPosition()
+		let topBlock = await getGqlHeight(gqlEndpoint)
+		const initialHeight = topBlock // we do not want to keep calling getTopBlock during initial catch up phase
+
+		logger('initialising', `Starting ${indexName} at position ${position}. Weave height ${topBlock}`)
+
 		/**
 		 * numOfBlocks - to scan at once
 		 * very rough guide:
@@ -37,14 +43,6 @@ export const indexer = async()=> {
 		 * above ~350,000 <=> 657796: 50 appears ~optimal
 		 * keep pace once at the top: 1
 		 */
-		const db = dbConnection()
-		const readPosition = async()=> (await db<StateRecord>('states').where({pname: 'scanner_position'}))[0].value
-		let position = await readPosition()
-		let topBlock = await getGqlHeight()
-		const initialHeight = topBlock // we do not want to keep calling getTopBlock during initial catch up phase
-
-		logger('initialising', 'Starting indexer position', position, 'and weave height', topBlock)
-
 		const calcBulkBlocks = (position: number) => {
 			if(position < 150000) return 1000
 			if(position < 350000) return 100
@@ -66,21 +64,35 @@ export const indexer = async()=> {
 				} else if(max + TRAIL_BEHIND >= topBlock){ // wait until we have enough blocks ahead
 					numOfBlocks = 1
 					max = min
-					topBlock = await waitForNewBlock(max + TRAIL_BEHIND)
+					topBlock = await waitForNewBlock(max + TRAIL_BEHIND, TRAIL_BEHIND, gqlEndpoint, indexName)
 				}
 
-				const numMediaFiles = await scanBlocks(min, max)
-				logger('results', 
-					'media files:', numMediaFiles, ',',
-					'scanner_position:', max, ',',
-					'topBlock:', topBlock, 
+				const numMediaFiles = await scanBlocks(min, max, gql, indexName)
+				logger(`${indexName} results`, 
+					`media files: ${numMediaFiles},`,
+					`height: ${max},`,
+					`topBlock: ${topBlock}`, 
 				)
 
-				// there might be more than 1 indexer running (replacing)
+				const tProcess = performance.now() - t0
+				logger(indexName, `scanned ${numOfBlocks} blocks in ${tProcess} ms.`)
+
+				/** mark 404s for reprocessing on second pass */
+				if(TRAIL_BEHIND === INDEX_SECOND_PASS){
+					const t404 = performance.now()
+					const count404s = await knex('txs')
+						.update({ flagged: null, valid_data: null })
+						.whereBetween('height', [min, max])
+						.andWhere({ data_reason: '404' })
+					const t404total = performance.now() - t404
+					logger(`${indexName} 404`, `unmarked ${count404s} 404 records, between heights ${min} & ${max}, in ${t404total.toFixed(0)} ms`)
+				}
+
+				/** index position may have changed externally */
 				const dbPosition = await readPosition()
 				if(dbPosition < max){
-					await db<StateRecord>('states')
-						.where({pname: 'scanner_position'})
+					await knex<StateRecord>('states')
+						.where({pname: indexName})
 						.update({value: max})
 				}else{
 					max = dbPosition
@@ -89,32 +101,29 @@ export const indexer = async()=> {
 				min = max + 1 
 				max = min + numOfBlocks - 1
 
-				const tProcess = performance.now() - t0
-				console.log(`scanned ${numOfBlocks} blocks in ${tProcess} ms.`)
-
 			} catch(e:any) {
-				let status = Number(e.response?.status) || 0
+				let status = e.cause || Number(e.response?.status) || 0
 				if( status >= 500 ){
-					logger(`GATEWAY ERROR! ${e.name}(${status}) : ${e.message}`)
+					logger(indexName, `GATEWAY ERROR! ${e.name}(${status}) : ${e.message}`)
 				}
 				
 				if( status === 429 ){
-					logger(`${e.name}(${status}) : ${e.message}. Waiting 5 minutes to try and timeout rate-limit.`)
+					logger(indexName, `${e.name}(${status}) : ${e.message}. Waiting 5 minutes to try and timeout rate-limit.`)
 					logger(await si.mem())
 					await sleep(300_000)
 					continue;
 				}
 
-				logger('Error!', 'Indexer fell over. Waiting 30 seconds to try again.', `${e.name}(${status}) : ${e.message}`)
-				slackLogger('Indexer fell over. Waiting 30 seconds to try again.', `${e.name}(${status}) : ${e.message}`)
+				logger('Error!', `${indexName} fell over. Waiting 30 seconds to try again.`, `${e.name}(${status}) : ${e.message}`)
+				slackLogger(`${indexName} fell over. Waiting 30 seconds to try again.`, `${e.name}(${status}) : ${e.message}`)
 				logger(await si.mem())
-				await sleep(30000)
+				await sleep(30_000)
 			}
 		}///end while(true)
 	} catch(e:any) {
-		logger('UNHANDLED Fatal error in indexer!', e.name, ':', e.message)
+		logger(`UNHANDLED Fatal error in ${indexName}!`, e.name, ':', e.message)
 		logger(await si.mem())
-		slackLogger('UNHANDLED Fatal error in indexer!', e.name, ':', e.message)
+		slackLogger(`UNHANDLED Fatal error in ${indexName}!`, e.name, ':', e.message)
 	}
 }
 

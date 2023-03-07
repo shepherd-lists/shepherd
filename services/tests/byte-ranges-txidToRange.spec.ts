@@ -23,7 +23,6 @@ describe('txidToRange tests', ()=> {
 		expect(bytes.end).eq(chunkEnd)
 	}).timeout(0)
 
-
 	it('tests a dataItem in a massive, 10,000 dataItem arbundles', async()=> {
 		/**
 		 * maybe useful sometime:
@@ -154,10 +153,19 @@ describe('ans102 tests', () => {
 // 	}).timeout(0)
 // })
 
-/**
- * check against this node! 
- * 
- * 		nyc-1.dev.arweave.net:1984
- * 
- * Lev was running this against the list
- */
+describe('Orphan data in DB tests', ()=>{
+	it('should throw an error when an ans104 parent is not found', async()=> {
+		const badParent = `1234567890123456789012345678901234567890_-_`
+		try{
+			const bytes = await txidToRange('CagF6yAfaqIUYi0IHJ1FwmkdMqBxjVJBntyD1X1QF1U', badParent, undefined)
+			expect(true).false //should not get here
+		}catch(e:any){
+			/** 
+			 * in production this error will bubble up to slackLogger reporting.
+			 * we will create suitable responses based on future data received.
+			 * unfortunately using today's data i've found errors in both current gql endpoints.
+			 * */
+			expect(e.message).eq(`Parent ${badParent} not found using https://arweave.net/graphql`)
+		}
+	}).timeout(0)
+})

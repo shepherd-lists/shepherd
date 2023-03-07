@@ -1,6 +1,6 @@
-import * as Gql from 'ar-gql'
+import { ArGql } from 'ar-gql'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { ARIO_DELAY_MS, GQL_URL, } from '../common/constants'
+import { ARIO_DELAY_MS } from '../common/constants'
 import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
 import getDbConnection from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
@@ -11,16 +11,14 @@ import memoize from 'micro-memoize'
 
 const knex = getDbConnection()
 
-Gql.setEndpointUrl(GQL_URL)
-
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-export const scanBlocks = async (minBlock: number, maxBlock: number) => {
+export const scanBlocks = async (minBlock: number, maxBlock: number, gql: ArGql, indexName: string) => {
 
 	/* get images and videos */
 
-	logger('info', `making 1 scans of ${((maxBlock - minBlock) + 1)} blocks, from block ${minBlock} to ${maxBlock}`)
-	return await getRecords(minBlock, maxBlock)
+	logger(indexName, `making 1 scans of ${((maxBlock - minBlock) + 1)} blocks, from block ${minBlock} to ${maxBlock}`)
+	return await getRecords(minBlock, maxBlock, gql, indexName)
 }
 
 /* our specialised queries */
@@ -125,12 +123,14 @@ const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 	}
 }`
 
-const gqlProvider = GQL_URL.includes('goldsky') ? 'gold' : 'ario'
-const query = gqlProvider === 'gold' ? queryGoldskyWild : queryArio
+
 
 /* Generic getRecords */
 
-const getRecords = async (minBlock: number, maxBlock: number) => {
+const getRecords = async (minBlock: number, maxBlock: number, gql: ArGql, indexName: string) => {
+
+	const gqlProvider = gql.getConfig().endpointUrl.includes('goldsky') ? 'gold' : 'ario'
+	const query = gqlProvider === 'gold' ? queryGoldskyWild : queryArio
 
 	let hasNextPage = true
 	let cursor = ''
@@ -141,26 +141,19 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 		let res; 
 		while(true){
 			try{
-				res = (await Gql.run(query, { 
+				res = (await gql.run(query, { 
 					minBlock,
 					maxBlock,
 					cursor,
 				})).data.transactions
 				break;
 			}catch(e:any){
-				if(e instanceof TypeError){
-					logger('gql-error', 'data: null. errors in res.data.errors', gqlProvider)
+				if(!e.cause){
+					logger(indexName, `gql-error '${e.message}'. trying again`, gqlProvider)
 					continue;
 				}
-				if(e.code && e.code === 'ECONNRESET'){
-					logger('gql-error', 'ECONNRESET', gqlProvider)
-					continue;
-				}
-				// if(e.response?.status === 504){
-				// 	logger('gql-error', e.response?.status, ':', e.message)
-				// 	continue;
-				// }
-				logger('gql-error', e.response?.status, ':', e.message, gqlProvider)
+
+				logger(indexName, 'gql-error', e.status, ':', e.message, gqlProvider)
 				throw e;
 			}
 		}
@@ -171,7 +164,7 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
-			numRecords += await insertRecords(edges)
+			numRecords += await insertRecords(edges, gql, indexName, gqlProvider)
 		}
 		hasNextPage = res.pageInfo.hasNextPage
 
@@ -179,21 +172,21 @@ const getRecords = async (minBlock: number, maxBlock: number) => {
 		let logstring = `processed gql page of ${edges.length} results in ${tProcess.toFixed(0)} ms. cursor: ${cursor}. Total ${numRecords} records.`
 
 		/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
-		if(GQL_URL.includes('arweave.net')){
+		if(gql.getConfig().endpointUrl.includes('arweave.net')){
 			let timeout = ARIO_DELAY_MS - tProcess
 			if(timeout < 0) timeout = 0
 			logstring += ` pausing for ${timeout}ms.`
 			await sleep(timeout)
 		}
-		logger('info', logstring, gqlProvider)
+		logger(indexName, logstring, gqlProvider)
 	}
 
 	return numRecords
 }
 
 const getParent = memoize(
-	async(p: string)=> {
-		const res = await Gql.tx(p)
+	async(p: string, gql: ArGql)=> {
+		const res = await gql.tx(p)
 		return res.parent?.id || null
 	},
 	{ 
@@ -204,7 +197,7 @@ const getParent = memoize(
 	},
 )
 
-const insertRecords = async(metas: GQLEdgeInterface[])=> {
+const insertRecords = async(metas: GQLEdgeInterface[], gql: ArGql, indexName: string, gqlProvider: string)=> {
 	let records: TxScanned[] = []
 
 	for (const item of metas) {
@@ -232,22 +225,22 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 				const t0 = performance.now()
 				const p0 = p
 
-				p = await getParent(p)
+				p = await getParent(p, gql)
 				
 				const t1 = performance.now() - t0
 
 				/* if time less than 10ms, it's definitely a cache hit */
 				if(t1 > 10){
-					let logstring = `got parent ${p0} details in ${t1.toFixed(0)}ms. `
+					let logstring = `got parent ${p0} details in ${t1.toFixed(0)}ms.`
 
 					/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
-					if(GQL_URL.includes('arweave.net')){
+					if(gql.getConfig().endpointUrl.includes('arweave.net')){
 						let timeout = ARIO_DELAY_MS - t1
 						if(timeout < 0) timeout = 0
 						logstring += ` pausing for ${timeout.toFixed(0)}ms.`
 						await sleep(timeout)
 					}
-					logger(txid, logstring, gqlProvider)
+					logger(indexName, txid, logstring, gqlProvider)
 				}
 
 			}while(p && parents.push(p))
@@ -267,11 +260,11 @@ const insertRecords = async(metas: GQLEdgeInterface[])=> {
 		await knex<TxScanned>('txs').insert(records).onConflict('txid').merge(['height', 'parent', 'parents'])
 	}	catch(e:any){
 		if(e.code && Number(e.code) === 23502){
-			logger('Error!', 'Null value in column violates not-null constraint', e.detail, gqlProvider)
-			slackLogger('Error!', 'Null value in column violates not-null constraint', e.detail, gqlProvider)
+			logger('Error!', 'Null value in column violates not-null constraint', e.detail, gqlProvider, indexName)
+			slackLogger('Error!', 'Null value in column violates not-null constraint', e.detail, gqlProvider, indexName)
 			throw e
 		} else { 
-			if(e.code) logger('Error!', e.code, gqlProvider)
+			if(e.code) logger('Error!', e.code, gqlProvider, indexName)
 			throw e
 		}
 	}
