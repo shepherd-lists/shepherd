@@ -32,7 +32,6 @@ export const getDevStats = async(res: Response)=> {
 		{ isPromise: true, maxSize: 1, maxAge: 5 * 60_000 },
 	)
 	const unfinished = await unfinishedMemoized()
-	console.log({unfinished})
 	//@ts-ignore
 	const unfinishedCount = unfinished[0]?.count || "0"
 	console.log(getDevStats.name, {unfinishedCount})
