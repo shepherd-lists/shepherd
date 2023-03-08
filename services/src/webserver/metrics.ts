@@ -5,6 +5,15 @@ import memoize from 'moize'
 
 const knex = getDb()
 
+const unfinishedMemoized = memoize(
+	async()=> await knex<TxRecord>('txs').count('*').whereNull('flagged') as unknown as [{count: number | string}],
+	{ 
+		isPromise: true, 
+		maxSize: 1, 
+		maxAge: 5 * 60_000 
+	},
+)
+
 export const getDevStats = async(res: Response)=> {
 	console.log(getDevStats.name, `starting /stats response`)
 	res.write('<html><body style="font-family:\'Courier New\',monospace;">\n')
@@ -27,13 +36,9 @@ export const getDevStats = async(res: Response)=> {
 	res.write(`<h2>Inflight noop (estimate): ${inflightNoop[0].estimate}</h2>\n`)
 
 	// res.write(`<h2>N.B. number of flagged, unflagged appears to be too expensive. Skipping</h2>\n`)
-	const unfinishedMemoized = memoize(
-		async()=> await knex<TxRecord>('txs').count('*').whereNull('flagged'),
-		{ isPromise: true, maxSize: 1, maxAge: 5 * 60_000 },
-	)
-	const unfinished = await unfinishedMemoized()
-	//@ts-ignore
-	const unfinishedCount = unfinished[0]?.count || "0"
+	
+	const [unfinished] = await unfinishedMemoized()
+	const unfinishedCount = unfinished?.count || "0"
 	console.log(getDevStats.name, {unfinishedCount})
 	res.write(`<h2>Unflagged (cached for 5 mins): ${unfinishedCount}</h2>\n`)
 	res.write(`<h2>Flagged (total estimate - cached): ${+txsCount[0].estimate - +unfinishedCount}</h2>\n`)
