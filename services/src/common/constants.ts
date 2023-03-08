@@ -50,7 +50,7 @@ export const NO_DATA_TIMEOUT = 40000
 export const NO_STREAM_TIMEOUT = 10000
 
 /** set bleeding edge and clean up passes here */
-export const INDEX_FIRST_PASS = 1
+export const INDEX_FIRST_PASS = 0
 export const INDEX_SECOND_PASS = 15
 
 /* switch gateways */
