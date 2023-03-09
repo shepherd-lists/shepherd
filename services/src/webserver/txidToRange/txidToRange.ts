@@ -1,10 +1,11 @@
 import axios from 'axios'
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, } from './constants-byteRange'
-import { GQL_URL, HOST_URL, network_EXXX_codes } from '../../common/constants'
+import { GQL_URL, GQL_URL_SECONDARY, HOST_URL, network_EXXX_codes } from '../../common/constants'
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
 import memoize from 'micro-memoize'
-import arGql from 'ar-gql'
+import arGql, { ArGql } from 'ar-gql'
+import { fetchRetryConnection } from './fetch-retry'
 
 const gql = arGql(GQL_URL)
 
@@ -42,9 +43,20 @@ export const txidToRange = async (id: string, parent: string|null, parents: stri
 	}
 	//handle L2 ans104 (arbundles)
 
-	const txParent = await gqlTxRetry(parent)
+	let txParent = await gqlTxRetry(parent, gql)
+	/** handle bugs in the gql indexing services */
 	if(!txParent){
-		throw new Error(`Parent ${parent} not found using ${gql.getConfig().endpointUrl}`)
+		const gql2 = arGql(GQL_URL_SECONDARY)
+		txParent = await gqlTxRetry(parent, gql2)
+		//fail fast
+		if(!txParent) throw new Error(`Parent ${parent} not found using ${gql.getConfig().endpointUrl}`)
+		//check mined
+		const {res, aborter} = await fetchRetryConnection(`${HOST_URL}/tx/${parent}/status`)
+		if(res.ok){
+			aborter?.abort()
+		}else{
+			throw new Error(`Parent ${parent} not found using ${gql.getConfig().endpointUrl}`)
+		}
 	}
 
 	if(
@@ -214,7 +226,7 @@ const axiosRetryUnmemoized = async (url: string, id: string) => {
 	}
 }
 const axiosRetry = memoize(axiosRetryUnmemoized, { maxSize: 1000 })
-const gqlTxRetryUnmemoized = async (id: string) => {
+const gqlTxRetryUnmemoized = async (id: string, gql: ArGql) => {
 	while(true){
 		try{
 			
