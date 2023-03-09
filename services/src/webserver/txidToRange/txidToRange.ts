@@ -4,7 +4,7 @@ import { GQL_URL, GQL_URL_SECONDARY, HOST_URL, network_EXXX_codes } from '../../
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
 import memoize from 'micro-memoize'
-import arGql, { ArGql } from 'ar-gql'
+import { arGql, ArGqlInterface } from 'ar-gql'
 import { fetchRetryConnection } from './fetch-retry'
 
 const gql = arGql(GQL_URL)
@@ -49,13 +49,13 @@ export const txidToRange = async (id: string, parent: string|null, parents: stri
 		const gql2 = arGql(GQL_URL_SECONDARY)
 		txParent = await gqlTxRetry(parent, gql2)
 		//fail fast
-		if(!txParent) throw new Error(`Parent ${parent} not found using ${gql.getConfig().endpointUrl}`)
+		if(!txParent) throw new Error(`Parent ${parent} not found using ${gql.endpointUrl}`)
 		//check mined
 		const {res, aborter} = await fetchRetryConnection(`${HOST_URL}/tx/${parent}/status`)
 		if(res.ok){
 			aborter?.abort()
 		}else{
-			throw new Error(`Parent ${parent} not found using ${gql.getConfig().endpointUrl}`)
+			throw new Error(`Parent ${parent} not found using ${gql.endpointUrl}`)
 		}
 	}
 
@@ -226,7 +226,7 @@ const axiosRetryUnmemoized = async (url: string, id: string) => {
 	}
 }
 const axiosRetry = memoize(axiosRetryUnmemoized, { maxSize: 1000 })
-const gqlTxRetryUnmemoized = async (id: string, gql: ArGql) => {
+const gqlTxRetryUnmemoized = async (id: string, gql: ArGqlInterface) => {
 	while(true){
 		try{
 			

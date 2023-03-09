@@ -6,7 +6,7 @@ import { getGqlHeight } from '../common/utils/gql-height'
 import { StateRecord } from "../common/shepherd-plugin-interfaces/types"
 import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../common/utils/slackLogger"
-import { ArGql } from 'ar-gql'
+import { ArGqlInterface } from 'ar-gql'
 import { INDEX_FIRST_PASS, INDEX_SECOND_PASS } from '../common/constants'
 
 
@@ -23,9 +23,9 @@ const waitForNewBlock =  async (height: number, TRAIL_BEHIND: number, gqlEndpoin
 	}
 }
 
-export const indexer = async(gql: ArGql, TRAIL_BEHIND: number)=> {
+export const indexer = async(gql: ArGqlInterface, TRAIL_BEHIND: number)=> {
 	const indexName = (TRAIL_BEHIND === INDEX_FIRST_PASS) ? 'indexer_pass1' : 'indexer_pass2'
-	const gqlEndpoint = gql.getConfig().endpointUrl
+	const gqlEndpoint = gql.endpointUrl
 	try {
 		const knex = dbConnection()
 		const readPosition = async()=> (await knex<StateRecord>('states').where({ pname: indexName }))[0].value

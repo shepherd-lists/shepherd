@@ -45,7 +45,7 @@
     "@types/node": "^18.11.17",
     "@types/rimraf": "^3.0.1",
     "ansi-colors": "^4.1.1",
-    "ar-gql": "1.0.1",
+    "ar-gql": "^1.2.1",
     "arweave": "^1.11.6",
     "aws-sdk": "^2.1097.0",
     "axios": "^0.24.0",

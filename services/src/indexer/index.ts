@@ -6,7 +6,7 @@ import dbConnection from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { indexer } from './indexer'
 import col from 'ansi-colors'
-import arGql from 'ar-gql'
+import { arGql } from 'ar-gql'
 import { GQL_URL, GQL_URL_SECONDARY, INDEX_FIRST_PASS, INDEX_SECOND_PASS } from '../common/constants'
 import { slackLogger } from '../common/utils/slackLogger'
 

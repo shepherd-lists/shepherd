@@ -1,4 +1,4 @@
-import { ArGql } from 'ar-gql'
+import { ArGqlInterface } from 'ar-gql'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { ARIO_DELAY_MS } from '../common/constants'
 import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
@@ -13,7 +13,7 @@ const knex = getDbConnection()
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-export const scanBlocks = async (minBlock: number, maxBlock: number, gql: ArGql, indexName: string) => {
+export const scanBlocks = async (minBlock: number, maxBlock: number, gql: ArGqlInterface, indexName: string) => {
 
 	/* get images and videos */
 
@@ -127,9 +127,9 @@ const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 
 /* Generic getRecords */
 
-const getRecords = async (minBlock: number, maxBlock: number, gql: ArGql, indexName: string) => {
+const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterface, indexName: string) => {
 
-	const gqlProvider = gql.getConfig().endpointUrl.includes('goldsky') ? 'gold' : 'ario'
+	const gqlProvider = gql.endpointUrl.includes('goldsky') ? 'gold' : 'ario'
 	const query = gqlProvider === 'gold' ? queryGoldskyWild : queryArio
 
 	let hasNextPage = true
@@ -172,7 +172,7 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGql, indexN
 		let logstring = `processed gql page of ${edges.length} results in ${tProcess.toFixed(0)} ms. cursor: ${cursor}. Total ${numRecords} records.`
 
 		/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
-		if(gql.getConfig().endpointUrl.includes('arweave.net')){
+		if(gql.endpointUrl.includes('arweave.net')){
 			let timeout = ARIO_DELAY_MS - tProcess
 			if(timeout < 0) timeout = 0
 			logstring += ` pausing for ${timeout}ms.`
@@ -185,7 +185,7 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGql, indexN
 }
 
 const getParent = memoize(
-	async(p: string, gql: ArGql)=> {
+	async(p: string, gql: ArGqlInterface)=> {
 		const res = await gql.tx(p)
 		return res.parent?.id || null
 	},
@@ -197,7 +197,7 @@ const getParent = memoize(
 	},
 )
 
-const insertRecords = async(metas: GQLEdgeInterface[], gql: ArGql, indexName: string, gqlProvider: string)=> {
+const insertRecords = async(metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: string, gqlProvider: string)=> {
 	let records: TxScanned[] = []
 
 	for (const item of metas) {
@@ -234,7 +234,7 @@ const insertRecords = async(metas: GQLEdgeInterface[], gql: ArGql, indexName: st
 					let logstring = `got parent ${p0} details in ${t1.toFixed(0)}ms.`
 
 					/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
-					if(gql.getConfig().endpointUrl.includes('arweave.net')){
+					if(gql.endpointUrl.includes('arweave.net')){
 						let timeout = ARIO_DELAY_MS - t1
 						if(timeout < 0) timeout = 0
 						logstring += ` pausing for ${timeout.toFixed(0)}ms.`
