@@ -7,8 +7,6 @@ import memoize from 'micro-memoize'
 import { arGql, ArGqlInterface } from 'ar-gql'
 import { fetchRetryConnection } from './fetch-retry'
 
-const gql = arGql(GQL_URL)
-
 /**
  * 
  * @param id either L1 or L2 id
@@ -43,19 +41,16 @@ export const txidToRange = async (id: string, parent: string|null, parents: stri
 	}
 	//handle L2 ans104 (arbundles)
 
-	let txParent = await gqlTxRetry(parent, gql)
+	const gql1 = arGql(GQL_URL)
+
+	let txParent = await gqlTxRetry(parent, gql1)
 	/** handle bugs in the gql indexing services */
 	if(!txParent){
 		const gql2 = arGql(GQL_URL_SECONDARY)
 		txParent = await gqlTxRetry(parent, gql2)
 		//fail fast
-		if(!txParent) throw new Error(`Parent ${parent} not found using ${gql.endpointUrl}`)
-		//check mined
-		const {res, aborter} = await fetchRetryConnection(`${HOST_URL}/tx/${parent}/status`)
-		if(res.ok){
-			aborter?.abort()
-		}else{
-			throw new Error(`Parent ${parent} not found using ${gql.endpointUrl}`)
+		if(!txParent){
+			throw new Error(`Parent ${parent} not found using ${GQL_URL} or ${GQL_URL_SECONDARY}`)
 		}
 	}
 
