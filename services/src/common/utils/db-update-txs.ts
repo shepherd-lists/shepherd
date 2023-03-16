@@ -53,6 +53,7 @@ export const dbInflightAdd = async(txid: string)=> {
 		return ret.rows[0].txid;
 	}catch(e:any){
 		logger(txid, 'DB_ERROR ADDING TO INFLIGHTS', e.name, ':', e.message)
+		slackLogger(txid, 'DB_ERROR ADDING TO INFLIGHTS', e.name, ':', e.message)
 		logger(txid, e) // `throw e` does nothing, use the return
 	}	
 }
