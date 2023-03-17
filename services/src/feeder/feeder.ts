@@ -33,7 +33,7 @@ const getTxRecords =async (limit: number) => {
 				.whereNull('inflights.foreign_id')
 				.whereNull('valid_data')
 				.whereRaw("content_type SIMILAR TO '(image|video)/%'")
-				.orderBy('txs.id', 'desc')
+				// .orderBy('txs.id', 'desc')
 				.limit(limit)
 			
 			const length = records.length
@@ -70,6 +70,7 @@ export const feeder = async()=> {
 
 	// some constants we might finesse later
 	const WORKING_RECORDS = 25_000 //aim of min 100k/hr: ~ 15mins of txs
+	const LIMIT_RECORDS = 100
 	const ABSOLUTE_TIMEOUT = 1 * 60 * 1000 //1 mins
 	const INFLIGHTS_MAX = 100_000 //deletions get really slow when inflights table in the millions
 
@@ -86,10 +87,14 @@ export const feeder = async()=> {
 		 */ 
 
 		if(numSqsMsgs < WORKING_RECORDS && numInflights < INFLIGHTS_MAX ){
-			await sendToSqs( await getTxRecords(WORKING_RECORDS) )
+			console.log(`DEBUG`, `sql select limit ${LIMIT_RECORDS}`)
+			const records = await getTxRecords(LIMIT_RECORDS) 
+			// console.log(`DEBUG`, `got ${records.length}, now sendinmg to feeder sqs`)
+			await sendToSqs( records )
+		}else {
+			logger('sleeping for 1 minutes...', `feeders-sqs:${numSqsMsgs}/${WORKING_RECORDS}, inflights:${numInflights}/${INFLIGHTS_MAX}`)
+			await sleep(ABSOLUTE_TIMEOUT)
 		}
-		logger(prefix, 'sleeping for 1 minutes...')
-		await sleep(ABSOLUTE_TIMEOUT)
 	}
 }
 
