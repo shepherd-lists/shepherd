@@ -228,17 +228,17 @@ const gqlTxRetryUnmemoized = async (id: string, gql: ArGqlInterface) => {
 			return await gql.tx(id)
 
 		}catch(e:any){
-			const status = e.cause || null
+			const status = +e.cause || null
 
-			// test errors connection || rate-limit || server
-			if(!status || status !== 429 || !(status && status >= 500) ){
-				console.log(e)
-				throw new Error(`unexpected gql-fetch-error: (${status}) ${e.message} for id ${id}`)
+			// check errors: connection || rate-limit || server
+			if(!status || status === 429 || status >= 500){
+				console.log(gqlTxRetryUnmemoized.name, `gql-fetch-error: (${status}) '${e.message}', for '${id}'. retrying in 10secs...`)
+				await sleep(10000)
+				continue;
 			}
 
-			console.log(gqlTxRetryUnmemoized.name, `gql-fetch-error: (${status}) '${e.message}', for '${id}'. retrying in 10secs...`)
-			await sleep(10000)
-
+			console.log(e)
+			throw new Error(`unexpected gql-fetch-error: (${status}) ${e.message} for id ${id}`)
 		}
 	}
 }
