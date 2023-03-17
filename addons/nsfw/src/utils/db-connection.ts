@@ -1,6 +1,7 @@
 import knex, { Knex } from 'knex'
 import { checkHeartbeat } from 'knex-utils';
 import { logger } from './logger';
+import { slackLogger } from './slackLogger';
 
 let cachedConnection: Knex<any, unknown[]>
 
@@ -9,16 +10,18 @@ export default () => {
     logger("using cached db connection");
     return cachedConnection;
   }
-	let connTimeout = 60000 //default value
+	let connTimeout = 60_000 //default value
 	if(process.env.NODE_ENV === 'test'){
-		connTimeout = 5000
+		connTimeout = 5_000
 	}
 
 	logger("creating new db connection");
 	const connection = knex({
 		client: 'pg',
 		pool: {
-			propagateCreateError: false,
+			// propagateCreateError: false,
+			min: 0,
+			max: 100,
 		},
 		connection: {
 			host: process.env.DB_HOST,
@@ -30,6 +33,7 @@ export default () => {
 		acquireConnectionTimeout: connTimeout
 	})
 
+	/** this isn't totally accurate */
 	checkHeartbeat(connection).then(res=>{
 		if(res.isOk){
 			logger('db connection tested OK')
