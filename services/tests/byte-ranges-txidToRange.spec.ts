@@ -165,7 +165,7 @@ describe('Orphan data in DB tests', ()=>{
 			 * we will create suitable responses based on future data received.
 			 * unfortunately using today's data i've found errors in both current gql endpoints.
 			 * */
-			expect(e.message).eq(`Parent ${badParent} not found using https://arweave.net/graphql`)
+			expect(e.message).eq(`Parent ${badParent} not found using https://arweave.net/graphql or https://arweave-search.goldsky.com/graphql`)
 		}
 	}).timeout(0)
 })
