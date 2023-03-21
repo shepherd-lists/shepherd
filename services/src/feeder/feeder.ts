@@ -74,7 +74,6 @@ export const feeder = async()=> {
 	const ABSOLUTE_TIMEOUT = 1 * 60 * 1000 //1 mins
 	const INFLIGHTS_MAX = 100_000 //deletions get really slow when inflights table in the millions
 
-
 	while(true){
 		const numSqsMsgs = await approximateNumberOfMessages() 
 		logger(prefix, 'approximateNumberOfMessages', numSqsMsgs)
@@ -89,12 +88,15 @@ export const feeder = async()=> {
 		if(numSqsMsgs < WORKING_RECORDS && numInflights < INFLIGHTS_MAX ){
 			console.log(`DEBUG`, `sql select limit ${LIMIT_RECORDS}`)
 			const records = await getTxRecords(LIMIT_RECORDS) 
-			// console.log(`DEBUG`, `got ${records.length}, now sendinmg to feeder sqs`)
-			await sendToSqs( records )
-		}else {
-			logger('sleeping for 1 minutes...', `feeders-sqs:${numSqsMsgs}/${WORKING_RECORDS}, inflights:${numInflights}/${INFLIGHTS_MAX}`)
-			await sleep(ABSOLUTE_TIMEOUT)
+
+			if(records.length !== 0){
+				await sendToSqs( records )
+				continue;
+			}
 		}
+
+		logger('sleeping for 1 minutes...', `feeders-sqs:${numSqsMsgs}/${WORKING_RECORDS}, inflights:${numInflights}/${INFLIGHTS_MAX}`)
+		await sleep(ABSOLUTE_TIMEOUT)
 	}
 }
 
