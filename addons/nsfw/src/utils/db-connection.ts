@@ -21,7 +21,7 @@ export default () => {
 		pool: {
 			// propagateCreateError: false,
 			min: 0,
-			max: 100,
+			max: 500,
 		},
 		connection: {
 			host: process.env.DB_HOST,
