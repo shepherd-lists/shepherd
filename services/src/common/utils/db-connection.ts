@@ -18,7 +18,9 @@ export default () => {
 	const connection = knex({
 		client: 'pg',
 		pool: {
-			propagateCreateError: false,
+			// propagateCreateError: false,
+			min: 0,
+			max: 500,
 		},
 		connection: {
 			host: process.env.DB_HOST,
