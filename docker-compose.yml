@@ -15,6 +15,7 @@ services:
       GQL_URL_SECONDARY: ${GQL_URL_SECONDARY:-https://arweave-search.goldsky.com/graphql}
     restart: always
   webserver:
+    hostname: ${IMAGE_REPO:-dummy}-shepherd-webserver
     build: 
       context: ./services
       target: webserver
@@ -35,6 +36,7 @@ services:
     depends_on:
       - indexer
   http-api:
+    hostname: ${IMAGE_REPO:-dummy}-shepherd-http-api
     build: 
       context: ./services
       target: http-api
