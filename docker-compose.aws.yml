@@ -55,8 +55,8 @@ services:
           memory: 8G
       x-aws-autoscaling:
         min: 1
-        max: 20
-        cpu: 75
+        max: 5
+        cpu: 60
     environment:
       AWS_FEEDER_QUEUE: ${AWS_FEEDER_QUEUE}
       AWS_INPUT_BUCKET: ${AWS_INPUT_BUCKET}
