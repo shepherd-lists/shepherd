@@ -138,6 +138,8 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 
 	while(hasNextPage){
 		const t0 = performance.now()
+		let tGql = t0, tUpsert = t0
+
 		let res; 
 		while(true){
 			try{
@@ -157,6 +159,8 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 				throw e;
 			}
 		}
+		tGql = performance.now() - t0
+
 		let edges = res.edges
 		if(edges && edges.length){
 			cursor = edges[edges.length - 1].cursor
@@ -165,11 +169,12 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
 			numRecords += await insertRecords(edges, gql, indexName, gqlProvider)
+			tUpsert = performance.now() - t0 - tGql
 		}
 		hasNextPage = res.pageInfo.hasNextPage
 
 		const tProcess = performance.now() - t0
-		let logstring = `processed gql page of ${edges.length} results in ${tProcess.toFixed(0)} ms. cursor: ${cursor}. Total ${numRecords} records.`
+		let logstring = `processed gql page of ${edges.length} results in ${tProcess.toFixed(0)} ms. tGql:  cursor: ${cursor}. Total ${numRecords} records.`
 
 		/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
 		if(gql.endpointUrl.includes('arweave.net')){
@@ -178,7 +183,7 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 			logstring += ` pausing for ${timeout}ms.`
 			await sleep(timeout)
 		}
-		logger(indexName, logstring, gqlProvider)
+		logger(indexName, logstring, `tGql: ${tGql.toFixed(0)} ms, tUpsert: ${tUpsert.toFixed(0)} ms.`, gqlProvider)
 	}
 
 	return numRecords
