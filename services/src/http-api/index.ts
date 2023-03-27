@@ -1,9 +1,10 @@
 import express from 'express'
 import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateTxsDb } from '../common/utils/db-update-txs'
-import { APIFilterResult, FilterErrorResult, FilterResult } from '../common/shepherd-plugin-interfaces'
+import { APIFilterResult } from '../common/shepherd-plugin-interfaces'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { slackLogger } from '../common/utils/slackLogger'
 import { slackLoggerPositive } from '../common/utils/slackLoggerPositive'
+import { network_EXXX_codes } from '../common/constants'
 
 const prefix = 'http-api'
 const app = express()
@@ -40,6 +41,17 @@ app.post('/postupdate', async(req, res)=>{
 
 export const server = app.listen(port, ()=> logger(`started on http://localhost:${port}`))
 
+/** catch malformed client requests */
+server.on('clientError', (e: any, socket)=> {
+	logger(`express-clientError`, `${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
+	//make sure connection still open
+	if(
+		( e.code && network_EXXX_codes.includes(e.code) )
+		|| !socket.writable) {
+    return;
+  }
+	socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
+})
 
 const pluginResultHandler = async(body: APIFilterResult)=>{
 	const txid = body.txid
