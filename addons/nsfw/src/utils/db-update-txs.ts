@@ -114,11 +114,13 @@ export const dbOversizedPngFound = async(txid: string)=> {
 
 /** @deprecated */
 export const dbWrongMimeType = async(txid: string, content_type: string)=> {
+	const nonMedia = !content_type.startsWith('image') && !content_type.startsWith('video')
 	const res = await updateTxsDb(txid,{
 		// this will be retried in the relevant queue
 		content_type,
 		data_reason: 'mimetype',
 		last_update_date: new Date(),
+		...(nonMedia && {valid_data: false}),
 	})
 	await dbInflightDel(txid)
 	return res;

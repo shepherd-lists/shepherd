@@ -152,22 +152,16 @@ export const dbTimeoutInBatch = async(txid: string)=> {
 }
 
 export const dbWrongMimeType = async(txid: string, content_type: string)=> {
+	const nonMedia = !content_type.startsWith('image') && !content_type.startsWith('video')
 	return updateTxsDb(txid,{
 		// this will be retried in the relevant queue
 		content_type,
 		data_reason: 'mimetype',
 		last_update_date: new Date(),
+		...(nonMedia && {valid_data: false}),
 	})
 }
 
-export const dbNoMimeType = async(txid: string)=> {
-	return updateTxsDb(txid,{
-		flagged: false,
-		content_type: 'undefined',
-		data_reason: 'mimetype',
-		last_update_date: new Date(),
-	})
-}
 
 export const dbUnsupportedMimeType = async(txid: string)=> {
 	return updateTxsDb(txid,{
