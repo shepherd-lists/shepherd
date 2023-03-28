@@ -51,7 +51,7 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 		uploader = s3.upload({
 			Bucket: bucketName,
 			Key: txid,
-			ContentType: mimetype,
+			ContentType: mimetype.replace(/\r|\n/g, ''),
 			Body: readable,
 		})
 		const data = await uploader.promise()
