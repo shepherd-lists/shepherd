@@ -67,9 +67,8 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				// clearTimeout(timer!)
 				/* check the file head for mimetype & abort download if necessary */
 				if(mimeNotFound){
-					if(filehead.length < 4100){
-						filehead = Buffer.concat([filehead, chunk])
-					} else {
+					filehead = Buffer.concat([filehead, chunk])
+					if(filehead.length > 4100){
 						mimeNotFound = false
 						const res = await filetype.fromBuffer(filehead)
 						if(!fileTypeGood(res)){
