@@ -12,13 +12,13 @@ export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
 		const checkId = await knex<TxRecord>('txs').where({txid}).update(updates, 'txid')
 		if(checkId[0].txid !== txid){
 			logger(txid, 'ERROR UPDATING DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
-			slackLogger(txid, 'ERROR UPDATING DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
+			slackLogger(txid, 'ERROR UPDATING DATABASE (nsfw)', `(${JSON.stringify(updates)}) => ${checkId}`)
 		}
 		return checkId[0].txid;
 
 	}catch(e:any){
 		logger(txid, 'ERROR UPDATING DATABASE!', e.name, ':', e.message)
-		slackLogger(txid, 'ERROR UPDATING DATABASE!', e.name, ':', e.message)
+		slackLogger(txid, 'ERROR UPDATING DATABASE (nsfw)', e.name, ':', e.message, JSON.stringify(updates))
 		logger(txid, e) // `throw e` does nothing, use the return
 	}
 }
