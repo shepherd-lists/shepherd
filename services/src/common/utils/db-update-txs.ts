@@ -18,7 +18,7 @@ export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
 
 	}catch(e:any){
 		logger(txid, 'ERROR UPDATING DATABASE!', e.name, ':', e.message)
-		slackLogger(txid, 'ERROR UPDATING DATABASE!', e.name, ':', e.message)
+		slackLogger(txid, 'ERROR UPDATING DATABASE!', e.name, ':', e.message, JSON.stringify(updates))
 		logger(txid, e) // `throw e` does nothing, use the return
 	}
 }
