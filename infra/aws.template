@@ -149,7 +149,7 @@ Resources:
         Ref: DBSubnetGroup
       AllocatedStorage: 50
       PubliclyAccessible: true # useful for debugging using psql, add your ip to SG
-      DBInstanceClass: "db.t4g.xlarge"
+      DBInstanceClass: "db.t3.xlarge"
       StorageType: gp2
       Engine: postgres
       EngineVersion: "13.8"
@@ -238,6 +238,11 @@ Resources:
             Resource: !GetAtt SQSInputQueue.Arn
       Queues:
         - !Ref SQSInputQueue 
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: shepherd-services
+      RetentionInDays: 90
 
 Outputs:
 
@@ -265,6 +270,9 @@ Outputs:
 
   SQSInputQueue:
     Value: !Ref SQSInputQueue
+
+  LogGroupArn:
+    Value: !Select [0, !Split [':*', !GetAtt LogGroup.Arn ]]
 
   Subnet1:
     Value: !Ref Subnet1

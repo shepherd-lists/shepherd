@@ -106,6 +106,13 @@ export AWS_SQS_INPUT_QUEUE=$(aws cloudformation describe-stacks \
 sed -i '/^AWS_SQS_INPUT_QUEUE/d' .env  # remove old line before adding new
 echo "AWS_SQS_INPUT_QUEUE=$AWS_SQS_INPUT_QUEUE" | tee -a .env
 
+export LOG_GROUP_ARN=$(aws cloudformation describe-stacks \
+	--stack-name "shepherd-aws-stack" \
+	--query "Stacks[0].Outputs[?OutputKey=='LogGroupArn'].OutputValue" \
+	--output text)
+sed -i '/^LOG_GROUP_ARN/d' .env  # remove old line before adding new
+echo "LOG_GROUP_ARN=$LOG_GROUP_ARN" | tee -a .env
+
 export SUBNET1=$(aws cloudformation describe-stacks \
 	--stack-name shepherd-aws-stack \
 	--query "Stacks[0].Outputs[?OutputKey=='Subnet1'].OutputValue" \
