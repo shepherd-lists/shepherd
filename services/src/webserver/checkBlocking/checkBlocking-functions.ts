@@ -13,6 +13,7 @@ import { slackLogger } from "../../common/utils/slackLogger";
 import { slackLoggerPositive } from "../../common/utils/slackLoggerPositive";
 import { getBlacklist, getRangelist } from "../blacklist";
 import { fetch_checkBlocking } from "./fetch-checkBlocking";
+import { LogEvent } from './log-event-type'
 
 
 const prefix = 'check-blocked'
@@ -123,7 +124,7 @@ export const checkBlocked = async (url: string, item: string, server: string) =>
 	const { aborter, res: { status, headers } } = await fetch_checkBlocking(url)
 	
 	if (status !== 404) {
-		logger({
+		const logevent: LogEvent = {
 			eventType: 'not-blocked',
 			url,
 			item,
@@ -132,7 +133,9 @@ export const checkBlocked = async (url: string, item: string, server: string) =>
 			xtrace: headers.get('x-trace'),
 			age: headers.get('age'),
 			contentLength: headers.get('content-length'),
-		})
+		}
+		logger(logevent) // for aws notificitions
+
 		logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status}), xtrace: '${headers.get('x-trace')}', age: '${headers.get('age')}', content-length: '${headers.get('content-length')}'`)
 
 		/* make sure Slack doesn't display link contents */
