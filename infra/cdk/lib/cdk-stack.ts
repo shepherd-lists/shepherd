@@ -4,7 +4,12 @@ import { Construct } from 'constructs';
 /** env inputs */
 if(!process.env.SLACK_PROBE) throw new Error('SLACK_PROBE env var not set')
 if(!process.env.LOG_GROUP_ARN) throw new Error('LOG_GROUP_ARN env var not set')
-
+if(!process.env.GW_URLS) console.log('Warning : GW_URLS env var not set')
+if(!process.env.RANGELIST_ALLOWED) throw new Error('RANGELIST_ALLOWED env var not set')
+const gwUrls: string[] = JSON.parse(process.env.GW_URLS || '[]')
+const rangelistIPs: string[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
+rangelistIPs.shift() // pop off first IP. this should always be a test IP
+const serverIds = [...gwUrls, ...rangelistIPs]
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -12,8 +17,8 @@ export class CdkStack extends cdk.Stack {
 
     /** Slack notifications plan
      * connect to shepherd logs
-     * create metricfilter
-     * make alarm for metricfilter
+     * create metricfilter for each checked server
+     * make alarm for each metricfilter
      * send alarms to sns
      * sns sends to lambda
      * lambda sends to slack
@@ -27,42 +32,46 @@ export class CdkStack extends cdk.Stack {
     /** connect to external logs */ 
     const logGroup = cdk.aws_logs.LogGroup.fromLogGroupArn(this, 'LogGroup', process.env.LOG_GROUP_ARN!)
 
-    /** create an alarm straight from `MetricFilter->metric->createAlarm` */
-    const metricNotBlocked = new cdk.aws_logs.MetricFilter(this, 'NotBlockedMetricFilter', {
-      logGroup,
-      metricName: 'NotBlockedMetricFilter',
-      metricNamespace: 'shepherd',
-      metricValue: '1',
-      unit: cdk.aws_cloudwatch.Unit.COUNT,
-      filterPattern: cdk.aws_logs.FilterPattern.all(
-        cdk.aws_logs.FilterPattern.stringValue('$.eventType', '=', 'not-blocked'),
-        cdk.aws_logs.FilterPattern.stringValue('$.server', '=', '*'),
-      ),
-      // defaultValue: 0,
-      // filterPattern: cdk.aws_logs.FilterPattern.allTerms('not-blocked'), // <= this creates alarms ok alone
-      // dimensions: { serverId: '$.server' }, // Alarms don't work
-    })
-    .metric({
-      /* default period 5 mins */
-      period: cdk.Duration.seconds(10),
-      statistic: cdk.aws_cloudwatch.Stats.SUM,
-      // unit: cdk.aws_cloudwatch.Unit.COUNT,
-      dimensionsMap: { serverId: '$.server'}, 
-    }) 
-    const alarmNotBlocked = new cdk.aws_cloudwatch.Alarm(this, 'NotBlockedAlarm', {
-      metric: metricNotBlocked,
-      threshold: 0,
-      comparisonOperator: cdk.aws_cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-      evaluationPeriods: 1,
-      datapointsToAlarm: 1,
-      treatMissingData: cdk.aws_cloudwatch.TreatMissingData.NOT_BREACHING,
-      actionsEnabled: true, 
+    /** do the following for each serverId (workaround as dimensions not working in the cloudwatch Alarms) */
+    serverIds.map(serverId => {
+
+      /* sanitize the name for cfn */
+      const sanitizedId = serverId.replace(/[^a-z0-9_]/ig, '_') //replace non-alphanumeric
       
+      /** create an alarm straight from `MetricFilter->metric->createAlarm` */
+      const alarmNotBlocked = new cdk.aws_logs.MetricFilter(this, `NotBlocked${sanitizedId}MetricFilter`, {
+        logGroup,
+        metricName: sanitizedId,
+        metricNamespace: 'shepherd',
+        metricValue: '1',
+        unit: cdk.aws_cloudwatch.Unit.COUNT,
+        filterPattern: cdk.aws_logs.FilterPattern.all(
+          cdk.aws_logs.FilterPattern.stringValue('$.eventType', '=', 'not-blocked'),
+          cdk.aws_logs.FilterPattern.stringValue('$.server', '=', serverId),
+        ),
+        // dimensions: { serverId: '$.server' }, // Alarms don't work
+      })
+      .metric({
+        period: cdk.Duration.seconds(10), /* default period 5 mins */
+        statistic: cdk.aws_cloudwatch.Stats.SUM,
+        // unit: cdk.aws_cloudwatch.Unit.COUNT,
+      }) 
+      .createAlarm(this, `NotBlocked${sanitizedId}Alarm`, {
+        threshold: 0,
+        comparisonOperator: cdk.aws_cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        evaluationPeriods: 1,
+        datapointsToAlarm: 1,
+        treatMissingData: cdk.aws_cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: serverId,
+      })
+  
+      /** connect alarm to topic */
+      alarmNotBlocked.addAlarmAction(new cdk.aws_cloudwatch_actions.SnsAction(topic))
+      alarmNotBlocked.addOkAction(new cdk.aws_cloudwatch_actions.SnsAction(topic))
     })
 
-    /** connect alarm to topic */
-    alarmNotBlocked.addAlarmAction(new cdk.aws_cloudwatch_actions.SnsAction(topic))
-    alarmNotBlocked.addOkAction(new cdk.aws_cloudwatch_actions.SnsAction(topic))
+
+
 
     /* create lambda using `NodejsFunction` (ebuild) option */
     const role = new cdk.aws_iam.Role(this, 'SnSSlackHandlerLambdaRole', {
