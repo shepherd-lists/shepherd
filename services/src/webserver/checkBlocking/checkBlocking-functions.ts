@@ -60,14 +60,14 @@ export const streamLists = async () => {
 		for await (const txid of txids) {
 			(process.env.NODE_ENV === 'test') && console.log(`readline txid`, txid)
 
-			gwUrls.forEach(async gw => {
+			await Promise.all(gwUrls.map(async gw => {
 				try{
 					await checkBlocked(`${gw}/${txid}`, txid, gw)
 				}catch(e:any){
 					logger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/${txid}`, txid)
 					slackLogger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/${txid}`, txid)
 				}
-			})
+			}))
 		}
 		rwBlack.destroy(); txids.close();
 	}
@@ -93,15 +93,15 @@ export const streamLists = async () => {
 
 			const [range1, range2] = range.split(',')
 
-			gwUrls.forEach(async gw => {
+			await Promise.all(gwUrls.map(async gw => {
 				try{
 					await checkBlocked(`${gw}/chunk/${+range1 + 1}`, range, gw)
 				}catch(e:any){
 					logger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/chunk/${+range1 + 1}`, range)
 					slackLogger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/chunk/${+range1 + 1}`, range)
 				}
-			})
-			rangeIPs.forEach(async rangeIp => {
+			}))
+			await Promise.all(rangeIPs.map(async rangeIp => {
 				try{
 					await checkBlocked(`http://${rangeIp.ip}:1984/chunk/${+range1 + 1}`, range, rangeIp.ip)
 					rangeIp.lastResponse = Date.now()
@@ -114,7 +114,7 @@ export const streamLists = async () => {
 						rangeIp.lastResponse = Date.now() //reset message timer for another hour
 					}
 				}
-			})
+			}))
 		}
 		rwRange.destroy(); ranges.close();
 	}
@@ -136,7 +136,7 @@ export const checkBlocked = async (url: string, item: string, server: string) =>
 		}
 		logger(logevent) // for aws notificitions
 
-		logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status}), xtrace: '${headers.get('x-trace')}', age: '${headers.get('age')}', content-length: '${headers.get('content-length')}'`)
+		// logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status}), xtrace: '${headers.get('x-trace')}', age: '${headers.get('age')}', content-length: '${headers.get('content-length')}'`)
 
 		/* make sure Slack doesn't display link contents */
 		
