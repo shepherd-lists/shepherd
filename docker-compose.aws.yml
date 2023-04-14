@@ -8,6 +8,11 @@ services:
   webserver:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:webserver
     platform: linux/amd64
+    logging:
+      driver: awslogs
+      options:
+        awslogs-group: shepherd-services
+        # awslogs-format: json/emf
     deploy:
       resources:
         limits:
@@ -16,6 +21,9 @@ services:
   http-api:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:http-api
     platform: linux/amd64
+    logging:
+      options:
+        awslogs-group: shepherd-services
     deploy:
       resources:
         limits:
@@ -24,6 +32,9 @@ services:
   indexer:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:indexer
     platform: linux/amd64
+    logging:
+      options:
+        awslogs-group: shepherd-services    
     deploy:
       resources:
         limits:
@@ -32,6 +43,9 @@ services:
   feeder:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:feeder
     platform: linux/amd64
+    logging:
+      options:
+        awslogs-group: shepherd-services    
     deploy:
       resources:
         limits:
@@ -48,6 +62,9 @@ services:
   fetchers:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:fetchers
     platform: linux/amd64
+    logging:
+      options:
+        awslogs-group: shepherd-services    
     deploy:
       resources:
         limits:
@@ -73,6 +90,9 @@ services:
 
   plugin:
     container_name: ${PLUGIN:-nsfw} # not implemented in docker ecs yet
+    logging:
+      options:
+        awslogs-group: shepherd-services    
     depends_on:
       - indexer
     # x-aws-* doesn't get created when this comes from the extended file. bug!
