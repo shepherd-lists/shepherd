@@ -36,10 +36,10 @@ export class CdkStack extends cdk.Stack {
     serverIds.map(serverId => {
 
       /* sanitize the name for cfn */
-      const sanitizedId = serverId.replace(/[^a-z0-9_]/ig, '_') //replace non-alphanumeric
+      const sanitizedId = serverId.replace(/[^a-z0-9_]/ig, '-') //replace non-alphanumeric
       
       /** create an alarm straight from `MetricFilter->metric->createAlarm` */
-      const alarmNotBlocked = new cdk.aws_logs.MetricFilter(this, `NotBlocked${sanitizedId}MetricFilter`, {
+      const alarmNotBlocked = new cdk.aws_logs.MetricFilter(this, `NotBlocked-${sanitizedId}-MetricFilter`, {
         logGroup,
         metricName: sanitizedId,
         metricNamespace: 'shepherd',
@@ -52,11 +52,11 @@ export class CdkStack extends cdk.Stack {
         // dimensions: { serverId: '$.server' }, // Alarms don't work
       })
       .metric({
-        period: cdk.Duration.seconds(10), /* default period 5 mins */
+        // period: cdk.Duration.seconds(10), /* default period 5 mins */
         statistic: cdk.aws_cloudwatch.Stats.SUM,
         // unit: cdk.aws_cloudwatch.Unit.COUNT,
       }) 
-      .createAlarm(this, `NotBlocked${sanitizedId}Alarm`, {
+      .createAlarm(this, `NotBlocked-${sanitizedId}-Alarm`, {
         threshold: 0,
         comparisonOperator: cdk.aws_cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
         evaluationPeriods: 1,
