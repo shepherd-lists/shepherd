@@ -230,7 +230,11 @@ const insertRecords = async(metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 				const t0 = performance.now()
 				const p0 = p
 
-				p = await getParent(p, gql)
+				try{
+					p = await getParent(p, gql)
+				}catch(e:any){
+					throw new TypeError(`getParent error: "${e.message}" while fetching parent: ${p} for dataItem: ${txid} using gqlProvider: ${gqlProvider}`)
+				}
 				
 				const t1 = performance.now() - t0
 
