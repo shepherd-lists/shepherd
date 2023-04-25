@@ -3,7 +3,7 @@ import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { getBlacklist, getRangelist } from './blacklist'
 import { getPerfHistory, getDevStats } from './metrics'
 import si from 'systeminformation'
-import './perf-cron' //starts automatically
+// import './perf-cron' //starts automatically
 import './checkBlocking/checkBlocking-timer' //starts automatically
 import { slackLogger } from '../common/utils/slackLogger'
 import { network_EXXX_codes } from '../common/constants'
