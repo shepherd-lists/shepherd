@@ -1,5 +1,5 @@
 import express from 'express'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateTxsDb } from '../common/utils/db-update-txs'
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb } from '../common/utils/db-update-txs'
 import { APIFilterResult } from '../common/shepherd-plugin-interfaces'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { slackLogger } from '../common/utils/slackLogger'
@@ -101,6 +101,12 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 				break;
 			case 'unsupported':
 				await dbUnsupportedMimeType(txid)
+				break;
+			case 'mimetype':
+				await dbWrongMimeType(txid, result.err_message!)
+				break;
+			case 'retry':
+				// await dbInflightDel(txid) <= this is all we actually want done
 				break;
 		
 			default:
