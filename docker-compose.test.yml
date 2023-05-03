@@ -12,6 +12,12 @@ services:
     restart: always
     ports:
       - '5432:5432'
+  http-api:
+    build: 
+      context: ./services
+      target: http-api
+    environment:
+      HTTP_API_URL: http://http-api:84/postupdate
   s3-local:
     image: bitnami/minio:latest
     ports:

@@ -18,3 +18,4 @@ services:
       AWS_SQS_INPUT_QUEUE: http://sqs-local:9324/000000000000/shepherd-s3-events
       AWS_INPUT_BUCKET: shepherd-input-mod-local
       S3_LOCAL_ENDPOINT: http://s3-local:9000
+      HTTP_API_URL: http://http-api:84/postupdate

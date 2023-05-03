@@ -26,6 +26,7 @@ services:
       - localbridge
       - sqs-local
       - s3-local
+      - http-api
 
   pgdb-test:
     extends:
@@ -39,6 +40,10 @@ services:
     extends:
       file: ../../docker-compose.test.yml
       service: s3-local
+  http-api:
+    extends:
+      file: ../../docker-compose.test.yml
+      service: http-api
   shep-runner:
     extends:
       file: ../../docker-compose.test.yml
