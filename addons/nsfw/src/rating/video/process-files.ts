@@ -1,6 +1,6 @@
 import { logger } from '../../utils/logger'
 import { FfmpegError, } from 'shepherd-plugin-interfaces/types'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel } from '../../utils/db-update-txs'
+import { corruptDataConfirmed, corruptDataMaybe, inflightDel } from '../../utils/update-txs'
 import { createScreencaps } from './screencaps'
 import { checkFrames } from './check-frames'
 import { VidDownloads } from './VidDownloads'
@@ -32,7 +32,7 @@ export const processVids = async()=> {
 				const e: FfmpegError = err
 				if(e.message === 'Output file #0 does not contain any stream'){
 					logger(dl.txid, 'ffmpeg: Output file #0 does not contain any stream')
-					dbCorruptDataConfirmed(dl.txid)
+					corruptDataConfirmed(dl.txid)
 					downloads.cleanup(dl)
 					continue; //dont checkFrames
 				}else if(e.message === 'No such file or directory'){
@@ -47,7 +47,7 @@ export const processVids = async()=> {
 					].includes(e.message)
 				){
 					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
-					dbCorruptDataMaybe(dl.txid)
+					corruptDataMaybe(dl.txid)
 					downloads.cleanup(dl)
 					continue; //dont checkFrames
 				}else if(
@@ -61,7 +61,7 @@ export const processVids = async()=> {
 					 * internal queues. better to retry using the SQS queues.
 					 */
 					logger(dl.txid, `${e.name}:${e.message}. Cleaning up and releasing back to SQS queue.`)
-					dbInflightDel(dl.txid)
+					inflightDel(dl.txid)
 					downloads.cleanup(dl)
 					continue; //dont checkFrames
 				}else{

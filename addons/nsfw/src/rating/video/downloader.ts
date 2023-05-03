@@ -2,7 +2,7 @@ import fs from 'fs'
 import filetype, { FileTypeResult } from "file-type";
 import { network_EXXX_codes, VID_TMPDIR, VID_TMPDIR_MAXSIZE } from "../../constants";
 import { logger } from "../../utils/logger";
-import { dbPartialVideoFound, dbWrongMimeType } from "../../utils/db-update-txs";
+import { partialVideoFound, wrongMimeType } from "../../utils/update-txs";
 import { VidDownloadRecord, VidDownloads } from "./VidDownloads";
 import { slackLogger } from "../../utils/slackLogger";
 import si from 'systeminformation'
@@ -55,7 +55,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			const fileTypeGood = (res: FileTypeResult | undefined)=>{
 				if(res && !res.mime.startsWith('video/')){
 					logger(vid.txid, 'invalid video file-type:', res.mime)
-					dbWrongMimeType(vid.txid, res.mime)
+					wrongMimeType(vid.txid, res.mime)
 					vid.content_type = res.mime
 					return false
 				}
@@ -120,7 +120,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 					if(filesizeDownloaded > 0 && !mimeNotFound && vid.content_type.startsWith('video/')){ 
 						logger(vid.txid, 'partial-seed video found')
 						slackLogger(vid.txid, `CHECK THIS! being marked as partial-seed`)
-						dbPartialVideoFound(vid.txid) 
+						partialVideoFound(vid.txid) 
 						vid.complete = 'TRUE'
 						resolve(true)
 					}else{
