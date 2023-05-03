@@ -17,7 +17,8 @@ services:
       context: ./services
       target: http-api
     environment:
-      HTTP_API_URL: http://http-api:84/postupdate
+      DB_HOST: pgdb-test
+      PROCESS_NAME: http-api
   s3-local:
     image: bitnami/minio:latest
     ports:

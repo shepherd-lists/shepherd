@@ -3,8 +3,9 @@ import { APIFilterResult, FilterErrorResult, FilterResult } from 'shepherd-plugi
 import { logger } from './logger'
 import { slackLogger } from './slackLogger'
 
-
-
+if(!process.env.HTTP_API_URL) throw new Error('HTTP_API_URL not defined')
+const HTTP_API_URL = process.env.HTTP_API_URL
+console.log('HTTP_API_URL', HTTP_API_URL)
 
 export const updateTx = async(txid: string, filterResult: Partial<FilterResult | FilterErrorResult> )=> {
 	try{
@@ -13,7 +14,7 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 			filterResult: filterResult as FilterResult,
 		}
 		const payloadString = JSON.stringify(payload)
-		const { ok, status, statusText } = await fetch('http://http-api.shepherd.local:84/postupdate', {
+		const { ok, status, statusText } = await fetch(HTTP_API_URL, {
 			method: 'POST',
 			body: payloadString,
 			headers: {

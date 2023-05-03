@@ -20,6 +20,7 @@ services:
       AWS_INPUT_BUCKET: shepherd-input-mod-local
       S3_LOCAL: 'yes'
       S3_LOCAL_ENDPOINT: http://s3-local:9000
+      HTTP_API_URL: http://http-api:84/postupdate
       
     depends_on:
       - pgdb-test
