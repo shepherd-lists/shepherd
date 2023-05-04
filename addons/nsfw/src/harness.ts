@@ -205,6 +205,7 @@ export const harness = async()=> {
 				console.log(`message.Body`, JSON.stringify(s3event, null,2))
 			}
 		})// end messages.forEach
+		await sleep(1)
 	}
 }
 
