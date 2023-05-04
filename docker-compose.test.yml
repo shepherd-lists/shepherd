@@ -12,13 +12,15 @@ services:
     restart: always
     ports:
       - '5432:5432'
-  http-api:
+  http-api-test:
     build: 
       context: ./services
       target: http-api
     environment:
       DB_HOST: pgdb-test
       PROCESS_NAME: http-api
+    depends_on:
+      - pgdb-test
   s3-local:
     image: bitnami/minio:latest
     ports:
