@@ -4,6 +4,10 @@ import { slackLogger } from './slackLogger'
 
 import axios from 'axios'
 
+// /** this improves things slightly with Fetch */
+// import http from 'http'
+// http.globalAgent.maxSockets = 1_000
+
 let count = 0
 
 if(!process.env.HTTP_API_URL) throw new Error('HTTP_API_URL not defined')
