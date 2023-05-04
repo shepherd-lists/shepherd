@@ -1,4 +1,4 @@
-import dbConnection from "../src/utils/db-connection";
+import dbConnection from "./utils/dbConnection-for-tests-only";
 
 const knex = dbConnection()
 

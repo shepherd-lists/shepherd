@@ -3,7 +3,7 @@ import { expect } from 'chai'
 import { createScreencaps } from '../src/rating/video/screencaps'
 import { videoDownload } from '../src/rating/video/downloader'
 import { VidDownloadRecord } from '../src/rating/video/VidDownloads'
-import dbConnection from '../src/utils/db-connection'
+import dbConnection from './utils/dbConnection-for-tests-only'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { S3 } from "aws-sdk";
 import { readFileSync } from 'fs'

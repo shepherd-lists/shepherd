@@ -3,7 +3,7 @@ version: '3.7'
 services:
   pgdb:
     shm_size: 4gb
-    command: postgres -c 'max_connections=2000'
+    command: postgres -c 'max_connections=5000'
     build: 
       context: ./infra-local/postgres
     volumes: 
@@ -72,6 +72,7 @@ services:
     depends_on:
       - sqs-local
       - s3-local
+      - localbridge
   plugin:
     # container_name: ${PLUGIN:-nsfw}
     extends:
@@ -80,7 +81,7 @@ services:
     depends_on:
       - sqs-local
       - s3-local
-      - pgdb
+      - http-api
 
 volumes:
   pgdata:

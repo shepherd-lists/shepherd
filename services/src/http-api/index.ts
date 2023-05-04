@@ -1,5 +1,5 @@
 import express from 'express'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateTxsDb } from '../common/utils/db-update-txs'
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb } from '../common/utils/db-update-txs'
 import { APIFilterResult } from '../common/shepherd-plugin-interfaces'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { slackLogger } from '../common/utils/slackLogger'
@@ -16,9 +16,12 @@ app.get('/', (req, res)=> {
 	res.status(200).send('API listener operational.')
 })
 
+
 app.post('/postupdate', async(req, res)=>{
+	req.resume()
+	const body = req.body
 	try{
-		await pluginResultHandler(req.body)
+		await pluginResultHandler(body)
 		res.sendStatus(200)
 	}catch(e:any){
 		logger(prefix, 'Error. Request body:', JSON.stringify(req.body))
@@ -53,63 +56,79 @@ server.on('clientError', (e: any, socket)=> {
 	socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
 })
 
+server.on('error', (e: any)=> {
+	logger(`express-error`, `${e.name} (${e.code}) : ${e.message}. \n${e.stack}`)
+})
+
+let count = 0
 const pluginResultHandler = async(body: APIFilterResult)=>{
 	const txid = body.txid
 	const result = body.filterResult
 	
+	logger(txid, `handler begins. received ${++count}`)
+
 	if((typeof txid !== 'string') || txid.length !== 43){
+		logger(`Fatal error`,`txid is not defined correctly: ${body?.txid}`)
 		throw new TypeError('txid is not defined correctly')
 	}
 
-	if(result.flagged !== undefined){
-		if(result.flagged === true){
-			slackLoggerPositive('matched', JSON.stringify(body))
-		}
-		if(result.flag_type === 'test'){
-			slackLogger('✅ *Test Message* ✅', JSON.stringify(body))
-		}
+	try{
 
-		const res = await updateTxsDb(txid, {
-			flagged: result.flagged,
-			valid_data: true,
-			...(result.flag_type && { flag_type: result.flag_type}),
-			...(result.top_score_name && { top_score_name: result.top_score_name}),
-			...(result.top_score_value && { top_score_value: result.top_score_value}),
-		})
+		if(result.flagged !== undefined){
+			if(result.flagged === true){
+				slackLoggerPositive('matched', JSON.stringify(body))
+			}
+			if(result.flag_type === 'test'){
+				slackLogger('✅ *Test Message* ✅', JSON.stringify(body))
+			}
 
-		if(res !== txid){
-			dbInflightDel(txid)
-			throw new Error('Could not update database')
+			const res = await updateTxsDb(txid, {
+				flagged: result.flagged,
+				valid_data: true,
+				...(result.flag_type && { flag_type: result.flag_type}),
+				...(result.top_score_name && { top_score_name: result.top_score_name}),
+				...(result.top_score_value && { top_score_value: result.top_score_value}),
+			})
+
+			if(res !== txid){
+				logger(`Fatal error`, `Could not update database. "${res} !== ${txid}"`)
+				throw new Error('Could not update database')
+			}
+			
+		}else if(result.data_reason === undefined){
+			logger(txid, 'data_reason and flagged cannot both be undefined')
+			throw new TypeError('data_reason and flagged cannot both be undefined')
+		}else{
+			switch (result.data_reason) {
+				case 'corrupt-maybe':
+					await dbCorruptDataMaybe(txid)
+					break;
+				case 'corrupt':
+					await dbCorruptDataConfirmed(txid)
+					break;
+				case 'oversized':
+					await dbOversizedPngFound(txid)
+					break;
+				case 'partial':
+					await dbPartialImageFound(txid)
+					break;
+				case 'unsupported':
+					await dbUnsupportedMimeType(txid)
+					break;
+				case 'mimetype':
+					await dbWrongMimeType(txid, result.err_message!)
+					break;
+				case 'retry':
+					// `dbInflightDel(txid)`  is all we actually want done
+					break;
+			
+				default:
+					logger(prefix, 'UNHANDLED plugin result in http-api', txid)
+					slackLogger(prefix, 'UNHANDLED plugin result in http-api', txid)
+					throw new Error('UNHANDLED plugin result in http-api:\n' + JSON.stringify(result))
+			}
 		}
-		
-	}else if(result.data_reason === undefined){
-		dbInflightDel(txid)
-		throw new TypeError('data_reason and flagged cannot both be undefined')
-	}else{
-		switch (result.data_reason) {
-			case 'corrupt-maybe':
-				await dbCorruptDataMaybe(txid)
-				break;
-			case 'corrupt':
-				await dbCorruptDataConfirmed(txid)
-				break;
-			case 'oversized':
-				await dbOversizedPngFound(txid)
-				break;
-			case 'partial':
-				await dbPartialImageFound(txid)
-				break;
-			case 'unsupported':
-				await dbUnsupportedMimeType(txid)
-				break;
-		
-			default:
-				logger(prefix, 'UNHANDLED plugin result in http-api', txid)
-				slackLogger(prefix, 'UNHANDLED plugin result in http-api', txid)
-				await dbInflightDel(txid)
-				throw new Error('UNHANDLED plugin result in http-api:\n' + JSON.stringify(result))
-		}
+	}finally{
+		await dbInflightDel(txid)
 	}
-
-	await dbInflightDel(txid)
 }

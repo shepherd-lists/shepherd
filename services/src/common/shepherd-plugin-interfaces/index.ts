@@ -18,6 +18,7 @@ export interface FilterErrorResult {
 		| 'corrupt'       // image data is corrupt
 		| 'corrupt-maybe' // image data is corrupt, but can be displayed by a browser
 		| 'noop'					// no operation
+		| 'retry'					// clean up and retry
 		| (string & {})
 	err_message?: string // optional error message
 }

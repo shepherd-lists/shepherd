@@ -1,6 +1,6 @@
 import { 
-	dbCorruptDataConfirmed, dbCorruptDataMaybe, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb, dbInflightDel 
-} from '../utils/db-update-txs'
+	corruptDataConfirmed, corruptDataMaybe, oversizedPngFound, partialImageFound, unsupportedMimeType, wrongMimeType, updateTx 
+} from '../utils/update-txs'
 import { getImageMime } from './image-filetype'
 import { logger } from '../utils/logger'
 import { slackLogger } from '../utils/slackLogger'
@@ -29,12 +29,12 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 				logger(prefix, 'image mime-type found to be `undefined`. try rating anyway. Original:', contentType, txid)
 			}else{
 				logger(prefix, `image mime-type found to be '${mime}'. will be automatically requeued using:`, contentType, txid)
-				await dbWrongMimeType(txid, contentType) //shouldn't get here..
+				await wrongMimeType(txid, contentType) //shouldn't get here..
 				return true;
 			}
 		}else if(!mime.startsWith('image/')){
 			logger(prefix, `image mime-type found to be '${mime}'. updating record; will be automatically requeued. Original:`, contentType, txid)
-			await dbWrongMimeType(txid, mime)
+			await wrongMimeType(txid, mime)
 			return true
 		}else if(mime !== contentType){
 			logger(prefix, `warning. expected '${contentType}' !== detected '${mime}'`, txid)
@@ -47,7 +47,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 
 		if(e.message === 'End-Of-Stream'){
 			logger(prefix, `End-Of-Stream`, contentType, txid)
-			await dbCorruptDataConfirmed(txid)
+			await corruptDataConfirmed(txid)
 			return true;
 		}
 
@@ -77,32 +77,32 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 	const result = await checkImage(pic, mime, txid)
 
 	if(result.flagged !== undefined){
-		await updateTxsDb(txid, {
+		await updateTx(txid, {
 			flagged: result.flagged,
-			valid_data: true,
 			...( result.top_score_name && { 
 				top_score_name: result.top_score_name, 
 				top_score_value: result.top_score_value
 			}),
-			last_update_date: new Date(),
 		})
-		await dbInflightDel(txid)
 	}else{
 		switch (result.data_reason) {
 			case 'corrupt-maybe':
-				await dbCorruptDataMaybe(txid)
+				await corruptDataMaybe(txid)
 				break;
 			case 'corrupt':
-				await dbCorruptDataConfirmed(txid)
+				await corruptDataConfirmed(txid)
 				break;
 			case 'oversized':
-				await dbOversizedPngFound(txid)
+				await oversizedPngFound(txid)
 				break;
 			case 'partial':
-				await dbPartialImageFound(txid)
+				await partialImageFound(txid)
 				break;
 			case 'unsupported':
-				await dbUnsupportedMimeType(txid)
+				await unsupportedMimeType(txid)
+				break;
+			case 'mimetype':
+				await wrongMimeType(txid, result.err_message!)
 				break;
 		
 			default:
