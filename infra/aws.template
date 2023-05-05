@@ -147,7 +147,7 @@ Resources:
         - Ref: ShepherdSecurityGroup
       DBSubnetGroupName: 
         Ref: DBSubnetGroup
-      AllocatedStorage: 50
+      AllocatedStorage: 80
       PubliclyAccessible: true # useful for debugging using psql, add your ip to SG
       DBInstanceClass: "db.t3.xlarge"
       StorageType: gp2
@@ -168,9 +168,28 @@ Resources:
       QueueName: shepherd-feeder-q
       MessageRetentionPeriod: 1209600 # 14 days (AWS max value)
       VisibilityTimeout: 900 # 15 minutes
-      # RedrivePolicy:
-      #   deadLetterTargetArn: !GetAtt SQSInputQueueDLQ.Arn
-      #   maxReceiveCount: 10
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt SQSFeederQueueDLQ.Arn
+        maxReceiveCount: 10
+  # shepherd-feeder-dlq
+  SQSFeederQueueDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600 # 14 days (AWS max value)
+      QueueName: shepherd-feeder-dlq
+  SQSFeederQueueDLQPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref SQSFeederQueueDLQ
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - Ref: AWS::AccountId
+            Action: 'sqs:*'
+            Resource: !GetAtt SQSFeederQueueDLQ.Arn
 
   # AWS_INPUT_BUCKET
   # Policies for S3Bucket access done in docker compose also
