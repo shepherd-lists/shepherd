@@ -4,19 +4,12 @@ import { ByteRange, txidToRange } from './txidToRange/txidToRange'
 import { slackLogger } from '../common/utils/slackLogger'
 
 
-export const byteRanges = async (id: string, parent: string | null, parents: string[] | undefined) => {
-
-	/* get byte-range (if applicable) */
-
-	let chunkRange: ByteRange = { start: -1n, end: -1n }
-	try{
-		chunkRange = await txidToRange(id, parent, parents)
-	}catch(e:any){
-		logger(byteRanges.name, "UNHANLDED error", e.name, e.message, `id:${id}, parent:${parent}, parents:${parents}}`, e)
-		slackLogger(byteRanges.name, "UNHANLDED error", e.name, e.message, `id:${id}, parent:${parent}, parents:${parents}}`)
-	}
+/** this is used in retrospective syncing */
+export const byteRangesUpdateDb = async (id: string, parent: string | null, parents: string[] | undefined) => {
 
 	/* update database - (expensive to do this separately, consider combined operation) */
+
+	const chunkRange = await getByteRange(id, parent, parents)
 
 	const checkId = await updateTxsDb(id, {
 		byteStart: chunkRange.start.toString(),
@@ -29,4 +22,19 @@ export const byteRanges = async (id: string, parent: string | null, parents: str
 	return chunkRange;
 }
 
+/** just returns the byte-range for the id */
+export const getByteRange = async (id: string, parent: string | null, parents: string[] | undefined) => {
+
+		/* get byte-range (if applicable) */
+
+		let chunkRange: ByteRange = { start: -1n, end: -1n }
+		try{
+			chunkRange = await txidToRange(id, parent, parents)
+		}catch(e:any){
+			logger(byteRangesUpdateDb.name, "UNHANLDED error", e.name, e.message, `id:${id}, parent:${parent}, parents:${parents}}`, e)
+			slackLogger(byteRangesUpdateDb.name, "UNHANLDED error", e.name, e.message, `id:${id}, parent:${parent}, parents:${parents}}`)
+		}
+
+		return chunkRange;
+}
 
