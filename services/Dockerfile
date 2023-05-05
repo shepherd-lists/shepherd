@@ -13,11 +13,13 @@ RUN npm ci --omit=dev
 
 FROM base as webserver
 COPY ./src/common ./src/common
+COPY ./src/byte-ranges ./src/byte-ranges
 COPY ./src/webserver ./src/webserver
 ENTRYPOINT node -r ts-node/register src/webserver/index.ts
 
 FROM base as http-api
 COPY ./src/common ./src/common
+COPY ./src/byte-ranges ./src/byte-ranges
 COPY ./src/http-api ./src/http-api
 ENTRYPOINT node -r ts-node/register src/http-api/index.ts
 

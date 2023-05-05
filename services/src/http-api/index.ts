@@ -89,9 +89,12 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 				/** get the tx data from the database */
 				const record = await getTxRecord(txid)
 
+				/** calculate the byte range */
 				const { start, end } = await getByteRange(txid, record.parent, record.parents)
 				byteStart = start.toString()
 				byteEnd = end.toString()
+
+				console.log(`calculated byte-range for ${txid}, byte range ${byteStart} to ${byteEnd}`)
 			}
 
 			const res = await updateTxsDb(txid, {
