@@ -1,7 +1,7 @@
 import { TxRecord } from '../common/shepherd-plugin-interfaces/types'
 import getDb from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
-import { byteRanges } from './byteRanges'
+import { byteRanges } from '../byte-ranges/byteRanges'
 import { Writable } from 'stream'
 
 const knex = getDb()
