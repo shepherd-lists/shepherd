@@ -1,10 +1,12 @@
 import express from 'express'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb } from '../common/utils/db-update-txs'
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, updateTxsDb, getTxRecord } from '../common/utils/db-update-txs'
 import { APIFilterResult } from '../common/shepherd-plugin-interfaces'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { slackLogger } from '../common/utils/slackLogger'
 import { slackLoggerPositive } from '../common/utils/slackLoggerPositive'
 import { network_EXXX_codes } from '../common/constants'
+import { getByteRange } from '../byte-ranges/byteRanges'
+
 
 const prefix = 'http-api'
 const app = express()
@@ -82,12 +84,31 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 				slackLogger('✅ *Test Message* ✅', JSON.stringify(body))
 			}
 
+			let byteStart, byteEnd;
+			if(Number(result.top_score_value) > 0.9){
+				try {
+					/** get the tx data from the database */
+					const record = await getTxRecord(txid)
+	
+					/** calculate the byte range */
+					const { start, end } = await getByteRange(txid, record.parent, record.parents)
+					byteStart = start.toString()
+					byteEnd = end.toString()
+	
+					console.log(txid, `calculated byte-range ${byteStart} to ${byteEnd}`)
+				} catch (e:any) {
+					logger(txid, `Error calculating byte-range: ${e.name}:${e.message}`, JSON.stringify(e))
+					slackLogger(txid, pluginResultHandler.name, `Error calculating byte-range: ${e.name}:${e.message}`, JSON.stringify(e))
+				}
+			}
+
 			const res = await updateTxsDb(txid, {
 				flagged: result.flagged,
 				valid_data: true,
 				...(result.flag_type && { flag_type: result.flag_type}),
 				...(result.top_score_name && { top_score_name: result.top_score_name}),
 				...(result.top_score_value && { top_score_value: result.top_score_value}),
+				...(byteStart && { byteStart, byteEnd }),
 			})
 
 			if(res !== txid){

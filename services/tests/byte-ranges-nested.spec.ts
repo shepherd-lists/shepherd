@@ -3,7 +3,7 @@ import 'mocha'
 import { expect } from 'chai'
 import dbConnection from '../src/common/utils/db-connection'
 import { TxRecord } from '../src/common/shepherd-plugin-interfaces/types'
-import { txidToRange } from '../src/webserver/txidToRange/txidToRange'
+import { txidToRange } from '../src/byte-ranges/txidToRange/txidToRange'
 
 const knex = dbConnection()
 

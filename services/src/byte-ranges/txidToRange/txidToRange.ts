@@ -7,6 +7,9 @@ import memoize from 'micro-memoize'
 import { arGql, ArGqlInterface } from 'ar-gql'
 import { fetchRetryConnection } from './fetch-retry'
 
+if(!GQL_URL || !GQL_URL_SECONDARY || !HOST_URL) throw new Error(`Missing env vars, GQL_URL:${GQL_URL}, GQL_URL_SECONDARY:${GQL_URL_SECONDARY}, HOST_URL:${HOST_URL}`)
+
+
 /**
  * 
  * @param id either L1 or L2 id
@@ -58,7 +61,7 @@ export const txidToRange = async (id: string, parent: string|null, parents: stri
 		txParent.tags.some(tag => tag.name === 'Bundle-Format' && tag.value === 'binary')
 		&& txParent.tags.some(tag => tag.name === 'Bundle-Version' && tag.value === '2.0.0')
 	){
-		console.log(txidToRange.name, `ans104 detected. parent ${txParent.id}`)
+		console.log(id, txidToRange.name, `ans104 detected. parent ${txParent.id}`)
 		return byteRange104(id, parent, parents)
 	}
 	//handle L2 ans102 (arweave-bundles)
@@ -66,7 +69,7 @@ export const txidToRange = async (id: string, parent: string|null, parents: stri
 		txParent.tags.some(tag => tag.name === 'Bundle-Format' && tag.value === 'json')
 		&& txParent.tags.some(tag => tag.name === 'Bundle-Version' && tag.value === '1.0.0')
 	){
-		console.log(txidToRange.name, `ans102 detected. parent ${txParent.id}`)
+		console.log(id, txidToRange.name, `ans102 detected. parent ${txParent.id}`)
 		return byteRange102(id, parent)
 	}
 

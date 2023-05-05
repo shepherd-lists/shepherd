@@ -162,7 +162,6 @@ export const dbWrongMimeType = async(txid: string, content_type: string)=> {
 	})
 }
 
-
 export const dbUnsupportedMimeType = async(txid: string)=> {
 	return updateTxsDb(txid,{
 		// flagged: <= cannot flag yet! display with puppeteer & rate again
@@ -170,4 +169,17 @@ export const dbUnsupportedMimeType = async(txid: string)=> {
 		data_reason: 'unsupported',
 		last_update_date: new Date(),
 	})
+}
+
+/** retrieve a single TxRecord by txid */
+export const getTxRecord = async(txid: string)=> {
+	try{
+		const ret = await knex<TxRecord>('txs').where({ txid })
+		if(ret.length === 0) throw new Error('No tx record found.')
+		return ret[0];
+	}catch(e:any){
+		logger(txid, 'Error getting tx record', e.name, ':', e.message, JSON.stringify(e))
+		slackLogger(txid, 'Error getting tx record', e.name, ':', e.message, JSON.stringify(e))
+		throw e;
+	}
 }
