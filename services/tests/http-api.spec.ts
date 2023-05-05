@@ -55,7 +55,7 @@ describe('http-api tests', ()=>{
 		}
 		try{
 			const res = await axios.post('http://localhost:84/postupdate', data)
-			throw new Error('test should fail') 
+			expect(true, 'test should fail').false
 		}catch(e){
 			if(axios.isAxiosError(e)){
 				expect((<AxiosError>e).response!.status).eq(406)
@@ -71,7 +71,7 @@ describe('http-api tests', ()=>{
 		}
 		try{
 			const res = await axios.post('http://localhost:84/postupdate', data)
-			throw new Error('test should fail') 
+			expect(true, 'test should fail').false
 		}catch(e){
 			if(axios.isAxiosError(e)){
 				expect((<AxiosError>e).response!.status).eq(400)
@@ -87,7 +87,7 @@ describe('http-api tests', ()=>{
 		}
 		try{
 			await axios.post('http://localhost:84/postupdate', data)
-			throw new Error('test should fail') 
+			expect(true, 'test should fail').false
 		}catch(e){
 			if(axios.isAxiosError(e)){
 				expect((<AxiosError>e).response!.status).eq(400)
@@ -105,11 +105,42 @@ describe('http-api tests', ()=>{
 		}
 		try{
 			await axios.post('http://localhost:84/postupdate', data)
-			throw new Error('test should fail') 
+			expect(true, 'test should fail').false
 		}catch(e){
 			if(axios.isAxiosError(e)){
 				expect((<AxiosError>e).response!.status).eq(400)
 			}else{ throw e }
+		}
+	}).timeout(5000)
+
+	it('6. should calculate the byte-range for a txid with top_score_value > 0.9', async()=>{
+		const data: APIFilterResult = {
+			txid: `PGE1rpLLKjQHNdTGF-NlNZ2cvKWuZwLCtRQCJcX_-88`, // a small jpeg
+			filterResult: {
+				flagged: false,
+				top_score_value: 0.95,
+				top_score_name: 'test',
+			}
+		}
+		await knex<TxRecord>('txs').insert({
+			txid: data.txid,
+			content_size: '100',
+			content_type: 'image/jpeg',
+			height: 123,
+			parent: null,
+		})
+
+		try{
+			const res = await axios.post('http://localhost:84/postupdate', data)
+			expect(res.status, 'http-api returned an error code').eq(200)
+			const rec = (await knex<TxRecord>('txs').select().where({ txid: data.txid }))[0]
+			expect(rec.byteStart).to.exist
+			expect(rec.byteEnd).to.exist
+			expect(rec.byteStart).eq('140085963825398')
+			expect(rec.byteEnd).eq('140085964087542')
+
+		}finally{
+			await knex<TxRecord>('txs').delete().where({ txid: data.txid })
 		}
 	}).timeout(5000)
 
