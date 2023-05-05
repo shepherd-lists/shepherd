@@ -86,15 +86,20 @@ const pluginResultHandler = async(body: APIFilterResult)=>{
 
 			let byteStart, byteEnd;
 			if(Number(result.top_score_value) > 0.9){
-				/** get the tx data from the database */
-				const record = await getTxRecord(txid)
-
-				/** calculate the byte range */
-				const { start, end } = await getByteRange(txid, record.parent, record.parents)
-				byteStart = start.toString()
-				byteEnd = end.toString()
-
-				console.log(`calculated byte-range for ${txid}, byte range ${byteStart} to ${byteEnd}`)
+				try {
+					/** get the tx data from the database */
+					const record = await getTxRecord(txid)
+	
+					/** calculate the byte range */
+					const { start, end } = await getByteRange(txid, record.parent, record.parents)
+					byteStart = start.toString()
+					byteEnd = end.toString()
+	
+					console.log(txid, `calculated byte-range ${byteStart} to ${byteEnd}`)
+				} catch (e:any) {
+					logger(txid, `Error calculating byte-range: ${e.name}:${e.message}`, JSON.stringify(e))
+					slackLogger(txid, pluginResultHandler.name, `Error calculating byte-range: ${e.name}:${e.message}`, JSON.stringify(e))
+				}
 			}
 
 			const res = await updateTxsDb(txid, {
