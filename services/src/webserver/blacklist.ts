@@ -1,8 +1,9 @@
 import { TxRecord } from '../common/shepherd-plugin-interfaces/types'
 import getDb from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
-import { byteRanges } from '../byte-ranges/byteRanges'
+import { byteRangesUpdateDb } from '../byte-ranges/byteRanges'
 import { Writable } from 'stream'
+import { slackLogger } from '../common/utils/slackLogger'
 
 const knex = getDb()
 
@@ -67,10 +68,11 @@ export const getRangelist = async(res: Writable)=> {
 			text += line
 			res.write(line)
 		}else if(!record.byteStart){
-			logger(getRangelist.name, `calculating new byte-range for '${record.txid}'...`)
+			logger(getRangelist.name, `no byte-range found, calculating new range for '${record.txid}'...`)
+			slackLogger(getRangelist.name, `no byte-range found, calculating new range for '${record.txid}'...`)
 			
 			promises.push((async(txid, parent, parents)=>{
-				const {start, end} = await byteRanges(txid, parent, parents) //db updated internally
+				const {start, end} = await byteRangesUpdateDb(txid, parent, parents) //db updated internally
 				if(start !== -1n){
 					const line = `${start},${end}\n`
 					text += line

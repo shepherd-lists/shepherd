@@ -49,7 +49,7 @@ export const streamLists = async () => {
 	/* check all blacklist txids against GWs */
 
 	if (gwUrls.length === 0) {
-		logger(prefix, `gwUrls empty`)
+		logger(prefix, `gwUrls empty. nothing to check txids against.`)
 	} else {
 		// we're reusing the server's streaming function
 		const rwBlack = new PassThrough()
@@ -75,17 +75,11 @@ export const streamLists = async () => {
 	/* check all ranges against nodes (and GWs too?) */
 
 	if (gwUrls.length === 0 && rangeIPs.length === 0) {
-		logger(prefix, `gwUrls & accessRangelist empty`, `running getRangelist to prevent backlog`)
+		logger(prefix, `gwUrls & accessRangelist empty. nothing to check byteranges against.`)
 
-		/* need to run this once in a while to prevent backlog */
-
-		const rwRange = new PassThrough()
-		await getRangelist(rwRange)
-		rwRange.end()
-		rwRange.destroy();
 	} else {
 		const rwRange = new PassThrough()
-		getRangelist(rwRange).then(() => rwRange.end())
+		getRangelist(rwRange).then(() => rwRange.end())	//byte-range already calculated
 
 		const ranges = readline.createInterface(rwRange)
 		for await (const range of ranges) {
