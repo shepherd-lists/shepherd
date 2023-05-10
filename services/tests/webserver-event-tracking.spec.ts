@@ -1,7 +1,7 @@
 import 'mocha'
 import { expect } from 'chai'
 import sinon from 'sinon'
-import { alertStateCronjob, setAlertState, unreachableReset, unreachableTimedout } from '../src/webserver/checkBlocking/event-tracking'
+import { alertStateCronjob, isUnreachable, setAlertState, setUnreachable, deleteUnreachable, unreachableTimedout } from '../src/webserver/checkBlocking/event-tracking'
 import * as Logger from '../src/common/utils/slackLogger'
 
 const timeout = 300_000 // 5 minutes
@@ -12,38 +12,44 @@ describe(`event-tracking tests`, () => {
 
 	afterEach(() => {
 		sinon.restore()
+		counter = 123
 	})
 
 	it('should test various unreachable server scenarios', async () => {
 		const nowStub = sinon.stub(Date, 'now').callsFake(fakeTime) //every call adds 2.5+ mins
 
 		const server = 'https://example.com'
-		
+
+		let res = isUnreachable(server)
+		expect(res, 'server should not be unreachable').false
+
 		//add server
-		let res = unreachableTimedout(server)
-		expect(res, 'add server for first time').to.be.false
-		expect(nowStub.callCount).to.equal(1)
+		setUnreachable(server)
+		res = unreachableTimedout(server)
+		expect(res, 'add server for first time').false
+		expect(nowStub.callCount).to.equal(2)
 
-		//server should not have timed out yet
+		res = isUnreachable(server)
+		expect(res, 'server should be unreachable').true
+
+		//server should have timed out already
 		res = unreachableTimedout(server) 
-		expect(res, 'server should not be timed out').to.be.false
+		expect(res, 'server should not be timed out').to.be.true
 
-		//server should have timed out
+		//server should be back in timed out
 		res = unreachableTimedout(server)
-		expect(res, 'timed out for server').to.be.true
+		expect(res, 'should be timed out').to.be.false
 
-		//test it goes through the timeout cycle again
-		res = unreachableTimedout(server)
-		expect(res).to.be.false
+		//test it has through the timeout cycle again
 		res = unreachableTimedout(server)
 		expect(res).to.be.true
 
 		//delete server
-		const reset = unreachableReset(server)
+		const reset = deleteUnreachable(server)
 		expect(reset).to.be.true
-		//should add server again
+		//should be removed
 		res = unreachableTimedout(server)
-		expect(res).to.be.false 
+		expect(res).to.be.true 
 	})
 
 	it('should test output messages of alertStageCronjob', async()=> {
@@ -63,7 +69,7 @@ describe(`event-tracking tests`, () => {
 		alertStateCronjob() //should log alarm
 		expect(loggerStub.callCount, 'second cronjob should output to logger').to.equal(++loggerCount)
 		expect(loggerStub.getCall(0).args[0]).eq(
-			'🔴 ALARM https://example.com, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:17:30 GMT\n'
+			'🔴 ALARM https://example.com, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:02:30 GMT\n'
 		)
 
 		setAlertState({server, item, status: 'ok'})
@@ -73,8 +79,8 @@ describe(`event-tracking tests`, () => {
 		alertStateCronjob() //should log 1 alarm and 1 ok
 		expect(loggerStub.callCount, 'third cronjob should output to logger').to.equal(++loggerCount)
 		expect(loggerStub.getCall(1).args[0]).eq(
-`🟢 OK Not blocked for 2.5 minutes, https://example.com, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:17:30 GMT, ended:Thu, 01 Jan 1970 00:20:00 GMT
-🔴 ALARM 1.1.1.1, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:22:30 GMT
+`🟢 OK. Was not blocked for 2.5 minutes, https://example.com, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:02:30 GMT, ended:Thu, 01 Jan 1970 00:05:00 GMT
+🔴 ALARM 1.1.1.1, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:07:30 GMT
 `			
 		)
 
@@ -85,7 +91,7 @@ describe(`event-tracking tests`, () => {
 		alertStateCronjob() //should log 1 ok
 		expect(loggerStub.callCount, 'fifth cronjob should output to logger').to.equal(++loggerCount)
 		expect(loggerStub.getCall(2).args[0]).eq(
-`🟢 OK Not blocked for 2.5 minutes, 1.1.1.1, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:22:30 GMT, ended:Thu, 01 Jan 1970 00:25:00 GMT
+`🟢 OK. Was not blocked for 2.5 minutes, 1.1.1.1, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:07:30 GMT, ended:Thu, 01 Jan 1970 00:10:00 GMT
 `
 		)
 

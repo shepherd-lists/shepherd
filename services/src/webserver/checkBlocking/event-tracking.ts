@@ -5,29 +5,28 @@ import { slackLogger } from "../../common/utils/slackLogger"
 const timeout = 300_000 // 5 minutes
 const _unreachable = new Map<string, number>()
 
-export const unreachableTimedout = (server: string) => {
-	const now = Date.now()
-	const noResponse = _unreachable.get(server)
-
-	/** maybe the following is unreadable.. it's a terse form of:
-	 * if(!noResponse){
-	 * 		_unreachable.set(server, now)
-	 * 		return false;
-	 * }
-	 * if((now - noResponse) > timeout){
-	 * 		_unreachable.set(server, now)
-	 * 		return true;
-	 * }
-	 */
-	if(!noResponse || (now - noResponse) > timeout){
-		_unreachable.set(server, now)
-		return !!noResponse;
-	}
-	return false;
+export const isUnreachable = (server: string) => {
+	return _unreachable.has(server)
+}
+export const setUnreachable = (server: string) => {
+	_unreachable.set(server, Date.now())
 }
 
-export const unreachableReset = (server: string) => {
+export const deleteUnreachable = (server: string) => {
 	return _unreachable.delete(server)
+}
+
+export const unreachableTimedout = (server: string) => {
+	if(!_unreachable.has(server)) return true //if called on reachable server
+
+	const now = Date.now()
+	const last = _unreachable.get(server)!
+
+	if((now - last) > timeout){
+		_unreachable.set(server, now)
+		return true;
+	}
+	return false;
 }
 
 /** -= track start/end of not-block events =- */
@@ -83,7 +82,7 @@ export const alertStateCronjob = () => {
 				msg += `🔴 ALARM ${server}, ${item}, started:${new Date(start).toUTCString()}\n`
 			}
 			if(state.status === 'ok'){
-				msg += `🟢 OK Not blocked for ${((end!-start)/60_000).toFixed(1)} minutes, ${server}, ${item}, `
+				msg += `🟢 OK. Was not blocked for ${((end!-start)/60_000).toFixed(1)} minutes, ${server}, ${item}, `
 				msg += `started:${new Date(start).toUTCString()}, ended:${new Date(end!).toUTCString()}\n`
 
 				_serversInAlert.delete(key)
