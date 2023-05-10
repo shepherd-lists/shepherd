@@ -10,7 +10,7 @@ const knex = getDb()
 //serve cache for 3 mins
 const CACHE_TIMEOUT = 3 * 60 * 1000 
 
-let _black =  {
+let _cached =  {
 	last: 0,
 	text: '',
 	inProgress: false,
@@ -19,12 +19,12 @@ export const getBlacklist = async(res: Writable)=> {
 
 	const now = new Date().valueOf()
 
-	if(_black.inProgress || now - _black.last < CACHE_TIMEOUT){
-		logger('blacklist', `serving cache, ${_black.text.length} bytes. inProgress: ${_black.inProgress}`)
-		return res.write(_black.text);
+	if(_cached.inProgress || now - _cached.last < CACHE_TIMEOUT){
+		logger('blacklist', `serving cache, ${_cached.text.length} bytes. inProgress: ${_cached.inProgress}`)
+		return res.write(_cached.text);
 	}
-	_black.inProgress = true
-	_black.last = now
+	_cached.inProgress = true
+	_cached.last = now
 
 	const records = knex<TxRecord>('txs').where({flagged: true}).stream()
 	let text = ''
@@ -35,27 +35,22 @@ export const getBlacklist = async(res: Writable)=> {
 		res.write(line)
 		if(++count % 10000 === 0) logger('blacklist', count, `records retrieved...`)
 	}
-	logger('blacklist', 'tx records retrieved', count)
+	logger('blacklist', 'TxRecords retrieved', count)
 
-	_black.text = text
-	_black.inProgress = false
+	_cached.text = text
+	_cached.inProgress = false
 }
 
-const _range = {
-	last: 0,
-	text: '',
-	inProgress: false,
-}
 export const getRangelist = async(res: Writable)=> {
 
 	const now = new Date().valueOf()
 	
-	if(_range.inProgress || now - _range.last < CACHE_TIMEOUT){
-		logger('rangelist', `serving cache, ${_range.text.length} bytes. inProgress: ${_range.inProgress}`)
-		return res.write(_range.text);
+	if(_cached.inProgress || now - _cached.last < CACHE_TIMEOUT){
+		logger('rangelist', `serving cache, ${_cached.text.length} bytes. inProgress: ${_cached.inProgress}`)
+		return res.write(_cached.text);
 	}
-	_range.inProgress = true
-	_range.last = now
+	_cached.inProgress = true
+	_cached.last = now
 
 	const records = knex<TxRecord>('txs').where({flagged: true}).stream()
 	let text = ''
@@ -90,9 +85,9 @@ export const getRangelist = async(res: Writable)=> {
 	}
 	await Promise.all(promises) //all errors are handled internally
 
-	logger('rangelist', 'tx records retrieved', count)
-	_range.text = text
-	_range.inProgress = false
+	logger('rangelist', 'TxRecords retrieved', count)
+	_cached.text = text
+	_cached.inProgress = false
 }
 
 
