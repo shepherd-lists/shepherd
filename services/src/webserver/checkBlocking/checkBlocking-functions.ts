@@ -56,8 +56,8 @@ export const streamLists = async () => {
 					}
 				}catch(e:any){
 					setUnreachable(gw)
-					logger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/${txid}`, txid)
-					slackLogger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/${txid}`, txid)
+					logger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/${txid}`, txid)
+					slackLogger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/${txid}`, txid)
 				}
 			}))
 		}
@@ -88,8 +88,8 @@ export const streamLists = async () => {
 					}
 				}catch(e:any){
 					setUnreachable(gw)
-					logger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/chunk/${+range1 + 1}`, range)
-					slackLogger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/chunk/${+range1 + 1}`, range)
+					logger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/chunk/${+range1 + 1}`, range)
+					slackLogger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/chunk/${+range1 + 1}`, range)
 				}
 			}))
 			await Promise.all(rangeIPs.map(async rangeIp => {
@@ -101,7 +101,7 @@ export const streamLists = async () => {
 					}
 				}catch(e:any){
 					setUnreachable(rangeIp)
-					logger(prefix, `node '${rangeIp}' is unresponsive, while fetching http://${rangeIp}:1984/chunk/${+range1 + 1}`)
+					logger(prefix, `set '${rangeIp}' as unreachable, while fetching http://${rangeIp}:1984/chunk/${+range1 + 1}`)
 				}
 			}))
 		}
