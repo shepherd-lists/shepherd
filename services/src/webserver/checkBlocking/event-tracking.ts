@@ -1,5 +1,6 @@
 /** -= Unresponsive Servers =- */
 
+import { logger } from "../../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../../common/utils/slackLogger"
 
 const timeout = 300_000 // 5 minutes
@@ -36,6 +37,7 @@ interface NotBlockEventDetails {
 	age: string
 	contentLength: string
 	httpStatus: number
+	endpointType: '/TXID' | '/chunk'
 }
 export interface NotBlockEvent {
 	server: string
@@ -76,21 +78,22 @@ export const setAlertState = (event: NotBlockEvent) => {
 
 /** cronjob function to report alert changes */
 export const alertStateCronjob = () => {
+	if(process.env.NODE_ENV !== 'test') logger(alertStateCronjob.name, 'running cronjob...', {_changed})
+
 	if(!_changed) return;
 	_changed = false
 
 	let msg = ''
-	type header = '🟢 OK'|'🔴 ALARM'
 
 	for(const [key, state] of _serversInAlert){
 		const {server, item, status, notified, start, end, details} = state
 		if(!notified){
 			if(status === 'alarm'){
-				msg += `🔴 ALARM ${server}, started:"${new Date(start).toUTCString()}". x-trace:${details?.xtrace}, age:${details?.age}, `
+				msg += `🔴 ALARM \`${server}\`, \`${details?.endpointType}\` started:"${new Date(start).toUTCString()}". x-trace:${details?.xtrace}, age:${details?.age}, `
 				msg += `http-status:${details?.httpStatus}, content-length:${details?.contentLength}\n`
 			}
 			if(state.status === 'ok'){
-				msg += `🟢 OK, was not blocked for ${((end!-start)/60_000).toFixed(1)} minutes, ${server}, x-trace:${details?.xtrace}, `
+				msg += `🟢 OK, was not blocked for ${((end!-start)/60_000).toFixed(1)} minutes, \`${server}\`, \`${details?.endpointType}\` x-trace: ${details?.xtrace}, `
 				msg += `started:"${new Date(start).toUTCString()}", ended:"${new Date(end!).toUTCString()}"\n`
 
 				_serversInAlert.delete(key)
@@ -99,5 +102,14 @@ export const alertStateCronjob = () => {
 			}
 		}
 	}
-	slackLogger(msg)
+	_slackLoggerNoFormatting(msg, process.env.SLACK_WEBHOOK)
+}
+/** exported for test only */
+export const _slackLoggerNoFormatting = (text: string, hook?: string) => hook && fetch(hook, { method: 'POST', body: JSON.stringify({ text })})
+	.then(res => res.text()).then(t => console.log(t)) //use up stream to close connection
+
+/** *** USED ONLY IN TEST! *** reset server alert state */
+export const _resetAlertState = () => {
+	_serversInAlert.clear()
+	_changed = false
 }

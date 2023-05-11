@@ -12,7 +12,7 @@ import { slackLoggerPositive } from "../../common/utils/slackLoggerPositive";
 import { getBlacklist, getRangelist } from "../blacklist";
 import { fetch_checkBlocking } from "./fetch-checkBlocking";
 import { LogEvent } from './log-event-type'
-import { deleteUnreachable, isUnreachable, setUnreachable, unreachableTimedout } from "./event-tracking";
+import { deleteUnreachable, isUnreachable, setAlertState, setUnreachable, unreachableTimedout } from "./event-tracking";
 
 
 const prefix = 'check-blocked'
@@ -113,6 +113,7 @@ export const checkBlocked = async (url: string, item: string, server: string) =>
 	const { aborter, res: { status, headers } } = await fetch_checkBlocking(url)
 	
 	if (status !== 404) {
+		/** for aws notifications (not working too well) */
 		const logevent: LogEvent = {
 			eventType: 'not-blocked',
 			url,
@@ -123,7 +124,21 @@ export const checkBlocked = async (url: string, item: string, server: string) =>
 			age: headers.get('age'),
 			contentLength: headers.get('content-length'),
 		}
-		logger(logevent) // for aws notificitions
+		logger(logevent)
+
+		/** send event to homebrew event tracker */
+		setAlertState({
+			server,
+			item,
+			status: 'alarm',
+			details: {
+				xtrace: headers.get('x-trace') || 'null',
+				age: headers.get('age') || 'null',
+				contentLength: headers.get('content-length') || 'null',
+				httpStatus: status,
+				endpointType: item.length === 43 ? '/TXID' : '/chunk',
+			},
+		})
 
 		/* make sure Slack doesn't display link contents */
 		
@@ -136,6 +151,7 @@ export const checkBlocked = async (url: string, item: string, server: string) =>
 		slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${display}\` (status: ${status}), xtrace: '${headers.get('x-trace')}', age: '${headers.get('age')}', content-length: '${headers.get('content-length')}'`)
 	}else{
 		logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
+		setAlertState({ server, item, status: 'ok' })
 	}
 
 	aborter?.abort() 
