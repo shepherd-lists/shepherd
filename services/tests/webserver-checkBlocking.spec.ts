@@ -33,17 +33,21 @@ describe(`checkBlocking tests`, () => {
 		//inspect test results
 		expect(getBlacklist_stub.calledOnce, `getBlacklist_stub called more than once`).true
 		expect(getRangelist_stub.calledOnce, `getRangelist_stub called more than once`).true
-		expect(checkBlocked_stub.callCount, `checkBlocked_stub gets called for every combination`).eq(9)
+		// console.log(JSON.stringify(checkBlocked_stub.getCalls().map(call => call.args), null, 2	))
+		expect(checkBlocked_stub.callCount, `checkBlocked_stub gets called for every combination`).eq(12)
 
 		expect(checkBlocked_stub.calledWithExactly(`${GW}/blacklist-entry-1`, 'blacklist-entry-1', GW))
 		expect(checkBlocked_stub.calledWithExactly(`${GW}/blacklist-entry-2`, 'blacklist-entry-2', GW))
 		expect(checkBlocked_stub.calledWithExactly(`${GW}/blacklist-entry-3`, 'blacklist-entry-3', GW))
 
 		expect(checkBlocked_stub.calledWithExactly('http://127.0.0.1:1984/chunk/' + 'range1', 'range1', 'range1,range1'))
+		expect(checkBlocked_stub.calledWithExactly('http://1.1.1.1:1984/chunk/' + 'range1', 'range1', 'range1,range1'))
 		expect(checkBlocked_stub.calledWithExactly('https://example.org/chunk/' + 'range1', 'range1', 'range1,range1'))
 		expect(checkBlocked_stub.calledWithExactly('http://127.0.0.1:1984/chunk/' + 'range2', 'range2', 'range2,range2'))
+		expect(checkBlocked_stub.calledWithExactly('http://1.1.1.1:1984/chunk/' + 'range2', 'range2', 'range2,range2'))
 		expect(checkBlocked_stub.calledWithExactly('https://example.org/chunk/' + 'range2', 'range2', 'range2,range2'))
 		expect(checkBlocked_stub.calledWithExactly('http://127.0.0.1:1984/chunk/' + 'range3', 'range3', 'range3,range3'))
+		expect(checkBlocked_stub.calledWithExactly('http://1.1.1.1:1984/chunk/' + 'range3', 'range3', 'range3,range3'))
 		expect(checkBlocked_stub.calledWithExactly('https://example.org/chunk/' + 'range3', 'range3', 'range3,range3'))
 
 

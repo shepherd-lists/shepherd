@@ -1,8 +1,6 @@
 /**
  * objectives:
  * - check that IPs in lists are correctly blocking data after it is flagged.
- * - also run the resource intensive rangelist dertivations so that they do not 
- * 	 build up and crash the system.
  * 
  * this file separates out the functions for test.
  */
@@ -14,6 +12,7 @@ import { slackLoggerPositive } from "../../common/utils/slackLoggerPositive";
 import { getBlacklist, getRangelist } from "../blacklist";
 import { fetch_checkBlocking } from "./fetch-checkBlocking";
 import { LogEvent } from './log-event-type'
+import { deleteUnreachable, isUnreachable, setUnreachable, unreachableTimedout } from "./event-tracking";
 
 
 const prefix = 'check-blocked'
@@ -23,26 +22,14 @@ const hour_ms = 60 * 60 * 1000
 
 /* load the IP access lists */
 
-// // pop off first IP. this should always be a test IP
-// const accessBlacklist: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
-// accessBlacklist.shift() // pop off first IP. this should always be a test IP
-// logger(prefix, `accessBlacklist (BLACKLIST_ALLOWED)`, accessBlacklist)
-
 // pop off first IP. this should always be a test IP
-const accessRangelist: string[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
-accessRangelist.shift() // pop off first IP. this should always be a test IP
-logger(prefix, `accessRangelist (RANGELIST_ALLOWED)`, accessRangelist)
-const rangeIPs: { ip: string, lastResponse: number}[] = accessRangelist.map(ip => {return {
-	ip,
-	lastResponse: Date.now()
-}})
+const rangeIPs: string[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
+// accessRangelist.shift() // pop off first IP. this should always be a test IP
+logger(prefix, `accessRangelist (RANGELIST_ALLOWED)`, rangeIPs)
 
 const gwUrls: string[] = JSON.parse(process.env.GW_URLS || '[]')
 logger(prefix, `gwUrls`, gwUrls)
 
-/* module level vars for caching */
-let _lastBlack: string[] = []
-let _lastRange: string[] = []
 
 export const streamLists = async () => {
 
@@ -62,8 +49,13 @@ export const streamLists = async () => {
 
 			await Promise.all(gwUrls.map(async gw => {
 				try{
-					await checkBlocked(`${gw}/${txid}`, txid, gw)
+					if(!isUnreachable(gw) || unreachableTimedout(gw)){
+						await checkBlocked(`${gw}/${txid}`, txid, gw)
+						//if didn't throw error, then it's reachable
+						deleteUnreachable(gw)
+					}
 				}catch(e:any){
+					setUnreachable(gw)
 					logger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/${txid}`, txid)
 					slackLogger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/${txid}`, txid)
 				}
@@ -89,24 +81,27 @@ export const streamLists = async () => {
 
 			await Promise.all(gwUrls.map(async gw => {
 				try{
-					await checkBlocked(`${gw}/chunk/${+range1 + 1}`, range, gw)
+					if(!isUnreachable(gw) || unreachableTimedout(gw)){
+						await checkBlocked(`${gw}/chunk/${+range1 + 1}`, range, gw)
+						//if didn't throw error, then it's reachable
+						deleteUnreachable(gw)
+					}
 				}catch(e:any){
+					setUnreachable(gw)
 					logger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/chunk/${+range1 + 1}`, range)
 					slackLogger(prefix, `gateway ${gw} is unresponsive! while fetching ${gw}/chunk/${+range1 + 1}`, range)
 				}
 			}))
 			await Promise.all(rangeIPs.map(async rangeIp => {
 				try{
-					await checkBlocked(`http://${rangeIp.ip}:1984/chunk/${+range1 + 1}`, range, rangeIp.ip)
-					rangeIp.lastResponse = Date.now()
-				}catch(e:any){
-					// logger(prefix, `${e.name} : ${e.message}`)
-					const now = Date.now()
-					if(now - rangeIp.lastResponse > hour_ms){
-						logger(prefix, `node '${rangeIp.ip}' is unresponsive for the last hour`)
-						// slackLogger(prefix, `node '${rangeIp.ip}' is unresponsive for the last hour`)
-						rangeIp.lastResponse = Date.now() //reset message timer for another hour
+					if(!isUnreachable(rangeIp) || unreachableTimedout(rangeIp)){
+						await checkBlocked(`http://${rangeIp}:1984/chunk/${+range1 + 1}`, range, rangeIp)
+						//if didn't throw error, then it's reachable
+						deleteUnreachable(rangeIp)
 					}
+				}catch(e:any){
+					setUnreachable(rangeIp)
+					logger(prefix, `node '${rangeIp}' is unresponsive, while fetching http://${rangeIp}:1984/chunk/${+range1 + 1}`)
 				}
 			}))
 		}
@@ -129,8 +124,6 @@ export const checkBlocked = async (url: string, item: string, server: string) =>
 			contentLength: headers.get('content-length'),
 		}
 		logger(logevent) // for aws notificitions
-
-		// logger(prefix, `WARNING! ${item} not blocked on ${url} (status: ${status}), xtrace: '${headers.get('x-trace')}', age: '${headers.get('age')}', content-length: '${headers.get('content-length')}'`)
 
 		/* make sure Slack doesn't display link contents */
 		
