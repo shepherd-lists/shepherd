@@ -56,6 +56,7 @@ let _changed = false
 export const setAlertState = (event: NotBlockEvent) => {
 	const key = `${event.server},${event.item}`
 	if(!_serversInAlert.has(key)){
+		if(event.status === 'ok') return; //only add new alarm events
 		_serversInAlert.set(key, {
 			...event,
 			start: Date.now(),
