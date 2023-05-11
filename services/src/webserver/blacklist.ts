@@ -12,82 +12,83 @@ const CACHE_TIMEOUT = 3 * 60 * 1000
 
 let _cached =  {
 	last: 0,
-	text: '',
+	txids: '',
+	ranges: '',
 	inProgress: false,
 }
-export const getBlacklist = async(res: Writable)=> {
-
-	const now = new Date().valueOf()
-
-	if(_cached.inProgress || now - _cached.last < CACHE_TIMEOUT){
-		logger('blacklist', `serving cache, ${_cached.text.length} bytes. inProgress: ${_cached.inProgress}`)
-		return res.write(_cached.text);
-	}
-	_cached.inProgress = true
-	_cached.last = now
-
-	const records = knex<TxRecord>('txs').where({flagged: true}).stream()
-	let text = ''
-	let count = 0
-	for await (const record of records) {
-		const line = record.txid + '\n'
-		text += line
-		res.write(line)
-		if(++count % 10000 === 0) logger('blacklist', count, `records retrieved...`)
-	}
-	logger('blacklist', 'TxRecords retrieved', count)
-
-	_cached.text = text
-	_cached.inProgress = false
-}
-
-export const getRangelist = async(res: Writable)=> {
-
-	const now = new Date().valueOf()
+const getRecords = async(res: Writable, type: 'txids'|'ranges')=> {
 	
+	/** check if we are returning cache or not */
+	const now = new Date().valueOf()
 	if(_cached.inProgress || now - _cached.last < CACHE_TIMEOUT){
-		logger('rangelist', `serving cache, ${_cached.text.length} bytes. inProgress: ${_cached.inProgress}`)
-		return res.write(_cached.text);
+		const text = type == 'txids' ? _cached.txids : _cached.ranges
+		logger(getRecords.name, `serving cache, ${text.length} bytes. inProgress: ${_cached.inProgress}`)
+		return res.write(text);
 	}
 	_cached.inProgress = true
 	_cached.last = now
 
+	/** get records from db, stream straight out to respones, and cache for both lists */
+
 	const records = knex<TxRecord>('txs').where({flagged: true}).stream()
-	let text = ''
+	let txids = ''
+	let ranges = ''
 	let promises = []
 	let count = 0
-
 	for await (const record of records) {
-		if(record.byteStart && record.byteStart !== '-1'){ // (-1,-1) denotes an error. e.g. weave data unavailable
-			const line = `${record.byteStart},${record.byteEnd}\n`
-			text += line
-			res.write(line)
-		}else if(!record.byteStart){
-			logger(getRangelist.name, `no byte-range found, calculating new range for '${record.txid}'...`)
-			slackLogger(getRangelist.name, `no byte-range found, calculating new range for '${record.txid}'...`)
+		/* txid part is simple */
+		const lineTxid = record.txid + '\n'
+		txids += lineTxid
+
+		/* ranges needs to be checked for '-1' or null */
+		let lineRange;
+		if(record.byteStart && record.byteStart !== '-1'){
+			lineRange = `${record.byteStart},${record.byteEnd}\n`
+			ranges += lineRange
+		}
+		if(!record.byteStart){
+			/** null ranges must get populated (FYI, this code should no longer have to run) */
+			logger(getRecords.name, `no byte-range found, calculating new range for '${record.txid}'...`)
+			slackLogger(getRecords.name, `no byte-range found, calculating new range for '${record.txid}'...`)
 			
 			promises.push((async(txid, parent, parents)=>{
 				const {start, end} = await byteRangesUpdateDb(txid, parent, parents) //db updated internally
 				if(start !== -1n){
 					const line = `${start},${end}\n`
-					text += line
-					res.write(line)
+					lineRange += line
+					res.write(line) //we'll just write these out of sequence
 				}
 			}) (record.txid, record.parent, record.parents) )
 
-			// batch them a bit
+			// batch them if there is a heavy backlog for some reason (this should not happen anymore)
 			if(promises.length >= 100){
 				await Promise.all(promises)
 				promises = []
 			}
 		}
-		if(++count % 10000 === 0) logger('rangelist', count, `records processed/retrieved...`)
-	}
-	await Promise.all(promises) //all errors are handled internally
 
-	logger('rangelist', 'TxRecords retrieved', count)
-	_cached.text = text
+		/** write out available line */
+
+		const line = type == 'txids' ? lineTxid : lineRange
+		if(line){
+			res.write(line)
+		}
+		if(++count % 10000 === 0) logger(getRecords.name, count, `records retrieved...`)
+	}
+	await Promise.all(promises)
+	logger(getRecords.name, 'TxRecords retrieved', count)
+
+	_cached.txids = txids
+	_cached.ranges = ranges
 	_cached.inProgress = false
+}
+
+export const getBlacklist = async(res: Writable)=> {
+	return getRecords(res, 'txids')
+}
+
+export const getRangelist = async(res: Writable)=> {
+	return getRecords(res, 'ranges')
 }
 
 
