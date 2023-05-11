@@ -64,23 +64,23 @@ describe(`event-tracking tests`, () => {
 		let loggerCount = 0
 		expect(loggerStub.callCount, 'first cronjob should not call logger').to.equal(loggerCount)
 
-		setAlertState({server, item, status: 'alarm'})
+		setAlertState({server, item, status: 'alarm', details: {age: '1', contentLength: '2', httpStatus: 200, xtrace: '4'}})
 
 		alertStateCronjob() //should log alarm
 		expect(loggerStub.callCount, 'second cronjob should output to logger').to.equal(++loggerCount)
 		expect(loggerStub.getCall(0).args[0]).eq(
-			'🔴 ALARM https://example.com, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:02:30 GMT\n'
+			'🔴 ALARM https://example.com, started:"Thu, 01 Jan 1970 00:02:30 GMT". x-trace:4, age:1, http-status:200, content-length:2\n'
 		)
 
 		setAlertState({server, item, status: 'ok'})
-		setAlertState({server: server2, item, status: 'alarm'})
+		setAlertState({server: server2, item, status: 'alarm', details: {age: '1', contentLength: '2', httpStatus: 200, xtrace: '4'}})
 		expect(nowStub.callCount).to.equal(3)
 
 		alertStateCronjob() //should log 1 alarm and 1 ok
 		expect(loggerStub.callCount, 'third cronjob should output to logger').to.equal(++loggerCount)
 		expect(loggerStub.getCall(1).args[0]).eq(
-`🟢 OK. Was not blocked for 2.5 minutes, https://example.com, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:02:30 GMT, ended:Thu, 01 Jan 1970 00:05:00 GMT
-🔴 ALARM 1.1.1.1, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:07:30 GMT
+`🟢 OK, was not blocked for 2.5 minutes, https://example.com, x-trace:4, started:"Thu, 01 Jan 1970 00:02:30 GMT", ended:"Thu, 01 Jan 1970 00:05:00 GMT"
+🔴 ALARM 1.1.1.1, started:"Thu, 01 Jan 1970 00:07:30 GMT". x-trace:4, age:1, http-status:200, content-length:2
 `			
 		)
 
@@ -91,8 +91,7 @@ describe(`event-tracking tests`, () => {
 		alertStateCronjob() //should log 1 ok
 		expect(loggerStub.callCount, 'fifth cronjob should output to logger').to.equal(++loggerCount)
 		expect(loggerStub.getCall(2).args[0]).eq(
-`🟢 OK. Was not blocked for 2.5 minutes, 1.1.1.1, test-id-1-test-id-1-test-id-1-test-id-1-123, started:Thu, 01 Jan 1970 00:07:30 GMT, ended:Thu, 01 Jan 1970 00:10:00 GMT
-`
+			'🟢 OK, was not blocked for 2.5 minutes, 1.1.1.1, x-trace:4, started:"Thu, 01 Jan 1970 00:07:30 GMT", ended:"Thu, 01 Jan 1970 00:10:00 GMT"\n'
 		)
 
 		alertStateCronjob() //should log nothing

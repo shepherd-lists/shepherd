@@ -31,10 +31,17 @@ export const unreachableTimedout = (server: string) => {
 
 /** -= track start/end of not-block events =- */
 
+interface NotBlockEventDetails {
+	xtrace: string
+	age: string
+	contentLength: string
+	httpStatus: number
+}
 export interface NotBlockEvent {
 	server: string
 	item: string
 	status: ('alarm'|'ok')
+	details?: NotBlockEventDetails
 }
 interface NotBlockState extends NotBlockEvent {
 	start: number
@@ -76,14 +83,15 @@ export const alertStateCronjob = () => {
 	type header = '🟢 OK'|'🔴 ALARM'
 
 	for(const [key, state] of _serversInAlert){
-		const {server, item, status, notified, start, end} = state
+		const {server, item, status, notified, start, end, details} = state
 		if(!notified){
 			if(status === 'alarm'){
-				msg += `🔴 ALARM ${server}, ${item}, started:${new Date(start).toUTCString()}\n`
+				msg += `🔴 ALARM ${server}, started:"${new Date(start).toUTCString()}". x-trace:${details?.xtrace}, age:${details?.age}, `
+				msg += `http-status:${details?.httpStatus}, content-length:${details?.contentLength}\n`
 			}
 			if(state.status === 'ok'){
-				msg += `🟢 OK. Was not blocked for ${((end!-start)/60_000).toFixed(1)} minutes, ${server}, ${item}, `
-				msg += `started:${new Date(start).toUTCString()}, ended:${new Date(end!).toUTCString()}\n`
+				msg += `🟢 OK, was not blocked for ${((end!-start)/60_000).toFixed(1)} minutes, ${server}, x-trace:${details?.xtrace}, `
+				msg += `started:"${new Date(start).toUTCString()}", ended:"${new Date(end!).toUTCString()}"\n`
 
 				_serversInAlert.delete(key)
 			}else{
