@@ -80,7 +80,7 @@ export const setAlertState = (event: NotBlockEvent) => {
 /** cronjob function to report alert changes */
 export const alertStateCronjob = () => {
 	if(process.env.NODE_ENV !== 'test'){
-		logger(alertStateCronjob.name, 'running cronjob...', {_changed, _serversInAlert: _alarmsInAlert.size})
+		logger(alertStateCronjob.name, 'running cronjob...', {_changed, 'alarmsInAlert': _alarmsInAlert.size})
 	}
 
 	if(!_changed) return;
