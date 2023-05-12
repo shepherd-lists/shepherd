@@ -35,6 +35,7 @@ services:
     restart: always
     depends_on:
       - indexer
+    # mem_limit: 2g
   http-api:
     hostname: ${IMAGE_REPO:-dummy}-shepherd-http-api
     build: 

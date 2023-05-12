@@ -28,7 +28,7 @@ describe(`checkBlocking tests`, () => {
 		)
 
 		//run actual test
-		await CheckBlocking.streamLists()
+		await CheckBlocking.checkBlockedCronjob()
 
 		//inspect test results
 		expect(getBlacklist_stub.calledOnce, `getBlacklist_stub called more than once`).true

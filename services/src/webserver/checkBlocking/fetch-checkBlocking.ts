@@ -38,7 +38,7 @@ export const fetch_checkBlocking = async(url: string)=> {
 				throw new Error(`${fetch_checkBlocking.name} giving up after 3 retries. ${e.name}:${e.message}`)
 			}
 			//retry all of these connection errors
-			console.log(fetch_checkBlocking.name, `Error for '${url}'. ${e.name}:${e.message}. Retrying in ${retryMs} ms...`)
+			console.log(fetch_checkBlocking.name, `Error for '${url}'. ${e.name}:${e.message}. Error count: ${connErrCount}. Retrying in ${retryMs} ms...`)
 			if(e.code && e.code !== 'ECONNREFUSED'){
 				console.log(e)
 			}

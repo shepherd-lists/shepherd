@@ -80,6 +80,7 @@ const getRecords = async(res: Writable, type: 'txids'|'ranges')=> {
 
 	_cached.txids = txids
 	_cached.ranges = ranges
+	// _cached.last = now
 	_cached.inProgress = false
 }
 

@@ -79,7 +79,9 @@ export const setAlertState = (event: NotBlockEvent) => {
 
 /** cronjob function to report alert changes */
 export const alertStateCronjob = () => {
-	if(process.env.NODE_ENV !== 'test') logger(alertStateCronjob.name, 'running cronjob...', {_changed})
+	if(process.env.NODE_ENV !== 'test'){
+		logger(alertStateCronjob.name, 'running cronjob...', {_changed, _serversInAlert: _serversInAlert.size})
+	}
 
 	if(!_changed) return;
 	_changed = false
@@ -106,8 +108,14 @@ export const alertStateCronjob = () => {
 	_slackLoggerNoFormatting(msg, process.env.SLACK_WEBHOOK)
 }
 /** exported for test only */
-export const _slackLoggerNoFormatting = (text: string, hook?: string) => hook && fetch(hook, { method: 'POST', body: JSON.stringify({ text })})
-	.then(res => res.text()).then(t => console.log(t)) //use up stream to close connection
+export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
+	if(hook){
+		fetch(hook, { method: 'POST', body: JSON.stringify({ text })})
+		.then(res => res.text()).then(t => console.log(_slackLoggerNoFormatting.name,`response: ${t}`)) //use up stream to close connection
+	}else{
+		console.log(_slackLoggerNoFormatting.name, '\n', text)
+	}
+}
 
 /** *** USED ONLY IN TEST! *** reset server alert state */
 export const _resetAlertState = () => {

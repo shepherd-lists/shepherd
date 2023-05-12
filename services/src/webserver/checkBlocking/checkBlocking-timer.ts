@@ -4,14 +4,14 @@
  * 
  * this file contains only the timer
  */
-import { streamLists } from "./checkBlocking-functions";
+import { checkBlockedCronjob } from "./checkBlocking-functions";
 
 const INTERVAL = 300_000 // 5 minutes
 
 /** main entrypoint */
-setInterval(streamLists, INTERVAL);
+setInterval(checkBlockedCronjob, INTERVAL);
 /** run once at load also */
-streamLists();
+checkBlockedCronjob();
 
 import { alertStateCronjob } from './event-tracking'
 
