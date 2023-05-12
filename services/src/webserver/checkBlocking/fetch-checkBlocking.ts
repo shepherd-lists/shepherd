@@ -1,4 +1,3 @@
-import { slackLogger } from '../../common/utils/slackLogger'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -22,10 +21,14 @@ export const fetch_checkBlocking = async(url: string)=> {
 			const {status, statusText} = res
 
 			if(status === 404) return { res }; //if the data isn't there it isn't there. 
-			if(status >= 400){
+			if(status >= 400 && status < 500){
 				console.log(fetch_checkBlocking.name, `Error ${status} bad server response '${statusText}' for ${url} . retrying in ${retryMs} ms...`)
 				await sleep(retryMs)
 				continue;
+			}
+			if(status >= 500){
+				console.log(fetch_checkBlocking.name, `Error ${status} server error '${statusText}' for ${url}. Not retrying.`)
+				return { res }
 			}
 
 			return{
@@ -34,13 +37,12 @@ export const fetch_checkBlocking = async(url: string)=> {
 			}
 		}catch(e:any){
 			connErrCount++
-			if(connErrCount > 3){
-				// slackLogger(fetch_checkBlocking.name, `Error for '${url}'. Already retried 3 times over 30s. Giving up. ${e.name}:${e.message}`)
-				console.log(fetch_checkBlocking.name, `Error for '${url}'. Already retried 3 times over 30s. Giving up. ${e.name}:${e.message}`)
-				throw new Error(`${fetch_checkBlocking.name} giving up after 3 retries. ${e.name}:${e.message}`)
+			if(connErrCount > 2){
+				console.log(fetch_checkBlocking.name, `Error for '${url}'. Retried ${connErrCount} times. Giving up. ${e.name}:${e.message}`)
+				throw new Error(`${fetch_checkBlocking.name} giving up after ${connErrCount} retries. ${e.name}:${e.message}`)
 			}
 			//retry all of these connection errors
-			console.log(fetch_checkBlocking.name, `Error for '${url}'. ${e.name}:${e.message}. Retrying in ${retryMs} ms...`)
+			console.log(fetch_checkBlocking.name, `Error for '${url}'. ${e.name}:${e.message}. Connection error count: ${connErrCount}. Retrying in ${retryMs} ms...`)
 			if(e.code && e.code !== 'ECONNREFUSED'){
 				console.log(e)
 			}
