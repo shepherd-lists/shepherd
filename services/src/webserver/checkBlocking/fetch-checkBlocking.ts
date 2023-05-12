@@ -37,7 +37,7 @@ export const fetch_checkBlocking = async(url: string)=> {
 			}
 		}catch(e:any){
 			connErrCount++
-			if(connErrCount > 2){
+			if(connErrCount > 1){
 				console.log(fetch_checkBlocking.name, `Error for '${url}'. Retried ${connErrCount} times. Giving up. ${e.name}:${e.message}`)
 				throw new Error(`${fetch_checkBlocking.name} giving up after ${connErrCount} retries. ${e.name}:${e.message}`)
 			}
