@@ -30,6 +30,13 @@ export const unreachableTimedout = (server: string) => {
 	return false;
 }
 
+export const unreachableServers = () => {
+	return {
+		number: _unreachable.size,
+		list: [..._unreachable.keys()],
+	}
+}
+
 /** -= track start/end of not-block events =- */
 
 interface NotBlockEventDetails {
@@ -52,6 +59,13 @@ interface NotBlockState extends NotBlockEvent {
 }
 const _alarmsInAlert = new Map<string, NotBlockState>()
 let _changed = false
+
+export const alarmsInAlert = () => {
+	return {
+		number: _alarmsInAlert.size,
+		list: [..._alarmsInAlert.values()],
+	}
+}
 
 export const setAlertState = (event: NotBlockEvent) => {
 	const key = `${event.server},${event.item}`
@@ -105,7 +119,7 @@ export const alertStateCronjob = () => {
 			}
 		}
 	}
-	_slackLoggerNoFormatting(msg, process.env.SLACK_WEBHOOK)
+	_slackLoggerNoFormatting(msg, process.env.SLACK_PROBE)
 }
 /** exported for test only */
 export const _slackLoggerNoFormatting = (text: string, hook?: string) => {

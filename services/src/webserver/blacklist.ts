@@ -56,7 +56,10 @@ const getRecords = async(res: Writable, type: 'txids'|'ranges')=> {
 				if(start !== -1n){
 					const line = `${start},${end}\n`
 					lineRange += line
-					res.write(line) //we'll just write these out of sequence
+					if(type == 'ranges'){
+						//we'll just write these out of sequence
+						res.write(line) 
+					}
 				}
 			}) (record.txid, record.parent, record.parents) )
 

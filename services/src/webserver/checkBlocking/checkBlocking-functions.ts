@@ -12,7 +12,7 @@ import { slackLoggerPositive } from "../../common/utils/slackLoggerPositive";
 import { getBlacklist, getRangelist } from "../blacklist";
 import { fetch_checkBlocking } from "./fetch-checkBlocking";
 import { LogEvent } from './log-event-type'
-import { deleteUnreachable, isUnreachable, setAlertState, setUnreachable, unreachableTimedout } from "./event-tracking";
+import { alarmsInAlert, deleteUnreachable, isUnreachable, setAlertState, setUnreachable, unreachableServers, unreachableTimedout } from "./event-tracking";
 
 
 const prefix = 'check-blocked'
@@ -118,6 +118,7 @@ export const checkBlockedCronjob = async () => {
 			rwRange.destroy(); ranges.close();
 		}
 	}finally{
+		console.log(checkBlockedCronjob.name, `finished. alarms: ${alarmsInAlert().number} unreachable servers: ${unreachableServers().number}`)
 		_running = false
 	}
 }
@@ -171,7 +172,7 @@ export const checkBlocked = async (url: string, item: string, server: string) =>
 			} 
 			slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${display}\` (status: ${status}), xtrace: '${headers.get('x-trace')}', age: '${headers.get('age')}', content-length: '${headers.get('content-length')}'`)
 		}else{
-			logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`)
+			// logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`) //too verbose
 			setAlertState({ server, item, status: 'ok' })
 		}
 	}finally{
