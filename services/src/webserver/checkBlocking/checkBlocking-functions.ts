@@ -124,7 +124,7 @@ export const checkBlockedCronjob = async () => {
 
 
 export const checkBlocked = async (url: string, item: string, server: string) => {
-	let response: { res: Response, aborter?: AbortController } | null = null
+	let response: { res: Response, aborter?: AbortController } | undefined = undefined
 	try {
 		response = await fetch_checkBlocking(url)
 		const { res: { status, headers } } = response
@@ -175,12 +175,7 @@ export const checkBlocked = async (url: string, item: string, server: string) =>
 			setAlertState({ server, item, status: 'ok' })
 		}
 	}finally{
-		if(response){
-			// console.log(checkBlocked.name, `aborting connection`, url)
-			response?.aborter?.abort()
-		}else{
-			console.log(checkBlocked.name, `no response to abort`, url)
-		}
+		response?.aborter?.abort()
 	}
 
 }

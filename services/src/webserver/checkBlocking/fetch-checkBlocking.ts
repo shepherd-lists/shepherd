@@ -12,7 +12,7 @@ const retryMs = 10_000
 export const fetch_checkBlocking = async(url: string)=> {
 	let res: Response | null = null
 	let aborter: AbortController | null = null
-	let errCount = 0
+	let connErrCount = 0
 	while(true){
 		try{
 			aborter = new AbortController()
@@ -36,13 +36,13 @@ export const fetch_checkBlocking = async(url: string)=> {
 				aborter,
 			}
 		}catch(e:any){
-			errCount++
-			if(errCount > 2){
-				console.log(fetch_checkBlocking.name, `Error for '${url}'. Retried ${errCount} times. Giving up. ${e.name}:${e.message}`)
-				throw new Error(`${fetch_checkBlocking.name} giving up after 3 retries. ${e.name}:${e.message}`)
+			connErrCount++
+			if(connErrCount > 2){
+				console.log(fetch_checkBlocking.name, `Error for '${url}'. Retried ${connErrCount} times. Giving up. ${e.name}:${e.message}`)
+				throw new Error(`${fetch_checkBlocking.name} giving up after ${connErrCount} retries. ${e.name}:${e.message}`)
 			}
 			//retry all of these connection errors
-			console.log(fetch_checkBlocking.name, `Error for '${url}'. ${e.name}:${e.message}. Error count: ${errCount}. Retrying in ${retryMs} ms...`)
+			console.log(fetch_checkBlocking.name, `Error for '${url}'. ${e.name}:${e.message}. Connection error count: ${connErrCount}. Retrying in ${retryMs} ms...`)
 			if(e.code && e.code !== 'ECONNREFUSED'){
 				console.log(e)
 			}

@@ -50,23 +50,23 @@ interface NotBlockState extends NotBlockEvent {
 	end?: number
 	notified: boolean
 }
-const _serversInAlert = new Map<string, NotBlockState>()
+const _alarmsInAlert = new Map<string, NotBlockState>()
 let _changed = false
 
 export const setAlertState = (event: NotBlockEvent) => {
 	const key = `${event.server},${event.item}`
-	if(!_serversInAlert.has(key)){
+	if(!_alarmsInAlert.has(key)){
 		if(event.status === 'ok') return; //only add new alarm events
-		_serversInAlert.set(key, {
+		_alarmsInAlert.set(key, {
 			...event,
 			start: Date.now(),
 			notified: false
 		})
 		_changed = true
 	}
-	const state = _serversInAlert.get(key)!
+	const state = _alarmsInAlert.get(key)!
 	if(state.status !== event.status){
-		_serversInAlert.set(key, {
+		_alarmsInAlert.set(key, {
 			...state, 
 			status: event.status,
 			notified: false,
@@ -80,7 +80,7 @@ export const setAlertState = (event: NotBlockEvent) => {
 /** cronjob function to report alert changes */
 export const alertStateCronjob = () => {
 	if(process.env.NODE_ENV !== 'test'){
-		logger(alertStateCronjob.name, 'running cronjob...', {_changed, _serversInAlert: _serversInAlert.size})
+		logger(alertStateCronjob.name, 'running cronjob...', {_changed, _serversInAlert: _alarmsInAlert.size})
 	}
 
 	if(!_changed) return;
@@ -88,7 +88,7 @@ export const alertStateCronjob = () => {
 
 	let msg = ''
 
-	for(const [key, state] of _serversInAlert){
+	for(const [key, state] of _alarmsInAlert){
 		const {server, item, status, notified, start, end, details} = state
 		if(!notified){
 			if(status === 'alarm'){
@@ -99,9 +99,9 @@ export const alertStateCronjob = () => {
 				msg += `🟢 OK, was not blocked for ${((end!-start)/60_000).toFixed(1)} minutes, \`${server}\`, \`${details?.endpointType}\` x-trace: ${details?.xtrace}, `
 				msg += `started:"${new Date(start).toUTCString()}", ended:"${new Date(end!).toUTCString()}"\n`
 
-				_serversInAlert.delete(key)
+				_alarmsInAlert.delete(key)
 			}else{
-				_serversInAlert.set(key, {...state, notified: true})
+				_alarmsInAlert.set(key, {...state, notified: true})
 			}
 		}
 	}
@@ -119,6 +119,6 @@ export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
 
 /** *** USED ONLY IN TEST! *** reset server alert state */
 export const _resetAlertState = () => {
-	_serversInAlert.clear()
+	_alarmsInAlert.clear()
 	_changed = false
 }
