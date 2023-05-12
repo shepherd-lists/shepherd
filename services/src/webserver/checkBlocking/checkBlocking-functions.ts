@@ -129,7 +129,11 @@ export const checkBlocked = async (url: string, item: string, server: string) =>
 		response = await fetch_checkBlocking(url)
 		const { res: { status, headers } } = response
 		
-		if (status !== 404) {
+		if(status >= 500){
+			logger(prefix, `server ${server} returned ${status} for ${url}. Skipping...`)
+			return;
+		}
+		if(status !== 404){
 			/** for aws notifications (not working too well) */
 			const logevent: LogEvent = {
 				eventType: 'not-blocked',
