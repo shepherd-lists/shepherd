@@ -11,8 +11,8 @@ import { slackLogger } from "../../common/utils/slackLogger";
 import { slackLoggerPositive } from "../../common/utils/slackLoggerPositive";
 import { getBlacklist, getRangelist } from "../blacklist";
 import { fetch_checkBlocking } from "./fetch-checkBlocking";
-import { LogEvent } from './log-event-type'
 import { alarmsInAlert, deleteUnreachable, isUnreachable, setAlertState, setUnreachable, unreachableServers, unreachableTimedout } from "./event-tracking";
+import { RangelistAllowedItem, LogEvent } from "../webserver-types";
 
 
 const prefix = 'check-blocked'
@@ -23,9 +23,9 @@ const hour_ms = 60 * 60 * 1000
 /* load the IP access lists */
 
 // pop off first IP. this should always be a test IP
-const rangeIPs: string[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
+const rangeItems: RangelistAllowedItem[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
 // accessRangelist.shift() // pop off first IP. this should always be a test IP
-logger(prefix, `accessRangelist (RANGELIST_ALLOWED)`, rangeIPs)
+logger(prefix, `parse(RANGELIST_ALLOWED)`, rangeItems)
 
 const gwUrls: string[] = JSON.parse(process.env.GW_URLS || '[]')
 logger(prefix, `gwUrls`, gwUrls)
@@ -33,7 +33,7 @@ logger(prefix, `gwUrls`, gwUrls)
 let _running = false
 export const checkBlockedCronjob = async () => {
 
-	logger(prefix, `starting ${checkBlockedCronjob.name}() cronjob...`, { rangeIPs, gwUrls, _running })
+	logger(prefix, `starting ${checkBlockedCronjob.name}() cronjob...`, { rangeItems, gwUrls, _running })
 	if (_running) {
 		logger(prefix, `${checkBlockedCronjob.name}() already running. exiting...`)
 		return;
@@ -60,7 +60,7 @@ export const checkBlockedCronjob = async () => {
 				await Promise.all(gwUrls.map(async gw => {
 					try{
 						if(!isUnreachable(gw) || unreachableTimedout(gw)){
-							await checkBlocked(`${gw}/${txid}`, txid, gw)
+							await checkBlocked(`${gw}/${txid}`, txid, {name: gw, server: gw})
 							//if didn't throw error, then it's reachable
 							deleteUnreachable(gw)
 						}
@@ -76,7 +76,7 @@ export const checkBlockedCronjob = async () => {
 	
 		/* check all ranges against nodes (and GWs too?) */
 	
-		if (gwUrls.length === 0 && rangeIPs.length === 0) {
+		if (gwUrls.length === 0 && rangeItems.length === 0) {
 			logger(prefix, `gwUrls & accessRangelist empty. nothing to check byteranges against.`)
 	
 		} else {
@@ -92,7 +92,7 @@ export const checkBlockedCronjob = async () => {
 				await Promise.all(gwUrls.map(async gw => {
 					try{
 						if(!isUnreachable(gw) || unreachableTimedout(gw)){
-							await checkBlocked(`${gw}/chunk/${+range1 + 1}`, range, gw)
+							await checkBlocked(`${gw}/chunk/${+range1 + 1}`, range, {name: gw, server: gw})
 							//if didn't throw error, then it's reachable
 							deleteUnreachable(gw)
 						}
@@ -102,16 +102,16 @@ export const checkBlockedCronjob = async () => {
 						slackLogger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/chunk/${+range1 + 1}`, range)
 					}
 				}))
-				await Promise.all(rangeIPs.map(async rangeIp => {
+				await Promise.all(rangeItems.map(async item => {
 					try{
-						if(!isUnreachable(rangeIp) || unreachableTimedout(rangeIp)){
-							await checkBlocked(`http://${rangeIp}:1984/chunk/${+range1 + 1}`, range, rangeIp)
+						if(!isUnreachable(item.server) || unreachableTimedout(item.server)){
+							await checkBlocked(`http://${item.server}:1984/chunk/${+range1 + 1}`, range, item)
 							//if didn't throw error, then it's reachable
-							deleteUnreachable(rangeIp)
+							deleteUnreachable(item.server)
 						}
 					}catch(e:any){
-						setUnreachable(rangeIp)
-						logger(prefix, `set '${rangeIp}' as unreachable, while fetching http://${rangeIp}:1984/chunk/${+range1 + 1}`)
+						setUnreachable(item.server)
+						logger(prefix, `set '${item.name}' as unreachable, while fetching http://${item.server}:1984/chunk/${+range1 + 1}`)
 					}
 				}))
 			}
@@ -124,7 +124,7 @@ export const checkBlockedCronjob = async () => {
 }
 
 
-export const checkBlocked = async (url: string, item: string, server: string) => {
+export const checkBlocked = async (url: string, item: string, server: RangelistAllowedItem) => {
 	let response: { res: Response, aborter?: AbortController } | undefined = undefined
 	try {
 		response = await fetch_checkBlocking(url)

@@ -7,6 +7,7 @@ import si from 'systeminformation'
 import './checkBlocking/checkBlocking-timer' //starts automatically
 import { slackLogger } from '../common/utils/slackLogger'
 import { network_EXXX_codes } from '../common/constants'
+import { RangelistAllowedItem } from './webserver-types'
 
 const prefix = 'webserver'
 const app = express()
@@ -17,7 +18,7 @@ const port = 80
 /* load the IP access lists */
 const accessBlacklist: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
 logger(prefix, `accessList (BLACKLIST_ALLOWED) for '/blacklist.txt' access`, accessBlacklist)
-const accessRangelist: string[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
+const accessRangelist: string[] = (JSON.parse(process.env.RANGELIST_ALLOWED || '[]') as RangelistAllowedItem[]).map(item => item.server)
 logger(prefix, `accessList (RANGELIST_ALLOWED) for '/rangelist.txt' access`, accessRangelist)
 
 const ipAllowBlacklist = (ip: string) => {
