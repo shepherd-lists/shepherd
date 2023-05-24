@@ -1,3 +1,7 @@
+console.log(`process.env.SLACK_WEBHOOK ${process.env.SLACK_WEBHOOK}`)
+console.log(`process.env.SLACK_POSITIVE ${process.env.SLACK_POSITIVE}`)
+console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
+
 import express from 'express'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { getBlacklist, getRangelist } from './blacklist'
@@ -5,7 +9,6 @@ import { getPerfHistory, getDevStats } from './metrics'
 import si from 'systeminformation'
 // import './perf-cron' //starts automatically
 import './checkBlocking/checkBlocking-timer' //starts automatically
-import { slackLogger } from '../common/utils/slackLogger'
 import { network_EXXX_codes } from '../common/constants'
 import { RangelistAllowedItem } from './webserver-types'
 

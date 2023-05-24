@@ -24,6 +24,7 @@ services:
       PROCESS_NAME: webserver
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
       SLACK_POSITIVE: ${SLACK_POSITIVE:-}
+      SLACK_PROBE: ${SLACK_PROBE:-}
       HOST_URL: ${HOST_URL:-https://arweave.net}
       GQL_URL: ${GQL_URL:-https://arweave.net/graphql}
       GQL_URL_SECONDARY: ${GQL_URL_SECONDARY:-https://arweave-search.goldsky.com/graphql}
