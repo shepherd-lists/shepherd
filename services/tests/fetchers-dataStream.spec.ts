@@ -24,7 +24,7 @@ describe('fetchers `dataStream` tests', ()=>{
 	afterEach(()=> sinon.restore())
 
 	it('tests a good stream gets processed (using live txid)', (done)=> {
-		dataStream( goodTxid).then(ds=>{
+		dataStream( goodTxid, 'image/png').then(ds=>{
 			expect(ds).to.exist
 			ds.on('end',()=>{
 				done()
@@ -42,7 +42,7 @@ describe('fetchers `dataStream` tests', ()=>{
 		//quieten log noise
 		sinon.stub(DbUpdate, 'dbNoDataFound').resolves() //we're not testing db connectivity here.
 
-		dataStream( 'txid-no-data').then(ds=>{
+		dataStream( 'txid-no-data', 'image/fake').then(ds=>{
 			expect(ds).to.exist
 			expect(fakeAxios.called).true
 			ds.on('error', e =>{
@@ -63,7 +63,7 @@ describe('fetchers `dataStream` tests', ()=>{
 		mockStream.push('fake-partial-data890 12345678901234567890 12345678901234567890 1234567890') //73 bytes 
 		mockStream.push('fake-partial-data890 12345678901234567890 12345678901234567890 1234567890') //146 bytes
 		
-		dataStream( 'txid-partial-data').then(ds =>{
+		dataStream( 'txid-partial-data', 'image/fake').then(ds =>{
 			expect(fakeAxios.called).true
 			ds.on('end', ()=> {
 				done() 
@@ -89,7 +89,7 @@ describe('fetchers `dataStream` tests', ()=>{
 			done()
 		})
 
-		dataStream('txid-aborted-negligible-data')
+		dataStream('txid-aborted-negligible-data', 'image/fake')
 
 	}).timeout(0)
  	
@@ -106,7 +106,7 @@ describe('fetchers `dataStream` tests', ()=>{
 		const stubS3Delete = sinon.stub(S3Utils, 's3Delete').resolves()
 
 
-		await dataStream('txid-negligible-data')
+		await dataStream('txid-negligible-data', 'image/fake')
 
 		expect(fakeAxios.called, 'fakeAxios should be called').true
 		expect(setTimeoutCalled, 'setTimeout should not be called before close').false

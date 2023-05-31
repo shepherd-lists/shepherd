@@ -1,4 +1,5 @@
-process.env['NODE_ENV'] = 'test'
+process.env.NODE_ENV = 'test'
+process.env.S3_LOCAL = 'yes'
 import { expect } from 'chai'
 import 'mocha'
 import { s3UploadStream } from '../src/fetchers/s3Services'

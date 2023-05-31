@@ -1,13 +1,13 @@
-import { fromStream } from 'file-type' //16.5.4 for cjs
+import { fromBuffer, fromStream } from 'file-type' //16.5.4 for cjs
 import { Readable } from 'stream';
 import { FetchersStatus } from '../common/constants';
 import { dbWrongMimeType } from '../common/utils/db-update-txs';
 import { logger } from '../common/shepherd-plugin-interfaces/logger';
 import { s3Delete } from './s3Services';
 
-export const filetypeStream = async(incoming: Readable, txid: string, dbMime: string)=> {
+export const filetypeCheck = async(incoming: Readable, buffer: ArrayBuffer, txid: string, dbMime: string)=> {
 	
-	const ft = await fromStream(incoming)
+	const ft = await fromBuffer(buffer)
 
 	if(ft && ft.mime === 'application/xml' && dbMime === 'image/svg+xml'){
 		return true;
@@ -21,14 +21,14 @@ export const filetypeStream = async(incoming: Readable, txid: string, dbMime: st
 
 		// do nothing
 		// if(process.env.NODE_ENV === 'test')
-		 logger(filetypeStream.name, `${txid} tested ok ${ft?.mime}`)
+		 logger(filetypeCheck.name, `${txid} tested ok ${ft?.mime}`)
 
 		return true;
 
 	}else{
 		
 		// throw errors and cleanup
-		logger(filetypeStream.name, `${txid} original '${dbMime}' rejected with '${ft?.mime}'`)
+		logger(filetypeCheck.name, `${txid} original '${dbMime}' rejected with '${ft?.mime}'`)
 
 		const status: FetchersStatus = 'BAD_MIME' //invoke type-checking without extending Error
 		const mimeError = new Error(status)

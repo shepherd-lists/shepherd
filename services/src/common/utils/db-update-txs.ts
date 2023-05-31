@@ -122,7 +122,7 @@ export const dbPartialVideoFound = async(txid: string)=> {
 	return updateTxsDb(txid,{
 		// flagged: undefined,  // this gets set in the normal way in another call
 		// valid_data: undefined,
-		data_reason: 'partial-seed', //check later if fully seeded
+		data_reason: 'partial-seed', //check later if fully seeded. these never occurred?
 		last_update_date: new Date(),
 	})
 }
@@ -136,14 +136,14 @@ export const dbOversizedPngFound = async(txid: string)=> {
 	})
 }
 
-export const dbTimeoutInBatch = async(txid: string)=> {
-	return updateTxsDb(txid,{
-		// flagged: <= need recheck: may be due to other delay during timeout or data not seeded yet
-		valid_data: false,
-		data_reason: 'timeout',
-		last_update_date: new Date(),
-	})
-}
+// export const dbTimeoutInBatch = async(txid: string)=> {
+// 	return updateTxsDb(txid,{
+// 		// flagged: <= need recheck: may be due to other delay during timeout or data not seeded yet
+// 		valid_data: false,
+// 		data_reason: 'timeout',
+// 		last_update_date: new Date(),
+// 	})
+// }
 
 export const dbWrongMimeType = async(txid: string, content_type: string)=> {
 	const nonMedia = !content_type.startsWith('image') && !content_type.startsWith('video')

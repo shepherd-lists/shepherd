@@ -7,7 +7,7 @@ import { s3Delete, s3UploadStream } from './s3Services'
 import { IncomingMessage } from 'http'
 import { dbNegligibleData, dbNoDataFound, dbNoDataFound404 } from '../common/utils/db-update-txs'
 import { slackLogger } from '../common/utils/slackLogger'
-import { filetypeStream } from './fileTypeStream'
+import { filetypeCheck } from './fileType'
 
 
 const prefix = 'fetchers'
@@ -111,10 +111,10 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 			let incoming: IncomingMessage
 			try{
 				/** 
-				 * N.B. this is written in a very strange way. streams are not piped as you might expect
+				 * N.B. This is written in a very strange way, streams are not piped as you might expect. 
+				 * Rather the same ReadableStream is reused, passed around, and errors emitted to it.
 				 * */
-				incoming = await dataStream(txid)
-				await filetypeStream(incoming, txid, rec.content_type) //file-type only checks first bytes, await ok or error
+				incoming = await dataStream(txid, rec.content_type)
 				await s3UploadStream(incoming, rec.content_type, txid)
 				
 			}catch(e:any){
@@ -129,6 +129,10 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 				else if(badMime){
 					if(process.env.NODE_ENV !== 'test') logger(fetcherLoop.name, `BAD_MIME type for ${txid}`)
 					//clean up handled in filetypeStream function
+				}
+				else if(e.message === 'NEGLIGIBLE_DATA'){
+					if(process.env.NODE_ENV !== 'test') logger(fetcherLoop.name, `NEGLIGIBLE_DATA for ${txid}`)
+					//clean up handled in stream functions
 				}
 				else if(
 					status >= 400
@@ -157,7 +161,7 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 }
 
 
-export const dataStream = async(txid: string)=> {
+export const dataStream = async(txid: string, dbMime: string)=> {
 	
 	let networkError = false;
 	const control = new AbortController()
@@ -168,10 +172,24 @@ export const dataStream = async(txid: string)=> {
 	const incoming: IncomingMessage = data
 	const contentLength = BigInt(headers['content-length'])
 
+	let mimeNotFound = true
+	let filehead = new Uint8Array(0)
+
 	let received = 0n
-	incoming.on('data', (chunk: Uint8Array) => {
+	incoming.on('data', async(chunk: Uint8Array) => {
 		received += BigInt(chunk.length)
 		if(process.env.NODE_ENV==='test') process.stdout.write('.')
+
+		/** file-type checking happens here */
+		if(mimeNotFound){
+			filehead = Buffer.concat([filehead, chunk])
+			if(filehead.length > 4100){
+				mimeNotFound = false;
+				process.nextTick(()=>	
+					filetypeCheck(incoming, filehead, txid, dbMime) 
+				)
+			}
+		}
 	})
 
 	incoming.on('close', async()=> {
