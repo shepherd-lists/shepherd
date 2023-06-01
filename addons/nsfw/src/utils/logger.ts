@@ -1,4 +1,4 @@
-import col from 'ansi-colors'
+// import col from 'ansi-colors'
 
 export const logger = (...args: any[]) => {
 	let prefix = '[logger]'
@@ -7,5 +7,6 @@ export const logger = (...args: any[]) => {
 		args.shift()
 	}
 
-	console.log(col.magenta(prefix), ...args)
+	// console.log(col.magenta(prefix), ...args)
+	console.log(prefix, ...args)
 }
