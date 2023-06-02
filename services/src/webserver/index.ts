@@ -1,3 +1,7 @@
+console.log(`process.env.SLACK_WEBHOOK ${process.env.SLACK_WEBHOOK}`)
+console.log(`process.env.SLACK_POSITIVE ${process.env.SLACK_POSITIVE}`)
+console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
+
 import express from 'express'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { getBlacklist, getRangelist } from './blacklist'
@@ -5,8 +9,8 @@ import { getPerfHistory, getDevStats } from './metrics'
 import si from 'systeminformation'
 // import './perf-cron' //starts automatically
 import './checkBlocking/checkBlocking-timer' //starts automatically
-import { slackLogger } from '../common/utils/slackLogger'
 import { network_EXXX_codes } from '../common/constants'
+import { RangelistAllowedItem } from './webserver-types'
 
 const prefix = 'webserver'
 const app = express()
@@ -17,7 +21,7 @@ const port = 80
 /* load the IP access lists */
 const accessBlacklist: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
 logger(prefix, `accessList (BLACKLIST_ALLOWED) for '/blacklist.txt' access`, accessBlacklist)
-const accessRangelist: string[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
+const accessRangelist: string[] = (JSON.parse(process.env.RANGELIST_ALLOWED || '[]') as RangelistAllowedItem[]).map(item => item.server)
 logger(prefix, `accessList (RANGELIST_ALLOWED) for '/rangelist.txt' access`, accessRangelist)
 
 const ipAllowBlacklist = (ip: string) => {

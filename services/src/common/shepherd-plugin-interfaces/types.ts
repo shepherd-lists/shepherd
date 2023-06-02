@@ -12,7 +12,6 @@ export interface TxScanned {
 	parents?: string[] | undefined
 }
 export interface TxRecord extends TxScanned, TxFlaggedOptions {
-	readonly id: number
 	flagged: boolean
 	valid_data: boolean
 	data_reason: 
@@ -52,8 +51,6 @@ export interface HistoryRecord {
 }
 
 export interface InflightsRecord {
-	readonly id?: number
-	foreign_id: number
 	txid: string
 	created_at?: Date
 }

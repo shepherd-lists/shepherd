@@ -29,8 +29,8 @@ const getTxRecords =async (limit: number) => {
 			const t0 = performance.now()
 			const records = await knex<TxRecord>('txs')
 				.select(['txs.*'])
-				.leftJoin('inflights', 'txs.id', 'inflights.foreign_id')
-				.whereNull('inflights.foreign_id')
+				.leftJoin('inflights', 'txs.txid', 'inflights.txid')
+				.whereNull('inflights.txid')
 				.whereNull('valid_data')
 				.whereRaw("content_type SIMILAR TO '(image|video)/%'")
 				// .orderBy('txs.id', 'desc')
@@ -126,7 +126,6 @@ const sendToSqs = async(records: TxRecord[])=>{
 		})
 		inflights.push({
 			txid: rec.txid,
-			foreign_id: rec.id,
 		})
 
 		if(entries.length === messageBatchSize){
@@ -163,25 +162,22 @@ const sendToSqs = async(records: TxRecord[])=>{
 }
 
 const processMessageBatch = async(inflights: InflightsRecord[], entries: SQS.SendMessageBatchRequestEntry[])=> {
-	// return new Promise<number>(async resolve =>{
-		let ifRecs = inflights //careful with these refs
-		const res = await sqs.sendMessageBatch({
-			QueueUrl,
-			Entries: entries,
-		}).promise()
-		
-		const fails = res.Failed.length
-		if(fails > 0){
-			const total = res.Successful.length + fails
-			logger(prefix, `Failed to batch send ${fails}/${total} messages:`)
-			for (const f of res.Failed) {
-				logger(f.Id, `${f.Code} : ${f.Message}. ${f.SenderFault && 'SenderFault.'}`)
-				ifRecs = ifRecs.filter(ifRec => ifRec.txid !== f.Id)
-			}
+	let ifRecs = inflights //careful with these refs
+	const res = await sqs.sendMessageBatch({
+		QueueUrl,
+		Entries: entries,
+	}).promise()
+	
+	const fails = res.Failed.length
+	if(fails > 0){
+		const total = res.Successful.length + fails
+		logger(prefix, `Failed to batch send ${fails}/${total} messages:`)
+		for (const f of res.Failed) {
+			logger(f.Id, `${f.Code} : ${f.Message}. ${f.SenderFault && 'SenderFault.'}`)
+			ifRecs = ifRecs.filter(ifRec => ifRec.txid !== f.Id)
 		}
-		if(ifRecs.length > 0){
-			await knex<TxRecord>('inflights').insert(ifRecs).onConflict().ignore()
-		}
-	// 	resolve(0)
-	// })
+	}
+	if(ifRecs.length > 0){
+		await knex<TxRecord>('inflights').insert(ifRecs).onConflict().ignore()
+	}
 }

@@ -1,6 +1,8 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
+throw new Error('This stack is not ready for production use. It is a work in progress.')
+
 /** env inputs */
 if(!process.env.SLACK_PROBE) throw new Error('SLACK_PROBE env var not set')
 if(!process.env.LOG_GROUP_ARN) throw new Error('LOG_GROUP_ARN env var not set')

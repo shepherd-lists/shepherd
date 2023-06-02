@@ -129,7 +129,8 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 		}) 
 		const mockStream = new PassThrough()
 		mockStream.push('not enough data')
-		// mockStream.push(null) leave the stream open so it can be aborted
+		// mockStream.push(null) leave the stream open so it can be aborted ?
+		mockStream.end()
 		sinon.stub(Fetchers, 'dataStream').resolves(mockStream as unknown as IncomingMessage)
 
 		const spyDeleteMessage = sinon.spy(Fetchers, 'deleteMessage')

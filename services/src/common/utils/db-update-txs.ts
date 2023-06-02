@@ -39,18 +39,12 @@ export const dbInflightDel = async(txid: string)=> {
 
 export const dbInflightAdd = async(txid: string)=> {
 	try{
-		//knex just not up to the task in this case :-(
+		const ret = await knex<InflightsRecord>('inflights').insert({ txid }, 'txid')
 
-		const ret = await knex.raw(`INSERT INTO inflights (txid, foreign_id)
-			SELECT '${txid}', id AS foreign_id FROM txs WHERE txid='${txid}'
-			RETURNING txid;`
-		)
-		//consider adding ON CONFLICT DO NOTHING ?
-
-		if(ret.rows[0].txid !== txid){
+		if(ret[0].txid !== txid){
 			logger(txid, 'DB_ERROR ADDING TO INFLIGHTS', ret)
 		}
-		return ret.rows[0].txid;
+		return ret[0].txid;
 	}catch(e:any){
 		logger(txid, 'DB_ERROR ADDING TO INFLIGHTS', e.name, ':', e.message)
 		slackLogger(txid, 'DB_ERROR ADDING TO INFLIGHTS', e.name, ':', e.message)
@@ -128,7 +122,7 @@ export const dbPartialVideoFound = async(txid: string)=> {
 	return updateTxsDb(txid,{
 		// flagged: undefined,  // this gets set in the normal way in another call
 		// valid_data: undefined,
-		data_reason: 'partial-seed', //check later if fully seeded
+		data_reason: 'partial-seed', //check later if fully seeded. these never occurred?
 		last_update_date: new Date(),
 	})
 }
@@ -142,14 +136,14 @@ export const dbOversizedPngFound = async(txid: string)=> {
 	})
 }
 
-export const dbTimeoutInBatch = async(txid: string)=> {
-	return updateTxsDb(txid,{
-		// flagged: <= need recheck: may be due to other delay during timeout or data not seeded yet
-		valid_data: false,
-		data_reason: 'timeout',
-		last_update_date: new Date(),
-	})
-}
+// export const dbTimeoutInBatch = async(txid: string)=> {
+// 	return updateTxsDb(txid,{
+// 		// flagged: <= need recheck: may be due to other delay during timeout or data not seeded yet
+// 		valid_data: false,
+// 		data_reason: 'timeout',
+// 		last_update_date: new Date(),
+// 	})
+// }
 
 export const dbWrongMimeType = async(txid: string, content_type: string)=> {
 	const nonMedia = !content_type.startsWith('image') && !content_type.startsWith('video')

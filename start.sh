@@ -41,7 +41,6 @@ if [ -f ".env.local" ]; then
 	fi
 		
 	echo "BLACKLIST_ALLOWED=$BLACKLIST_ALLOWED"
-	echo "RANGELIST_ALLOWED=$RANGELIST_ALLOWED"
 	echo "GW_URLS=$GW_URLS"
 
 
@@ -53,6 +52,14 @@ if [ -f ".env.local" ]; then
 else
 	echo "continuing without .env.local file."
 fi
+
+# import ..RANGELIST_ALLOWED.json as a string
+if [ ! -f ".RANGELIST_ALLOWED.json" ]; then
+	echo "WARNING: .RANGELIST_ALLOWED.json not found"
+else
+	export RANGELIST_ALLOWED=$(cat ./.RANGELIST_ALLOWED.json | tr -d ' \n\t')
+fi
+echo "RANGELIST_ALLOWED=$RANGELIST_ALLOWED"
 
 
 

@@ -2,6 +2,7 @@
 
 import { logger } from "../../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../../common/utils/slackLogger"
+import { RangelistAllowedItem } from "../webserver-types"
 
 const timeout = 300_000 // 5 minutes
 const _unreachable = new Map<string, number>()
@@ -47,7 +48,7 @@ interface NotBlockEventDetails {
 	endpointType: '/TXID' | '/chunk'
 }
 export interface NotBlockEvent {
-	server: string
+	server: RangelistAllowedItem
 	item: string
 	status: ('alarm'|'ok')
 	details?: NotBlockEventDetails
@@ -68,7 +69,7 @@ export const alarmsInAlert = () => {
 }
 
 export const setAlertState = (event: NotBlockEvent) => {
-	const key = `${event.server},${event.item}`
+	const key = `${event.server.server},${event.item}`
 	if(!_alarmsInAlert.has(key)){
 		if(event.status === 'ok') return; //only add new alarm events
 		_alarmsInAlert.set(key, {
@@ -106,11 +107,11 @@ export const alertStateCronjob = () => {
 		const {server, item, status, notified, start, end, details} = state
 		if(!notified){
 			if(status === 'alarm'){
-				msg += `🔴 ALARM \`${server}\`, \`${details?.endpointType}\` started:"${new Date(start).toUTCString()}". x-trace:${details?.xtrace}, age:${details?.age}, `
+				msg += `🔴 ALARM ${server.name} \`${server.server}\`, \`${details?.endpointType}\` started:"${new Date(start).toUTCString()}". x-trace:${details?.xtrace}, age:${details?.age}, `
 				msg += `http-status:${details?.httpStatus}, content-length:${details?.contentLength}\n`
 			}
 			if(state.status === 'ok'){
-				msg += `🟢 OK, was not blocked for ${((end!-start)/60_000).toFixed(1)} minutes, \`${server}\`, \`${details?.endpointType}\` x-trace: ${details?.xtrace}, `
+				msg += `🟢 OK, was not blocked for ${((end!-start)/60_000).toFixed(1)} minutes, ${server.name} \`${server.server}\`, \`${details?.endpointType}\` x-trace: ${details?.xtrace}, `
 				msg += `started:"${new Date(start).toUTCString()}", ended:"${new Date(end!).toUTCString()}"\n`
 
 				_alarmsInAlert.delete(key)
