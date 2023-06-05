@@ -11,6 +11,7 @@ export const byteRangesUpdateDb = async (id: string, parent: string | null, pare
 
 	const chunkRange = await getByteRange(id, parent, parents)
 
+	/** rare retrospective update, so go direct to output table */
 	const checkId = await updateTxsDb(id, {
 		byteStart: chunkRange.start.toString(),
 		byteEnd: chunkRange.end.toString(), 
