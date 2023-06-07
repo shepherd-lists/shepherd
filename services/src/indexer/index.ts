@@ -7,7 +7,7 @@ import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { indexer } from './indexer'
 import col from 'ansi-colors'
 import { arGql } from 'ar-gql'
-import { GQL_URL, GQL_URL_SECONDARY, INDEX_FIRST_PASS, INDEX_SECOND_PASS } from '../common/constants'
+import { GQL_URL, GQL_URL_SECONDARY, PASS1_CONFIRMATIONS, PASS2_CONFIRMATIONS } from '../common/constants'
 import { slackLogger } from '../common/utils/slackLogger'
 
 const knex = dbConnection()
@@ -39,13 +39,13 @@ const start = async()=> {
 		/** first pass indexer.
 		 * this is bleeding edge for earlier detection times
 		 */
-		indexer(arGql(GQL_URL), INDEX_FIRST_PASS)
+		indexer(arGql(GQL_URL), PASS1_CONFIRMATIONS)
 
 		/** second pass indexer
 		 * - leave some space from weave head (trail behind) to pick up reorged txs.
 		 * - recheck 404s that may have been uploaded since.
 		 */
-		indexer(arGql(GQL_URL_SECONDARY), INDEX_SECOND_PASS)
+		indexer(arGql(GQL_URL_SECONDARY), PASS2_CONFIRMATIONS)
 
 		
 	}catch(e:any){

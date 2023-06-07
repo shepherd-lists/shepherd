@@ -2,36 +2,60 @@ import si from 'systeminformation'
 import { performance } from 'perf_hooks'
 import { scanBlocks } from "./index-blocks"
 import dbConnection from "../common/utils/db-connection"
-import { getGqlHeight } from '../common/utils/gql-height'
+import { gqlHeight } from '../common/utils/gql-height'
 import { StateRecord } from "../common/shepherd-plugin-interfaces/types"
 import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../common/utils/slackLogger"
 import { ArGqlInterface } from 'ar-gql'
-import { INDEX_FIRST_PASS, INDEX_SECOND_PASS } from '../common/constants'
+import { PASS1_CONFIRMATIONS, PASS2_CONFIRMATIONS } from '../common/constants'
 
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+const knex = dbConnection()
 
-const waitForNewBlock =  async (height: number, TRAIL_BEHIND: number, gqlEndpoint: string, indexName: string) => {
+/** export only for test */
+export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+/** export only for test */
+export const readPosition = async(indexName: string)=> (await knex<StateRecord>('states').where({ pname: indexName }))[0].value
+
+type IndexName = 'indexer_pass1' | 'indexer_pass2'
+
+/** export only for test */
+export const topAvailableBlock =  async (height: number, CONFIRMATIONS: number, gqlEndpoint: string, indexName: IndexName) => {
 	while(true){
-		let h = await getGqlHeight(gqlEndpoint)
+		let h = 0
+		if(indexName === 'indexer_pass1'){
+			h = await gqlHeight(gqlEndpoint)
+		}else{
+			h = Math.min(
+				await readPosition('indexer_pass1'), //pass2 can't be ahead of pass1
+				await gqlHeight(gqlEndpoint)	//pass2 can't be ahead of it's own gql endpoint height
+			)
+		}
 		if(h >= height){
 			return h; //stop waiting
 		}
-		logger('info', 'weave height', h, `${indexName} synced to height`, (h - TRAIL_BEHIND))
+		
+		logger(
+			'info', 
+			(indexName === 'indexer_pass1') ? `weave height ${h}, ` : `available height ${h}, `,
+			`${indexName} synced to height`, (h - CONFIRMATIONS)
+		)
 		await sleep(30000)
 	}
 }
 
-export const indexer = async(gql: ArGqlInterface, TRAIL_BEHIND: number)=> {
-	const indexName = (TRAIL_BEHIND === INDEX_FIRST_PASS) ? 'indexer_pass1' : 'indexer_pass2'
+
+export const indexer = async(gql: ArGqlInterface, CONFIRMATIONS: number, loop: boolean = true)=> {
+	const indexName: IndexName = (CONFIRMATIONS === PASS1_CONFIRMATIONS) ? 'indexer_pass1' : 'indexer_pass2'
 	const gqlEndpoint = gql.endpointUrl
 	try {
-		const knex = dbConnection()
-		const readPosition = async()=> (await knex<StateRecord>('states').where({ pname: indexName }))[0].value
-		let position = await readPosition()
-		let topBlock = await getGqlHeight(gqlEndpoint)
-		const initialHeight = topBlock // we do not want to keep calling getTopBlock during initial catch up phase
+		let position = await readPosition(indexName)
+		/** for pass1, avoid calling getGqlHeight during initial catch up phase. pass2 won't be negative, as index starts at 90_000 */
+		let topBlock = (
+				indexName === 'indexer_pass1' ? await gqlHeight(gqlEndpoint) : await readPosition('indexer_pass1')
+			) - CONFIRMATIONS
+		const initialHeight = topBlock
 
 		logger('initialising', `Starting ${indexName} at position ${position}. Weave height ${topBlock}`)
 
@@ -52,25 +76,25 @@ export const indexer = async(gql: ArGqlInterface, TRAIL_BEHIND: number)=> {
 		
 		let numOfBlocks = calcBulkBlocks(position)
 
-		let min = position + 1
-		let max = min + numOfBlocks - 1
+		let minBlock = position + 1
+		let maxBlock = minBlock + numOfBlocks - 1
 
-		while(true){
+		do{//while(true)
 			try {
 				const t0 = performance.now()
 
-				if((initialHeight - max) > 50){
-					numOfBlocks = calcBulkBlocks(max)
-				} else if(max + TRAIL_BEHIND >= topBlock){ // wait until we have enough blocks ahead
+				if((initialHeight - maxBlock) > 50){
+					numOfBlocks = calcBulkBlocks(maxBlock)
+				} else if(maxBlock + CONFIRMATIONS >= topBlock){ // wait until we have enough blocks ahead
 					numOfBlocks = 1
-					max = min
-					topBlock = await waitForNewBlock(max + TRAIL_BEHIND, TRAIL_BEHIND, gqlEndpoint, indexName)
+					maxBlock = minBlock
+					topBlock = await topAvailableBlock(maxBlock + CONFIRMATIONS, CONFIRMATIONS, gqlEndpoint, indexName)
 				}
 
-				const numMediaFiles = await scanBlocks(min, max, gql, indexName)
+				const numMediaFiles = await scanBlocks(minBlock, maxBlock, gql, indexName)
 				logger(`${indexName} results`, 
 					`media files: ${numMediaFiles},`,
-					`height: ${max},`,
+					`height: ${maxBlock},`,
 					`topBlock: ${topBlock}`, 
 				)
 
@@ -78,28 +102,37 @@ export const indexer = async(gql: ArGqlInterface, TRAIL_BEHIND: number)=> {
 				logger(indexName, `scanned ${numOfBlocks} blocks in ${tProcess} ms.`)
 
 				/** mark 404s for reprocessing on second pass */
-				if(TRAIL_BEHIND === INDEX_SECOND_PASS){
-					const t404 = performance.now()
-					const count404s = await knex('txs')
+				if(indexName === 'indexer_pass2'){
+					const tResets = performance.now()
+					// /** !!! THIS DOESN'T MAKE SENSE !!!
+					//  * we would need to move the records back to the inbox_txs table
+					// 	 */
+					// const countResetTxs = await knex('txs')
+					// 	.update({ flagged: null, valid_data: null })
+					// 	.whereBetween('height', [minBlock, maxBlock])
+					// 	.whereIn('data_reason', ['404', 'nodata', 'partial']) //'nodata' and 'partial' are new here
+					// /** need to do the above one last time in 'txs' when switching */
+
+					const countResetInbox = await knex('inbox_txs')
 						.update({ flagged: null, valid_data: null })
-						.whereBetween('height', [min, max])
-						.andWhere({ data_reason: '404' })
-					const t404total = performance.now() - t404
-					logger(`${indexName} 404`, `unmarked ${count404s} 404 records, between heights ${min} & ${max}, in ${t404total.toFixed(0)} ms`)
+						.whereBetween('height', [minBlock, maxBlock])
+						.whereIn('data_reason', ['404', 'nodata', 'partial'])
+					const tResetsTotal = performance.now() - tResets
+					logger(`${indexName} 404`, `unmarked ${/*countResetTxs + */countResetInbox} 404/nodata/partial records, between heights ${minBlock} & ${maxBlock}, in ${tResetsTotal.toFixed(0)} ms`)
 				}
 
 				/** index position may have changed externally */
-				const dbPosition = await readPosition()
-				if(dbPosition < max){
+				const dbPosition = await readPosition(indexName)
+				if(dbPosition < maxBlock){
 					await knex<StateRecord>('states')
 						.where({pname: indexName})
-						.update({value: max})
+						.update({value: maxBlock})
 				}else{
-					max = dbPosition
+					maxBlock = dbPosition 
 				}
 
-				min = max + 1 
-				max = min + numOfBlocks - 1
+				minBlock = maxBlock + 1 
+				maxBlock = minBlock + numOfBlocks - 1
 
 			} catch(e:any) {
 				let status = e.cause || Number(e.response?.status) || 0
@@ -119,7 +152,7 @@ export const indexer = async(gql: ArGqlInterface, TRAIL_BEHIND: number)=> {
 				logger(await si.mem())
 				await sleep(30_000)
 			}
-		}///end while(true)
+		}while(loop)//loop defaults to true, can set to false for test
 	} catch(e:any) {
 		logger(`UNHANDLED Fatal error in ${indexName}!`, e.name, ':', e.message)
 		logger(await si.mem())
