@@ -50,8 +50,8 @@ export const NO_DATA_TIMEOUT = 40000
 export const NO_STREAM_TIMEOUT = 10000
 
 /** set bleeding edge and clean up passes here */
-export const INDEX_FIRST_PASS = 0
-export const INDEX_SECOND_PASS = 15
+export const PASS1_CONFIRMATIONS = 0
+export const PASS2_CONFIRMATIONS = 15
 
 /* switch gateways */
 /** DON'T SET DEFAULTS HERE! THAT HAPPENS IN COMPOSE FILES */
