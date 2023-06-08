@@ -101,25 +101,19 @@ export const indexer = async(gql: ArGqlInterface, CONFIRMATIONS: number, loop: b
 				const tProcess = performance.now() - t0
 				logger(indexName, `scanned ${numOfBlocks} blocks in ${tProcess} ms.`)
 
-				/** mark 404s for reprocessing on second pass */
+				/** mark 404, nodata, etc for second pass reprocessing */
 				if(indexName === 'indexer_pass2'){
 					const tResets = performance.now()
-					// /** !!! THIS DOESN'T MAKE SENSE !!!
-					//  * we would need to move the records back to the inbox_txs table
-					// 	 */
-					// const countResetTxs = await knex('txs')
-					// 	.update({ flagged: null, valid_data: null })
-					// 	.whereBetween('height', [minBlock, maxBlock])
-					// 	.whereIn('data_reason', ['404', 'nodata', 'partial']) //'nodata' and 'partial' are new here
-					// /** need to do the above one last time in 'txs' when switching */
 
 					const countResetInbox = await knex('inbox_txs')
 						.update({ flagged: null, valid_data: null })
 						.whereBetween('height', [minBlock, maxBlock])
 						.whereIn('data_reason', ['404', 'nodata', 'partial'])
 					const tResetsTotal = performance.now() - tResets
-					logger(`${indexName} 404`, `unmarked ${/*countResetTxs + */countResetInbox} 404/nodata/partial records, between heights ${minBlock} & ${maxBlock}, in ${tResetsTotal.toFixed(0)} ms`)
+					logger(`${indexName} 404`, `unmarked ${countResetInbox} 404/nodata/partial records, between heights ${minBlock} & ${maxBlock}, in ${tResetsTotal.toFixed(0)} ms`)
 				}
+
+				/** TODO: call http-api to move finished records to txs */
 
 				/** index position may have changed externally */
 				const dbPosition = await readPosition(indexName)
