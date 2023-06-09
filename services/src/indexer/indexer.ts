@@ -7,7 +7,7 @@ import { StateRecord } from "../common/shepherd-plugin-interfaces/types"
 import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../common/utils/slackLogger"
 import { ArGqlInterface } from 'ar-gql'
-import { PASS1_CONFIRMATIONS, PASS2_CONFIRMATIONS } from '../common/constants'
+import { IndexName, PASS1_CONFIRMATIONS, PASS2_CONFIRMATIONS } from '../common/constants'
 
 
 const knex = dbConnection()
@@ -17,8 +17,6 @@ export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, 
 
 /** export only for test */
 export const readPosition = async(indexName: string)=> (await knex<StateRecord>('states').where({ pname: indexName }))[0].value
-
-type IndexName = 'indexer_pass1' | 'indexer_pass2'
 
 /** export only for test */
 export const topAvailableBlock =  async (height: number, CONFIRMATIONS: number, gqlEndpoint: string, indexName: IndexName) => {
@@ -37,9 +35,8 @@ export const topAvailableBlock =  async (height: number, CONFIRMATIONS: number, 
 		}
 		
 		logger(
-			'info', 
-			(indexName === 'indexer_pass1') ? `weave height ${h}, ` : `available height ${h}, `,
-			`${indexName} synced to height`, (h - CONFIRMATIONS)
+			indexName, `synced to height`, (h - CONFIRMATIONS),
+			(indexName === 'indexer_pass1') ? `weave height ${h}, ` : `available height ${h}, current height ${height - CONFIRMATIONS},`,
 		)
 		await sleep(30000)
 	}
@@ -128,7 +125,7 @@ export const indexer = async(gql: ArGqlInterface, CONFIRMATIONS: number, loop: b
 				minBlock = maxBlock + 1 
 				maxBlock = minBlock + numOfBlocks - 1
 
-			} catch(e:any) {
+			}catch(e:any) {
 				let status = e.cause || Number(e.response?.status) || 0
 				if( status >= 500 ){
 					logger(indexName, `GATEWAY ERROR! ${e.name}(${status}) : ${e.message}`)
@@ -147,7 +144,7 @@ export const indexer = async(gql: ArGqlInterface, CONFIRMATIONS: number, loop: b
 				await sleep(30_000)
 			}
 		}while(loop)//loop defaults to true, can set to false for test
-	} catch(e:any) {
+	}catch(e:any) {
 		logger(`UNHANDLED Fatal error in ${indexName}!`, e.name, ':', e.message)
 		logger(await si.mem())
 		slackLogger(`UNHANDLED Fatal error in ${indexName}!`, e.name, ':', e.message)
