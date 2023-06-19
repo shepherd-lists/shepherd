@@ -32,6 +32,10 @@ describe('indexer tests', ()=>{
 		sinon.restore()
 	})
 
+	after(async()=>{
+		await knex('inbox_txs').delete()
+	})
+
 	it(`tests ${Indexer.topAvailableBlock.name} does not let pass2 get ahead of pass1`, async()=>{
 		let weave = 1_000_000
 		let posn1 = 999_980
@@ -78,12 +82,12 @@ describe('indexer tests', ()=>{
 
 	it(`tests ${IndexBlocks.insertRecords.name} pass2 skips dupes, updates records with > height, inserts new records`, async()=>{
 		const fakeHeight = 777
-		const updatedRecord = { ...height1record1, height: fakeHeight, parent: '1234567890123456789012345678901234567890abc' }
+		const updatedRecord = { ...height1record2, height: fakeHeight, parent: '1234567890123456789012345678901234567890abc' }
 		const newRecord = height2record3
 		try{
-			IndexBlocks.insertRecords([ height1record1, updatedRecord, newRecord ], 'indexer_pass2', 'http://fake.url')
+			await IndexBlocks.insertRecords([ height1record1, updatedRecord, newRecord ], 'indexer_pass2', 'http://fake.url')
 			
-			const [ {height, parent} ] = await knex<TxRecord>('inbox_txs').select('*').where({ txid: height1record1.txid })
+			const [ {height, parent} ] = await knex<TxRecord>('inbox_txs').select('*').where({ txid: updatedRecord.txid })
 			const newRecordExists = await knex<TxRecord>('inbox_txs').select('*').where({ txid: newRecord.txid })
 
 			expect(height, 'height should have been updated').eq(fakeHeight)
