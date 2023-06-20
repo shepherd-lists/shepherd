@@ -13,26 +13,27 @@ const knex = dbConnection()
 describe('indexer tests', ()=>{
 	
 	const height1record1: TxScanned = { 
-		txid: '01-abcdefghijabcdefghijabcdefghijabcdefghij', content_size: '123', content_type: 'fake', height: 1, parent: null 
+		txid: '01-abcdefghijabcdefghijabcdefghijabcdefghij', content_size: '123', content_type: 'fake', height: 1, parent: null
 	}
 	const height1record2: TxScanned = { 
-		txid: '02-abcdefghijabcdefghijabcdefghijabcdefghij', content_size: '123', content_type: 'fake', height: 1, parent: null 
+		txid: '02-abcdefghijabcdefghijabcdefghijabcdefghij', content_size: '123', content_type: 'fake', height: 1, parent: null
 	}
 	const height2record3: TxScanned = {
 		txid: '03-abcdefghijabcdefghijabcdefghijabcdefghij', content_size: '123', content_type: 'fake', height: 2, parent: null
 	}
 
+	/** let's not assume previous unit tests set test data correctly */
 
-	before(async()=>{
+	beforeEach(async()=>{
 		/** insert first test txs into pgdb-test inbox_txs table */
-		await knex('inbox_txs').insert([ height1record1, height1record2 ])
+		await knex('inbox_txs').insert([ 
+			height1record1, //initial test record
+			height1record2  //initial test record
+		])
 	})
 
-	afterEach(()=>{
+	afterEach(async()=>{
 		sinon.restore()
-	})
-
-	after(async()=>{
 		await knex('inbox_txs').delete()
 	})
 
@@ -81,16 +82,20 @@ describe('indexer tests', ()=>{
 	})
 
 	it(`tests ${IndexBlocks.insertRecords.name} pass2 skips dupes, updates records with > height, inserts new records`, async()=>{
-		const fakeHeight = 777
-		const updatedRecord = { ...height1record2, height: fakeHeight, parent: '1234567890123456789012345678901234567890abc' }
+		const higherHeight = 777
+		const updatedRecord = { ...height1record2, height: higherHeight, parent: '1234567890123456789012345678901234567890abc' }
 		const newRecord = height2record3
 		try{
-			await IndexBlocks.insertRecords([ height1record1, updatedRecord, newRecord ], 'indexer_pass2', 'http://fake.url')
+			await IndexBlocks.insertRecords([ 
+				height1record1,	//dupe
+				updatedRecord,	//update
+				newRecord				//new
+			], 'indexer_pass2', 'http://fake.url')
 			
 			const [ {height, parent} ] = await knex<TxRecord>('inbox_txs').select('*').where({ txid: updatedRecord.txid })
 			const newRecordExists = await knex<TxRecord>('inbox_txs').select('*').where({ txid: newRecord.txid })
 
-			expect(height, 'height should have been updated').eq(fakeHeight)
+			expect(height, 'height should have been updated').eq(higherHeight)
 			expect(parent, 'parent should have been updated').eq(updatedRecord.parent)
 
 			expect(newRecordExists.length, 'new record should have been inserted').eq(1)
