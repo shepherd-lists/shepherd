@@ -7,6 +7,7 @@ import * as GqlHeight from '../src/common/utils/gql-height'
 import * as IndexBlocks from '../src/indexer/index-blocks'
 import { TxRecord, TxScanned } from '../src/common/shepherd-plugin-interfaces/types'
 import dbConnection from '../src/common/utils/db-connection'
+import { updateRecords } from './fixtures/update-100-Records'
 
 const knex = dbConnection()
 
@@ -105,5 +106,21 @@ describe('indexer tests', ()=>{
 			expect.fail(`knex threw an error: ${e.message}`)
 		}
 	})
+
+	it(`tests ${IndexBlocks.insertRecords.name} pass2 can update 100 records`, async()=>{
+		await knex('inbox_txs').insert(updateRecords)
+		const alteredRecords = updateRecords.map((r:TxScanned)=> ({...r, height: 987654321, parent: '1234567890123456789012345678901234567890abc'}))
+		expect(alteredRecords.length, 'alteredRecords.length').eq(100)
+		
+		await IndexBlocks.insertRecords(alteredRecords, 'indexer_pass2', 'http://fake.url')
+
+		for (const r of alteredRecords) {
+			const [{ txid, height, parent }] = await knex<TxScanned>('inbox_txs').where({txid: r.txid})
+			expect(txid, 'txid').eq(r.txid)
+			expect(height, 'height').eq(r.height)
+			expect(parent, 'parent').eq(r.parent)
+		}
+
+	}).timeout(0)
 
 })
