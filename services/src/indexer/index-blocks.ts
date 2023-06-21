@@ -273,12 +273,15 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 	
 	if(records.length === 0) return 0;
 
-	let alteredRecords = 0
+	let alteredCount = 0
 	try{
 		if(indexName === 'indexer_pass1'){
 			/** expecting almost zero conflicts here */
+
+			// console.log('pass1 inserting records', records.length, {records})
+
 			await knex<TxRecord>('inbox_txs').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byteStart', 'byteEnd'])
-			alteredRecords = records.length
+			alteredCount = records.length
 		}else{
 			/** generally speaking, it's the norm to not see updates on pass2. 
 			 * we would be expecting mostly conflicts here, so we will only update 
@@ -289,38 +292,41 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 				
 			/* step 1: update records with newer height */
 
-			/* filter out records with same height */
+			/* filter out records with same or less height */
 			const updateRecords = records.filter(r => recordsInDb.some( exist => (r.txid === exist.txid && r.height > exist.height) ))
 
-			// console.log({updateRecords})
-
 			const updatedIds = await Promise.all(updateRecords.map(async r => 
-				(await knex<TxRecord>('inbox_txs').update({
-					height: r.height,
-					parent: r.parent,
-					parents: r.parents,
-					byteStart: undefined,
-					byteEnd: undefined,
-				}).returning('txid'))[0]
+				(
+					await knex<TxRecord>('inbox_txs')
+					.update({
+						height: r.height,
+						parent: r.parent,
+						parents: r.parents,
+						byteStart: undefined,
+						byteEnd: undefined,
+					})
+					.where('txid', r.txid)
+					.returning('txid')
+				)[0]
 			))
 
-			alteredRecords += updatedIds.length
+			alteredCount += updatedIds.length
 
-			console.log(`updatedIds.length ${updatedIds.length}`, 'updatedIds', updatedIds)
+			if(updatedIds.length > 0) console.log(`updated ${updatedIds.length}/${updateRecords.length} records.`, 'updatedIds', updatedIds)
 
 			/* step 2: insert missing records */
 
 			const missingRecords = records.filter(r => !recordsInDb.map(r=>r.txid).includes(r.txid))
-			alteredRecords += missingRecords.length
+			alteredCount += missingRecords.length
 
-			console.log(`missingRecords: length ${missingRecords.length}`, missingRecords)
+			console.log(`missingRecords: length ${missingRecords.length}`)
 
 			if(missingRecords.length > 0){
 				const res = await knex<TxRecord>('inbox_txs').insert(missingRecords).returning('txid')
-				console.log(`inserted ${res.length}/${missingRecords.length} missingRecords`)
+				console.log(`inserted ${res.length}/${missingRecords.length} missingRecords`, missingRecords)
 			}
 
-
+			logger(indexName, `altered ${alteredCount}/${records.length} records`)
 		}
 		
 	}catch(e:any){
@@ -329,10 +335,10 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 			slackLogger('Error!', 'Null value in column violates not-null constraint', e.detail, gqlProvider, indexName)
 			throw e
 		} else { 
-			if(e.code) logger('Error!', e.code, gqlProvider, indexName)
+			if(e.code) logger('Error!', e.code, gqlProvider, indexName, e)
 			throw e
 		}
 	}
 
-	return alteredRecords;
+	return alteredCount;
 }
