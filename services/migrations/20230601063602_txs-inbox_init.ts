@@ -45,6 +45,7 @@ export async function up(knex: Knex): Promise<void> {
 	await knex.schema.raw('ALTER TABLE inbox_txs SET (fillfactor = 50)')
 
 	/** change inflights foreign key to point to inbox_txs table */
+	await knex('inflights').delete() //wipe `inflights` as we won't have references to the new, empty `inbox_txs` table
 	await knex.schema.raw('ALTER TABLE inflights DROP CONSTRAINT inflights_txid_foreign')
 	await knex.schema.raw('ALTER TABLE inflights ADD CONSTRAINT inflights_txid_foreign FOREIGN KEY (txid) REFERENCES inbox_txs(txid)')
 
