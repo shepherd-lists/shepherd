@@ -11,11 +11,12 @@ const knex = getDbConnection()
 export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
 	try{
 		const checkId = await knex<TxRecord>('txs').where({txid}).update(updates, 'txid')
-		if(checkId[0].txid !== txid){
+		const retTxid = checkId[0]?.txid
+		if(retTxid !== txid){
 			logger(txid, 'ERROR UPDATING txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
 			slackLogger(txid, 'ERROR UPDATING txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
 		}
-		return checkId[0].txid;
+		return retTxid;
 
 	}catch(e:any){
 		logger(txid, 'ERROR UPDATING txs DATABASE!', e.name, ':', e.message)
@@ -27,11 +28,12 @@ export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
 export const updateInboxDb = async(txid: string, updates: Partial<TxRecord>)=> {
 	try{
 		const checkId = await knex<TxRecord>('inbox_txs').where({txid}).update(updates, 'txid')
-		if(checkId[0].txid !== txid){
+		const retTxid = checkId[0]?.txid
+		if(retTxid !== txid){
 			logger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
 			slackLogger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
 		}
-		return checkId[0].txid;
+		return retTxid;
 
 	}catch(e:any){
 		logger(txid, 'ERROR UPDATING inbox_txs DATABASE!', e.name, ':', e.message)
