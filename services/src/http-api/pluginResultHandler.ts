@@ -4,6 +4,7 @@ import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, getTxRecord, updateInboxDb } from "../common/utils/db-update-txs"
 import { slackLogger } from "../common/utils/slackLogger"
 import { slackLoggerPositive } from "../common/utils/slackLoggerPositive"
+import { moveInboxToTxs } from "./move-records"
 
 
 
@@ -59,6 +60,16 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 			if(res !== txid){
 				logger(`Fatal error`, `Could not update database. "${res} !== ${txid}"`)
 				throw new Error('Could not update database')
+			}
+
+			/** flagged records go straight to txs */
+			if(result.flagged === true){
+				try{
+					await moveInboxToTxs([txid])
+				}catch(e){
+					logger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
+					slackLogger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
+				}
 			}
 			
 		}else if(result.data_reason === undefined){
