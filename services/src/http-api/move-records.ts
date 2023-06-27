@@ -39,7 +39,6 @@ export const moveInboxToTxs = async (txids: string[]) => {
 			'parents', 
 		])
 		.returning('txid')
-		
 
 		await trx.delete().from('inbox_txs').whereIn('txid', txids)
 		await trx.commit()
@@ -58,4 +57,11 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		}
 		throw e
 	}
+}
+
+export const findMovableRecords = async(height: number)=> {
+	return knex<TxRecord>('inbox_txs')
+	.select('txid')
+	.where('height', '<', height)
+	.whereNotNull('flagged')
 }
