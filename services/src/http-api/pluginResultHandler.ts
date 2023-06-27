@@ -65,7 +65,10 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 			/** flagged records go straight to txs */
 			if(result.flagged === true){
 				try{
-					await moveInboxToTxs([txid])
+					const moved = await moveInboxToTxs([txid])
+					if( moved !== 1 ){
+						throw new Error(`${moveInboxToTxs.name} returned '${moved}' not '1'`)
+					}
 				}catch(e){
 					logger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
 					slackLogger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
