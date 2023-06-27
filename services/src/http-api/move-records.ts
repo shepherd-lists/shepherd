@@ -9,10 +9,38 @@ const knex = dbConnection()
 /* batch move records from inbox_txs to txs tables */
 export const moveInboxToTxs = async (txids: string[]) => {
 
+	/** 
+	 * Temporarilly adding an onConflict-merge here.
+	 * this is to prevent duplicate key error when initially switching over to the new tables layout
+	 * */
+
 	let trx: Knex.Transaction<any, any[]> | null = null // keep TS happy
 	try {
 		trx = await knex.transaction()
-		const res = await trx('txs').insert( knex<TxRecord>('inbox_txs').select('*').whereIn('txid', txids) ).returning('txid')
+		const res = await trx('txs')
+		.insert( 
+			knex<TxRecord>('inbox_txs').select('*').whereIn('txid', txids) 
+		)
+		.onConflict('txid').merge([
+			'txid', 
+			'content_type', 
+			'content_size', 
+			'flagged', 
+			'valid_data', 
+			'data_reason', 
+			'last_update_date', 
+			'height', 
+			'flag_type', 
+			'top_score_name', 
+			'top_score_value', 
+			'parent', 
+			'byteStart', 
+			'byteEnd', 
+			'parents', 
+		])
+		.returning('txid')
+		
+
 		await trx.delete().from('inbox_txs').whereIn('txid', txids)
 		await trx.commit()
 
