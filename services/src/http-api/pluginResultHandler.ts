@@ -24,6 +24,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 
 		if(result.flagged !== undefined){
 			if(result.flagged === true){
+				logger(txid, JSON.stringify(body))
 				slackLoggerPositive('matched', JSON.stringify(body))
 			}
 			if(result.flag_type === 'test'){
@@ -55,6 +56,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 				...(result.top_score_name && { top_score_name: result.top_score_name}),
 				...(result.top_score_value && { top_score_value: result.top_score_value}),
 				...(byteStart && { byteStart, byteEnd }),
+				last_update_date: new Date(),
 			})
 
 			if(res !== txid){
@@ -65,6 +67,8 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 			/** flagged records go straight to txs */
 			if(result.flagged === true){
 				try{
+					await dbInflightDel(txid) //we're moving this record out of order, so need to remove it from the inflights first
+
 					const moved = await moveInboxToTxs([txid])
 					if( moved !== 1 ){
 						throw new Error(`${moveInboxToTxs.name} returned '${moved}' not '1'`)
