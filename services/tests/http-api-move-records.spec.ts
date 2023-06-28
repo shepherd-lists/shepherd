@@ -85,7 +85,7 @@ describe('http-api move-records tests', ()=>{
 
 		const maxHeight = 124
 
-		const foundIds = ( await findMovableRecords(maxHeight) ).map(r => r.txid)
+		const foundIds = await findMovableRecords(maxHeight)
 
 		expect(foundIds.length, 'should return 2 records').eq(2)
 		expect(!foundIds.includes(unfinished.txid), 'should not include unfinished record').eq(true)
