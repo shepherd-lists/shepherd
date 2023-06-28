@@ -59,11 +59,3 @@ export const moveInboxToTxs = async (txids: string[]) => {
 	}
 }
 
-export const findMovableRecords = async(height: number)=> {
-	const res = await knex<TxRecord>('inbox_txs')
-	.select('txid')
-	.where('height', '<', height)
-	.whereNotNull('flagged')
-
-	return res.map(r => r.txid)
-}
