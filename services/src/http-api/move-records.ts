@@ -10,9 +10,31 @@ const knex = dbConnection()
 export const moveInboxToTxs = async (txids: string[]) => {
 
 	/** 
-	 * Temporarilly adding an onConflict-merge here.
-	 * this is to prevent duplicate key error when initially switching over to the new tables layout
+	 * Adding (temporarilly?) an onConflict-merge here.
+	 * this is to:
+	 * - prevent duplicate key error when initially switching over to the new tables layout
+	 * - also used when doing pass2 on a flagged record, should be rare enough
 	 * */
+
+	/** consider upgrading this "typechecking". zod? class? */
+	type TxRecordKeys = (keyof TxRecord)[]
+	const allTxRecordKeys: TxRecordKeys = [
+		'txid', 
+		'content_type', 
+		'content_size', 
+		'flagged', 
+		'valid_data', 
+		'data_reason', 
+		'last_update_date', 
+		'height', 
+		'flag_type', 
+		'top_score_name', 
+		'top_score_value', 
+		'parent', 
+		'byteStart', 
+		'byteEnd', 
+		'parents', 
+	]
 
 	let trx: Knex.Transaction<any, any[]> | null = null // keep TS happy
 	try {
@@ -21,23 +43,7 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		.insert( 
 			knex<TxRecord>('inbox_txs').select('*').whereIn('txid', txids) 
 		)
-		.onConflict('txid').merge([
-			'txid', 
-			'content_type', 
-			'content_size', 
-			'flagged', 
-			'valid_data', 
-			'data_reason', 
-			'last_update_date', 
-			'height', 
-			'flag_type', 
-			'top_score_name', 
-			'top_score_value', 
-			'parent', 
-			'byteStart', 
-			'byteEnd', 
-			'parents', 
-		])
+		.onConflict('txid').merge(allTxRecordKeys)
 		.returning('txid')
 
 		await trx.delete().from('inbox_txs').whereIn('txid', txids)

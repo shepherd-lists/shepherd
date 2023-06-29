@@ -8,6 +8,7 @@ import { TxRecord } from '../src/common/shepherd-plugin-interfaces/types'
 const knex = knexCreate()
 
 describe('http-api move-records tests', ()=>{
+
 	const mockRecord1: TxRecord = {
 		txid: 'MOCK_RECORD1_456789012345678901234567890123',
 		content_size: '100',
@@ -32,7 +33,6 @@ describe('http-api move-records tests', ()=>{
 		data_reason: null,
 		last_update_date: new Date(),
 	}
-
 
 	beforeEach(async function () {
 		await knex('inbox_txs').insert([mockRecord1, mockRecord2])
