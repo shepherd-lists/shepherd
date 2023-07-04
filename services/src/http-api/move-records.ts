@@ -47,6 +47,7 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		.returning('txid')
 
 		await trx.delete().from('outbox').whereIn('txid', txids)
+		await trx.delete().from('inflights').whereIn('txid', txids)
 		await trx.delete().from('inbox_txs').whereIn('txid', txids)
 		await trx.commit()
 
@@ -54,6 +55,8 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		if(res.length !== txids.length){
 			throw new Error(`expected ${txids.length} records to be moved, but only ${res.length} were moved`)
 		}
+
+		logger(moveInboxToTxs.name, `moved ${res.length} records from inbox_txs to txs`)
 
 		return res.length;
 	} catch (e) {

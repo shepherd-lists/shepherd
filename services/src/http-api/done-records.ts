@@ -14,7 +14,9 @@ let last = Date.now()
 
 /** call this early */
 export const doneInit = async()=>{
-	const archived  = await knex('outbox').select('txid', 'height')
+	const archived  = await knex<TxRecord>('inbox_txs')
+	.select('txid', 'height')
+	.whereIn( 'txid', knex('outbox').select('txid') )
 	
 	//return for test
 	return done = archived;
@@ -22,7 +24,7 @@ export const doneInit = async()=>{
 
 /** export for test */
 export const pass2Height = memoize(
-	async()=> (await knex<StateRecord>('state').where('pname', '=', 'indexer_pass2'))[0]?.value,
+	async()=> (await knex<StateRecord>('states').where('pname', '=', 'indexer_pass2'))[0]?.value,
 	{ maxAge: 30_000, isPromise: true, },
 )
 

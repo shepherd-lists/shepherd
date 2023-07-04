@@ -78,9 +78,10 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					logger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
 					slackLogger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
 				}
+			}else{
+				doneAdd(txid, (await getTxRecord(txid)).height)
 			}
-
-			doneAdd(txid, (await getTxRecord(txid)).height)
+			
 			
 		}else if(result.data_reason === undefined){
 			logger(txid, 'data_reason and flagged cannot both be undefined')
