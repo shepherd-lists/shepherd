@@ -46,6 +46,7 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		.onConflict('txid').merge(allTxRecordKeys)
 		.returning('txid')
 
+		await trx.delete().from('outbox').whereIn('txid', txids)
 		await trx.delete().from('inbox_txs').whereIn('txid', txids)
 		await trx.commit()
 

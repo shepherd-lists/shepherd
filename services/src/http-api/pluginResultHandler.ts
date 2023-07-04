@@ -5,6 +5,7 @@ import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedP
 import { slackLogger } from "../common/utils/slackLogger"
 import { slackLoggerPositive } from "../common/utils/slackLoggerPositive"
 import { moveInboxToTxs } from "./move-records"
+import { doneAdd } from './done-records'
 
 
 
@@ -78,6 +79,8 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					slackLogger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
 				}
 			}
+
+			doneAdd(txid, (await getTxRecord(txid)).height)
 			
 		}else if(result.data_reason === undefined){
 			logger(txid, 'data_reason and flagged cannot both be undefined')
@@ -111,6 +114,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					slackLogger(pluginResultHandler.name, 'UNHANDLED plugin result in http-api', txid)
 					throw new Error('UNHANDLED plugin result in http-api:\n' + JSON.stringify(result))
 			}
+			doneAdd(txid, (await getTxRecord(txid)).height)
 		}
 	}finally{
 		await dbInflightDel(txid)

@@ -3,7 +3,10 @@ import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { slackLogger } from '../common/utils/slackLogger'
 import { network_EXXX_codes } from '../common/constants'
 import { pluginResultHandler } from './pluginResultHandler'
+import { doneInit } from './done-records'
 
+/** call init early */
+doneInit()
 
 const prefix = 'http-api'
 const app = express()
