@@ -72,12 +72,13 @@ if(GQL_URL_SECONDARY && GQL_URL === GQL_URL_SECONDARY){
 /** fetchers constants */
 export const FEEDER_Q_VISIBILITY_TIMEOUT = 900 // 15 minutes
 
-export type FetchersStatus = 
+export type FetchersStatus = (
 	'NO_DATA'
 	| 'NEGLIGIBLE_DATA'
 	| 'ERROR_404'
 	| 'OK'
-	| (string & {})
+	| 'BAD_MIME'
+)
 
 
 /** other constants */

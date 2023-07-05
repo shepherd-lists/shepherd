@@ -30,7 +30,7 @@ export const filetypeCheck = async(incoming: Readable, buffer: ArrayBuffer, txid
 		// throw errors and cleanup
 		logger(filetypeCheck.name, `${txid} original '${dbMime}' rejected with '${ft?.mime}'`)
 
-		const status: FetchersStatus = 'BAD_MIME' //invoke type-checking without extending Error
+		const status: FetchersStatus = 'BAD_MIME' 
 		const mimeError = new Error(status)
 		incoming.emit('error', mimeError)
 

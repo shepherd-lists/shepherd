@@ -41,4 +41,15 @@ describe('fetchers-s3Upload tests', ()=>{
 		expect(res).eq('ABORTED')
 	}).timeout(0)
 
+	it('tests a BAD_MIME stream aborts', async()=> {
+		const mockStream = new PassThrough()
+		setTimeout(()=>{
+			const BAD_MIME: FetchersStatus = 'BAD_MIME'
+			mockStream.emit('error', new Error('BAD_MIME'))
+		}, 0)
+
+		const res = await s3UploadStream(mockStream,'image/gif', 'txid-s3upload-badmime')
+		expect(res).eq('ABORTED')
+	}).timeout(0)
+
 })
