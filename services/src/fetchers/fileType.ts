@@ -39,7 +39,5 @@ export const filetypeCheck = async(incoming: Readable, buffer: ArrayBuffer, txid
 
 		await dbWrongMimeType(txid, ft?.mime)
 
-		throw mimeError;
-
 	}
 }
