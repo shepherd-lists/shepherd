@@ -1,3 +1,4 @@
+import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { StateRecord, TxRecord } from "../common/shepherd-plugin-interfaces/types"
 import dbConnection from "../common/utils/db-connection"
 import { moveInboxToTxs } from "./move-records"
@@ -14,9 +15,12 @@ let last = Date.now()
 
 /** call this early */
 export const doneInit = async()=>{
+	const pass2height = await pass2Height()
 	const archived  = await knex<TxRecord>('inbox_txs')
 	.select('txid', 'height')
-	.whereIn( 'txid', knex('outbox').select('txid') )
+	.whereNotNull('flagged')
+
+	logger(doneInit.name, `found ${archived.length} records in inbox_txs. pass2.height: ${pass2height}`)
 	
 	//return for test
 	return done = archived;
@@ -31,7 +35,6 @@ export const pass2Height = memoize(
 let moving = false
 export const doneAdd = async(txid: string, height: number)=>{
 	done.push({ txid, height })
-	await knex('outbox').insert({ txid, height })
 	
 	if(!moving){
 		const now = Date.now()
