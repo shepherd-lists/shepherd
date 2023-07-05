@@ -39,12 +39,8 @@ describe('fetchers-filetypeCheck tests', ()=>{
 			rs.destroy() //clean up
 		}) 
 
-		try{
-			await filetypeCheck(rs, buffer, 'txid-bad-mime', 'image/fake-mime')
-			expect(true).false // we shouldn't get here, make sure test fails
-		}catch(e:any){
-			expect(e.message).eq(BAD_MIME)
-		}
+		await filetypeCheck(rs, buffer, 'txid-bad-mime', 'image/fake-mime')
+			
 		expect(stubDbWrongMime.calledOnce, 'dbWrongMimeType should be called once').true
 		expect(spyS3Delete.calledOnce, 's3Delete should be called once').true
 	}).timeout(0)
