@@ -29,7 +29,7 @@ app.post('/postupdate', async(req, res)=>{
 
 		res.sendStatus(200)
 	}catch(e:any){
-		logger(prefix, 'Error. Request body:', JSON.stringify(req.body))
+		logger(prefix, body?.txid, 'Error. Request body:', JSON.stringify(req.body), 'Error:', e)
 		if(e instanceof TypeError){
 			res.setHeader('Content-Type', 'text/plain')
 			res.status(400).send(e.message)
@@ -40,8 +40,8 @@ app.post('/postupdate', async(req, res)=>{
 			res.status(406).send(e.message)
 			return;
 		}
-		logger(prefix, 'UNHANDLED Error =>', `${e.name} (${e.code}) : ${e.message}`)
-		slackLogger('UNHANDLED Error =>', `${e.name} (${e.code}) : ${e.message}`)
+		logger(prefix, body?.txid, 'UNHANDLED Error =>', `${e.name} (${e.code}) : ${e.message}`)
+		slackLogger( body?.txid, 'UNHANDLED Error =>', `${e.name} (${e.code}) : ${e.message}`)
 		console.log(e)
 		res.sendStatus(500)
 	}

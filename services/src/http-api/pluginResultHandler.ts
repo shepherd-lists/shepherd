@@ -1,7 +1,7 @@
 import { getByteRange } from "../byte-ranges/byteRanges"
 import { APIFilterResult } from "../common/shepherd-plugin-interfaces"
 import { logger } from "../common/shepherd-plugin-interfaces/logger"
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, getTxRecord, updateInboxDb } from "../common/utils/db-update-txs"
+import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, getTxFromInbox, updateInboxDb } from "../common/utils/db-update-txs"
 import { slackLogger } from "../common/utils/slackLogger"
 import { slackLoggerPositive } from "../common/utils/slackLoggerPositive"
 import { moveInboxToTxs } from "./move-records"
@@ -14,7 +14,8 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 	const txid = body.txid
 	const result = body.filterResult
 	
-	logger(txid, `handler begins. received ${++count}`)
+	const c = ++count
+	logger(txid, `handler begins. count ${c}`)
 
 	if((typeof txid !== 'string') || txid.length !== 43){
 		logger(`Fatal error`,`txid is not defined correctly: ${body?.txid}`)
@@ -36,7 +37,14 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 			if(Number(result.top_score_value) > 0.9){
 				try {
 					/** get the tx data from the database */
-					const record = await getTxRecord(txid)
+					const record = await getTxFromInbox(txid)
+
+					/** sqs messages can be read more than once */
+					if(!record){
+						logger(txid, pluginResultHandler.name, `record not found in inbox_txs`)
+						slackLogger(txid, pluginResultHandler.name, `record not found in inbox_txs`)
+						return;
+					}
 	
 					/** calculate the byte range */
 					const { start, end } = await getByteRange(txid, record.parent, record.parents)
@@ -79,7 +87,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					slackLogger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
 				}
 			}else{
-				doneAdd(txid, (await getTxRecord(txid)).height)
+				doneAddTested(txid)
 			}
 			
 			
@@ -108,16 +116,32 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					break;
 				case 'retry':
 					// `dbInflightDel(txid)`  is all we actually want done
-					break;
+					return;
 			
 				default:
 					logger(pluginResultHandler.name, 'UNHANDLED plugin result in http-api', txid)
 					slackLogger(pluginResultHandler.name, 'UNHANDLED plugin result in http-api', txid)
 					throw new Error('UNHANDLED plugin result in http-api:\n' + JSON.stringify(result))
 			}
-			doneAdd(txid, (await getTxRecord(txid)).height)
+			doneAddTested(txid)
 		}
 	}finally{
 		await dbInflightDel(txid)
+		logger(txid, `handler finished. count ${c}`)
 	}
 }
+
+const doneAddTested = async(txid: string)=> {
+	const record = await getTxFromInbox(txid)
+	if(record){
+		if(record.flagged !== undefined){
+			doneAdd(txid, record.height)
+		}else{
+			logger(txid, `record.flagged not set.`)
+		}
+	}else{
+		logger(txid, `record not found in database.`)
+		slackLogger(txid, `record not found in database.`)
+	}
+}
+ 

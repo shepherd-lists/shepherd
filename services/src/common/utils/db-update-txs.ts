@@ -30,8 +30,14 @@ export const updateInboxDb = async(txid: string, updates: Partial<TxRecord>)=> {
 		const checkId = await knex<TxRecord>('inbox_txs').where({txid}).update(updates, 'txid')
 		const retTxid = checkId[0]?.txid
 		if(retTxid !== txid){
-			logger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
-			slackLogger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
+			const checkTxs = await knex<TxRecord>('txs').select('txid').where({txid})
+			if(checkTxs.length === 1){
+				logger(txid, `ERROR UPDATING inbox_txs DATABASE, and tx already exists in txs table!`, `(updates: ${JSON.stringify(updates)}) txs:${checkTxs[0]}`)
+				slackLogger(txid, `ERROR UPDATING inbox_txs DATABASE, and tx already exists in txs table!`, `(updates: ${JSON.stringify(updates)}) txs:${checkTxs[0]}`)
+			}else{
+				logger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
+				slackLogger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => "${checkId}"`)
+			}
 		}
 		return retTxid;
 
@@ -46,7 +52,7 @@ export const dbInflightDel = async(txid: string)=> {
 	try{
 		const ret = await knex<InflightsRecord>('inflights').where({ txid, }).del('txid')
 		if(ret[0]?.txid !== txid){
-			logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS', ret)
+			logger(txid, 'record not found while deleting from inflights')
 			return;
 		}
 		return ret[0].txid;
@@ -180,10 +186,22 @@ export const dbUnsupportedMimeType = async(txid: string)=> {
 }
 
 /** retrieve a single TxRecord by txid */
-export const getTxRecord = async(txid: string)=> {
+export const getTxFromInbox = async(txid: string)=> {
 	try{
 		const ret = await knex<TxRecord>('inbox_txs').where({ txid })
-		if(ret.length === 0) throw new Error('No inbox tx record found.')
+		if(ret.length === 0){
+			const res = (await knex('txs').where({ txid }))
+
+			if(res.length > 0){
+				logger(txid, 'Not found in inbox_tx, already moved to txs table.')
+				slackLogger(txid, 'Not found in inbox_tx, already moved to txs table.')
+				return;
+			}else{
+				logger(txid, 'Not found in inbox_tx. Not moved to txs table.')
+				slackLogger(txid, 'Not found in inbox_tx. Not moved to txs table.')
+				throw new Error('No inbox_tx record found.')
+			}
+		}
 		return ret[0];
 	}catch(e:any){
 		logger(txid, 'Error getting inbox tx record', e.name, ':', e.message, JSON.stringify(e))
