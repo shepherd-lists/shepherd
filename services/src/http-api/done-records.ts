@@ -49,7 +49,6 @@ export const doneAdd = async(txid: string, height: number)=>{
 	return done.length
 }
 
-/** export for test */
 export const moveDone = async()=>{
 	const pass2height = await pass2Height()
 	const movable = done.filter(r=>r.height < pass2height)
