@@ -11,6 +11,7 @@ import si from 'systeminformation'
 import './checkBlocking/checkBlocking-timer' //starts automatically
 import { network_EXXX_codes } from '../common/constants'
 import { RangelistAllowedItem } from './webserver-types'
+import { Socket } from 'net'
 
 const prefix = 'webserver'
 const app = express()
@@ -120,9 +121,27 @@ const server = app.listen(port, () => logger(`started on http://localhost:${port
  * catch malformed client requests.
  * useful for testing: curl -v -X POST -H 'content-length: 3' --data-raw 'aaaa' http://localhost
  */
-server.on('clientError', (e: any, socket)=> {
+server.on('clientError', (e: any, socket: Socket)=> {
 
 	logger(`express-clientError`, `${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
+	//debug
+	console.log(`Socket:`, {
+		timeout: socket.timeout,
+		allowHalfOpen: socket.allowHalfOpen,
+		destroyed: socket.destroyed,
+		remoteAddress: socket.remoteAddress,
+		remoteFamily: socket.remoteFamily,
+		remotePort: socket.remotePort,
+		bytesRead: socket.bytesRead,
+		bytesWritten: socket.bytesWritten,
+		connecting: socket.connecting,
+		readyState: socket.readyState,
+		closed: socket.closed,
+		errored: socket.errored,
+		pending: socket.pending,
+		readable: socket.readable,
+		writable: socket.writable,
+	})
 
 	//make sure connection still open
 	if(
