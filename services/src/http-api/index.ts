@@ -97,6 +97,11 @@ server.on('clientError', (e: any, socket: Socket)=> {
 		|| !socket.writable) {
     return;
   }
+	if(e.code === 'ERR_HTTP_REQUEST_TIMEOUT'){
+		logger(`express-clientError`, `ERR_HTTP_REQUEST_TIMEOUT. socket.writable=${socket.writable}. NOT CLOSING THE CONNECTION!`)
+		slackLogger(`express-clientError`, `ERR_HTTP_REQUEST_TIMEOUT. socket.writable=${socket.writable}. NOT CLOSING THE CONNECTION! Check these logs.`)
+		return;
+	}
 	socket.end('HTTP/1.1 400 Bad Request\r\n\r\n') //is this confusing? should we send a 500 sometimes?
 })
 
