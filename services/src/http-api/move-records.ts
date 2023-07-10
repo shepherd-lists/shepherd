@@ -50,10 +50,6 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		await trx.delete().from('inbox_txs').whereIn('txid', txids)
 		await trx.commit()
 
-		/** remove this error if it becomes inappropriate (check flagged record moving though)  */
-		if(res.length !== txids.length){
-			throw new Error(`expected ${txids.length} records to be moved, but only ${res.length} were moved`)
-		}
 
 		logger(moveInboxToTxs.name, `moved ${res.length} records from inbox_txs to txs`)
 
