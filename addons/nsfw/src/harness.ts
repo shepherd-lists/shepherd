@@ -188,16 +188,14 @@ export const harness = async()=> {
 						return res;
 					}) (key, videoLength, receiptHandle);
 				}
+				
 				//process downloaded videos
-				if(_currentVideos.length() > 0){
-					processVids().then(()=>{
-						//cleanup aborted/errored downloads
-						for (const item of _currentVideos) {
-							if(item.complete === 'ERROR'){
-								_currentVideos.cleanup(item)
-							}
-						}
-					})
+				await processVids()
+				//cleanup aborted/errored downloads
+				for (const item of _currentVideos) {
+					if(item.complete === 'ERROR'){
+						_currentVideos.cleanup(item)
+					}
 				}
 
 			}else{
