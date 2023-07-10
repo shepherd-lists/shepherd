@@ -27,13 +27,14 @@ export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
 /** master update 'inbox_txs' function */
 export const updateInboxDb = async(txid: string, updates: Partial<TxRecord>)=> {
 	try{
-		const checkId = await knex<TxRecord>('inbox_txs').where({txid}).update(updates, 'txid')
+		const checkId = await knex<TxRecord>('inbox_txs').where({txid}).update(updates).returning(['txid', 'height'])
 		const retTxid = checkId[0]?.txid
 		if(retTxid !== txid){
-			const checkTxs = await knex<TxRecord>('txs').select('txid').where({txid})
-			if(checkTxs.length === 1){
-				logger(txid, `ERROR UPDATING inbox_txs DATABASE, and tx already exists in txs table!`, `(updates: ${JSON.stringify(updates)}) txs:${checkTxs[0]}`)
-				slackLogger(txid, `ERROR UPDATING inbox_txs DATABASE, and tx already exists in txs table!`, `(updates: ${JSON.stringify(updates)}) txs:${checkTxs[0]}`)
+			const existingTxs = await knex<TxRecord>('txs').where({ txid })
+			if(existingTxs.length === 1){
+				const checkId2 = await knex<TxRecord>('txs').where({txid}).update(updates).returning('txid')
+				logger(txid, `Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => ${checkId2}`)
+				slackLogger(txid, `Info: Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => ${checkId2}`)
 			}else{
 				logger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
 				slackLogger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => "${checkId}"`)

@@ -139,9 +139,6 @@ const doneAddTested = async(txid: string)=> {
 		}else{
 			logger(txid, `record.flagged not set.`)
 		}
-	}else{
-		logger(txid, `record not found in database.`)
-		slackLogger(txid, `record not found in database.`)
 	}
 }
  
