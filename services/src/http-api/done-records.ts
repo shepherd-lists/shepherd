@@ -34,6 +34,12 @@ export const pass2Height = memoize(
 
 let moving = false
 export const doneAdd = async(txid: string, height: number)=>{
+	/** dont add dupes */
+	if(done.map(r=>r.txid).includes(txid)){
+		logger(txid, doneAdd.name, 'warning: not adding duplicate!')
+		return done.length;
+	}  
+
 	done.push({ txid, height })
 	
 	if(!moving){
