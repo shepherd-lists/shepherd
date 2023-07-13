@@ -87,7 +87,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					slackLogger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
 				}
 			}else{
-				doneAddTested(txid)
+				await doneAddTested(txid)
 			}
 			
 			
@@ -123,7 +123,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					slackLogger(pluginResultHandler.name, 'UNHANDLED plugin result in http-api', txid)
 					throw new Error('UNHANDLED plugin result in http-api:\n' + JSON.stringify(result))
 			}
-			doneAddTested(txid)
+			await doneAddTested(txid)
 		}
 	}finally{
 		await dbInflightDel(txid)
@@ -135,7 +135,8 @@ const doneAddTested = async(txid: string)=> {
 	const record = await getTxFromInbox(txid)
 	if(record){
 		if(record.flagged !== undefined){
-			doneAdd(txid, record.height)
+			logger(txid, `record.flagged set. calling doneAdd`)
+			await doneAdd(txid, record.height)
 		}else{
 			logger(txid, `record.flagged not set.`)
 		}
