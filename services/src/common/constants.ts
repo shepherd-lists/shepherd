@@ -50,8 +50,9 @@ export const NO_DATA_TIMEOUT = 40000
 export const NO_STREAM_TIMEOUT = 10000
 
 /** set bleeding edge and clean up passes here */
-export const INDEX_FIRST_PASS = 0
-export const INDEX_SECOND_PASS = 15
+export const PASS1_CONFIRMATIONS = 0
+export const PASS2_CONFIRMATIONS = 15
+export type IndexName = 'indexer_pass1' | 'indexer_pass2'
 
 /* switch gateways */
 /** DON'T SET DEFAULTS HERE! THAT HAPPENS IN COMPOSE FILES */
@@ -71,12 +72,13 @@ if(GQL_URL_SECONDARY && GQL_URL === GQL_URL_SECONDARY){
 /** fetchers constants */
 export const FEEDER_Q_VISIBILITY_TIMEOUT = 900 // 15 minutes
 
-export type FetchersStatus = 
+export type FetchersStatus = (
 	'NO_DATA'
 	| 'NEGLIGIBLE_DATA'
 	| 'ERROR_404'
 	| 'OK'
-	| (string & {})
+	| 'BAD_MIME'
+)
 
 
 /** other constants */
@@ -84,3 +86,5 @@ export type FetchersStatus =
 export const network_EXXX_codes = ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN']
 
 export const ARIO_DELAY_MS = /* 600reqs / 5mins = 120/min ~= min 500ms per requeast */ 500
+
+

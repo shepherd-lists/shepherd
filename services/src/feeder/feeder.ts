@@ -27,9 +27,9 @@ const getTxRecords =async (limit: number) => {
 	while(true){
 		try {
 			const t0 = performance.now()
-			const records = await knex<TxRecord>('txs')
-				.select(['txs.*'])
-				.leftJoin('inflights', 'txs.txid', 'inflights.txid')
+			const records = await knex<TxRecord>('inbox_txs')
+				.select(['inbox_txs.*'])
+				.leftJoin('inflights', 'inbox_txs.txid', 'inflights.txid')
 				.whereNull('inflights.txid')
 				.whereNull('valid_data')
 				.whereRaw("content_type SIMILAR TO '(image|video)/%'")

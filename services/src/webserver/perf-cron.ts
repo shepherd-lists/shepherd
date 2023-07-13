@@ -1,7 +1,7 @@
 import { GQL_URL } from "../common/constants";
 import { HistoryRecord, StateRecord, TxRecord } from "../common/shepherd-plugin-interfaces/types";
 import dbConnection from "../common/utils/db-connection";
-import { getGqlHeight } from "../common/utils/gql-height";
+import { gqlHeight } from "../common/utils/gql-height";
 
 const knex = dbConnection()
 
@@ -32,7 +32,7 @@ const cronjob = async()=> {
 	const output: HistoryRecord = {
 		total_txs: totalTxs.toString(),
 		unflagged: unflagged.toString(),
-		gql_height: await getGqlHeight(GQL_URL),
+		gql_height: await gqlHeight(GQL_URL),
 		indexer_pass1: (await knex<StateRecord>('states').where({pname: 'indexer_pass1'}))[0].value
 	}
 

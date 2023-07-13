@@ -5,14 +5,14 @@ import memoize from 'moize'
 
 const knex = getDb()
 
-const unfinishedMemoized = memoize(
-	async()=> await knex<TxRecord>('txs').count('*').whereNull('flagged') as unknown as [{count: number | string}],
-	{ 
-		isPromise: true, 
-		maxSize: 1, 
-		maxAge: 5 * 60_000 
-	},
-)
+// const unfinishedMemoized = memoize(
+// 	async()=> await knex<TxRecord>('txs').count('*').whereNull('flagged') as unknown as [{count: number | string}],
+// 	{ 
+// 		isPromise: true, 
+// 		maxSize: 1, 
+// 		maxAge: 5 * 60_000 
+// 	},
+// )
 
 export const getDevStats = async(res: Response)=> {
 	console.log(getDevStats.name, `starting /stats response`)
@@ -21,7 +21,13 @@ export const getDevStats = async(res: Response)=> {
 	// SELECT reltuples AS estimate FROM pg_class WHERE relname = 'table_name';
 	const txsCount = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'txs' })
 	console.log(getDevStats.name, {txsCount} )
-	res.write(`<h1>Total records (estimate): ${txsCount[0].estimate}</h1>\n`)
+	res.write(`<h1>Done records (estimate): ${txsCount[0].estimate}</h1>\n`)
+	
+	const inboxCount = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'inbox_txs' })
+	console.log(getDevStats.name, {inboxCount} )
+	res.write(`<h1>Inbox records (estimate): ${inboxCount[0].estimate}</h1>\n`)
+
+	res.write(`<h2>Total records (estimage + estimate): ${+txsCount[0].estimate + +inboxCount[0].estimate}</h2>\n`)
 	
 	const indexPosn1 = await knex<StateRecord>('states').where({ pname: 'indexer_pass1'})
 	console.log(getDevStats.name, {indexPosn: indexPosn1} )
@@ -37,11 +43,11 @@ export const getDevStats = async(res: Response)=> {
 
 	// res.write(`<h2>N.B. number of flagged, unflagged appears to be too expensive. Skipping</h2>\n`)
 	
-	const [unfinished] = await unfinishedMemoized()
-	const unfinishedCount = unfinished?.count || "0"
-	console.log(getDevStats.name, {unfinishedCount})
-	res.write(`<h2>Unflagged (cached for 5 mins): ${unfinishedCount}</h2>\n`)
-	res.write(`<h2>Flagged (total estimate - cached): ${+txsCount[0].estimate - +unfinishedCount}</h2>\n`)
+	// const [unfinished] = await unfinishedMemoized()
+	// const unfinishedCount = unfinished?.count || "0"
+	// console.log(getDevStats.name, {unfinishedCount})
+	// res.write(`<h2>Unflagged (cached for 5 mins): ${unfinishedCount}</h2>\n`)
+	// res.write(`<h2>Flagged (total estimate - estimate): ${+txsCount[0].estimate - +unfinishedCount}</h2>\n`)
 
 	res.write(`N.B. aggregated counts by content-type appear to be too expensive. Skipping until fixed\n`)
 	// //select content_type, count(*) from txs where valid_data is null group by content_type;

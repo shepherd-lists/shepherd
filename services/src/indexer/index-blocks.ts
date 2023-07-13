@@ -1,7 +1,7 @@
 import { ArGqlInterface } from 'ar-gql'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { ARIO_DELAY_MS } from '../common/constants'
-import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
+import { ARIO_DELAY_MS, IndexName } from '../common/constants'
+import { TxRecord, TxScanned } from '../common/shepherd-plugin-interfaces/types'
 import getDbConnection from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { performance } from 'perf_hooks'
@@ -13,7 +13,7 @@ const knex = getDbConnection()
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-export const scanBlocks = async (minBlock: number, maxBlock: number, gql: ArGqlInterface, indexName: string) => {
+export const scanBlocks = async (minBlock: number, maxBlock: number, gql: ArGqlInterface, indexName: IndexName) => {
 
 	/* get images and videos */
 
@@ -127,7 +127,7 @@ const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 
 /* Generic getRecords */
 
-const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterface, indexName: string) => {
+const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterface, indexName: IndexName) => {
 
 	const gqlProvider = gql.endpointUrl.includes('goldsky') ? 'gold' : 'ario'
 	const query = gqlProvider === 'gold' ? queryGoldskyWild : queryArio
@@ -168,7 +168,7 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
-			numRecords += await insertRecords(edges, gql, indexName, gqlProvider)
+			numRecords += await buildRecords(edges, gql, indexName, gqlProvider)
 			tUpsert = performance.now() - t0 - tGql
 		}
 		hasNextPage = res.pageInfo.hasNextPage
@@ -202,7 +202,7 @@ const getParent = memoize(
 	},
 )
 
-const insertRecords = async(metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: string, gqlProvider: string)=> {
+const buildRecords = async(metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: IndexName, gqlProvider: string)=> {
 	let records: TxScanned[] = []
 
 	for (const item of metas) {
@@ -265,18 +265,80 @@ const insertRecords = async(metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 		})
 	}
 
+	return insertRecords(records, indexName, gqlProvider)
+}
+
+/** export insertRecords for test only */
+export const insertRecords = async(records: TxScanned[], indexName: IndexName, gqlProvider: string)=> {
+	
+	if(records.length === 0) return 0;
+
+	let alteredCount = 0
 	try{
-		await knex<TxScanned>('txs').insert(records).onConflict('txid').merge(['height', 'parent', 'parents'])
-	}	catch(e:any){
+		if(indexName === 'indexer_pass1'){
+			/** expecting almost zero conflicts here */
+
+			// console.log('pass1 inserting records', records.length, {records})
+
+			await knex<TxRecord>('inbox_txs').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byteStart', 'byteEnd'])
+			alteredCount = records.length
+		}else{
+			/** generally speaking, it's the norm to not see updates on pass2. 
+			 * we would be expecting mostly conflicts here, so we will only update 
+			 * records with newer height, and insert missing records 
+			 */
+
+			const recordsInDb = await knex<TxRecord>('inbox_txs').whereIn('txid', records.map(r=>r.txid))
+				
+			/* step 1: update records with newer height */
+
+			/* filter out records with same or less height */
+			const updateRecords = records.filter(r => recordsInDb.some( exist => (r.txid === exist.txid && r.height > exist.height) ))
+
+			const updatedIds = await Promise.all(updateRecords.map(async r => 
+				(
+					await knex<TxRecord>('inbox_txs')
+					.update({
+						height: r.height,
+						parent: r.parent,
+						parents: r.parents,
+						byteStart: undefined,
+						byteEnd: undefined,
+					})
+					.where('txid', r.txid)
+					.returning('txid')
+				)[0]
+			))
+
+			alteredCount += updatedIds.length
+
+			if(updatedIds.length > 0) console.log(`updated ${updatedIds.length}/${updateRecords.length} records.`, 'updatedIds', updatedIds)
+
+			/* step 2: insert missing records */
+
+			const missingRecords = records.filter(r => !recordsInDb.map(r=>r.txid).includes(r.txid))
+			alteredCount += missingRecords.length
+
+			console.log(`missingRecords: length ${missingRecords.length}`)
+
+			if(missingRecords.length > 0){
+				const res = await knex<TxRecord>('inbox_txs').insert(missingRecords).returning('txid')
+				console.log(`inserted ${res.length}/${missingRecords.length} missingRecords`, missingRecords)
+			}
+
+			logger(indexName, `altered ${alteredCount}/${records.length} records`)
+		}
+		
+	}catch(e:any){
 		if(e.code && Number(e.code) === 23502){
 			logger('Error!', 'Null value in column violates not-null constraint', e.detail, gqlProvider, indexName)
 			slackLogger('Error!', 'Null value in column violates not-null constraint', e.detail, gqlProvider, indexName)
 			throw e
 		} else { 
-			if(e.code) logger('Error!', e.code, gqlProvider, indexName)
+			if(e.code) logger('Error!', e.code, gqlProvider, indexName, e)
 			throw e
 		}
 	}
 
-	return records.length
+	return alteredCount;
 }

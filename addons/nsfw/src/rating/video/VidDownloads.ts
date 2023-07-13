@@ -45,7 +45,8 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 	public cleanup = (vdl: VidDownloadRecord)=> {
 		rimraf(VID_TMPDIR + vdl.txid, (e)=> e && logger(vdl.txid, 'Error deleting temp folder', e))
 		VidDownloads.array = VidDownloads.array.filter(d => d !== vdl)
-		cleanupAfterProcessing(vdl.receiptHandle, vdl.txid, +vdl.content_size)
+		//cleanupAfterProcessing is not being called in certain cases. let's see if nextTick helps
+		process.nextTick(() => cleanupAfterProcessing(vdl.receiptHandle, vdl.txid, +vdl.content_size))
 	}
 
 	public listIds = ()=> {
