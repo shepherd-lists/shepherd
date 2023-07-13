@@ -33,8 +33,9 @@ export const updateInboxDb = async(txid: string, updates: Partial<TxRecord>)=> {
 			const existingTxs = await knex<TxRecord>('txs').where({ txid })
 			if(existingTxs.length === 1){
 				const checkId2 = await knex<TxRecord>('txs').where({txid}).update(updates).returning('txid')
-				logger(txid, `Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => ${checkId2}`)
-				slackLogger(txid, `Info: Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => ${checkId2}`)
+				logger(txid, `Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => ${JSON.stringify(checkId2)}`)
+				slackLogger(txid, `Info: Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => ${JSON.stringify(checkId2)}`)
+				return checkId2[0]?.txid;
 			}else{
 				logger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
 				slackLogger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => "${checkId}"`)
