@@ -33,8 +33,10 @@ export const updateInboxDb = async(txid: string, updates: Partial<TxRecord>)=> {
 			const existingTxs = await knex<TxRecord>('txs').where({ txid })
 			if(existingTxs.length === 1){
 				const checkId2 = await knex<TxRecord>('txs').where({txid}).update(updates).returning('txid')
-				logger(txid, `Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => ${JSON.stringify(checkId2)}`)
-				slackLogger(txid, `Info: Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => ${JSON.stringify(checkId2)}`)
+				logger(txid, `Info: Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
+				slackLogger(txid, `Info: Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
+				// clean up `inbox_txs` just in case there was some other problem
+				await knex<TxRecord>('inbox_txs').where({txid}).del('txid')
 				return checkId2[0]?.txid;
 			}else{
 				logger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
