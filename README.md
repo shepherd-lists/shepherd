@@ -7,7 +7,7 @@
 
 shepherd is a framework to build content moderation systems.
 
-The output of shepherd is a transaction id list that you can load with an Arweave node, in order to protect your node from storing and serving unwanted material. It uses a simple plugin architecture so that you are in control of what is filtered, and makes creating your own filters easier through the use of these plugins.
+The output of shepherd is a transaction id list that you can read into whatever app/service you are using. There is also a machine readable list to use with an Arweave node, in order to protect your node from storing and serving unwanted material. Shepherd uses a simple plugin architecture so that you are in control of what is filtered, and makes creating your own filters easier through the use of these plugins.
 
 > If you just want to use the default plugin, [skip on](#nsfw)
 
@@ -17,7 +17,12 @@ If you decide to create a filter plugin you are not just limited to specific typ
 
 ## The shepherd plugin system
 
-### <a name='config'></a>Configuration
+There are in fact 2 ways to create plugins:
+
+1. Basic: use the nsfw plugin harness system to load shepherd compatible plugins.
+2. Advanced: create your own docker container to run a plugin service. Documentation pending, but you read from remote/local SQS/S3, and write results to a http-api server.
+
+### <a name='config'></a>Basic Configuration
 
 You can load plugins by adding them to `shepherd.config.json`. Currently just the first plugin in the list is used.
 
@@ -25,7 +30,7 @@ The default configuration:
 ```json
 {
 	"plugins": [
-		"shepherd-plugin-nsfw"
+		"shepherd-plugin-nsfw@latest"
 	],
 	"lowmem": false
 }
@@ -39,7 +44,7 @@ and imports the module. So you can put whatever string you like in there. For ex
 
 Plugin filters need to conform to the [shepherd-plugin-interfaces](https://www.npmjs.com/package/shepherd-plugin-interfaces) in order to communicate with the shepherd host software.
 
-Right now the interface is still settling, but this should be more or less it [shepherd-plugin-interfaces.ts](src/shepherd-plugin-interfaces/index.ts)
+Right now the interface is still settling, but this should be more or less it [shepherd-plugin-interfaces](services/src/common/shepherd-plugin-interfaces/index.ts)
 
 ### <a name='nsfw'></a> The Default Plugin: shepherd-plugin-nsfw
 
@@ -52,21 +57,23 @@ Notes:
 
 ## Minimum System Requirements
 
-- at least 10GB of free disk space
+- at least 100GB of free disk space
 - windows: no specific requirements
 - linux: swap file or partition must exist. Example: 32GB ram / 64GB swap
-- apple m1 silicon: now fully supported, no specific requirements
+- apple silicon: default nsfw plugin still has issues
 - other arm cpus or macos x86: untested, test reports welcome!
 
 ## Prerequisites
 
-1. install docker & docker-compose
-2. copy `apps/shepherd.config.json.example` to `apps/shepherd.config.json`
-3. (optional/advanced) create a `.env` file (e.g. `cp .env.example .env`)
+1. install docker
+2. install docker-compose v2
 
 ## Install and run
 
-Clone this repo and cd in to the `shepherd` directory. Configure `apps/shepherd.config.json` if you need to, then run this command
+1. Clone this repo and cd in to the `shepherd` directory. 
+2. (optional/advanced) create a `.env` file (e.g. `cp .env.example .env`) and fill out your details
+3. (optional) Configure `shepherd.config.json` if you need to
+4. run this command:
 
 ```
 docker-compose up -d
@@ -77,9 +84,9 @@ That's it! There's also `start.bat` and `./start.sh` for your convenience.
 
 ### Initial Set Up
 
-On initial start it will take some time (maybe several days for example) to read in and categorize all media files from the permaweb. Expect the server to run hot during this initial phase.
+On initial start it will take some time (maybe several weeks for example) to read in and categorize all media files from the permaweb. Expect the server to run hot during this initial phase.
 
-You can check on progress (and potentially errors) using `./run_logs.sh` or 
+You can check on progress (and potentially errors) using `./logs.sh` or 
 ```
 docker-compose logs -f
 ```
@@ -93,13 +100,12 @@ You can use this in the CLI start command of your Arweave node by adding the `tr
 ```
 ./bin/start mine mining_addr <YOUR-MINING-ADDRESS> transaction_blacklist_url http://localhost/blacklist.txt peer 188.166.200.45 peer 188.166.192.169 peer 163.47.11.64 peer 139.59.51.59 peer 138.197.232.192
 ```
+See (shepherd-v.com)[http://shepherd-v.com] for more details.
 
 
 ### Final Thoughts
 
 Your arweave node will automatically refresh and update blacklisted content as the list grows. There should be no more needed to be done. 
-
-> You can set lowmem to `true` in your [shepherd.config.json](#config) if you have created and enlarged your swapfile but are still running out of memory. This will slow down initial sync.
 
 If you find that there are other tasks to be performed, please open a GitHub issue, thanks!
 
