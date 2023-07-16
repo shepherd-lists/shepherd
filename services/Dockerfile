@@ -15,12 +15,14 @@ FROM base as webserver
 COPY ./src/common ./src/common
 COPY ./src/byte-ranges ./src/byte-ranges
 COPY ./src/webserver ./src/webserver
+RUN npm run typecheck
 ENTRYPOINT node -r ts-node/register src/webserver/index.ts
 
 FROM base as http-api
 COPY ./src/common ./src/common
 COPY ./src/byte-ranges ./src/byte-ranges
 COPY ./src/http-api ./src/http-api
+RUN npm run typecheck
 ENTRYPOINT node -r ts-node/register src/http-api/index.ts
 
 FROM base as indexer
@@ -28,14 +30,17 @@ COPY ./migrations ./migrations
 COPY ./seeds ./seeds
 COPY ./src/common ./src/common
 COPY ./src/indexer ./src/indexer
+RUN npm run typecheck
 ENTRYPOINT node -r ts-node/register src/indexer/index.ts
 
 FROM base as feeder
 COPY ./src/common ./src/common
 COPY ./src/feeder ./src/feeder
+RUN npm run typecheck
 ENTRYPOINT node -r ts-node/register src/feeder/index.ts
 
 FROM base as fetchers
 COPY ./src/common ./src/common
 COPY ./src/fetchers ./src/fetchers
+RUN npm run typecheck
 ENTRYPOINT node -r ts-node/register src/fetchers/index.ts

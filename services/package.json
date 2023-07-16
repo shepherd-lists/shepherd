@@ -5,6 +5,7 @@
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "start": "docker-compose up --build -d",
     "logs": "docker-compose logs -f --tail=15",
     "up": "docker-compose up --build -d && docker-compose logs -f",
