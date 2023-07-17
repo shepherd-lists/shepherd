@@ -36,34 +36,31 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		'parents', 
 	]
 
-	let trx: Knex.Transaction<any, any[]> | null = null // keep TS happy
-	try {
+	let trx: Knex.Transaction
+	try{
 		trx = await knex.transaction()
 		const res = await trx('txs')
 		.insert( 
 			knex<TxRecord>('inbox_txs').select('*').whereIn('txid', txids)
-			.whereNotNull('valid_data') // for no data done records that get reset
+			.whereNotNull('valid_data') // for no-data done records that get reset
 		)
 		.onConflict('txid').merge(allTxRecordKeys)
 		.returning('txid')
 
-		/** only remove what's been inserted? */
+		/** only remove what's been inserted */
 		const insertedIds = res.map(r => r.txid) as string[]
 
 		await trx.delete().from('inflights').whereIn('txid', insertedIds)
 		await trx.delete().from('inbox_txs').whereIn('txid', insertedIds)
 		await trx.commit()
 
-
 		logger(moveInboxToTxs.name, `moved ${res.length} records from inbox_txs to txs`)
 
 		return res.length;
-	} catch (e) {
+	}catch (e) {
 		logger(moveInboxToTxs.name, `error moving record ${txids} from inbox_txs to txs`, e)
 		slackLogger(moveInboxToTxs.name, `error moving record ${txids} from inbox_txs to txs`, JSON.stringify(e))
-		if(trx){ // keep TS happy
-			await trx.rollback()
-		}
+		await trx!.rollback()
 		throw e
 	}
 }
