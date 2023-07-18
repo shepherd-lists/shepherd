@@ -109,7 +109,7 @@ export const harness = async()=> {
 		if(_currentNumFiles >= NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
 			logger(prefix, `internal queue full. waiting 1s.`)
 			await sleep(1000)
-			// logger(prefix, `vids: ${JSON.stringify(_currentVideos.listIds())}, imgs: ${JSON.stringify(_currentImageIds)}`)
+			logger(prefix, `vids: ${JSON.stringify(_currentVideos.listIds())}, imgs: ${JSON.stringify(_currentImageIds)}`)
 			continue;
 		}
 
