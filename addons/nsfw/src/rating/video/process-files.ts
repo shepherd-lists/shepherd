@@ -33,7 +33,7 @@ export const processVids = async()=> {
 				if(e.message === 'Output file #0 does not contain any stream'){
 					logger(dl.txid, 'ffmpeg: Output file #0 does not contain any stream')
 					corruptDataConfirmed(dl.txid)
-					downloads.cleanup(dl)
+					await downloads.cleanup(dl)
 					continue; //dont checkFrames
 				}else if(e.message === 'No such file or directory'){
 					//we should not be in createScreencaps if there is no video file
@@ -48,7 +48,7 @@ export const processVids = async()=> {
 				){
 					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
 					corruptDataMaybe(dl.txid)
-					downloads.cleanup(dl)
+					await downloads.cleanup(dl)
 					continue; //dont checkFrames
 				}else if(
 					[
@@ -61,8 +61,8 @@ export const processVids = async()=> {
 					 * internal queues. better to retry using the SQS queues.
 					 */
 					logger(dl.txid, `${e.name}:${e.message}. Cleaning up and releasing back to SQS queue.`)
-					inflightDel(dl.txid)
-					downloads.cleanup(dl)
+					await inflightDel(dl.txid)
+					await downloads.cleanup(dl)
 					continue; //dont checkFrames
 				}else{
 					logger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
@@ -70,7 +70,7 @@ export const processVids = async()=> {
 					// throw e
 				}
 				//delete the temp files
-				downloads.cleanup(dl)
+				await downloads.cleanup(dl)
 			}
 
 			//let tfjs run through the screencaps & write to db
@@ -82,7 +82,7 @@ export const processVids = async()=> {
 			}
 			
 			//delete the temp files
-			downloads.cleanup(dl)
+			await downloads.cleanup(dl)
 		}
 	}
 }

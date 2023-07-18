@@ -183,7 +183,7 @@ export const harness = async()=> {
 							slackLogger(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
 						}
 						logger(key, `checkImageTxid`, res)
-						cleanupAfterProcessing(receiptHandle, key, videoLength)
+						await cleanupAfterProcessing(receiptHandle, key, videoLength)
 						delete _currentImageIds[key]
 						return res;
 					}) (key, videoLength, receiptHandle);
@@ -208,33 +208,33 @@ export const harness = async()=> {
 }
 
 /* processing succesful, so delete event message + object */
-export const cleanupAfterProcessing = (ReceiptHandle: string, Key: string, videoLength: number)=> {
+export const cleanupAfterProcessing = async(ReceiptHandle: string, Key: string, videoLength: number)=> {
 	logger(cleanupAfterProcessing.name, `called for ${Key}`)
 	_currentNumFiles--
 	_currentTotalSize -= videoLength
 
-	deleteMessage(ReceiptHandle, Key)
+	try{
+		const delSqs = await deleteMessage(ReceiptHandle, Key)
+		logger(Key, `deleted message.`, JSON.stringify(delSqs))
+	}catch(err: unknown){
+		const e = err as AWSError
+		logger(Key, `Error! deleting message from AWS_SQS_INPUT_QUEUE ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`, e)
+	}
 	
-	s3.deleteObject(
-		{
-			Bucket: AWS_INPUT_BUCKET,
-			Key,
-		},
-		(e, data) => {
-			if(e) logger(Key, `ERROR DELETING OBJECT! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`)
-			else logger(Key, `deleted object.`, data)
-		}
-	)
+	try{
+		const delObj = await s3.deleteObject({
+				Bucket: AWS_INPUT_BUCKET,
+				Key,
+		}).promise()
+		logger(Key, `deleted object.`, JSON.stringify(delObj))
+	}catch(err: unknown){
+		const e = err as AWSError
+		logger(Key, `ERROR DELETING OBJECT! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`, e)
+	}
 }
 
-const deleteMessage = (ReceiptHandle: string, Key: string)=> sqs.deleteMessage(
-	{
+const deleteMessage = async(ReceiptHandle: string, Key: string)=> sqs.deleteMessage({
 		QueueUrl: AWS_SQS_INPUT_QUEUE,
 		ReceiptHandle,
-	},
-	(e, data) => {
-		if(e) logger(Key, `ERROR DELETING MESSAGE! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`)
-		else logger(Key, `deleted message.`, JSON.stringify(data))
-	}
-)
+}).promise()
 
