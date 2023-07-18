@@ -109,7 +109,7 @@ export const harness = async()=> {
 		if(_currentNumFiles >= NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
 			logger(prefix, `internal queue full. waiting 1s.`)
 			await sleep(1000)
-			// logger(prefix, {vids: _currentVideos.listIds(), imgs: _currentImageIds })
+			// logger(prefix, `vids: ${JSON.stringify(_currentVideos.listIds())}, imgs: ${JSON.stringify(_currentImageIds)}`)
 			continue;
 		}
 
@@ -119,91 +119,94 @@ export const harness = async()=> {
 			continue;
 		}
 
-		messages.forEach(async message => {
-			const s3event = JSON.parse(message.Body!) as S3Event
-			/* check if it's an s3 event */
-			if(s3event.Records && s3event.Records.length === 1 
-				&& s3event.Records[0].eventName && s3event.Records[0].eventName.includes('ObjectCreated')
-			){
-				const s3Record = s3event.Records[0]
-				const key = s3Record.s3.object.key
-				const receiptHandle = message.ReceiptHandle!
-				// const bucket = s3Record.s3.bucket.name
-				// logger(prefix, `found s3 event for '${key}' in '${bucket}`)
+		messages.forEach(message => messageHandler(message))// end messages.forEach
 
-				/* process s3 event */
-
-				//check we have room to add a new item (& that object exists)
-				const headRes = await getFileHead(key, receiptHandle)
-				if(!headRes) return false;
-
-				const {contentLength, contentType} = headRes
-				const videoLength = contentType.startsWith('video/') ? contentLength : 0 //images don't get stored in VID_TMPDIR
-				if(_currentTotalSize + videoLength > TOTAL_FILESIZE){
-					logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releasing back to queue (aware DLQ)`, {_currentNumFiles, _currentTotalSize})
-					await releaseMessage(message.ReceiptHandle!) //message may end up in DLQ if this is excessive.
-					return;
-				}
-				if(_currentNumFiles > NUM_FILES){
-					logger(prefix, `Warning. queue overflow`, {_currentNumFiles})
-				}
-				_currentNumFiles++
-				_currentTotalSize += videoLength
-
-				//send to vid or image processing
-				if(contentType.startsWith('video')){
-					/* add to video download queue */
-					await addToDownloads({
-						content_size: contentLength.toString(),
-						content_type: contentType,
-						txid: key,
-						receiptHandle,
-					})
-				}else{
-					/* process image */
-					(async(
-						key: string,
-						videoLength:number,
-						receiptHandle:string,
-					)=>{
-						_currentImageIds[key] = 1
-						let res = false
-						try{
-							res = await checkImageTxid(key, contentType) 
-						}catch(e:any){
-							if(['RequestTimeTooSkewed', 'NoSuchKey'].includes(e.name)){
-								//this item has spent too much time in the internal queue, another plugin instance has already run `cleanupAfterProcessing`
-								logger(key, `${e.name}:${e.message}. Assuming another instance has run 'cleanupAfterProcessing'.`)
-								delete _currentImageIds[key]
-								_currentNumFiles--
-								return false;
-							}
-							//we should never get here
-							console.log(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
-							slackLogger(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
-						}
-						logger(key, `checkImageTxid`, res)
-						await cleanupAfterProcessing(receiptHandle, key, videoLength)
-						delete _currentImageIds[key]
-						return res;
-					}) (key, videoLength, receiptHandle);
-				}
-				
-				//process downloaded videos
-				await processVids()
-				//cleanup aborted/errored downloads
-				for (const item of _currentVideos) {
-					if(item.complete === 'ERROR'){
-						_currentVideos.cleanup(item)
-					}
-				}
-
-			}else{
-				logger(prefix, `error! unrecognized body. MessageId '${message.MessageId}'. not processing.`)
-				console.log(`message.Body`, JSON.stringify(s3event, null,2))
-			}
-		})// end messages.forEach
 		await sleep(1)
+	}
+}
+
+const messageHandler = async (message: SQS.Message) => {
+	const s3event = JSON.parse(message.Body!) as S3Event
+	/* check if it's an s3 event */
+	if(s3event.Records && s3event.Records.length === 1 
+		&& s3event.Records[0].eventName && s3event.Records[0].eventName.includes('ObjectCreated')
+	){
+		const s3Record = s3event.Records[0]
+		const key = s3Record.s3.object.key
+		const receiptHandle = message.ReceiptHandle!
+		// const bucket = s3Record.s3.bucket.name
+		// logger(prefix, `found s3 event for '${key}' in '${bucket}`)
+
+		/* process s3 event */
+
+		//check we have room to add a new item (& that object exists)
+		const headRes = await getFileHead(key, receiptHandle)
+		if(!headRes) return false;
+
+		const {contentLength, contentType} = headRes
+		const videoLength = contentType.startsWith('video/') ? contentLength : 0 //images don't get stored in VID_TMPDIR
+		if(_currentTotalSize + videoLength > TOTAL_FILESIZE){
+			logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releasing back to queue (aware DLQ)`, {_currentNumFiles, _currentTotalSize})
+			await releaseMessage(message.ReceiptHandle!) //message may end up in DLQ if this is excessive.
+			return;
+		}
+		if(_currentNumFiles > NUM_FILES){
+			logger(prefix, `Warning. queue overflow`, {_currentNumFiles})
+		}
+		_currentNumFiles++
+		_currentTotalSize += videoLength
+
+		//send to vid or image processing
+		if(contentType.startsWith('video')){
+			/* add to video download queue */
+			await addToDownloads({
+				content_size: contentLength.toString(),
+				content_type: contentType,
+				txid: key,
+				receiptHandle,
+			})
+		}else{
+			/* process image */
+			(async(
+				key: string,
+				videoLength:number,
+				receiptHandle:string,
+			)=>{
+				_currentImageIds[key] = 1
+				let res = false
+				try{
+					res = await checkImageTxid(key, contentType) 
+				}catch(e:any){
+					if(['RequestTimeTooSkewed', 'NoSuchKey'].includes(e.name)){
+						//this item has spent too much time in the internal queue, another plugin instance has already run `cleanupAfterProcessing`
+						logger(key, `${e.name}:${e.message}. Assuming another instance has run 'cleanupAfterProcessing'.`)
+						delete _currentImageIds[key]
+						_currentNumFiles--
+						return false;
+					}
+					//we should never get here
+					console.log(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
+					slackLogger(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
+				}
+				logger(key, `checkImageTxid`, res)
+				await cleanupAfterProcessing(receiptHandle, key, videoLength)
+				delete _currentImageIds[key]
+				return res;
+			}) (key, videoLength, receiptHandle);
+		}
+		
+		//process downloaded videos
+		await processVids()
+		//cleanup aborted/errored downloads
+		for (const item of _currentVideos) {
+			if(item.complete === 'ERROR'){
+				_currentVideos.cleanup(item)
+			}
+		}
+
+	}else{
+		logger(prefix, `error! unrecognized body. MessageId '${message.MessageId}'. not processing.`)
+		console.log(`message.Body`, JSON.stringify(s3event, null,2))
 	}
 }
 
