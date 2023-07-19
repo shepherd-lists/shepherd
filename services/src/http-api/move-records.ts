@@ -41,8 +41,13 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		trx = await knex.transaction()
 		const res = await trx('txs')
 		.insert( 
-			knex<TxRecord>('inbox_txs').select('*').whereIn('txid', txids)
-			.whereNotNull('valid_data') // for no-data done records that get reset
+			knex<TxRecord>('inbox_txs').select('*')
+			.whereIn('txid', txids)
+			.where(function(){
+				this
+				.whereNotNull('valid_data') // for no-data done records that get reset
+				.orWhereNotNull('flagged') // future use
+			})
 		)
 		.onConflict('txid').merge(allTxRecordKeys)
 		.returning('txid')
