@@ -104,12 +104,12 @@ export const harness = async()=> {
 	
 	/* message consumer loop */
 	while(true){
-		logger(prefix, {_currentNumFiles, _currentTotalSize: _currentTotalSize.toLocaleString(), vidsProcessing: _currentVideos.length(), imgsProcessing: Object.keys(_currentImageIds).length})
+		logger(prefix, JSON.stringify({_currentNumFiles, _currentTotalSize: _currentTotalSize.toLocaleString(), vidsProcessing: _currentVideos.length(), imgsProcessing: Object.keys(_currentImageIds).length}))
+		logger(prefix, `vids: ${JSON.stringify(_currentVideos.listIds())}, imgs: ${JSON.stringify(_currentImageIds)}`)
 
 		if(_currentNumFiles >= NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
 			logger(prefix, `internal queue full. waiting 1s.`)
 			await sleep(1000)
-			logger(prefix, `vids: ${JSON.stringify(_currentVideos.listIds())}, imgs: ${JSON.stringify(_currentImageIds)}`)
 			continue;
 		}
 
