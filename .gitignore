@@ -10,3 +10,4 @@ NOTES.txt
 .vscode
 _dev*/
 _prod*/
+compose.generated.yml
