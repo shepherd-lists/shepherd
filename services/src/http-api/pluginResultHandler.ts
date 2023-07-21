@@ -67,6 +67,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 				...(byteStart && { byteStart, byteEnd }),
 				last_update_date: new Date(),
 			})
+			await dbInflightDel(txid)
 
 			if(res !== txid){
 				logger(`Fatal error`, `Could not update database. "${res} !== ${txid}"`)
@@ -76,8 +77,6 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 			/** flagged records go straight to txs */
 			if(result.flagged === true){
 				try{
-					await dbInflightDel(txid) //we're moving this record out of order, so need to remove it from the inflights first
-
 					const moved = await moveInboxToTxs([txid])
 					if( moved !== 1 ){
 						throw new Error(`${moveInboxToTxs.name} returned '${moved}' not '1'`)
@@ -90,9 +89,11 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 				await doneAddTested(txid)
 			}
 			
+			await dbInflightDel(txid)
 			
 		}else if(result.data_reason === undefined){
 			logger(txid, 'data_reason and flagged cannot both be undefined')
+			await dbInflightDel(txid)
 			throw new TypeError('data_reason and flagged cannot both be undefined')
 		}else{
 			switch (result.data_reason) {
@@ -115,7 +116,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					await dbWrongMimeType(txid, result.err_message!)
 					break;
 				case 'retry':
-					// `dbInflightDel(txid)`  is all we actually want done
+					await dbInflightDel(txid) //this is all we actually want done
 					return;
 			
 				default:
@@ -126,7 +127,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 			await doneAddTested(txid)
 		}
 	}finally{
-		await dbInflightDel(txid)
+		// await dbInflightDel(txid)
 		logger(txid, `handler finished. count ${c}`)
 	}
 }
@@ -134,11 +135,11 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 const doneAddTested = async(txid: string)=> {
 	const record = await getTxFromInbox(txid)
 	if(record){
-		if(record.flagged !== undefined){
-			logger(txid, `record.flagged set. calling doneAdd`)
+		if(record.flagged !== undefined || record.valid_data !== undefined){
+			logger(txid, `flagged or valid_data set. calling doneAdd`)
 			await doneAdd(txid, record.height)
 		}else{
-			logger(txid, `record.flagged not set.`)
+			logger(txid, `flagged or valid_data not set.`)
 		}
 	}
 }
