@@ -89,7 +89,7 @@ function generate_service_entry {
 EOF
 }
 
-# import PLUGINS and 
+# import PLUGINS, generate service entries for them
 plugins_checker=${PLUGINS:-}
 if [[ -z $plugins_checker ]]; then
   echo "INFO: PLUGINS=undefined." #TODO: add default behaviour here
