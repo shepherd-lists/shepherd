@@ -322,7 +322,10 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 			console.log(`missingRecords: length ${missingRecords.length}`)
 
 			if(missingRecords.length > 0){
-				const res = await knex<TxRecord>('inbox_txs').insert(missingRecords).returning('txid')
+				const res = await knex<TxRecord>('inbox_txs')
+				.insert(missingRecords)
+				.onConflict().ignore() //can occur in restart during half finished height
+				.returning('txid')
 				console.log(`inserted ${res.length}/${missingRecords.length} missingRecords`, JSON.stringify(missingRecords))
 			}
 
