@@ -33,7 +33,7 @@ const getTxRecords =async (limit: number) => {
 				.whereNull('inflights.txid')
 				.whereNull('valid_data')
 				.whereRaw("content_type SIMILAR TO '(image|video)/%'")
-				// .orderBy('txs.id', 'desc')
+				.orderBy('inbox_txs.height', 'asc')
 				.limit(limit)
 			
 			const length = records.length
