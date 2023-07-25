@@ -67,7 +67,6 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 				...(byteStart && { byteStart, byteEnd }),
 				last_update_date: new Date(),
 			})
-			await dbInflightDel(txid)
 
 			if(res !== txid){
 				logger(`Fatal error`, `Could not update database. "${res} !== ${txid}"`)
@@ -81,6 +80,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					if( moved !== 1 ){
 						throw new Error(`${moveInboxToTxs.name} returned '${moved}' not '1'`)
 					}
+					return;
 				}catch(e){
 					logger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
 					slackLogger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))

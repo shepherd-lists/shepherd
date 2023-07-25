@@ -3,7 +3,7 @@ import { performance } from 'perf_hooks'
 import { scanBlocks } from "./index-blocks"
 import dbConnection from "../common/utils/db-connection"
 import { gqlHeight } from '../common/utils/gql-height'
-import { StateRecord } from "../common/shepherd-plugin-interfaces/types"
+import { StateRecord, TxRecord } from "../common/shepherd-plugin-interfaces/types"
 import { logger } from "../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../common/utils/slackLogger"
 import { ArGqlInterface } from 'ar-gql'
@@ -102,15 +102,19 @@ export const indexer = async(gql: ArGqlInterface, CONFIRMATIONS: number, loop: b
 				if(indexName === 'indexer_pass2'){
 					const tResets = performance.now()
 
-					const countResetInbox = await knex('inbox_txs')
+					const resetInbox = await knex<TxRecord>('inbox_txs')
+						//@ts-expect-error
 						.update({ flagged: null, valid_data: null })
 						.whereBetween('height', [minBlock, maxBlock])
 						.whereIn('data_reason', ['404', 'nodata', 'partial'])
-					const tResetsTotal = performance.now() - tResets
-					logger(`${indexName} 404`, `unmarked ${countResetInbox} 404/nodata/partial records, between heights ${minBlock} & ${maxBlock}, in ${tResetsTotal.toFixed(0)} ms`)
-				}
+						.returning('txid')
 
-				/** TODO: call http-api to move finished records to txs */
+					/** is there edge case where inflights need to be deleted? are they mid-processing already? */
+					// await knex('inflights').delete().whereIn('txid', resetInbox.map(r => r.txid))
+
+					const tResetsTotal = performance.now() - tResets
+					logger(`${indexName} 404`, `unmarked ${resetInbox.length} 404/nodata/partial records, between heights ${minBlock} & ${maxBlock}, in ${tResetsTotal.toFixed(0)} ms`)
+				}
 
 				/** index position may have changed externally */
 				const dbPosition = await readPosition(indexName)

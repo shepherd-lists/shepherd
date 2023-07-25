@@ -34,8 +34,8 @@ export const updateInboxDb = async(txid: string, updates: Partial<TxRecord>)=> {
 			if(existingTxs.length === 1){
 				const checkId2 = await knex<TxRecord>('txs').where({txid}).update(updates).returning('txid')
 				logger(txid, `Info: Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
-				slackLogger(txid, `Info: Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
-				// clean up `inbox_txs` just in case there was some other problem
+				// slackLogger(txid, `Info: Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
+				/* clean up `inbox_txs` just in case there was some other problem */
 				await knex<TxRecord>('inbox_txs').where({txid}).del('txid')
 				return checkId2[0]?.txid;
 			}else{
@@ -214,7 +214,7 @@ export const getTxFromInbox = async(txid: string)=> {
 
 			if(res.length > 0){
 				logger(txid, 'Not found in inbox_tx, already moved to txs table.')
-				slackLogger(txid, 'Not found in inbox_tx, already moved to txs table.')
+				// slackLogger(txid, 'Not found in inbox_tx, already moved to txs table.')
 				return;
 			}else{
 				logger(txid, 'Not found in inbox_tx. Not moved to txs table.')

@@ -312,7 +312,7 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 
 			alteredCount += updatedIds.length
 
-			if(updatedIds.length > 0) console.log(`updated ${updatedIds.length}/${updateRecords.length} records.`, 'updatedIds', updatedIds)
+			if(updatedIds.length > 0) console.log(`updated ${updatedIds.length}/${updateRecords.length} records.`, 'updatedIds', JSON.stringify(updatedIds))
 
 			/* step 2: insert missing records */
 
@@ -322,11 +322,14 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 			console.log(`missingRecords: length ${missingRecords.length}`)
 
 			if(missingRecords.length > 0){
-				const res = await knex<TxRecord>('inbox_txs').insert(missingRecords).returning('txid')
-				console.log(`inserted ${res.length}/${missingRecords.length} missingRecords`, missingRecords)
+				const res = await knex<TxRecord>('inbox_txs')
+				.insert(missingRecords)
+				.onConflict().ignore() //can occur in restart during half finished height
+				.returning('txid')
+				console.log(`inserted ${res.length}/${missingRecords.length} missingRecords`, JSON.stringify(missingRecords))
 			}
 
-			logger(indexName, `altered ${alteredCount}/${records.length} records`)
+			logger(indexName, `inserted ${alteredCount}/${records.length} records`)
 		}
 		
 	}catch(e:any){

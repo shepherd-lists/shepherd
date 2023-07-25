@@ -29,8 +29,9 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 
 	logger(prefix, 'uploading', txid, mimetype)
 
+	const streamStatuses: FetchersStatus[] = ['NO_DATA', 'NEGLIGIBLE_DATA', 'BAD_MIME']
+
 	readable.on('error', e =>{
-		const streamStatuses: FetchersStatus[] = ['NO_DATA', 'NEGLIGIBLE_DATA', 'BAD_MIME']
 		const code = (e as any).code
 		if(streamStatuses.includes(e.message as FetchersStatus)){ 
 			logger(prefix, 'aborting. error', e.message, txid)
@@ -77,7 +78,10 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 			//@ts-ignore
 			const code = e.code
 			logger(prefix, txid, 'UNHANDLED S3 ERROR', `${e.name}(${code}):${e.message}.`, e)
-			if(typeof +code === 'number' && +code >=400){
+			if(
+				(typeof +code === 'number' && +code >=400)
+				|| streamStatuses.includes(e.message as FetchersStatus) //rare but can appear here
+			){
 				//no need to slackLogger this, let bubble up
 			}else{
 				slackLogger(prefix, txid, 'UNHANDLED S3 ERROR', `${e.name}(${code}):${e.message}.`)
