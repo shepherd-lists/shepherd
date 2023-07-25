@@ -162,22 +162,36 @@ const sendToSqs = async(records: TxRecord[])=>{
 }
 
 const processMessageBatch = async(inflights: InflightsRecord[], entries: SQS.SendMessageBatchRequestEntry[])=> {
-	let ifRecs = inflights //careful with these refs
+	let _inflights = inflights //careful with these refs
+	let _entries = entries
+
+	/** put these all inflight immediately to prevent double sends */
+
+	_inflights = await knex<InflightsRecord>('inflights').insert(_inflights).onConflict().ignore().returning('*')
+	const inflightIds = _inflights.map(ifRec => ifRec.txid)
+
+	/** filter out any not inserted and send */
+
+	_entries = _entries.filter(item => inflightIds.includes(item.Id)) 
+	
 	const res = await sqs.sendMessageBatch({
 		QueueUrl,
-		Entries: entries,
+		Entries: _entries,
 	}).promise()
+
+	/** remove failed sendMessages from inflights */
 	
-	const fails = res.Failed.length
-	if(fails > 0){
-		const total = res.Successful.length + fails
-		logger(prefix, `Failed to batch send ${fails}/${total} messages:`)
+	const failCount = res.Failed.length
+	if(failCount > 0){
+		
+		/** informational */
+		const total = res.Successful.length + failCount
+		logger(prefix, `Failed to batch send ${failCount}/${total} messages:`)
 		for (const f of res.Failed) {
 			logger(f.Id, `${f.Code} : ${f.Message}. ${f.SenderFault && 'SenderFault.'}`)
-			ifRecs = ifRecs.filter(ifRec => ifRec.txid !== f.Id)
 		}
-	}
-	if(ifRecs.length > 0){
-		await knex<TxRecord>('inflights').insert(ifRecs).onConflict().ignore()
+
+		const failIds = res.Failed.map(f => f.Id)
+		await knex<InflightsRecord>('inflights').delete().whereIn('txid', failIds)
 	}
 }

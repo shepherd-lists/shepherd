@@ -329,7 +329,7 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 				console.log(`inserted ${res.length}/${missingRecords.length} missingRecords`, JSON.stringify(missingRecords))
 			}
 
-			logger(indexName, `altered ${alteredCount}/${records.length} records`)
+			logger(indexName, `inserted ${alteredCount}/${records.length} records`)
 		}
 		
 	}catch(e:any){
