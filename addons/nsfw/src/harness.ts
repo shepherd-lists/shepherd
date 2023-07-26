@@ -189,8 +189,8 @@ const messageHandler = async (message: SQS.Message) => {
 					slackLogger(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
 				}
 				logger(key, `checkImageTxid`, res)
-				await cleanupAfterProcessing(receiptHandle, key, videoLength)
 				delete _currentImageIds[key]
+				await cleanupAfterProcessing(receiptHandle, key, videoLength)
 				return res;
 			}) (key, videoLength, receiptHandle);
 		}

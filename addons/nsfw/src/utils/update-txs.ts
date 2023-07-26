@@ -21,13 +21,13 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 			filterResult: filterResult as FilterResult,
 		}
 		const payloadString = JSON.stringify(payload)
-		console.log(txid, `sent ${++count}`)
-
+		
 		const res = await axios.post(HTTP_API_URL, payloadString, {
 			headers: {
 				'Content-Type': 'application/json; charset=UTF-8',
 			},
 		})
+		console.log(txid, `sent ${++count}`, res.status, res.statusText)
 
 
 		// const res = await fetch(HTTP_API_URL, {
