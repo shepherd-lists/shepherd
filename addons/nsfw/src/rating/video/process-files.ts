@@ -47,7 +47,7 @@ export const processVids = async()=> {
 					].includes(e.message)
 				){
 					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
-					corruptDataMaybe(dl.txid)
+					await corruptDataMaybe(dl.txid)
 					await downloads.cleanup(dl)
 					continue; //dont checkFrames
 				}else if(
