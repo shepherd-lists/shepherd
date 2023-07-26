@@ -1,7 +1,7 @@
 import { S3 } from 'aws-sdk'
 import { Readable } from 'stream'
 import { FetchersStatus } from '../common/constants'
-import { dbMalformedXMLData } from '../common/utils/db-update-txs'
+import { dbCorruptDataConfirmed, dbMalformedXMLData } from '../common/utils/db-update-txs'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { slackLogger } from '../common/utils/slackLogger'
 
@@ -75,16 +75,22 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 				await dbMalformedXMLData(txid)
 				return 'MalformedXML';
 			}
+			if(e.message === 'Invalid character in header content ["Content-Type"]'){
+				logger(prefix, txid, `${e.name}:${e.message}.`)
+				await dbCorruptDataConfirmed(txid)
+				return 'Invalid-Content-Type';
+			}
 			//@ts-ignore
 			const code = e.code
-			logger(prefix, txid, 'UNHANDLED S3 ERROR', `${e.name}(${code}):${e.message}.`, e)
+			logger(prefix, txid, 'UNHANDLED S3 ERROR', `${e.name}(${code}):${e.message}`, e)
 			if(
 				(typeof +code === 'number' && +code >=400)
 				|| streamStatuses.includes(e.message as FetchersStatus) //rare but can appear here
 			){
+				logger(prefix, txid, `${e.name}(${code}):${e.message}. Allowing to bubble up.`)
 				//no need to slackLogger this, let bubble up
 			}else{
-				slackLogger(prefix, txid, 'UNHANDLED S3 ERROR', `${e.name}(${code}):${e.message}.`)
+				slackLogger(prefix, txid, 'UNHANDLED S3 ERROR', `${e.name}(${code}):${e.message}`)
 			}
 		}
 		//just throw errors like NoSuchBucket, UnknownEndpoint, etc. needs to be handled externally
