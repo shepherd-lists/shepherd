@@ -87,3 +87,4 @@ services:
       - sqs-local
       - s3-local
       - http-api
+  # DO NOT ADD ANYTHING BELOW THIS LINE. generated services will be appended here.
