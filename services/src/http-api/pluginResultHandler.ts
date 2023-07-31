@@ -34,7 +34,10 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 			}
 
 			let byteStart, byteEnd;
-			if(Number(result.top_score_value) > 0.9){
+			if(
+				Number(result.top_score_value) > 0.9
+				|| result.flagged === true
+			){
 				try {
 					/** get the tx data from the database */
 					const record = await getTxFromInbox(txid)
@@ -42,7 +45,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					/** sqs messages can be read more than once */
 					if(!record){
 						logger(txid, pluginResultHandler.name, `record not found in inbox_txs`)
-						slackLogger(txid, pluginResultHandler.name, `record not found in inbox_txs`)
+						slackLogger(txid, pluginResultHandler.name, `record not found in inbox_txs`, result)
 						return;
 					}
 	
@@ -57,7 +60,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					slackLogger(txid, pluginResultHandler.name, `Error calculating byte-range: ${e.name}:${e.message}`, JSON.stringify(e))
 				}
 			}
-
+			
 			const res = await updateInboxDb(txid, {
 				flagged: result.flagged,
 				valid_data: true,
@@ -78,7 +81,8 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 				try{
 					const moved = await moveInboxToTxs([txid])
 					if( moved !== 1 ){
-						throw new Error(`${moveInboxToTxs.name} returned '${moved}' not '1'`)
+						slackLogger(`${txid}. ${moveInboxToTxs.name} returned '${moved}' not '1'`)
+						throw new Error(`${txid}. ${moveInboxToTxs.name} returned '${moved}' not '1'`)
 					}
 					return;
 				}catch(e){

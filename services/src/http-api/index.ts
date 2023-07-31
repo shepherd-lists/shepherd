@@ -26,8 +26,9 @@ app.post('/postupdate', async(req, res)=>{
 	try{
 
 		/** this is where it all happens */
-		await pluginResultHandler(body)
-
+		const ref = await pluginResultHandler(body)
+		
+		console.log(`${pluginResultHandler.name} returned ${ref}, responding 200 OK`)
 		res.sendStatus(200)
 	}catch(e:any){
 		logger(prefix, body?.txid, 'Error. Request body:', JSON.stringify(req.body), 'Error:', e)
@@ -107,5 +108,6 @@ server.on('clientError', (e: any, socket: Socket)=> {
 
 server.on('error', (e: any)=> {
 	logger(`express-error`, `${e.name} (${e.code}) : ${e.message}. \n${e.stack}`)
+	slackLogger(`express-error`, `${e.name} (${e.code}) : ${e.message}. \n${e.stack}`)
 })
 
