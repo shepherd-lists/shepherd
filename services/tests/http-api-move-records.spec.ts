@@ -35,14 +35,14 @@ describe('http-api move-records tests', ()=>{
 	}
 
 	beforeEach(async function () {
-		await knex('inbox_txs').insert([mockRecord1, mockRecord2])
+		await knex('inbox').insert([mockRecord1, mockRecord2])
 	})
 	afterEach(async function () {
-		await knex('inbox_txs').delete()
+		await knex('inbox').delete()
 		await knex('txs').delete()
 	})
 
-	it(`should move test records from inbox_txs to txs`, async()=>{
+	it(`should move test records from inbox to txs`, async()=>{
 
 		const moved = await moveInboxToTxs([mockRecord1.txid, mockRecord2.txid])
 
@@ -51,8 +51,8 @@ describe('http-api move-records tests', ()=>{
 		const afterTxs = await knex('txs').whereIn('txid', [mockRecord1.txid, mockRecord2.txid])
 		expect(afterTxs.length, 'records should exist in "txs" after running test').eq(2)
 
-		const afterInbox = await knex('inbox_txs').whereIn('txid', [mockRecord1.txid, mockRecord2.txid])
-		expect(afterInbox.length, 'records should not exist in "inbox_txs" after running test').eq(0)
+		const afterInbox = await knex('inbox').whereIn('txid', [mockRecord1.txid, mockRecord2.txid])
+		expect(afterInbox.length, 'records should not exist in "inbox" after running test').eq(0)
 	})
 
 })

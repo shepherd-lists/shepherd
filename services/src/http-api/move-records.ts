@@ -6,7 +6,7 @@ import { slackLogger } from "../common/utils/slackLogger"
 
 const knex = dbConnection()
 
-/* batch move records from inbox_txs to txs tables */
+/* batch move records from inbox to txs tables */
 export const moveInboxToTxs = async (txids: string[]) => {
 
 	/** 
@@ -41,7 +41,7 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		trx = await knex.transaction()
 		const res = await trx('txs')
 		.insert( 
-			knex<TxRecord>('inbox_txs').select('*')
+			knex<TxRecord>('inbox').select('*')
 			.whereIn('txid', txids)
 			.where(function(){
 				this
@@ -56,15 +56,15 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		const insertedIds = res.map(r => r.txid) as string[]
 
 		await trx.delete().from('inflights').whereIn('txid', insertedIds)
-		await trx.delete().from('inbox_txs').whereIn('txid', insertedIds)
+		await trx.delete().from('inbox').whereIn('txid', insertedIds)
 		await trx.commit()
 
-		logger(moveInboxToTxs.name, `moved ${res.length} records from inbox_txs to txs`)
+		logger(moveInboxToTxs.name, `moved ${res.length} records from inbox to txs`)
 
 		return res.length;
 	}catch (e) {
-		logger(moveInboxToTxs.name, `error moving record ${txids} from inbox_txs to txs`, e)
-		slackLogger(moveInboxToTxs.name, `error moving record ${txids} from inbox_txs to txs`, JSON.stringify(e))
+		logger(moveInboxToTxs.name, `error moving record ${txids} from inbox to txs`, e)
+		slackLogger(moveInboxToTxs.name, `error moving record ${txids} from inbox to txs`, JSON.stringify(e))
 		await trx!.rollback()
 		throw e
 	}

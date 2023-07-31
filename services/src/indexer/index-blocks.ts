@@ -280,7 +280,7 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 
 			// console.log('pass1 inserting records', records.length, {records})
 
-			await knex<TxRecord>('inbox_txs').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byteStart', 'byteEnd'])
+			await knex<TxRecord>('inbox').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byteStart', 'byteEnd'])
 			alteredCount = records.length
 		}else{
 			/** generally speaking, it's the norm to not see updates on pass2. 
@@ -288,7 +288,7 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 			 * records with newer height, and insert missing records 
 			 */
 
-			const recordsInDb = await knex<TxRecord>('inbox_txs').whereIn('txid', records.map(r=>r.txid))
+			const recordsInDb = await knex<TxRecord>('inbox').whereIn('txid', records.map(r=>r.txid))
 				
 			/* step 1: update records with newer height */
 
@@ -297,7 +297,7 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 
 			const updatedIds = await Promise.all(updateRecords.map(async r => 
 				(
-					await knex<TxRecord>('inbox_txs')
+					await knex<TxRecord>('inbox')
 					.update({
 						height: r.height,
 						parent: r.parent,
@@ -322,7 +322,7 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 			console.log(`missingRecords: length ${missingRecords.length}`)
 
 			if(missingRecords.length > 0){
-				const res = await knex<TxRecord>('inbox_txs')
+				const res = await knex<TxRecord>('inbox')
 				.insert(missingRecords)
 				.onConflict().ignore() //can occur in restart during half finished height
 				.returning('txid')

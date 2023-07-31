@@ -26,8 +26,8 @@ describe('indexer tests', ()=>{
 	/** let's not assume previous unit tests set test data correctly */
 
 	beforeEach(async()=>{
-		/** insert first test txs into pgdb-test inbox_txs table */
-		await knex('inbox_txs').insert([ 
+		/** insert first test txs into pgdb-test inbox table */
+		await knex('inbox').insert([ 
 			height1record1, //initial test record
 			height1record2  //initial test record
 		])
@@ -35,7 +35,7 @@ describe('indexer tests', ()=>{
 
 	afterEach(async()=>{
 		sinon.restore()
-		await knex('inbox_txs').delete()
+		await knex('inbox').delete()
 	})
 
 	it(`tests ${Indexer.topAvailableBlock.name} does not let pass2 get ahead of pass1`, async()=>{
@@ -65,7 +65,7 @@ describe('indexer tests', ()=>{
 
 	it(`tests ${IndexBlocks.insertRecords.name} wipes byte-range columns for pass1 duplicate records`, async()=>{
 		try{
-			await knex<TxRecord>('inbox_txs').update({ byteStart: '1', byteEnd: '2' }).where({ txid: height1record1.txid })
+			await knex<TxRecord>('inbox').update({ byteStart: '1', byteEnd: '2' }).where({ txid: height1record1.txid })
 		}catch(e:any){
 			expect.fail(`knex update threw an error setting up the test: ${e.message}`)
 		}
@@ -73,7 +73,7 @@ describe('indexer tests', ()=>{
 		try{
 			//this should conflict and overwrite the existing byteStart/byteEnd values 
 			await IndexBlocks.insertRecords([ height1record1 ], 'indexer_pass1', 'http://fake.url')
-			const [ {byteStart, byteEnd} ] = await knex<TxRecord>('inbox_txs').select('byteStart', 'byteEnd').where({ txid: height1record1.txid })
+			const [ {byteStart, byteEnd} ] = await knex<TxRecord>('inbox').select('byteStart', 'byteEnd').where({ txid: height1record1.txid })
 			expect(byteStart, 'byteStart').eq(null)
 			expect(byteEnd, 'byteEnd').eq(null)
 
@@ -93,8 +93,8 @@ describe('indexer tests', ()=>{
 				newRecord				//new
 			], 'indexer_pass2', 'http://fake.url')
 			
-			const [ {height, parent} ] = await knex<TxRecord>('inbox_txs').select('*').where({ txid: updatedRecord.txid })
-			const newRecordExists = await knex<TxRecord>('inbox_txs').select('*').where({ txid: newRecord.txid })
+			const [ {height, parent} ] = await knex<TxRecord>('inbox').select('*').where({ txid: updatedRecord.txid })
+			const newRecordExists = await knex<TxRecord>('inbox').select('*').where({ txid: newRecord.txid })
 
 			expect(height, 'height should have been updated').eq(higherHeight)
 			expect(parent, 'parent should have been updated').eq(updatedRecord.parent)
@@ -108,14 +108,14 @@ describe('indexer tests', ()=>{
 	})
 
 	it(`tests ${IndexBlocks.insertRecords.name} pass2 can update 100 records`, async()=>{
-		await knex('inbox_txs').insert(updateRecords)
+		await knex('inbox').insert(updateRecords)
 		const alteredRecords = updateRecords.map((r:TxScanned)=> ({...r, height: 987654321, parent: '1234567890123456789012345678901234567890abc'}))
 		expect(alteredRecords.length, 'alteredRecords.length').eq(100)
 		
 		await IndexBlocks.insertRecords(alteredRecords, 'indexer_pass2', 'http://fake.url')
 
 		for (const r of alteredRecords) {
-			const [{ txid, height, parent }] = await knex<TxScanned>('inbox_txs').where({txid: r.txid})
+			const [{ txid, height, parent }] = await knex<TxScanned>('inbox').where({txid: r.txid})
 			expect(txid, 'txid').eq(r.txid)
 			expect(height, 'height').eq(r.height)
 			expect(parent, 'parent').eq(r.parent)

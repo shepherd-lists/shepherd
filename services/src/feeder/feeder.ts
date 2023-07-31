@@ -27,13 +27,13 @@ const getTxRecords =async (limit: number) => {
 	while(true){
 		try {
 			const t0 = performance.now()
-			const records = await knex<TxRecord>('inbox_txs')
-				.select(['inbox_txs.*'])
-				.leftJoin('inflights', 'inbox_txs.txid', 'inflights.txid')
+			const records = await knex<TxRecord>('inbox')
+				.select(['inbox.*'])
+				.leftJoin('inflights', 'inbox.txid', 'inflights.txid')
 				.whereNull('inflights.txid')
 				.whereNull('valid_data')
 				.whereRaw("content_type SIMILAR TO '(image|video)/%'")
-				.orderBy('inbox_txs.height', 'asc')
+				.orderBy('inbox.height', 'asc')
 				.limit(limit)
 			
 			const length = records.length

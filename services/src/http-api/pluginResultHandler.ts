@@ -44,8 +44,8 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 
 					/** sqs messages can be read more than once */
 					if(!record){
-						logger(txid, pluginResultHandler.name, `record not found in inbox_txs`)
-						slackLogger(txid, pluginResultHandler.name, `record not found in inbox_txs`, result)
+						logger(txid, pluginResultHandler.name, `record not found in inbox`)
+						slackLogger(txid, pluginResultHandler.name, `record not found in inbox`, result)
 						return;
 					}
 	
@@ -86,8 +86,8 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 					}
 					return;
 				}catch(e){
-					logger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
-					slackLogger(txid, `Error moving flagged record from inbox_txs to txs`, JSON.stringify(e))
+					logger(txid, `Error moving flagged record from inbox to txs`, JSON.stringify(e))
+					slackLogger(txid, `Error moving flagged record from inbox to txs`, JSON.stringify(e))
 				}
 			}else{
 				await doneAddTested(txid)

@@ -102,7 +102,7 @@ export const indexer = async(gql: ArGqlInterface, CONFIRMATIONS: number, loop: b
 				if(indexName === 'indexer_pass2'){
 					const tResets = performance.now()
 
-					const resetInbox = await knex<TxRecord>('inbox_txs')
+					const resetInbox = await knex<TxRecord>('inbox')
 						//@ts-expect-error
 						.update({ flagged: null, valid_data: null })
 						.whereBetween('height', [minBlock, maxBlock])

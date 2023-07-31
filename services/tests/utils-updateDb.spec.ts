@@ -45,9 +45,9 @@ describe('updateDb tests', ()=>{
 		this.timeout(0)
 		try{
 			/* set up data for 404 test */
-			const checkId = await knex<TxRecord>('inbox_txs').where({ txid: fakeTxid })
+			const checkId = await knex<TxRecord>('inbox').where({ txid: fakeTxid })
 			if(checkId.length !== 1){
-				await knex<TxRecord>('inbox_txs').insert({txid: fakeTxid, content_type: 'text/plain', content_size: '321'})
+				await knex<TxRecord>('inbox').insert({txid: fakeTxid, content_type: 'text/plain', content_size: '321'})
 			}
 		}catch(e:any){
 			console.log('error connecting to DB', JSON.stringify(e))
@@ -57,7 +57,7 @@ describe('updateDb tests', ()=>{
 
 	after(async function() {
 		this.timeout(0)
-		await knex<TxRecord>('inbox_txs').delete().where({ txid: fakeTxid })
+		await knex<TxRecord>('inbox').delete().where({ txid: fakeTxid })
 	})
 
 	it('tests updateInboxDb return a txid to check against', async()=> {

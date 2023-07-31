@@ -23,7 +23,7 @@ describe('http-api tests', ()=>{
 	beforeEach(async function () {
 		this.timeout(5000)
 
-		await knex<TxRecord>('inbox_txs').insert(mockRecord)
+		await knex<TxRecord>('inbox').insert(mockRecord)
 		await knex<InflightsRecord>('inflights').insert({
 			txid: mockRecord.txid,
 		})
@@ -31,7 +31,7 @@ describe('http-api tests', ()=>{
 	/* remove mock records after testing */
 	afterEach(async function () {
 		await knex<TxRecord>('inflights').delete()
-		await knex<TxRecord>('inbox_txs').delete()
+		await knex<TxRecord>('inbox').delete()
 	})
 
 	after(()=>{
@@ -121,7 +121,7 @@ describe('http-api tests', ()=>{
 				top_score_name: 'test',
 			}
 		}
-		await knex<TxRecord>('inbox_txs').insert({
+		await knex<TxRecord>('inbox').insert({
 			txid: data.txid,
 			content_size: '100',
 			content_type: 'image/jpeg',
@@ -132,7 +132,7 @@ describe('http-api tests', ()=>{
 		const res = await axios.post('http://localhost:84/postupdate', data)
 		
 		expect(res.status, 'http-api returned an error code').eq(200)
-		const rec = (await knex<TxRecord>('inbox_txs').select().where({ txid: data.txid }))[0]
+		const rec = (await knex<TxRecord>('inbox').select().where({ txid: data.txid }))[0]
 		expect(rec.byteStart).to.exist
 		expect(rec.byteEnd).to.exist
 		expect(rec.byteStart).eq('140085963825398')

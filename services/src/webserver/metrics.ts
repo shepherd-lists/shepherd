@@ -23,7 +23,7 @@ export const getDevStats = async(res: Response)=> {
 	console.log(getDevStats.name, {txsCount} )
 	res.write(`<h1>Done records (estimate): ${txsCount[0].estimate}</h1>\n`)
 	
-	const inboxCount = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'inbox_txs' })
+	const inboxCount = await knex('pg_class').select(knex.raw(`reltuples as estimate`)).where({ relname: 'inbox' })
 	console.log(getDevStats.name, {inboxCount} )
 	res.write(`<h1>Inbox records (estimate): ${inboxCount[0].estimate}</h1>\n`)
 
