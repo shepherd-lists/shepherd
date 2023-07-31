@@ -4,13 +4,13 @@ console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
 import express from 'express'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { ipAllowBlacklist, ipAllowRangelist } from './ipAllowLists'
 import { getBlacklist, getRangelist } from './blacklist'
 import { getPerfHistory, getDevStats } from './metrics'
 import si from 'systeminformation'
 // import './perf-cron' //starts automatically
 import './checkBlocking/checkBlocking-timer' //starts automatically
 import { network_EXXX_codes } from '../common/constants'
-import { RangelistAllowedItem } from './webserver-types'
 import { Socket } from 'net'
 
 const prefix = 'webserver'
@@ -19,25 +19,6 @@ const port = 80
 
 // app.use(cors())
 
-/* load the IP access lists */
-const accessBlacklist: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
-logger(prefix, `accessList (BLACKLIST_ALLOWED) for '/blacklist.txt' access`, accessBlacklist)
-const accessRangelist: string[] = (JSON.parse(process.env.RANGELIST_ALLOWED || '[]') as RangelistAllowedItem[]).map(item => item.server)
-logger(prefix, `accessList (RANGELIST_ALLOWED) for '/rangelist.txt' access`, accessRangelist)
-
-const ipAllowBlacklist = (ip: string) => {
-	/* convert from `::ffff:192.0.0.1` => `192.0.0.1` */
-	if (ip.startsWith("::ffff:")) {
-		ip = ip.substring(7)
-	}
-	return accessBlacklist.includes(ip)
-}
-const ipAllowRangelist = (ip: string) => {
-	if (ip.startsWith("::ffff:")) {
-		ip = ip.substring(7)
-	}
-	return accessRangelist.includes(ip)
-}
 
 
 
@@ -64,6 +45,8 @@ app.get('/', async (req, res) => {
 
 	res.status(200).end()
 })
+
+
 
 app.get('/blacklist.txt', async (req, res) => {
 	/* if $BLACKLIST_ALLOWED not defined we let everyone access */
