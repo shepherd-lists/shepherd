@@ -21,9 +21,9 @@ services:
         limits:
           cpus: '4.0'
           memory: 30G
-      replicas: 2 # initial scaling & needed for update_config
-      update_config:
-        parallelism: 2
+      # replicas: 2 # initial scaling & needed for update_config
+      # update_config:
+      #   parallelism: 2
         # order: start-first # unsupported for ecs
       x-aws-autoscaling:
         min: 1
