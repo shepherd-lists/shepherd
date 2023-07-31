@@ -15,6 +15,7 @@ const HTTP_API_URL = process.env.HTTP_API_URL
 console.log('HTTP_API_URL', HTTP_API_URL)
 
 export const updateTx = async(txid: string, filterResult: Partial<FilterResult | FilterErrorResult> )=> {
+	let _count = ++count
 	try{
 		const payload: APIFilterResult = {
 			txid,
@@ -22,12 +23,13 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 		}
 		const payloadString = JSON.stringify(payload)
 		
+		console.log(txid, `sending ${_count} ...`, )
 		const res = await axios.post(HTTP_API_URL, payloadString, {
 			headers: {
 				'Content-Type': 'application/json; charset=UTF-8',
 			},
 		})
-		console.log(txid, `sent ${++count}`, res.status, res.statusText)
+		console.log(txid, `sent ${_count}`, res.status, res.statusText)
 
 
 		// const res = await fetch(HTTP_API_URL, {

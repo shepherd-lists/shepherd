@@ -8,6 +8,7 @@ import { addToDownloads } from './rating/video/downloader'
 import { processVids } from './rating/video/process-files'
 import { checkImageTxid } from './rating/filter-host'
 import { slackLogger } from './utils/slackLogger'
+import { isPending } from './utils/promises'
 
 const prefix = 'nsfw-main'
 
@@ -22,7 +23,7 @@ const _currentVideos = VidDownloads.getInstance()
 
 //keep track and set limits based on env inputs
 let _currentTotalSize = 0
-let _currentNumFiles = 0
+let _currentFileTasks: ReturnType<typeof messageHandler>[] = []
 let _currentImageIds: {[name:string]:any} = {}
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -104,22 +105,28 @@ export const harness = async()=> {
 	
 	/* message consumer loop */
 	while(true){
-		logger(prefix, JSON.stringify({_currentNumFiles, _currentTotalSize: _currentTotalSize.toLocaleString(), vidsProcessing: _currentVideos.length(), imgsProcessing: Object.keys(_currentImageIds).length}))
+
+		/** remove non-pending promises from _currentFileTasks */
+		_currentFileTasks.filter(t => isPending(t))
+		const numFiles = _currentFileTasks.length
+
+		logger(prefix, JSON.stringify({numFiles, _currentTotalSize: _currentTotalSize.toLocaleString(), vidsProcessing: _currentVideos.length(), imgsProcessing: Object.keys(_currentImageIds).length}))
 		logger(prefix, `vids: ${JSON.stringify(_currentVideos.listIds())}, imgs: ${JSON.stringify(_currentImageIds)}`)
 
-		if(_currentNumFiles >= NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
+		if(numFiles >= NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE){
 			logger(prefix, `internal queue full. waiting 1s.`)
 			await sleep(1000)
 			continue;
 		}
 
-		const messages = await getMessages( Math.max(0, NUM_FILES - _currentNumFiles) )
+		const messages = await getMessages( Math.max(0, NUM_FILES - numFiles) )
 		if(messages.length === 0){
 			await sleep(5000)
 			continue;
 		}
 
-		messages.forEach(message => messageHandler(message))// end messages.forEach
+		let newPromises = messages.map(message => messageHandler(message))
+		_currentFileTasks = [..._currentFileTasks, ...newPromises]
 
 		await sleep(1)
 	}
@@ -141,19 +148,28 @@ const messageHandler = async (message: SQS.Message) => {
 
 		//check we have room to add a new item (& that object exists)
 		const headRes = await getFileHead(key, receiptHandle)
-		if(!headRes) return false;
+		if(!headRes){
+			try{
+				const delSqs = await deleteMessage(receiptHandle, key)
+				logger(key, `deleted message.`, JSON.stringify(delSqs))
+			}catch(err: unknown){
+				const e = err as AWSError
+				logger(key, `Error! deleting message from AWS_SQS_INPUT_QUEUE ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`, e)
+			}
+			return;
+		}
 
 		const {contentLength, contentType} = headRes
 		const videoLength = contentType.startsWith('video/') ? contentLength : 0 //images don't get stored in VID_TMPDIR
 		if(_currentTotalSize + videoLength > TOTAL_FILESIZE){
-			logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releasing back to queue (aware DLQ)`, {_currentNumFiles, _currentTotalSize})
+			logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releasing back to queue (aware DLQ)`, {_currentTotalSize})
 			await releaseMessage(message.ReceiptHandle!) //message may end up in DLQ if this is excessive.
 			return;
 		}
-		if(_currentNumFiles > NUM_FILES){
-			logger(prefix, `Warning. queue overflow`, {_currentNumFiles})
+		const numFiles = _currentFileTasks.length
+		if(numFiles > NUM_FILES){
+			logger(prefix, `Warning. queue overflow`, {numFiles})
 		}
-		_currentNumFiles++
 		_currentTotalSize += videoLength
 
 		//send to vid or image processing
@@ -167,32 +183,24 @@ const messageHandler = async (message: SQS.Message) => {
 			})
 		}else{
 			/* process image */
-			(async(
-				key: string,
-				videoLength:number,
-				receiptHandle:string,
-			)=>{
-				_currentImageIds[key] = 1
-				let res = false
-				try{
-					res = await checkImageTxid(key, contentType) 
-				}catch(e:any){
-					if(['RequestTimeTooSkewed', 'NoSuchKey'].includes(e.name)){
-						//this item has spent too much time in the internal queue, another plugin instance has already run `cleanupAfterProcessing`
-						logger(key, `${e.name}:${e.message}. Assuming another instance has run 'cleanupAfterProcessing'.`)
-						delete _currentImageIds[key]
-						_currentNumFiles--
-						return false;
-					}
+			_currentImageIds[key] = 1
+			let res = false
+			try{
+				res = await checkImageTxid(key, contentType) 
+			}catch(e:any){
+				if(['RequestTimeTooSkewed', 'NoSuchKey'].includes(e.name)){
+					//this item has spent too much time in the internal queue, another plugin instance has already run `cleanupAfterProcessing`
+					logger(key, `${e.name}:${e.message}. Assuming another instance has run 'cleanupAfterProcessing'.`)
+					delete _currentImageIds[key]
+				}else{
 					//we should never get here
-					console.log(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
-					slackLogger(key, `****** UNCAUGHT ERROR ********* in anon-image handler`, e)
+					console.log(key, `****** UNCAUGHT ERROR ********* in process image`, e)
+					slackLogger(key, `****** UNCAUGHT ERROR ********* in process image`, e)
 				}
-				logger(key, `checkImageTxid`, res)
-				delete _currentImageIds[key]
-				await cleanupAfterProcessing(receiptHandle, key, videoLength)
-				return res;
-			}) (key, videoLength, receiptHandle);
+			}
+			logger(key, `checkImageTxid result:`, res)
+			delete _currentImageIds[key]
+			await cleanupAfterProcessing(receiptHandle, key, 0)
 		}
 		
 		//process downloaded videos
@@ -213,7 +221,6 @@ const messageHandler = async (message: SQS.Message) => {
 /* processing succesful, so delete event message + object */
 export const cleanupAfterProcessing = async(ReceiptHandle: string, Key: string, videoLength: number)=> {
 	logger(cleanupAfterProcessing.name, `called for ${Key}`)
-	_currentNumFiles--
 	_currentTotalSize -= videoLength
 
 	try{
