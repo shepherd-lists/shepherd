@@ -100,7 +100,7 @@ else
   echo "PLUGINS=$PLUGINS"
   IFS=',' read -r -a plugin_dirs <<< "$PLUGINS" # plugins_dirs = PLUGINS.split(',')
   for plugin_name in "${plugin_dirs[@]}"; do
-    echo "generating service entry for $plugin_name"
+    plugin_name=$(echo $plugin_name | tr -d '[:space:]') # remove whitespace
     generate_service_entry $plugin_name
   done
 fi
