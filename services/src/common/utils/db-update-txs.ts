@@ -8,19 +8,19 @@ const knex = getDbConnection()
 
 
 /** master update 'txs' function */
-export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
+export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>, tablename: string = 'txs')=> {
 	try{
-		const checkId = await knex<TxRecord>('txs').where({txid}).update(updates, 'txid')
+		const checkId = await knex<TxRecord>(tablename).where({txid}).update(updates, 'txid').returning('txid')
 		const retTxid = checkId[0]?.txid
 		if(retTxid !== txid){
-			logger(txid, 'ERROR UPDATING txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
-			slackLogger(txid, 'ERROR UPDATING txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
+			logger(txid, `ERROR UPDATING ${tablename} DATABASE!`, `(${JSON.stringify(updates)}) => ${checkId}`)
+			slackLogger(txid, `ERROR UPDATING ${tablename} DATABASE!`, `(${JSON.stringify(updates)}) => ${checkId}`)
 		}
 		return retTxid;
 
 	}catch(e:any){
-		logger(txid, 'ERROR UPDATING txs DATABASE!', e.name, ':', e.message)
-		slackLogger(txid, 'ERROR UPDATING txs DATABASE!', e.name, ':', e.message, JSON.stringify(updates))
+		logger(txid, `ERROR UPDATING ${tablename} DATABASE!`, e.name, ':', e.message)
+		slackLogger(txid, `ERROR UPDATING ${tablename} DATABASE!`, e.name, ':', e.message, JSON.stringify(updates))
 		logger(txid, e) // `throw e` does nothing, use the return
 	}
 }
