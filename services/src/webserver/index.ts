@@ -5,20 +5,20 @@ console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 import express from 'express'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { ipAllowBlacklist, ipAllowRangelist } from './ipAllowLists'
-import { getBlacklist, getRangelist } from './blacklist'
+import { getBlacklist, getRangelist, getRecords } from './blacklist'
 import { getPerfHistory, getDevStats } from './metrics'
 import si from 'systeminformation'
 // import './perf-cron' //starts automatically
 import './checkBlocking/checkBlocking-timer' //starts automatically
 import { network_EXXX_codes } from '../common/constants'
 import { Socket } from 'net'
+import { txsTableNames } from './tablenames'
 
 const prefix = 'webserver'
 const app = express()
 const port = 80
 
 // app.use(cors())
-
 
 
 
@@ -46,7 +46,25 @@ app.get('/', async (req, res) => {
 	res.status(200).end()
 })
 
-
+/** dynamically generate routes from PLUGINS tablenames */
+txsTableNames().then((tablenames) => {
+	tablenames.forEach((tablename) => {
+		const routepath = tablename.replace('_txs', '')
+		const routeTxids = `/${routepath}/txids.txt`
+		app.get(routeTxids, async (req, res) => {
+			res.setHeader('Content-Type', 'text/plain')
+			await getRecords(res, 'txids', tablename)
+			res.status(200).end()
+		})
+		const routeRanges = `/${routepath}/ranges.txt`
+		app.get(routeRanges, async (req, res) => {
+			res.setHeader('Content-Type', 'text/plain')
+			await getRecords(res, 'ranges', tablename)
+			res.status(200).end()
+		})
+		console.log(JSON.stringify({tablename, routepath, routeTxids, routeRanges }))
+	})
+})
 
 app.get('/blacklist.txt', async (req, res) => {
 	/* if $BLACKLIST_ALLOWED not defined we let everyone access */
