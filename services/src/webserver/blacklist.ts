@@ -18,7 +18,7 @@ interface Cached {
 }
 let _cached: Record<string, Cached> = {}
 
-const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename: string = 'txs')=> {
+export const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename: string = 'txs')=> {
 
 	/** init cache if necessary */
 	if(!_cached[tablename]){
@@ -43,7 +43,7 @@ const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename: strin
 
 	/** get records from db, stream straight out to respones, and cache for both lists */
 
-	const records = knex<TxRecord>('txs').where({flagged: true}).stream()
+	const records = knex<TxRecord>(tablename).where({flagged: true}).stream()
 	let txids = ''
 	let ranges = ''
 	let promises = []
@@ -65,10 +65,11 @@ const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename: strin
 			slackLogger(getRecords.name, `no byte-range found, calculating new range for '${record.txid}'...`)
 			
 			promises.push((async(txid, parent, parents)=>{
-				const {start, end} = await byteRangesUpdateDb(txid, parent, parents) //db updated internally
+				const {start, end} = await byteRangesUpdateDb(txid, parent, parents, tablename) //db updated internally
 				if(start !== -1n){
 					const line = `${start},${end}\n`
-					lineRange += line
+					ranges += line
+
 					if(type == 'ranges'){
 						//we'll just write these out of sequence
 						res.write(line) 
@@ -98,6 +99,10 @@ const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename: strin
 	cache.ranges = ranges
 	// cache.last = now
 	cache.inProgress = false
+	
+	// //debug
+	// console.log({_cached, tablename, cache})
+	
 }
 
 export const getBlacklist = async(res: Writable)=> {
