@@ -144,6 +144,11 @@ server.on('clientError', (e: any, socket: Socket)=> {
 		writable: socket.writable,
 	})
 
+	if(e.code === 'HPE_INVALID_METHOD' || e.code === 'HPE_INVALID_HEADER_TOKEN') {
+		logger(`express-clientError`, `malformed request. ${e.name} (${e.code}) : ${e.message}. Closing the socket with HTTP/1.1 400 Bad Request.`)
+		return socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
+	}
+
 	//make sure connection still open
 	if(
 		( e.code && network_EXXX_codes.includes(e.code) )
