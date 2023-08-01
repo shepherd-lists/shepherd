@@ -8,7 +8,7 @@ import { addToDownloads } from './rating/video/downloader'
 import { processVids } from './rating/video/process-files'
 import { checkImageTxid } from './rating/filter-host'
 import { slackLogger } from './utils/slackLogger'
-import { isPending } from './utils/promises'
+import { filterPendingOnly } from './utils/promises'
 
 const prefix = 'nsfw-main'
 
@@ -97,8 +97,6 @@ const releaseMessage = async(ReceiptHandle: string)=> sqs.changeMessageVisibilit
 	ReceiptHandle,
 }).promise()
 
-// sum trues from array of booleans
-const trueCount = (results: boolean[]) => results.reduce((acc, curr)=> curr ? ++acc : acc, 0)
 
 export const harness = async()=> {
 	console.log(prefix, `main begins`)
@@ -107,8 +105,9 @@ export const harness = async()=> {
 	while(true){
 
 		/** remove non-pending promises from _currentFileTasks */
-		_currentFileTasks.filter(t => isPending(t))
+		_currentFileTasks = await filterPendingOnly(_currentFileTasks)
 		const numFiles = _currentFileTasks.length
+		console.log(JSON.stringify({_currentFileTasks}))
 
 		logger(prefix, JSON.stringify({numFiles, _currentTotalSize: _currentTotalSize.toLocaleString(), vidsProcessing: _currentVideos.length(), imgsProcessing: Object.keys(_currentImageIds).length}))
 		logger(prefix, `vids: ${JSON.stringify(_currentVideos.listIds())}, imgs: ${JSON.stringify(_currentImageIds)}`)
@@ -156,7 +155,7 @@ const messageHandler = async (message: SQS.Message) => {
 				const e = err as AWSError
 				logger(key, `Error! deleting message from AWS_SQS_INPUT_QUEUE ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`, e)
 			}
-			return;
+			return false;
 		}
 
 		const {contentLength, contentType} = headRes
@@ -164,7 +163,7 @@ const messageHandler = async (message: SQS.Message) => {
 		if(_currentTotalSize + videoLength > TOTAL_FILESIZE){
 			logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releasing back to queue (aware DLQ)`, {_currentTotalSize})
 			await releaseMessage(message.ReceiptHandle!) //message may end up in DLQ if this is excessive.
-			return;
+			return false;
 		}
 		const numFiles = _currentFileTasks.length
 		if(numFiles > NUM_FILES){
@@ -211,10 +210,11 @@ const messageHandler = async (message: SQS.Message) => {
 				_currentVideos.cleanup(item)
 			}
 		}
-
+		return true;
 	}else{
 		logger(prefix, `error! unrecognized body. MessageId '${message.MessageId}'. not processing.`)
 		console.log(`message.Body`, JSON.stringify(s3event, null,2))
+		return false;
 	}
 }
 
