@@ -27,8 +27,8 @@ fi
 
 # -= import .env vars =-
 
-if [ -f ".env.local" ]; then
-  export $(egrep -v '^#' .env.local | xargs)
+if [ -f ".env" ]; then
+  export $(egrep -v '^#' .env | xargs)
   # check vars
   extra_queues_checker=${EXTRA_QUEUES:-}
   if [[ -z $extra_queues_checker ]]; then
@@ -50,12 +50,12 @@ if [ -f ".env.local" ]; then
 
 
   # make sure .env ends in newline
-  lastchar=$(tail -c 1 .env.local)
+  lastchar=$(tail -c 1 .env)
   if [ "$lastchar" != "" ]; then 
     echo >> .env
   fi
 else
-  echo "continuing without .env.local file."
+  echo "continuing without .env file."
 fi
 
 
@@ -81,6 +81,7 @@ cat "$script_dir/docker-compose.local.yml" >> $generated_file
 # function to generate the sevice entry for a plugin
 function generate_service_entry {
   local plugin_name=$1
+  echo "generating service entry for [$plugin_name]"
   cat << EOF >> $generated_file
 
   # automatically generated service entry
