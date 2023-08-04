@@ -68,6 +68,8 @@ echo "RANGELIST_ALLOWED=$RANGELIST_ALLOWED"
 # -= finally run docker setup & run commands =- #
 #################################################
 
+# -= setup docker ecs context =-
+
 echo "Remove existing docker ecs context..."
 docker context rm ecs 2>&1 | tee -a setup.log
 
@@ -81,32 +83,45 @@ echo "Docker login ecr..."
 # docker logout
 aws ecr get-login-password | docker login --password-stdin --username AWS $IMAGE_REPO
 
-shopt -s expand_aliases
-alias docker-compose-ymls="docker compose \
-	-f $script_dir/docker-compose.yml \
-	-f $script_dir/docker-compose.aws.yml \
-	-f $script_dir/addons/$PLUGIN/docker-compose.aws.yml"
- 
+# -= add compose files to the command args =-
+
+compose_file_args=" \
+  -f $script_dir/docker-compose.yml \
+  -f $script_dir/docker-compose.aws.yml \
+  -f $script_dir/addons/$PLUGIN/docker-compose.aws.yml"
+
+plugins_checker=${PLUGINS:-}
+if [[ -z $plugins_checker ]]; then
+	echo "Info: PLUGINS=undefined." 2>&1 | tee -a setup.log
+else
+	echo "PLUGINS=$PLUGINS" 2>&1 | tee -a setup.log
+	IFS=',' read -ra plugin_names <<< "$PLUGINS"
+	for plugin_name in "${plugin_names[@]}"; do
+		plugin_name=$(echo "$plugin_name" | tr -d '[:space:]') # remove whitespace
+		compose_file_args="$compose_file_args -f $script_dir/addons/$plugin_name/docker-compose.aws.yml"
+	done
+fi
+
+cmd_docker_compose="docker compose $compose_file_args"
+echo "cmd_docker_compose=$cmd_docker_compose" 2>&1 | tee -a setup.log
+
 echo "Docker build..." 2>&1 | tee -a setup.log
-docker-compose-ymls build
+eval "$cmd_docker_compose build"
 
 echo "Docker push..."  2>&1 | tee -a setup.log
 # prime the docker caches first. indexer has no dependencies
-docker-compose-ymls push indexer
-docker-compose-ymls push
+eval "$cmd_docker_compose push indexer"
+eval "$cmd_docker_compose push"
 
-alias docker-ecs-compose-ymls="docker --context ecs compose \
-	-f $script_dir/docker-compose.yml \
-	-f $script_dir/docker-compose.aws.yml \
-	-f $script_dir/addons/$PLUGIN/docker-compose.aws.yml "
+cmd_docker_compose_ecs="docker --context ecs compose $compose_file_args"
 
 echo "Docker convert..." 2>&1 | tee -a setup.log
-docker-ecs-compose-ymls convert > "cfn.yml.$(date +"%Y.%m.%d-%H:%M").log"
+eval "$cmd_docker_compose_ecs convert" > "cfn.yml.$(date +"%Y.%m.%d-%H:%M").log"
 
 echo "Docker up..." 2>&1 | tee -a setup.log
 # do `docker --debug` if you want extra info
-docker-ecs-compose-ymls up
+eval "$cmd_docker_compose_ecs up"
 
 echo "Docker ps..." 2>&1 | tee -a setup.log
-docker-ecs-compose-ymls ps
+eval "$cmd_docker_compose_ecs ps"
 
