@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # for any relative paths
-export script_dir=$(dirname "$(realpath $0)")
+script_dir=$(dirname "$(realpath $0)")
 echo "script_dir=$script_dir"
 
 
@@ -28,7 +28,7 @@ fi
 # -= import .env vars =-
 
 if [ -f ".env" ]; then
-  export $(egrep -v '^#' .env | xargs)
+  export $(grep -Ev '^#' .env | xargs)
   # check vars
   extra_queues_checker=${EXTRA_QUEUES:-}
   if [[ -z $extra_queues_checker ]]; then
@@ -114,7 +114,7 @@ command_string="docker compose -f $script_dir/docker-compose.yml -f $generated_f
 echo "command_string=$command_string"
 
 echo "cd to $script_dir"
-cd $script_dir
+cd "$script_dir"
 
 eval "$command_string up --build -d "
 
