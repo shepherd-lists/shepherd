@@ -1,11 +1,11 @@
 import { Response } from 'express'
 import { TxRecord, StateRecord, HistoryRecord } from '../common/shepherd-plugin-interfaces/types'
 import getDb from '../common/utils/db-connection'
-import memoize from 'moize'
+import moize from 'moize'
 
 const knex = getDb()
 
-// const unfinishedMemoized = memoize(
+// const unfinishedMemoized = moize(
 // 	async()=> await knex<TxRecord>('txs').count('*').whereNull('flagged') as unknown as [{count: number | string}],
 // 	{ 
 // 		isPromise: true, 

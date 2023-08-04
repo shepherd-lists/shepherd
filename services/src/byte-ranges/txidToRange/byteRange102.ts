@@ -7,9 +7,9 @@
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from './constants-byteRange'
 import { HOST_URL } from '../../common/constants'
 import { fetchFullRetried } from './fetch-retry'
-import memoize from 'micro-memoize'
+import moize from 'moize'
 
-const fetchFullRetriedMemo = memoize(fetchFullRetried, { maxSize: 1000 })
+const fetchFullRetriedMemo = moize(fetchFullRetried, { maxSize: 1000, isPromise: true })
 
 //DataItemJson is actually the only thing we need from arweave-bundles package
 class DataItemJson {
@@ -54,7 +54,7 @@ const fetchHeaderInfo = async(txid: string, parent: string)=> {
 		indexTxid,
 	}
 }
-const fetchHeaderInfoMemo = memoize(fetchHeaderInfo, { maxSize: 1000 })
+const fetchHeaderInfoMemo = moize(fetchHeaderInfo, { maxSize: 1000, isPromise: true })
 
 export const byteRange102 = async(txid: string, parent: string)=> {
 

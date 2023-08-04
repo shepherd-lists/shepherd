@@ -7,7 +7,7 @@
 import Arweave from 'arweave'
 import { fetchRetryConnection } from './fetch-retry'
 import { HOST_URL } from '../../common/constants'
-import memoize from 'micro-memoize'
+import moize from 'moize'
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -148,4 +148,4 @@ const ans104HeaderDataUnmemoized = async(parent: string)=> {
 		headerLength,
 	};
 }
-export const ans104HeaderData = memoize(ans104HeaderDataUnmemoized, { maxSize: 1000})
+export const ans104HeaderData = moize(ans104HeaderDataUnmemoized, { maxSize: 1000, isPromise: true })

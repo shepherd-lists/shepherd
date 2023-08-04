@@ -6,7 +6,7 @@ import getDbConnection from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { performance } from 'perf_hooks'
 import { slackLogger } from '../common/utils/slackLogger'
-import memoize from 'micro-memoize'
+import moize from 'moize'
 
 
 const knex = getDbConnection()
@@ -165,7 +165,7 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 	return numRecords
 }
 
-const getParent = memoize(
+const getParent = moize(
 	async(p: string, gql: ArGqlInterface)=> {
 		const res = await gql.tx(p)
 		return res.parent?.id || null
