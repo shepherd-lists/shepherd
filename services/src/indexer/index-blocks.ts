@@ -35,27 +35,15 @@ const queryGoldskyWild = `query($cursor: String, $minBlock: Int, $maxBlock: Int)
 		first: 100
 		after: $cursor
 	) {
-		pageInfo {
-			hasNextPage
-		}
+		pageInfo { hasNextPage }
 		edges {
 			cursor
 			node{
 				id
-				data{
-					size
-					type
-				}
-				tags{ 
-					name 
-					value
-				}
-				block{
-					height
-				}
-				parent{
-					id
-				}
+				data{ size type }
+				tags{ name value }
+				block{ height }
+				parent{ id }
 			}
 		}
 	}
@@ -97,27 +85,15 @@ const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 		first: 100
 		after: $cursor
 	) {
-		pageInfo {
-			hasNextPage
-		}
+		pageInfo { hasNextPage }
 		edges {
 			cursor
 			node{
 				id
-				data{
-					size
-					type
-				}
-				tags{ 
-					name 
-					value
-				}
-				block{
-					height
-				}
-				parent{
-					id
-				}
+				data{ size type }
+				tags{ name value }
+				block{ height }
+				parent{ id }
 			}
 		}
 	}
@@ -207,21 +183,11 @@ const buildRecords = async(metas: GQLEdgeInterface[], gql: ArGqlInterface, index
 
 	for (const item of metas) {
 		const txid = item.node.id
-		let content_type = item.node.data.type
+		const content_type = item.node.data.type || item.node.tags.find(t=>t.name === 'Content-Type')!.value
 		const content_size = item.node.data.size.toString()
 		const height = item.node.block.height // missing height should not happen and cause `TypeError : Cannot read properties of null (reading 'height')`
 		const parent = item.node.parent?.id || null // the direct parent, if exists
 		const parents: string[] = []
-
-		// this content_type is missing for dataItems
-		if(!content_type){ 
-			for(const tag of item.node.tags){
-				if(tag.name === 'Content-Type'){
-					content_type = tag.value
-					break;
-				}
-			}
-		}
 
 		// loop to find all nested parents
 		if(parent){
