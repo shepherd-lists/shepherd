@@ -41,7 +41,7 @@ const ipAllowMiddlewareFunction = (listType: ('txids'|'ranges')) => (req: Reques
 			next()
 		}else{
 			logger(prefix, `access ${listType} list: ${ip} DENIED`)
-			res.status(403).end()
+			res.status(403).send('403 Forbidden')
 		}
 	}else{
 		next()
