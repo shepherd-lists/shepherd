@@ -16,11 +16,11 @@ let last = Date.now()
 /** call this early */
 export const doneInit = async()=>{
 	const pass2height = await pass2Height()
-	const archived  = await knex<TxRecord>('inbox_txs')
+	const archived  = await knex<TxRecord>('inbox')
 	.select('txid', 'height')
 	.whereNotNull('flagged')
 
-	logger(doneInit.name, `found ${archived.length} records in inbox_txs. pass2.height: ${pass2height}`)
+	logger(doneInit.name, `found ${archived.length} records in inbox. pass2.height: ${pass2height}`)
 	
 	//return for test
 	return done = archived;

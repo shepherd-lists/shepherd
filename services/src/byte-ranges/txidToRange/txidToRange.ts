@@ -3,7 +3,7 @@ import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, } from './constants-byteRange'
 import { GQL_URL, GQL_URL_SECONDARY, HOST_URL, network_EXXX_codes } from '../../common/constants'
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
-import memoize from 'micro-memoize'
+import moize from 'moize'
 import { arGql, ArGqlInterface } from 'ar-gql'
 import { fetchRetryConnection } from './fetch-retry'
 
@@ -223,7 +223,7 @@ const axiosRetryUnmemoized = async (url: string, id: string) => {
 		}
 	}
 }
-const axiosRetry = memoize(axiosRetryUnmemoized, { maxSize: 1000 })
+const axiosRetry = moize(axiosRetryUnmemoized, { maxSize: 1000, isPromise: true })
 const gqlTxRetryUnmemoized = async (id: string, gql: ArGqlInterface) => {
 	while(true){
 		try{
@@ -245,4 +245,4 @@ const gqlTxRetryUnmemoized = async (id: string, gql: ArGqlInterface) => {
 		}
 	}
 }
-const gqlTxRetry = memoize(gqlTxRetryUnmemoized, { maxSize: 1000 })
+const gqlTxRetry = moize(gqlTxRetryUnmemoized, { maxSize: 1000, isPromise: true })

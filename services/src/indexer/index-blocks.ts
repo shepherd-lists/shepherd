@@ -6,7 +6,7 @@ import getDbConnection from '../common/utils/db-connection'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { performance } from 'perf_hooks'
 import { slackLogger } from '../common/utils/slackLogger'
-import memoize from 'micro-memoize'
+import moize from 'moize'
 
 
 const knex = getDbConnection()
@@ -35,27 +35,15 @@ const queryGoldskyWild = `query($cursor: String, $minBlock: Int, $maxBlock: Int)
 		first: 100
 		after: $cursor
 	) {
-		pageInfo {
-			hasNextPage
-		}
+		pageInfo { hasNextPage }
 		edges {
 			cursor
 			node{
 				id
-				data{
-					size
-					type
-				}
-				tags{ 
-					name 
-					value
-				}
-				block{
-					height
-				}
-				parent{
-					id
-				}
+				data{ size type }
+				tags{ name value }
+				block{ height }
+				parent{ id }
 			}
 		}
 	}
@@ -97,27 +85,15 @@ const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 		first: 100
 		after: $cursor
 	) {
-		pageInfo {
-			hasNextPage
-		}
+		pageInfo { hasNextPage }
 		edges {
 			cursor
 			node{
 				id
-				data{
-					size
-					type
-				}
-				tags{ 
-					name 
-					value
-				}
-				block{
-					height
-				}
-				parent{
-					id
-				}
+				data{ size type }
+				tags{ name value }
+				block{ height }
+				parent{ id }
 			}
 		}
 	}
@@ -189,7 +165,7 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 	return numRecords
 }
 
-const getParent = memoize(
+const getParent = moize(
 	async(p: string, gql: ArGqlInterface)=> {
 		const res = await gql.tx(p)
 		return res.parent?.id || null
@@ -207,21 +183,11 @@ const buildRecords = async(metas: GQLEdgeInterface[], gql: ArGqlInterface, index
 
 	for (const item of metas) {
 		const txid = item.node.id
-		let content_type = item.node.data.type
+		const content_type = item.node.data.type || item.node.tags.find(t=>t.name === 'Content-Type')!.value
 		const content_size = item.node.data.size.toString()
 		const height = item.node.block.height // missing height should not happen and cause `TypeError : Cannot read properties of null (reading 'height')`
 		const parent = item.node.parent?.id || null // the direct parent, if exists
 		const parents: string[] = []
-
-		// this content_type is missing for dataItems
-		if(!content_type){ 
-			for(const tag of item.node.tags){
-				if(tag.name === 'Content-Type'){
-					content_type = tag.value
-					break;
-				}
-			}
-		}
 
 		// loop to find all nested parents
 		if(parent){
@@ -280,7 +246,7 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 
 			// console.log('pass1 inserting records', records.length, {records})
 
-			await knex<TxRecord>('inbox_txs').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byteStart', 'byteEnd'])
+			await knex<TxRecord>('inbox').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byteStart', 'byteEnd'])
 			alteredCount = records.length
 		}else{
 			/** generally speaking, it's the norm to not see updates on pass2. 
@@ -288,7 +254,7 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 			 * records with newer height, and insert missing records 
 			 */
 
-			const recordsInDb = await knex<TxRecord>('inbox_txs').whereIn('txid', records.map(r=>r.txid))
+			const recordsInDb = await knex<TxRecord>('inbox').whereIn('txid', records.map(r=>r.txid))
 				
 			/* step 1: update records with newer height */
 
@@ -297,7 +263,7 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 
 			const updatedIds = await Promise.all(updateRecords.map(async r => 
 				(
-					await knex<TxRecord>('inbox_txs')
+					await knex<TxRecord>('inbox')
 					.update({
 						height: r.height,
 						parent: r.parent,
@@ -322,7 +288,7 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 			console.log(`missingRecords: length ${missingRecords.length}`)
 
 			if(missingRecords.length > 0){
-				const res = await knex<TxRecord>('inbox_txs')
+				const res = await knex<TxRecord>('inbox')
 				.insert(missingRecords)
 				.onConflict().ignore() //can occur in restart during half finished height
 				.returning('txid')

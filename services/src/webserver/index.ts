@@ -4,40 +4,21 @@ console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
 import express from 'express'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
-import { getBlacklist, getRangelist } from './blacklist'
+import { ipAllowBlacklist, ipAllowRangelist, ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
+import { getBlacklist, getRangelist, getRecords } from './blacklist'
 import { getPerfHistory, getDevStats } from './metrics'
 import si from 'systeminformation'
 // import './perf-cron' //starts automatically
 import './checkBlocking/checkBlocking-timer' //starts automatically
 import { network_EXXX_codes } from '../common/constants'
-import { RangelistAllowedItem } from './webserver-types'
 import { Socket } from 'net'
+import { txsTableNames } from './tablenames'
 
 const prefix = 'webserver'
 const app = express()
 const port = 80
 
 // app.use(cors())
-
-/* load the IP access lists */
-const accessBlacklist: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
-logger(prefix, `accessList (BLACKLIST_ALLOWED) for '/blacklist.txt' access`, accessBlacklist)
-const accessRangelist: string[] = (JSON.parse(process.env.RANGELIST_ALLOWED || '[]') as RangelistAllowedItem[]).map(item => item.server)
-logger(prefix, `accessList (RANGELIST_ALLOWED) for '/rangelist.txt' access`, accessRangelist)
-
-const ipAllowBlacklist = (ip: string) => {
-	/* convert from `::ffff:192.0.0.1` => `192.0.0.1` */
-	if (ip.startsWith("::ffff:")) {
-		ip = ip.substring(7)
-	}
-	return accessBlacklist.includes(ip)
-}
-const ipAllowRangelist = (ip: string) => {
-	if (ip.startsWith("::ffff:")) {
-		ip = ip.substring(7)
-	}
-	return accessRangelist.includes(ip)
-}
 
 
 
@@ -65,33 +46,33 @@ app.get('/', async (req, res) => {
 	res.status(200).end()
 })
 
-app.get('/blacklist.txt', async (req, res) => {
-	/* if $BLACKLIST_ALLOWED not defined we let everyone access */
-	if (process.env.BLACKLIST_ALLOWED) {
-		const ip = req.headers['x-forwarded-for'] as string || 'undefined'
-		if (!ipAllowBlacklist(ip)) {
-			logger('blacklist', `ip '${ip}' denied access`)
-			return res.status(403).send('403 Forbidden')
-		}
-		logger('blacklist', `ip '${ip}' access granted`)
-	}
+/** dynamically generate routes from PLUGINS tablenames */
+txsTableNames().then((tablenames) => {
+	tablenames.forEach((tablename) => {
+		const routepath = tablename.replace('_txs', '')
+		const routeTxids = `/${routepath}/txids.txt`
+		app.get(routeTxids, ipAllowTxidsMiddleware, async (req, res) => {
+			res.setHeader('Content-Type', 'text/plain')
+			await getRecords(res, 'txids', tablename)
+			res.status(200).end()
+		})
+		const routeRanges = `/${routepath}/ranges.txt`
+		app.get(routeRanges, ipAllowRangesMiddleware, async (req, res) => {
+			res.setHeader('Content-Type', 'text/plain')
+			await getRecords(res, 'ranges', tablename)
+			res.status(200).end()
+		})
+		console.log(JSON.stringify({tablename, routepath, routeTxids, routeRanges }))
+	})
+})
 
+app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
 	await getBlacklist(res)
 	res.status(200).end()
 })
 
-app.get('/rangelist.txt', async (req, res) => {
-	/* if $RANGELIST_ALLOWED not defined we let everyone access */
-	if (process.env.RANGELIST_ALLOWED) {
-		const ip = req.headers['x-forwarded-for'] as string || 'undefined'
-		if (!ipAllowRangelist(ip)) {
-			logger('rangelist', `ip '${ip}' denied access`)
-			return res.status(403).send('403 Forbidden')
-		}
-		logger('rangelist', `ip '${ip}' access granted`)
-	}
-
+app.get('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
 	await getRangelist(res)
 	res.status(200).end()
@@ -109,11 +90,6 @@ app.get('/stats', async (req, res) => {
 	res.end()
 })
 
-app.get('/perf', async (req, res) => {
-	res.setHeader('Content-Type', 'text/html')
-	await getPerfHistory(res)
-	res.status(200).end()
-})
 
 const server = app.listen(port, () => logger(`started on http://localhost:${port}`))
 
@@ -142,6 +118,11 @@ server.on('clientError', (e: any, socket: Socket)=> {
 		readable: socket.readable,
 		writable: socket.writable,
 	})
+
+	if(e.code === 'HPE_INVALID_METHOD' || e.code === 'HPE_INVALID_HEADER_TOKEN') {
+		logger(`express-clientError`, `malformed request. ${e.name} (${e.code}) : ${e.message}. Closing the socket with HTTP/1.1 400 Bad Request.`)
+		return socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
+	}
 
 	//make sure connection still open
 	if(

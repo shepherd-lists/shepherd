@@ -8,46 +8,46 @@ const knex = getDbConnection()
 
 
 /** master update 'txs' function */
-export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>)=> {
+export const updateTxsDb = async(txid: string, updates: Partial<TxRecord>, tablename: string = 'txs')=> {
 	try{
-		const checkId = await knex<TxRecord>('txs').where({txid}).update(updates, 'txid')
+		const checkId = await knex<TxRecord>(tablename).where({txid}).update(updates, 'txid').returning('txid')
 		const retTxid = checkId[0]?.txid
 		if(retTxid !== txid){
-			logger(txid, 'ERROR UPDATING txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
-			slackLogger(txid, 'ERROR UPDATING txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
+			logger(txid, `ERROR UPDATING ${tablename} DATABASE!`, `(${JSON.stringify(updates)}) => ${checkId}`)
+			slackLogger(txid, `ERROR UPDATING ${tablename} DATABASE!`, `(${JSON.stringify(updates)}) => ${checkId}`)
 		}
 		return retTxid;
 
 	}catch(e:any){
-		logger(txid, 'ERROR UPDATING txs DATABASE!', e.name, ':', e.message)
-		slackLogger(txid, 'ERROR UPDATING txs DATABASE!', e.name, ':', e.message, JSON.stringify(updates))
+		logger(txid, `ERROR UPDATING ${tablename} DATABASE!`, e.name, ':', e.message)
+		slackLogger(txid, `ERROR UPDATING ${tablename} DATABASE!`, e.name, ':', e.message, JSON.stringify(updates))
 		logger(txid, e) // `throw e` does nothing, use the return
 	}
 }
-/** master update 'inbox_txs' function */
+/** master update 'inbox' function */
 export const updateInboxDb = async(txid: string, updates: Partial<TxRecord>)=> {
 	try{
-		const checkId = await knex<TxRecord>('inbox_txs').where({txid}).update(updates).returning(['txid', 'height'])
+		const checkId = await knex<TxRecord>('inbox').where({txid}).update(updates).returning(['txid', 'height'])
 		const retTxid = checkId[0]?.txid
 		if(retTxid !== txid){
 			const existingTxs = await knex<TxRecord>('txs').where({ txid })
 			if(existingTxs.length === 1){
 				const checkId2 = await knex<TxRecord>('txs').where({txid}).update(updates).returning('txid')
-				logger(txid, `Info: Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
-				// slackLogger(txid, `Info: Could not update inbox_txs, but txs table was updated`, `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
-				/* clean up `inbox_txs` just in case there was some other problem */
-				await knex<TxRecord>('inbox_txs').where({txid}).del('txid')
+				logger(txid, `Info: Could not update inbox, but txs table was updated`, `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
+				// slackLogger(txid, `Info: Could not update inbox, but txs table was updated`, `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
+				/* clean up `inbox` just in case there was some other problem */
+				await knex<TxRecord>('inbox').where({txid}).del('txid')
 				return checkId2[0]?.txid;
 			}else{
-				logger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
-				slackLogger(txid, 'ERROR UPDATING inbox_txs DATABASE!', `(${JSON.stringify(updates)}) => "${checkId}"`)
+				logger(txid, 'ERROR UPDATING inbox DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
+				slackLogger(txid, 'ERROR UPDATING inbox DATABASE!', `(${JSON.stringify(updates)}) => "${checkId}"`)
 			}
 		}
 		return retTxid;
 
 	}catch(e:any){
-		logger(txid, 'ERROR UPDATING inbox_txs DATABASE!', e.name, ':', e.message)
-		slackLogger(txid, 'ERROR UPDATING inbox_txs DATABASE!', e.name, ':', e.message, JSON.stringify(updates))
+		logger(txid, 'ERROR UPDATING inbox DATABASE!', e.name, ':', e.message)
+		slackLogger(txid, 'ERROR UPDATING inbox DATABASE!', e.name, ':', e.message, JSON.stringify(updates))
 		logger(txid, e) // `throw e` does nothing, use the return
 	}
 }
@@ -208,7 +208,7 @@ export const dbUnsupportedMimeType = async(txid: string)=> {
 /** retrieve a single TxRecord by txid */
 export const getTxFromInbox = async(txid: string)=> {
 	try{
-		const ret = await knex<TxRecord>('inbox_txs').where({ txid })
+		const ret = await knex<TxRecord>('inbox').where({ txid })
 		if(ret.length === 0){
 			const res = (await knex('txs').where({ txid }))
 

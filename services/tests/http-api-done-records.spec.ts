@@ -32,11 +32,11 @@ describe('http-api done-records tests', ()=>{
 	}
 
 	beforeEach(async function () {
-		await knex('inbox_txs').insert([ mockRecord100, mockRecord200 ])
+		await knex('inbox').insert([ mockRecord100, mockRecord200 ])
 	})
 	afterEach(async function () {
 		sinon.restore()
-		await knex('inbox_txs').delete()
+		await knex('inbox').delete()
 		await knex('txs').delete()
 	})
 

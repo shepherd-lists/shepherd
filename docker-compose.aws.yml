@@ -4,6 +4,11 @@ version: '3.7'
 x-aws-vpc: arn:aws:ec2:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:vpc/${AWS_VPC_ID}
 # x-aws-loadbalancer: ${ELB_ARN}
 
+networks:
+  default:
+    external: true
+    name: ${AWS_SECURITY_GROUP_ID}
+
 services:
   webserver:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:webserver
@@ -107,8 +112,4 @@ services:
         Resource: 
         - 'arn:aws:s3:::${AWS_INPUT_BUCKET}/*'
         - 'arn:aws:s3:::${AWS_INPUT_BUCKET}'
-
-networks:
-  default:
-    external: true
-    name: ${AWS_SECURITY_GROUP_ID}
+  # DO NOT ADD ANYTHING BELOW THIS LINE. generated services will be appended here.

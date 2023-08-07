@@ -8,29 +8,42 @@ import { slackLogger } from '../common/utils/slackLogger'
 const knex = getDb()
 
 //serve cache for 3 mins
-const CACHE_TIMEOUT = 3 * 60 * 1000 
+const CACHE_TIMEOUT = 3 * 60_000 
 
-let _cached =  {
-	last: 0,
-	txids: '',
-	ranges: '',
-	inProgress: false,
+interface Cached {
+	last: number;
+	txids: string;
+	ranges: string;
+	inProgress: boolean;
 }
-const getRecords = async(res: Writable, type: 'txids'|'ranges')=> {
+let _cached: Record<string, Cached> = {}
+
+export const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename: string = 'txs')=> {
+
+	/** init cache if necessary */
+	if(!_cached[tablename]){
+		_cached[tablename] = {
+			last: 0,
+			txids: '',
+			ranges: '',
+			inProgress: false,
+		}
+	}
+	const cache = _cached[tablename]
 	
 	/** check if we are returning cache or not */
-	const now = new Date().valueOf()
-	if(_cached.inProgress || now - _cached.last < CACHE_TIMEOUT){
-		const text = type == 'txids' ? _cached.txids : _cached.ranges
-		logger(getRecords.name, `serving cache, ${text.length} bytes. inProgress: ${_cached.inProgress}`)
+	const now = Date.now()
+	if(cache.inProgress || now - cache.last < CACHE_TIMEOUT){
+		const text = type == 'txids' ? cache.txids : cache.ranges
+		logger(getRecords.name, `serving cache, ${text.length} bytes. inProgress: ${cache.inProgress}`)
 		return res.write(text);
 	}
-	_cached.inProgress = true
-	_cached.last = now
+	cache.inProgress = true
+	cache.last = now
 
 	/** get records from db, stream straight out to respones, and cache for both lists */
 
-	const records = knex<TxRecord>('txs').where({flagged: true}).stream()
+	const records = knex<TxRecord>(tablename).where({flagged: true}).stream()
 	let txids = ''
 	let ranges = ''
 	let promises = []
@@ -52,10 +65,11 @@ const getRecords = async(res: Writable, type: 'txids'|'ranges')=> {
 			slackLogger(getRecords.name, `no byte-range found, calculating new range for '${record.txid}'...`)
 			
 			promises.push((async(txid, parent, parents)=>{
-				const {start, end} = await byteRangesUpdateDb(txid, parent, parents) //db updated internally
+				const {start, end} = await byteRangesUpdateDb(txid, parent, parents, tablename) //db updated internally
 				if(start !== -1n){
 					const line = `${start},${end}\n`
-					lineRange += line
+					ranges += line
+
 					if(type == 'ranges'){
 						//we'll just write these out of sequence
 						res.write(line) 
@@ -81,10 +95,14 @@ const getRecords = async(res: Writable, type: 'txids'|'ranges')=> {
 	await Promise.all(promises)
 	logger(getRecords.name, 'TxRecords retrieved', count)
 
-	_cached.txids = txids
-	_cached.ranges = ranges
-	// _cached.last = now
-	_cached.inProgress = false
+	cache.txids = txids
+	cache.ranges = ranges
+	// cache.last = now
+	cache.inProgress = false
+	
+	// //debug
+	// console.log({_cached, tablename, cache})
+	
 }
 
 export const getBlacklist = async(res: Writable)=> {
