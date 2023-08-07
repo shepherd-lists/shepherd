@@ -4,7 +4,7 @@ console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
 import express from 'express'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
-import { ipAllowBlacklist, ipAllowRangelist } from './ipAllowLists'
+import { ipAllowBlacklist, ipAllowRangelist, ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
 import { getBlacklist, getRangelist, getRecords } from './blacklist'
 import { getPerfHistory, getDevStats } from './metrics'
 import si from 'systeminformation'
@@ -51,13 +51,13 @@ txsTableNames().then((tablenames) => {
 	tablenames.forEach((tablename) => {
 		const routepath = tablename.replace('_txs', '')
 		const routeTxids = `/${routepath}/txids.txt`
-		app.get(routeTxids, async (req, res) => {
+		app.get(routeTxids, ipAllowTxidsMiddleware, async (req, res) => {
 			res.setHeader('Content-Type', 'text/plain')
 			await getRecords(res, 'txids', tablename)
 			res.status(200).end()
 		})
 		const routeRanges = `/${routepath}/ranges.txt`
-		app.get(routeRanges, async (req, res) => {
+		app.get(routeRanges, ipAllowRangesMiddleware, async (req, res) => {
 			res.setHeader('Content-Type', 'text/plain')
 			await getRecords(res, 'ranges', tablename)
 			res.status(200).end()
@@ -66,33 +66,13 @@ txsTableNames().then((tablenames) => {
 	})
 })
 
-app.get('/blacklist.txt', async (req, res) => {
-	/* if $BLACKLIST_ALLOWED not defined we let everyone access */
-	if (process.env.BLACKLIST_ALLOWED) {
-		const ip = req.headers['x-forwarded-for'] as string || 'undefined'
-		if (!ipAllowBlacklist(ip)) {
-			logger('blacklist', `ip '${ip}' denied access`)
-			return res.status(403).send('403 Forbidden')
-		}
-		logger('blacklist', `ip '${ip}' access granted`)
-	}
-
+app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
 	await getBlacklist(res)
 	res.status(200).end()
 })
 
-app.get('/rangelist.txt', async (req, res) => {
-	/* if $RANGELIST_ALLOWED not defined we let everyone access */
-	if (process.env.RANGELIST_ALLOWED) {
-		const ip = req.headers['x-forwarded-for'] as string || 'undefined'
-		if (!ipAllowRangelist(ip)) {
-			logger('rangelist', `ip '${ip}' denied access`)
-			return res.status(403).send('403 Forbidden')
-		}
-		logger('rangelist', `ip '${ip}' access granted`)
-	}
-
+app.get('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
 	await getRangelist(res)
 	res.status(200).end()
@@ -110,11 +90,6 @@ app.get('/stats', async (req, res) => {
 	res.end()
 })
 
-app.get('/perf', async (req, res) => {
-	res.setHeader('Content-Type', 'text/html')
-	await getPerfHistory(res)
-	res.status(200).end()
-})
 
 const server = app.listen(port, () => logger(`started on http://localhost:${port}`))
 
