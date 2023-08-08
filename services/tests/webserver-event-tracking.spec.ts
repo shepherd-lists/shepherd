@@ -30,7 +30,7 @@ describe(`event-tracking tests`, () => {
 		expect(res, 'server should not be unreachable').false
 
 		//add server
-		setUnreachable(server)
+		setUnreachable({ name: 'example1', server })
 		res = unreachableTimedout(server)
 		expect(res, 'add server for first time').false
 		expect(nowStub.callCount).to.equal(2)
