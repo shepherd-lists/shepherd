@@ -65,7 +65,7 @@ export const checkBlockedCronjob = async () => {
 							deleteUnreachable(gw)
 						}
 					}catch(e:any){
-						setUnreachable(gw)
+						setUnreachable({ name: gw, server: gw})
 						logger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/${txid}`, txid)
 						slackLogger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/${txid}`, txid)
 					}
@@ -97,7 +97,7 @@ export const checkBlockedCronjob = async () => {
 							deleteUnreachable(gw)
 						}
 					}catch(e:any){
-						setUnreachable(gw)
+						setUnreachable({name: gw, server: gw})
 						logger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/chunk/${+range1 + 1}`, range)
 						slackLogger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/chunk/${+range1 + 1}`, range)
 					}
@@ -110,7 +110,7 @@ export const checkBlockedCronjob = async () => {
 							deleteUnreachable(item.server)
 						}
 					}catch(e:any){
-						setUnreachable(item.server)
+						setUnreachable(item)
 						logger(prefix, `set '${item.name}' as unreachable, while fetching http://${item.server}:1984/chunk/${+range1 + 1}`)
 					}
 				}))
@@ -118,7 +118,10 @@ export const checkBlockedCronjob = async () => {
 			rwRange.destroy(); ranges.close();
 		}
 	}finally{
-		console.log(checkBlockedCronjob.name, `finished. alarms: ${alarmsInAlert().number} unreachable servers: ${unreachableServers().number}`)
+		const urs = unreachableServers()
+		console.log(checkBlockedCronjob.name, 
+			`finished. alarms: ${alarmsInAlert().number} unreachable servers: ${urs.number}, ${JSON.stringify(urs.names)}`
+		)
 		_running = false
 	}
 }

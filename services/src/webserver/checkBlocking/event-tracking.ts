@@ -4,14 +4,17 @@ import { logger } from "../../common/shepherd-plugin-interfaces/logger"
 import { slackLogger } from "../../common/utils/slackLogger"
 import { RangelistAllowedItem } from "../webserver-types"
 
+interface Unreachable extends RangelistAllowedItem {
+	since: number
+}
 const timeout = 300_000 // 5 minutes
-const _unreachable = new Map<string, number>()
+const _unreachable = new Map<string, Unreachable>()
 
 export const isUnreachable = (server: string) => {
 	return _unreachable.has(server)
 }
-export const setUnreachable = (server: string) => {
-	_unreachable.set(server, Date.now())
+export const setUnreachable = (item: RangelistAllowedItem) => {
+	_unreachable.set(item.server, { ...item, since: Date.now() })
 }
 
 export const deleteUnreachable = (server: string) => {
@@ -22,10 +25,11 @@ export const unreachableTimedout = (server: string) => {
 	if(!_unreachable.has(server)) return true //if called on reachable server
 
 	const now = Date.now()
-	const last = _unreachable.get(server)!
+	const stored = _unreachable.get(server)!
+	const last = stored.since
 
 	if((now - last) > timeout){
-		_unreachable.set(server, now)
+		_unreachable.set(server, {...stored, since: now})
 		return true;
 	}
 	return false;
@@ -34,7 +38,8 @@ export const unreachableTimedout = (server: string) => {
 export const unreachableServers = () => {
 	return {
 		number: _unreachable.size,
-		list: [..._unreachable.keys()],
+		keys: [..._unreachable.keys()],
+		names: [..._unreachable.values()].map(item => item.name)
 	}
 }
 
