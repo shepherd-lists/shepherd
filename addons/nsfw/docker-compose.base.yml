@@ -6,6 +6,7 @@ services:
     hostname: ${IMAGE_REPO:-local}-nsfw-container
     build: 
       context: .
+      target: ${TFJS:-tfjs} # tfjs to rebuild node bindings. set to no-tfjs to skip
     environment: 
       DB_HOST: ${DB_HOST:-pgdb}
       SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
