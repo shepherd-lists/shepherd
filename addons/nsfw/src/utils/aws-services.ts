@@ -34,7 +34,7 @@ console.log(`process.env.AWS_INPUT_BUCKET`, process.env.AWS_INPUT_BUCKET)
 const checkAwsRole = async () => {
 	const sts = new STS({apiVersion: '2011-06-15'})
 	const identity = await sts.getCallerIdentity().promise()
-	console.log(`*** CALLER IDENTITY ***`, identity)
+	console.log(`CALLER IDENTITY: Arn: ${identity.Arn}`)
 }
 process.env.SQS_LOCAL !== 'yes' && checkAwsRole()
 console.log(`sqs.config.endpoint`, sqs.config.endpoint)
