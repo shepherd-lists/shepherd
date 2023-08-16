@@ -55,7 +55,8 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		/** only remove what's been inserted */
 		const insertedIds = res.map(r => r.txid) as string[]
 
-		await trx.delete().from('inflights').whereIn('txid', insertedIds)
+		/** this is now the main place where inflight removal happens */
+		await trx.delete().from('inflights').whereIn('txid', insertedIds)	
 		await trx.delete().from('inbox').whereIn('txid', insertedIds)
 		await trx.commit()
 

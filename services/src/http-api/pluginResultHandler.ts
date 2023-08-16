@@ -93,10 +93,8 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 				await doneAddTested(txid)
 			}
 			
-			await dbInflightDel(txid)
-			
 		}else if(result.data_reason === undefined){
-			logger(txid, 'data_reason and flagged cannot both be undefined')
+			logger(txid, 'data_reason and flagged cannot both be undefined. deleting from inflights.')
 			await dbInflightDel(txid)
 			throw new TypeError('data_reason and flagged cannot both be undefined')
 		}else{
