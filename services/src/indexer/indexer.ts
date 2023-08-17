@@ -143,7 +143,7 @@ export const indexer = async(gql: ArGqlInterface, CONFIRMATIONS: number, loop: b
 				}
 
 				logger('Error!', `${indexName} fell over. Waiting 30 seconds to try again.`, `${e.name}(${status}) : ${e.message}`)
-				slackLogger(`${indexName} fell over. Waiting 30 seconds to try again.`, `${e.name}(${status}) : ${e.message}`)
+				slackLogger(`${indexName} fell over. Waiting 30 seconds to try again.`, `${e.name}(${status}) : ${e.message}. maxBlock: ${maxBlock}`)
 				logger(await si.mem())
 				await sleep(30_000)
 			}
