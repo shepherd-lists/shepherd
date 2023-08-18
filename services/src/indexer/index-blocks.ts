@@ -254,7 +254,12 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 			 * records with newer height, and insert missing records 
 			 */
 
-			const recordsInDb = await knex<TxRecord>('inbox').whereIn('txid', records.map(r=>r.txid))
+			const recordsInInbox = await knex<TxRecord>('inbox').whereIn('txid', records.map(r=>r.txid)) 
+			const recordsInTxs = await knex<TxRecord>('txs').whereIn('txid', records.map(r=>r.txid)) 
+			const recordsInDb = [...recordsInInbox, ...recordsInTxs]
+
+			/** need to account for records that have already been processed and moved to txs */
+
 				
 			/* step 1: update records with newer height */
 
