@@ -1,8 +1,7 @@
 /** -= Unresponsive Servers =- */
 
-import { logger } from "../../common/shepherd-plugin-interfaces/logger"
-import { slackLogger } from "../../common/utils/slackLogger"
-import { RangelistAllowedItem } from "../webserver-types"
+import { logger } from '../../common/shepherd-plugin-interfaces/logger'
+import { RangelistAllowedItem } from '../webserver-types'
 
 interface Unreachable extends RangelistAllowedItem {
 	since: number
@@ -30,9 +29,9 @@ export const unreachableTimedout = (server: string) => {
 
 	if((now - last) > timeout){
 		_unreachable.set(server, {...stored, since: now})
-		return true;
+		return true
 	}
-	return false;
+	return false
 }
 
 export const unreachableServers = () => {
@@ -76,7 +75,7 @@ export const alarmsInAlert = () => {
 export const setAlertState = (event: NotBlockEvent) => {
 	const key = `${event.server.server},${event.item}`
 	if(!_alarmsInAlert.has(key)){
-		if(event.status === 'ok') return; //only add new alarm events
+		if(event.status === 'ok') return //only add new alarm events
 		_alarmsInAlert.set(key, {
 			...event,
 			start: Date.now(),
@@ -87,7 +86,7 @@ export const setAlertState = (event: NotBlockEvent) => {
 	const state = _alarmsInAlert.get(key)!
 	if(state.status !== event.status){
 		_alarmsInAlert.set(key, {
-			...state, 
+			...state,
 			status: event.status,
 			notified: false,
 			end: Date.now(),
@@ -103,7 +102,7 @@ export const alertStateCronjob = () => {
 		logger(alertStateCronjob.name, 'running cronjob...', {_changed, 'alarmsInAlert': _alarmsInAlert.size})
 	}
 
-	if(!_changed) return;
+	if(!_changed) return
 	_changed = false
 
 	let msg = ''
@@ -131,7 +130,7 @@ export const alertStateCronjob = () => {
 export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
 	if(hook){
 		fetch(hook, { method: 'POST', body: JSON.stringify({ text })})
-		.then(res => res.text()).then(t => console.log(_slackLoggerNoFormatting.name,`response: ${t}`)) //use up stream to close connection
+			.then(res => res.text()).then(t => console.log(_slackLoggerNoFormatting.name,`response: ${t}`)) //use up stream to close connection
 	}else{
 		console.log(_slackLoggerNoFormatting.name, '\n', text)
 	}

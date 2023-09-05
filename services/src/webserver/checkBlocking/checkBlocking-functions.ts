@@ -1,18 +1,18 @@
 /**
  * objectives:
  * - check that IPs in lists are correctly blocking data after it is flagged.
- * 
+ *
  * this file separates out the functions for test.
  */
-import { PassThrough } from "stream";
+import { PassThrough } from 'stream'
 import readline from 'readline'
-import { logger } from "../../common/shepherd-plugin-interfaces/logger";
-import { slackLogger } from "../../common/utils/slackLogger";
-import { slackLoggerPositive } from "../../common/utils/slackLoggerPositive";
-import { getBlacklist, getRangelist } from "../blacklist";
-import { fetch_checkBlocking } from "./fetch-checkBlocking";
-import { alarmsInAlert, deleteUnreachable, isUnreachable, setAlertState, setUnreachable, unreachableServers, unreachableTimedout } from "./event-tracking";
-import { RangelistAllowedItem, LogEvent } from "../webserver-types";
+import { logger } from '../../common/shepherd-plugin-interfaces/logger'
+import { slackLogger } from '../../common/utils/slackLogger'
+import { slackLoggerPositive } from '../../common/utils/slackLoggerPositive'
+import { getBlacklist, getRangelist } from '../blacklist'
+import { fetch_checkBlocking } from './fetch-checkBlocking'
+import { alarmsInAlert, deleteUnreachable, isUnreachable, setAlertState, setUnreachable, unreachableServers, unreachableTimedout } from './event-tracking'
+import { RangelistAllowedItem, LogEvent } from '../webserver-types'
 
 
 const prefix = 'check-blocked'
@@ -25,38 +25,38 @@ const hour_ms = 60 * 60 * 1000
 // pop off first IP. this should always be a test IP
 const rangeItems: RangelistAllowedItem[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
 // accessRangelist.shift() // pop off first IP. this should always be a test IP
-logger(prefix, `parse(RANGELIST_ALLOWED)`, rangeItems)
+logger(prefix, 'parse(RANGELIST_ALLOWED)', rangeItems)
 
 const gwUrls: string[] = JSON.parse(process.env.GW_URLS || '[]')
-logger(prefix, `gwUrls`, gwUrls)
+logger(prefix, 'gwUrls', gwUrls)
 
 let _running = false
 export const checkBlockedCronjob = async () => {
 
 	logger(prefix, `starting ${checkBlockedCronjob.name}() cronjob...`, { rangeItems, gwUrls, _running })
-	if (_running) {
+	if(_running){
 		logger(prefix, `${checkBlockedCronjob.name}() already running. exiting...`)
-		return;
+		return
 	}
 	_running = true
 
 
-	try {
-		
+	try{
+
 		/* check all blacklist txids against GWs */
-	
-		if (gwUrls.length === 0) {
-			logger(prefix, `gwUrls empty. nothing to check txids against.`)
-		} else {
+
+		if(gwUrls.length === 0){
+			logger(prefix, 'gwUrls empty. nothing to check txids against.')
+		}else{
 			// we're reusing the server's streaming function
 			const rwBlack = new PassThrough()
-	
+
 			getBlacklist(rwBlack).then(() => rwBlack.end())
-	
+
 			const txids = readline.createInterface(rwBlack)
-			for await (const txid of txids) {
-				(process.env.NODE_ENV === 'test') && console.log(`readline txid`, txid)
-	
+			for await (const txid of txids){
+				(process.env.NODE_ENV === 'test') && console.log('readline txid', txid)
+
 				await Promise.all(gwUrls.map(async gw => {
 					try{
 						if(!isUnreachable(gw) || unreachableTimedout(gw)){
@@ -64,31 +64,31 @@ export const checkBlockedCronjob = async () => {
 							//if didn't throw error, then it's reachable
 							deleteUnreachable(gw)
 						}
-					}catch(e:any){
+					}catch(e){
 						setUnreachable({ name: gw, server: gw})
 						logger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/${txid}`, txid)
 						slackLogger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/${txid}`, txid)
 					}
 				}))
 			}
-			rwBlack.destroy(); txids.close();
+			rwBlack.destroy(); txids.close()
 		}
-	
+
 		/* check all ranges against nodes (and GWs too?) */
-	
-		if (gwUrls.length === 0 && rangeItems.length === 0) {
-			logger(prefix, `gwUrls & accessRangelist empty. nothing to check byteranges against.`)
-	
-		} else {
+
+		if(gwUrls.length === 0 && rangeItems.length === 0){
+			logger(prefix, 'gwUrls & accessRangelist empty. nothing to check byteranges against.')
+
+		}else{
 			const rwRange = new PassThrough()
 			getRangelist(rwRange).then(() => rwRange.end())	//byte-range already calculated
-	
+
 			const ranges = readline.createInterface(rwRange)
-			for await (const range of ranges) {
-				(process.env.NODE_ENV === 'test') && console.log(`readline range`, range)
-	
+			for await (const range of ranges){
+				(process.env.NODE_ENV === 'test') && console.log('readline range', range)
+
 				const [range1, range2] = range.split(',')
-	
+
 				await Promise.all(gwUrls.map(async gw => {
 					try{
 						if(!isUnreachable(gw) || unreachableTimedout(gw)){
@@ -96,7 +96,7 @@ export const checkBlockedCronjob = async () => {
 							//if didn't throw error, then it's reachable
 							deleteUnreachable(gw)
 						}
-					}catch(e:any){
+					}catch(e){
 						setUnreachable({name: gw, server: gw})
 						logger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/chunk/${+range1 + 1}`, range)
 						slackLogger(prefix, `gateway ${gw} is unreachable! while fetching ${gw}/chunk/${+range1 + 1}`, range)
@@ -109,17 +109,17 @@ export const checkBlockedCronjob = async () => {
 							//if didn't throw error, then it's reachable
 							deleteUnreachable(item.server)
 						}
-					}catch(e:any){
+					}catch(e){
 						setUnreachable(item)
 						logger(prefix, `set '${item.name}' as unreachable, while fetching http://${item.server}:1984/chunk/${+range1 + 1}`)
 					}
 				}))
 			}
-			rwRange.destroy(); ranges.close();
+			rwRange.destroy(); ranges.close()
 		}
-	}finally{
+	} finally {
 		const urs = unreachableServers()
-		console.log(checkBlockedCronjob.name, 
+		console.log(checkBlockedCronjob.name,
 			`finished. alarms: ${alarmsInAlert().number} unreachable servers: ${urs.number}, ${JSON.stringify(urs.names)}`
 		)
 		_running = false
@@ -129,13 +129,13 @@ export const checkBlockedCronjob = async () => {
 
 export const checkBlocked = async (url: string, item: string, server: RangelistAllowedItem) => {
 	let response: { res: Response, aborter?: AbortController } | undefined = undefined
-	try {
+	try{
 		response = await fetch_checkBlocking(url)
 		const { res: { status, headers } } = response
-		
+
 		if(status >= 500){
 			logger(prefix, `server ${server} returned ${status} for ${url}. Skipping...`)
-			return;
+			return
 		}
 		if(status !== 404){
 			/** for aws notifications (not working too well) */
@@ -166,19 +166,19 @@ export const checkBlocked = async (url: string, item: string, server: RangelistA
 			})
 
 			/* make sure Slack doesn't display link contents */
-			
-			let nodisplay = url.split('/')
+
+			const nodisplay = url.split('/')
 			let display = url
 			if(nodisplay.length === 4){
 				nodisplay.pop()
 				display = nodisplay.join('/')
-			} 
+			}
 			slackLoggerPositive('warning', `[${prefix}] ${item} not blocked on \`${display}\` (status: ${status}), xtrace: '${headers.get('x-trace')}', age: '${headers.get('age')}', content-length: '${headers.get('content-length')}'`)
 		}else{
 			// logger(prefix, `OK. ${item} blocked on ${url} (status:${status})`) //too verbose
 			setAlertState({ server, item, status: 'ok' })
 		}
-	}finally{
+	} finally {
 		response?.aborter?.abort()
 	}
 

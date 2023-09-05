@@ -6,7 +6,7 @@ const retryMs = 10_000
 /**
  * @param url /path of url to fetch
  * @returns the Response object and AbortController
- * 
+ *
  * N.B. this only catches initial connection errors. it's not actually very useful
  */
 export const fetch_checkBlocking = async(url: string)=> {
@@ -20,22 +20,23 @@ export const fetch_checkBlocking = async(url: string)=> {
 
 			const {status, statusText} = res
 
-			if(status === 404) return { res }; //if the data isn't there it isn't there. 
+			if(status === 404) return { res } //if the data isn't there it isn't there.
 			if(status >= 400 && status < 500){
 				console.log(fetch_checkBlocking.name, `Error ${status} bad server response '${statusText}' for ${url} . retrying in ${retryMs} ms...`)
 				await sleep(retryMs)
-				continue;
+				continue
 			}
 			if(status >= 500){
 				console.log(fetch_checkBlocking.name, `Error ${status} server error '${statusText}' for ${url}. Not retrying.`)
 				return { res }
 			}
 
-			return{
+			return {
 				res,
 				aborter,
 			}
-		}catch(e:any){
+		}catch(err: unknown){
+			const e = err as Error & {code: string|null}
 			connErrCount++
 			if(connErrCount > 1){
 				console.log(fetch_checkBlocking.name, `Error for '${url}'. Retried ${connErrCount} times. Giving up. ${e.name}:${e.message}`)
@@ -52,7 +53,7 @@ export const fetch_checkBlocking = async(url: string)=> {
 			//wait for n/w conditions to change
 			await sleep(retryMs)
 		}
-		
+
 	}
 }
 

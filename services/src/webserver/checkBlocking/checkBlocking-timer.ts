@@ -1,17 +1,17 @@
 /**
  * objectives:
  * - check that IPs in lists are correctly blocking data after it is flagged.
- * 
+ *
  * this file contains only the timer
  */
-import { checkBlockedCronjob } from "./checkBlocking-functions";
+import { checkBlockedCronjob } from './checkBlocking-functions'
 
 const INTERVAL = 300_000 // 5 minutes
 
 /** main entrypoint */
-setInterval(checkBlockedCronjob, INTERVAL);
+setInterval(checkBlockedCronjob, INTERVAL)
 /** run once at load also */
-checkBlockedCronjob();
+checkBlockedCronjob()
 
 import { alertStateCronjob } from './event-tracking'
 
