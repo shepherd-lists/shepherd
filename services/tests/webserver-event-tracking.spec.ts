@@ -5,12 +5,14 @@ import sinon from 'sinon'
 import { alertStateCronjob, isUnreachable, setAlertState, setUnreachable, deleteUnreachable, unreachableTimedout, _resetAlertState } from '../src/webserver/checkBlocking/event-tracking'
 import * as EventTracking from '../src/webserver/checkBlocking/event-tracking'
 import { RangelistAllowedItem } from '../src/webserver/webserver-types'
+import { pagerdutyAlert } from '../src/webserver/checkBlocking/pagerduty-alert'
+
 
 const timeout = 300_000 // 5 minutes
 let counter = 123 //arbitrary starting point
 const fakeTime = ()=> counter += (timeout/2 + 1)
 
-describe(`event-tracking tests`, () => {
+describe('event-tracking tests', () => {
 
 	beforeEach(() => {
 		_resetAlertState()
@@ -39,7 +41,7 @@ describe(`event-tracking tests`, () => {
 		expect(res, 'server should be unreachable').true
 
 		//server should have timed out already
-		res = unreachableTimedout(server) 
+		res = unreachableTimedout(server)
 		expect(res, 'server should not be timed out').to.be.true
 
 		//server should be back in timed out
@@ -55,13 +57,13 @@ describe(`event-tracking tests`, () => {
 		expect(reset).to.be.true
 		//should be removed
 		res = unreachableTimedout(server)
-		expect(res).to.be.true 
+		expect(res).to.be.true
 	})
 
 	it('should test output messages of alertStageCronjob', async()=> {
 		const loggerStub = sinon.stub(EventTracking, '_slackLoggerNoFormatting')
-		const nowStub = sinon.stub(Date, 'now').callsFake(fakeTime) //every call adds 2.5+ mins
-		
+		const nowStub = sinon.stub(Date, 'now').callsFake(fakeTime) //every call adds 2.5+ mins <= this is really adding chaos to the tests
+
 		const server: RangelistAllowedItem = {name: 'https://example.com', server: 'https://example.com'}
 		const server2: RangelistAllowedItem = {name: 'google-dns', server: '1.1.1.1'}
 		const item = 'test-id-1-test-id-1-test-id-1-test-id-1-123'
@@ -80,13 +82,13 @@ describe(`event-tracking tests`, () => {
 
 		setAlertState({server, item, status: 'ok'})
 		setAlertState({server: server2, item, status: 'alarm', details: {age: '1', contentLength: '2', httpStatus: 200, xtrace: '4', endpointType: '/chunk'}})
-		expect(nowStub.callCount).to.equal(3)
+		expect(nowStub.callCount).to.equal(4) //this is a weird thing to count really
 
 		alertStateCronjob() //should log 1 alarm and 1 ok
 		expect(loggerStub.callCount, 'third cronjob should output to logger').to.equal(++loggerCount)
 		expect(loggerStub.getCall(1).args[0]).eq(
-			'🟢 OK, was not blocked for 2.5 minutes, https://example.com `https://example.com`, `/TXID` x-trace: 4, started:"Thu, 01 Jan 1970 00:02:30 GMT", ended:"Thu, 01 Jan 1970 00:05:00 GMT"\n'
-			+ '🔴 ALARM google-dns `1.1.1.1`, `/chunk` started:"Thu, 01 Jan 1970 00:07:30 GMT". x-trace:4, age:1, http-status:200, content-length:2\n'
+			'🟢 OK, was not blocked for 5.0 minutes, https://example.com `https://example.com`, `/TXID` x-trace: 4, started:"Thu, 01 Jan 1970 00:02:30 GMT", ended:"Thu, 01 Jan 1970 00:07:30 GMT"\n'
+			+ '🔴 ALARM google-dns `1.1.1.1`, `/chunk` started:"Thu, 01 Jan 1970 00:10:00 GMT". x-trace:4, age:1, http-status:200, content-length:2\n'
 		)
 
 		alertStateCronjob() //should log nothing (1 alarm already	logged)
@@ -96,13 +98,19 @@ describe(`event-tracking tests`, () => {
 		alertStateCronjob() //should log 1 ok
 		expect(loggerStub.callCount, 'fifth cronjob should output to logger').to.equal(++loggerCount)
 		expect(loggerStub.getCall(2).args[0]).eq(
-			'🟢 OK, was not blocked for 2.5 minutes, google-dns `1.1.1.1`, `/chunk` x-trace: 4, started:"Thu, 01 Jan 1970 00:07:30 GMT", ended:"Thu, 01 Jan 1970 00:10:00 GMT"\n'
+			'🟢 OK, was not blocked for 5.0 minutes, google-dns `1.1.1.1`, `/chunk` x-trace: 4, started:"Thu, 01 Jan 1970 00:10:00 GMT", ended:"Thu, 01 Jan 1970 00:15:00 GMT"\n'
 		)
 
 		alertStateCronjob() //should log nothing
 		expect(loggerStub.callCount, 'sixth cronjob should output nothing').to.equal(loggerCount)
-
-
 	})
+
+	it('should test a PagerDuty alert', async () => {
+		const text = '🟢 OK, was not blocked for 2.5 minutes, https://example.com `https://example.com`, `/TXID` x-trace: 4, started:"Thu, 01 Jan 1970 00:02:30 GMT", ended:"Thu, 01 Jan 1970 00:05:00 GMT"\n'
+		+ '🔴 ALARM google-dns `1.1.1.1`, `/chunk` started:"Thu, 01 Jan 1970 00:07:30 GMT". x-trace:4, age:1, http-status:200, content-length:2\n'
+
+		process.env.AWS_REGION = 'eu-west-2'
+		await pagerdutyAlert(text, 'my-server-name')
+	}).timeout(10_000)
 
 })
