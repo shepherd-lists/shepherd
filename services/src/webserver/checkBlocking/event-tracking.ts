@@ -2,6 +2,7 @@
 
 import { logger } from '../../common/shepherd-plugin-interfaces/logger'
 import { RangelistAllowedItem } from '../webserver-types'
+import { pagerdutyAlert } from './pagerduty-alert'
 
 interface Unreachable extends RangelistAllowedItem {
 	since: number
@@ -108,22 +109,32 @@ export const alertStateCronjob = () => {
 	let msg = ''
 
 	for(const [key, state] of _alarmsInAlert){
-		const {server, item, status, notified, start, end, details} = state
+		const { server, status, notified, start, end, details } = state
+
+		const msgOk = `🟢 OK, was not blocked for ${((end! - start) / 60_000).toFixed(1)} minutes, ${server.name} \`${server.server}\`, `
+			+ `\`${details?.endpointType}\` x-trace: ${details?.xtrace}, started:"${new Date(start).toUTCString()}", ended:"${new Date(end!).toUTCString()}"\n`
+
+		const msgAlarm = `🔴 ALARM ${server.name} \`${server.server}\`, `
+			+ `\`${details?.endpointType}\` started:"${new Date(start).toUTCString()}". `
+			+ `x-trace:${details?.xtrace}, age:${details?.age}, http-status:${details?.httpStatus}, content-length:${details?.contentLength}\n`
+
 		if(!notified){
 			if(status === 'alarm'){
-				msg += `🔴 ALARM ${server.name} \`${server.server}\`, \`${details?.endpointType}\` started:"${new Date(start).toUTCString()}". x-trace:${details?.xtrace}, age:${details?.age}, `
-				msg += `http-status:${details?.httpStatus}, content-length:${details?.contentLength}\n`
+				msg += msgAlarm
 			}
 			if(state.status === 'ok'){
-				msg += `🟢 OK, was not blocked for ${((end!-start)/60_000).toFixed(1)} minutes, ${server.name} \`${server.server}\`, \`${details?.endpointType}\` x-trace: ${details?.xtrace}, `
-				msg += `started:"${new Date(start).toUTCString()}", ended:"${new Date(end!).toUTCString()}"\n`
+				msg += msgOk
 
 				_alarmsInAlert.delete(key)
 			}else{
 				_alarmsInAlert.set(key, {...state, notified: true})
 			}
 		}
-	}
+		if(status === 'alarm' && (Date.now() - start) > 300_000){
+			pagerdutyAlert(msgAlarm, server.name)
+		}
+	}//for-of _alarmsInAlert
+
 	_slackLoggerNoFormatting(msg, process.env.SLACK_PROBE)
 }
 /** exported for test only */
