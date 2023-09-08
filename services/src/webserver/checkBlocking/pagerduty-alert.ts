@@ -5,14 +5,14 @@ const secretsManager = new SecretsManager()
 
 const getSecret = async (secretKey: string) => {
 	const region = await secretsManager.config.region()
-	try {
+	try{
 		const res = await secretsManager.getSecretValue({ SecretId: `shepherd/${secretKey}` })
-		if (res.SecretString) {
+		if(res.SecretString){
 			console.log(`SecretsManager: retrieved secret 'shepherd/${secretKey}' ok.`)
 			return res.SecretString
 		}
 		throw new Error('SecretString not defined.')
-	} catch (err: unknown) {
+	}catch(err: unknown){
 		const e = err as Error
 		throw new Error(`SecretsManager: error fetching 'shepherd/${secretKey}' in region ${region}. ${e.name}:${e.message}`)
 	}
@@ -25,31 +25,49 @@ const callArgs: { [serverName: string]: { lastCall: number } } = {}
 
 let _PAGERDUTY_KEY: string
 let _region: string
+/** log these values early in case there is a problem */
+const sanityLogs = async () => {
+	try{
+		_PAGERDUTY_KEY = await getSecret('PAGERDUTY_KEY')
+	}catch(err: unknown){
+		const e = err as Error
+		console.error(`Error fetching PAGERDUTY_KEY. ${e.message}`)
+	}
+	try{
+		_region = await secretsManager.config.region()
+		console.log(`pagerdutyAlerts region: ${_region}`)
+	}catch(err: unknown){
+		const e = err as Error
+		console.error(`Error fetching region. ${e.name}:${e.message}`)
+	}
+}
+sanityLogs()
+
 export const pagerdutyAlert = async (alertString: string, serverName: string) => {
 
 	/** don't get rate-limited by PagerDuty */
-	if (callArgs[serverName] && (Date.now() - callArgs[serverName].lastCall) < rateLimit) {
-		return;
+	if(callArgs[serverName] && (Date.now() - callArgs[serverName].lastCall) < rateLimit){
+		return
 	}
 	callArgs[serverName] = { lastCall: Date.now() }
 
 	/** only call these once */
-	if (!_PAGERDUTY_KEY) {
-		try {
+	if(!_PAGERDUTY_KEY){
+		try{
 			_PAGERDUTY_KEY = await getSecret('PAGERDUTY_KEY')
-		} catch (err: unknown) {
+		}catch(err: unknown){
 			const e = err as Error
-			if (e.message.includes('ResourceNotFoundException')) {
+			if(e.message.includes('ResourceNotFoundException')){
 				/** this means pagerduty is not set up for this region */
 				console.log('disabling Pagerduty Alerts', e.message)
 				callArgs[serverName].lastCall = 4092512698 // don't call again until 2099 AD
-				return;
-			} else {
-				throw e;
+				return
+			}else{
+				throw e
 			}
 		}
 	}
-	if (!_region) {
+	if(!_region){
 		_region = await secretsManager.config.region()
 	}
 
@@ -73,9 +91,9 @@ export const pagerdutyAlert = async (alertString: string, serverName: string) =>
 			},
 		}),
 	})
-	if (res.ok) {
+	if(res.ok){
 		console.log(`PagerDuty alert sent. ${await res.text()}`)
-	} else {
+	}else{
 		const errMsg = `PagerDuty alert failed. ${res.status}, a${res.statusText}, ${await res.text()}`
 		console.error(errMsg)
 		slackLogger(errMsg)
