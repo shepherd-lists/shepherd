@@ -41,8 +41,11 @@ export const pagerdutyAlert = async (alertString: string, serverName: string) =>
 			const e = err as Error
 			if (e.message.includes('ResourceNotFoundException')) {
 				/** this means pagerduty is not set up for this region */
+				console.log('disabling Pagerduty Alerts', e.message)
 				callArgs[serverName].lastCall = 4092512698 // don't call again until 2099 AD
 				return;
+			} else {
+				throw e;
 			}
 		}
 	}
