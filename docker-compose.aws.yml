@@ -23,6 +23,12 @@ services:
         limits:
           cpus: '2.0'
           memory: 8G
+    x-aws-role:
+      Version: '2012-10-17'
+      Statement:
+      - Effect: Allow
+        Action: 'secretsmanager:GetSecretValue' 
+        Resource: 'arn:aws:secretsmanager:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:secret:shepherd/*'
   http-api:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:http-api
     platform: linux/amd64
