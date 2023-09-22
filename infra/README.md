@@ -9,11 +9,17 @@
 
 ### Windows
 
- - use WSL
+- use WSL and follow linux instructions
+
+### Linux
+
+- install `jq`. e.g.
+  - `sudo apt install jq`
 
 ### MacOS
 
 - install brew
 - `brew install coreutils`
+- `brew install jq`
 - `brew install gnu-sed` and follow directions to install to path.
 - (optional) `brew install bash` and chsh to new install
