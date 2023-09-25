@@ -1,21 +1,21 @@
-// import col from 'ansi-colors'
 
+/**
+ *
+ * @param args single object will be printed as json text. multiple arguments will be prefixed with the first argument and concatenated with spaces by default.
+ */
+export const logger = (...args: unknown[]) => {
 
-export const logger = (...args: any[]) => {
+	if(args.length === 0){
+		return console.log()
+	}
 
 	/* print single objects as json text */
 	if(args.length === 1 && typeof args[0] === 'object'){
-		console.log(JSON.stringify(args[0]))
-		return;
+		return console.log(JSON.stringify(args[0]))
 	}
 
-	let prefix = '[logger]'
-	if(args.length > 1){
-		prefix = '[' + args[0] + ']'
-		args.shift()
-	}
+	const prefix = '[' + args[0] + ']'
+	args.shift()
 
-	// console.log(col.blue(prefix), ...args)
 	console.log(prefix, ...args)
-
 }
