@@ -152,7 +152,7 @@ Resources:
       DBInstanceClass: "db.t3.xlarge"
       StorageType: gp2
       Engine: postgres
-      EngineVersion: "13.8"
+      EngineVersion: "13.10"
       # DeleteAutomatedBackups: false
       DBName: arblacklist
       MasterUsername: postgres
