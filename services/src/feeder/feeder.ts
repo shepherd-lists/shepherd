@@ -1,13 +1,13 @@
-import { TxRecord, InflightsRecord } from "../common/shepherd-plugin-interfaces/types"
-import dbConnection from "../common/utils/db-connection"
-import { logger } from "../common/shepherd-plugin-interfaces/logger"
+import { TxRecord, InflightsRecord } from '../common/shepherd-plugin-interfaces/types'
+import dbConnection from '../common/utils/db-connection'
+import { logger } from '../common/shepherd-plugin-interfaces/logger'
 import { SQS } from 'aws-sdk'
 import { performance } from 'perf_hooks'
-import { slackLogger } from "../common/utils/slackLogger"
+import { slackLogger } from '../common/utils/slackLogger'
 
 
 const prefix = 'feeder'
-const knex = dbConnection() 
+const knex = dbConnection()
 const QueueUrl = process.env.AWS_FEEDER_QUEUE as string
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -19,37 +19,37 @@ const sqs = new SQS({
 })
 
 // debug output for sanity
-console.log(`process.env.SQS_LOCAL`, process.env.SQS_LOCAL)
-console.log(`process.env.AWS_FEEDER_QUEUE`, process.env.AWS_FEEDER_QUEUE)
+console.log('process.env.SQS_LOCAL', process.env.SQS_LOCAL)
+console.log('process.env.AWS_FEEDER_QUEUE', process.env.AWS_FEEDER_QUEUE)
 console.log('sqs.config.endpoint', sqs.config.endpoint)
 
 const getTxRecords =async (limit: number) => {
 	while(true){
-		try {
+		try{
 			const t0 = performance.now()
 			const records = await knex<TxRecord>('inbox')
 				.select(['inbox.*'])
 				.leftJoin('inflights', 'inbox.txid', 'inflights.txid')
 				.whereNull('inflights.txid')
 				.whereNull('valid_data')
-				.whereRaw("content_type SIMILAR TO '(image|video)/%'")
+				.whereRaw('content_type SIMILAR TO \'(image|video)/%\'')
 				.orderBy('inbox.height', 'asc')
 				.limit(limit)
-			
+
 			const length = records.length
 			const duration = performance.now() - t0
 			logger(prefix, length, 'records selected. limit', limit, ` - in ${duration.toFixed(2)}ms`)
-	
-			return records;
+
+			return records
 		}catch(e){
 			if(e instanceof Error && e.name === 'KnexTimeoutError'){
-				logger(getTxRecords.name, e.name, ':', e.message, `retrying in 5s...`)
-				slackLogger(getTxRecords.name, e.name, ':', e.message, `retrying in 5s...`)
+				logger(getTxRecords.name, e.name, ':', e.message, 'retrying in 5s...')
+				slackLogger(getTxRecords.name, e.name, ':', e.message, 'retrying in 5s...')
 				await sleep(5000)
-				continue;
+				continue
 			}
 			console.log(`error in ${getTxRecords.name}`)
-			throw e; 
+			throw e
 		}
 	}
 }
@@ -57,8 +57,9 @@ const getTxRecords =async (limit: number) => {
 const inflightsSize = async()=> {
 	while(true){
 		try{
-			return +(await knex.raw(`SELECT reltuples::bigint AS estimate FROM pg_class where relname = 'inflights'`)).rows[0].estimate 
-		}catch(e:any){
+			return +(await knex.raw('SELECT reltuples::bigint AS estimate FROM pg_class where relname = \'inflights\'')).rows[0].estimate
+		}catch(err:unknown){
+			const e = err as Error
 			logger(inflightsSize.name, `some error getting table size. ${e.name}:${e.message}. waiting 30s...`)
 			slackLogger(inflightsSize.name, `some error getting table size. ${e.name}:${e.message}. waiting 30s...`)
 			await sleep(30000)
@@ -75,23 +76,23 @@ export const feeder = async()=> {
 	const INFLIGHTS_MAX = 100_000 //deletions get really slow when inflights table in the millions
 
 	while(true){
-		const numSqsMsgs = await approximateNumberOfMessages() 
+		const numSqsMsgs = await approximateNumberOfMessages()
 		logger(prefix, 'approximateNumberOfMessages', numSqsMsgs)
 
 		const numInflights = await inflightsSize()
 		logger(prefix, 'approx. inflights size', numInflights)
 
 		/**
-		 *  FUTURE IMPROVEMENT, CHECK THE TOTAL SIZE OF S3 INPUT BUCKET 
-		 */ 
+		 *  FUTURE IMPROVEMENT, CHECK THE TOTAL SIZE OF S3 INPUT BUCKET
+		 */
 
 		if(numSqsMsgs < WORKING_RECORDS && numInflights < INFLIGHTS_MAX ){
-			console.log(`DEBUG`, `sql select limit ${LIMIT_RECORDS}`)
-			const records = await getTxRecords(LIMIT_RECORDS) 
+			console.log('DEBUG', `sql select limit ${LIMIT_RECORDS}`)
+			const records = await getTxRecords(LIMIT_RECORDS)
 
 			if(records.length !== 0){
 				await sendToSqs( records )
-				continue;
+				continue
 			}
 		}
 
@@ -114,11 +115,11 @@ const sendToSqs = async(records: TxRecord[])=>{
 	let inflights: InflightsRecord[] = []
 	let entries: SQS.SendMessageBatchRequestEntryList = []
 	const messageBatchSize = 10 // max 10 messages for sqs.sendMessageBatch
-	
+
 	console.log('promise batch size', promisesBatchSize)
 
 	let t0 = performance.now()
-	
+
 	for(const rec of records){
 		entries.push({
 			Id: rec.txid,
@@ -129,8 +130,8 @@ const sendToSqs = async(records: TxRecord[])=>{
 		})
 
 		if(entries.length === messageBatchSize){
-			promisesBatch.push( 
-				processMessageBatch(inflights, entries) 
+			promisesBatch.push(
+				processMessageBatch(inflights, entries)
 			)
 
 			entries = []
@@ -149,8 +150,8 @@ const sendToSqs = async(records: TxRecord[])=>{
 	}
 	// handle the remainers
 	if(entries.length > 0){
-		promisesBatch.push( 
-			processMessageBatch(inflights, entries) 
+		promisesBatch.push(
+			processMessageBatch(inflights, entries)
 		)
 	}
 	if(promisesBatch.length > 0){
@@ -172,22 +173,24 @@ const processMessageBatch = async(inflights: InflightsRecord[], entries: SQS.Sen
 
 	/** filter out any not inserted and send */
 
-	_entries = _entries.filter(item => inflightIds.includes(item.Id)) 
-	
+	_entries = _entries.filter(item => inflightIds.includes(item.Id))
+
+	logger(prefix, `sending ${_entries.length} messages to sqs`, JSON.stringify(_entries.map(e => e.Id)))
+
 	const res = await sqs.sendMessageBatch({
 		QueueUrl,
 		Entries: _entries,
 	}).promise()
 
 	/** remove failed sendMessages from inflights */
-	
+
 	const failCount = res.Failed.length
 	if(failCount > 0){
-		
+
 		/** informational */
 		const total = res.Successful.length + failCount
 		logger(prefix, `Failed to batch send ${failCount}/${total} messages:`)
-		for (const f of res.Failed) {
+		for(const f of res.Failed){
 			logger(f.Id, `${f.Code} : ${f.Message}. ${f.SenderFault && 'SenderFault.'}`)
 		}
 
