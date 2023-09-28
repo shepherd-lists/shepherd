@@ -74,6 +74,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 
 			if(res !== txid){
 				logger('Fatal error', `Could not update database. "${res} !== ${txid}"`)
+				slackLogger('Fatal error', `Could not update database. "${res} !== ${txid}"`)
 				throw new Error('Could not update database')
 			}
 
