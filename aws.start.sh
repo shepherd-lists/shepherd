@@ -59,10 +59,11 @@ fi
 
 if [ ! -f ".RANGELIST_ALLOWED.json" ]; then
 	echo "WARNING: .RANGELIST_ALLOWED.json not found"
+
 else
 	export RANGELIST_ALLOWED=$(cat ./.RANGELIST_ALLOWED.json | tr -d ' \n\t')
 fi
-echo "RANGELIST_ALLOWED=$RANGELIST_ALLOWED"
+echo "RANGELIST_ALLOWED=${RANGELIST_ALLOWED:-}"
 
 #################################################
 # -= finally run docker setup & run commands =- #
