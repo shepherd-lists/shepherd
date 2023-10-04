@@ -1,6 +1,7 @@
 {
   "name": "infra",
   "version": "0.1.0",
+  "type": "module",
   "bin": {
     "infra": "bin/infra.js"
   },
@@ -12,12 +13,12 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5.5",
-    "@types/node": "20.6.3",
+    "@types/node": "^18.18.3",
+    "aws-cdk": "2.99.1",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.1",
-    "aws-cdk": "2.99.1",
     "ts-node": "^10.9.1",
-    "typescript": "~5.2.2"
+    "typescript": "^5.2.2"
   },
   "dependencies": {
     "aws-cdk-lib": "2.99.1",
