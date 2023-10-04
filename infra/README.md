@@ -1,25 +1,14 @@
-# Build notes for AWS
+# Welcome to your CDK TypeScript project
 
-##  This is step one for AWS setup, to be done before invoking docker-compose
+This is a blank project for CDK development with TypeScript.
 
-- install aws-cli v2
-- set up a .env file with your AWS credentials and region, as in .env.aws.example
-- run `setup.sh` to install supporting AWS infrastrucure & database
-- finally run `ecs.sh` in the root folder to install the app servers via docker-compose
+The `cdk.json` file tells the CDK Toolkit how to execute your app.
 
-### Windows
+## Useful commands
 
-- use WSL and follow linux instructions
-
-### Linux
-
-- install `jq`. e.g.
-  - `sudo apt install jq`
-
-### MacOS
-
-- install brew
-- `brew install coreutils`
-- `brew install jq`
-- `brew install gnu-sed` and follow directions to install to path.
-- (optional) `brew install bash` and chsh to new install
+* `npm run build`   compile typescript to js
+* `npm run watch`   watch for changes and compile
+* `npm run test`    perform the jest unit tests
+* `cdk deploy`      deploy this stack to your default AWS account/region
+* `cdk diff`        compare deployed stack with current state
+* `cdk synth`       emits the synthesized CloudFormation template
