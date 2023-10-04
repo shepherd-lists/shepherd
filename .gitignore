@@ -11,3 +11,4 @@ NOTES.txt
 _dev*/
 _prod*/
 docker-compose.override.yml
+infra/cdk.context.json
