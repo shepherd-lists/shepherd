@@ -10,5 +10,5 @@ new InfraStack(app, 'InfraStack', {
     region: process.env.CDK_DEFAULT_REGION
   },
   stackName: 'shepherd-infra-stack',
-  description: 'Shepherd Main Infrastructure Stack. Network, RDS, etc.'
+  description: 'shepherd main infrastructure stack. network, rds, etc.'
 });
