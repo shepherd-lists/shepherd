@@ -36,7 +36,15 @@ export class InfraStack extends cdk.Stack {
     /** create the postgres rds database */
     const { sgPgdb, pgdb } = pgdbAndAccess(stack, vpc)
 
-
+    /** cfn outputs */
+    new cdk.CfnOutput(stack, 'AwsAccountId', { value: cdk.Aws.ACCOUNT_ID })
+    new cdk.CfnOutput(stack, 'ShepherdVPC', { value: vpc.vpcId })
+    new cdk.CfnOutput(stack, 'ShepherdSecurityGroup', { value: sgPgdb.securityGroupId })
+    new cdk.CfnOutput(stack, 'RdsEndpointUrl', { value: pgdb.dbInstanceEndpointAddress })
+    // new cdk.CfnOutput(stack, 'SQSFeederQueue', { value: sqsFeederQueue.queueUrl })
+    // new cdk.CfnOutput(stack, 'S3Bucket', { value: S3Bucket.bucketName })
+    // new cdk.CfnOutput(stack, 'SQSInputQueue', { value: sqsInputQueue.queueUrl })
+    // new cdk.CfnOutput(stack, 'LogGroupArn', { value: shepherdServicesLogGroup.logGroupArn }) //move to services stack?
   }
 }
 
