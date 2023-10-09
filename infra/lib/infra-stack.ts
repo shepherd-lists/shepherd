@@ -58,7 +58,7 @@ export class InfraStack extends cdk.Stack {
     const { sgPgdb, pgdb } = pgdbAndAccess(stack, vpc)
 
     /** create input bucket, and queues */
-    const { inputBucket, sqsInputQ } = bucketAndQueues(stack, vpc)
+    const { inputBucket, sqsInputQ } = bucketAndNotificationQs(stack, vpc)
 
     /** cfn outputs */
     new cdk.CfnOutput(stack, 'AwsAccountId', { value: cdk.Aws.ACCOUNT_ID })
@@ -66,8 +66,8 @@ export class InfraStack extends cdk.Stack {
     new cdk.CfnOutput(stack, 'ShepherdSecurityGroup', { value: sgPgdb.securityGroupId })
     new cdk.CfnOutput(stack, 'RdsEndpointUrl', { value: pgdb.dbInstanceEndpointAddress })
     // new cdk.CfnOutput(stack, 'SQSFeederQueue', { value: sqsFeederQueue.queueUrl })
-    // new cdk.CfnOutput(stack, 'S3Bucket', { value: S3Bucket.bucketName })
-    // new cdk.CfnOutput(stack, 'SQSInputQueue', { value: sqsInputQueue.queueUrl })
+    new cdk.CfnOutput(stack, 'S3Bucket', { value: inputBucket.bucketName })
+    new cdk.CfnOutput(stack, 'SQSInputQueue', { value: sqsInputQ.queueUrl })
     new cdk.CfnOutput(stack, 'LogGroupArn', { value: logGroup.logGroupArn }) //move to services stack?
     new cdk.CfnOutput(stack, 'LoadBalancerArn', { value: alb.loadBalancerArn })
     new cdk.CfnOutput(stack, 'LoadBalancerDnsName', { value: alb.loadBalancerDnsName })
@@ -114,7 +114,7 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
   }
 }
 
-const bucketAndQueues = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
+const bucketAndNotificationQs = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 
   /** create AWS_SQS_INPUT_QUEUE, with DLQ and policies */
   const sqsInputDLQ = new cdk.aws_sqs.Queue(stack, 'shepherd-input-dlq', {
