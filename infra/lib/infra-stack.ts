@@ -57,8 +57,6 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
     securityGroupName: 'shepherd-pgdb-sg',
   })
   sgPgdb.addIngressRule(cdk.aws_ec2.Peer.ipv4(vpc.vpcCidrBlock), cdk.aws_ec2.Port.tcp(5432), 'allow db traffic') // allow traffic from within the vpc
-  sgPgdb.addIngressRule(cdk.aws_ec2.Peer.anyIpv4(), cdk.aws_ec2.Port.tcp(500), 'Allow IKEv1 & IKEv2 for VPN')
-  sgPgdb.addIngressRule(cdk.aws_ec2.Peer.anyIpv4(), cdk.aws_ec2.Port.udp(4500), 'Allow NAT-T for VPN')
 
   /** create the postgres rds database */
   const pgdb = new cdk.aws_rds.DatabaseInstance(stack, 'shepherd-pgdb', {
@@ -84,48 +82,6 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
     securityGroups: [sgPgdb],
   })
 
-  /** vpn for direct access to the rds from various clients */
-
-  const ec2 = cdk.aws_ec2
-
-  // Assuming you've already uploaded your certificates to ACM
-  const serverCertArn = 'arn:aws:acm:ap-southeast-1:615419003954:certificate/e3000bce-5f54-44bc-8af8-1de73186b2a2';
-  const clientCertArn = 'arn:aws:acm:ap-southeast-1:615419003954:certificate/59851445-0bd2-4d0a-8210-faec4bcb6c52';
-
-  // Create a Client VPN endpoint
-  const clientVpnEndpoint = new ec2.CfnClientVpnEndpoint(stack, 'ClientVpnEndpoint', {
-    authenticationOptions: [{
-      type: 'certificate-authentication',
-      mutualAuthentication: {
-        clientRootCertificateChainArn: clientCertArn
-      }
-    }],
-    serverCertificateArn: serverCertArn,
-    clientCidrBlock: '10.2.0.0/16', // ensure no overlap with vpc cidr
-    connectionLogOptions: {
-      enabled: false, // can't get this to work
-    },
-    splitTunnel: true,
-    vpcId: vpc.vpcId,
-    securityGroupIds: [sgPgdb.securityGroupId],
-    transportProtocol: 'udp',
-  });
-
-  // Associate VPC subnets with the Client VPN endpoint
-  vpc.privateSubnets.map((subnet, index) => {
-    new ec2.CfnClientVpnTargetNetworkAssociation(stack, `TargetNetworkAssociation${index}`, {
-      clientVpnEndpointId: clientVpnEndpoint.ref,
-      subnetId: subnet.subnetId
-    });
-  });
-
-  // Optionally, add an authorization rule to allow access to the VPC
-  new ec2.CfnClientVpnAuthorizationRule(stack, 'ClientVpnAuthorization', {
-    clientVpnEndpointId: clientVpnEndpoint.ref,
-    targetNetworkCidr: vpc.vpcCidrBlock,
-    authorizeAllGroups: true,
-    description: 'Allow access to the VPC'
-  });
 
 
   return {
