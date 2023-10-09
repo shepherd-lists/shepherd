@@ -1,7 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { randomLetters } from './utils';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class InfraStack extends cdk.Stack {
   constructor(app: Construct, id: string, props?: cdk.StackProps) {
@@ -60,12 +58,15 @@ export class InfraStack extends cdk.Stack {
     /** create input bucket, and queues */
     const { inputBucket, sqsInputQ } = bucketAndNotificationQs(stack, vpc)
 
+    /** create feeder Q */
+    const { feederQ } = feederQs(stack, vpc)
+
     /** cfn outputs */
     new cdk.CfnOutput(stack, 'AwsAccountId', { value: cdk.Aws.ACCOUNT_ID })
     new cdk.CfnOutput(stack, 'ShepherdVPC', { value: vpc.vpcId })
     new cdk.CfnOutput(stack, 'ShepherdSecurityGroup', { value: sgPgdb.securityGroupId })
     new cdk.CfnOutput(stack, 'RdsEndpointUrl', { value: pgdb.dbInstanceEndpointAddress })
-    // new cdk.CfnOutput(stack, 'SQSFeederQueue', { value: sqsFeederQueue.queueUrl })
+    new cdk.CfnOutput(stack, 'SQSFeederQueue', { value: feederQ.queueUrl })
     new cdk.CfnOutput(stack, 'S3Bucket', { value: inputBucket.bucketName })
     new cdk.CfnOutput(stack, 'SQSInputQueue', { value: sqsInputQ.queueUrl })
     new cdk.CfnOutput(stack, 'LogGroupArn', { value: logGroup.logGroupArn }) //move to services stack?
@@ -117,24 +118,23 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 const bucketAndNotificationQs = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 
   /** create AWS_SQS_INPUT_QUEUE, with DLQ and policies */
-  const sqsInputDLQ = new cdk.aws_sqs.Queue(stack, 'shepherd-input-dlq', {
-    queueName: 'shepherd-input-dlq',
-    retentionPeriod: cdk.Duration.days(14),
-  })
   const sqsInputQ = new cdk.aws_sqs.Queue(stack, 'shepherd-input-q', {
-    queueName: 'shepherd-input',
+    queueName: 'shepherd-input-q',
     retentionPeriod: cdk.Duration.days(14),
     visibilityTimeout: cdk.Duration.minutes(15),
     deadLetterQueue: {
-      maxReceiveCount: 3,
-      queue: sqsInputDLQ,
+      maxReceiveCount: 10,
+      queue: new cdk.aws_sqs.Queue(stack, 'shepherd-input-dlq', {
+        queueName: 'shepherd-input-dlq',
+        retentionPeriod: cdk.Duration.days(14),
+      }),
     },
   })
 
   /** create the input bucket */
-  const inputBucket = new cdk.aws_s3.Bucket(stack, 'shepherd-input', {
+  const inputBucket = new cdk.aws_s3.Bucket(stack, 'shepherd-input-s3', {
     accessControl: cdk.aws_s3.BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
-    bucketName: `shepherd-input-${cdk.Aws.REGION}`,
+    bucketName: `shepherd-input-s3-${cdk.Aws.REGION}`,
     removalPolicy: cdk.RemovalPolicy.DESTROY,
     autoDeleteObjects: true,
   })
@@ -143,5 +143,24 @@ const bucketAndNotificationQs = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
   return {
     sqsInputQ,
     inputBucket,
+  }
+}
+
+const feederQs = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
+  const feederQ = new cdk.aws_sqs.Queue(stack, 'shepherd-feeder-q', {
+    queueName: 'shepherd-feeder-q',
+    retentionPeriod: cdk.Duration.days(14), //max value
+    visibilityTimeout: cdk.Duration.minutes(15),
+    deadLetterQueue: {
+      maxReceiveCount: 10,
+      queue: new cdk.aws_sqs.Queue(stack, 'shepherd-feeder-dlq', {
+        queueName: 'shepherd-feeder-dlq',
+        retentionPeriod: cdk.Duration.days(14),
+      }),
+    },
+  })
+
+  return {
+    feederQ,
   }
 }
