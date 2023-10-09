@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import { randomLetters } from './utils';
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class InfraStack extends cdk.Stack {
@@ -13,7 +14,11 @@ export class InfraStack extends cdk.Stack {
       vpcName: 'shepherd-vpc',
       maxAzs: 2,
       natGateways: 1,
-      cidr: '10.1.0.0/16', //legacy shepherd uses '10.0.0.0/16', maybe we need peering during cdk migration?
+      /** 
+       * need separate cidr for each vpc / shepherd installation, if we are connecting them via vpn peering / tailnet.
+       * n.b. legacy shepherd uses '10.0.0.0/16', maybe we need peering during cdk migration?
+       */
+      cidr: '10.1.0.0/16', //hard-coded for now
       subnetConfiguration: [
         {
           cidrMask: 24,
@@ -27,14 +32,33 @@ export class InfraStack extends cdk.Stack {
         },
       ],
     })
-    const cluster = new cdk.aws_ecs.Cluster(stack, 'shepherd-cluster', {
+
+    // N.B. removing cluster to services stack 
+
+
+    const alb = new cdk.aws_elasticloadbalancingv2.ApplicationLoadBalancer(this, 'alb', {
       vpc,
-      clusterName: 'shepherd-cluster',
+      loadBalancerName: 'shepherd-alb',
+      internetFacing: true,
+      http2Enabled: false,
+      // deletionProtection: true, //might want this in prod!!!
+      dropInvalidHeaderFields: true,
+    })
+    // !!! alb has an SG auto created !!!
+    alb.loadBalancerSecurityGroups
+
+    /** general log group for the vpc */
+    const logGroup = new cdk.aws_logs.LogGroup(this, 'logGroup', {
+      logGroupName: 'shepherd-logs',
+      retention: cdk.aws_logs.RetentionDays.THREE_MONTHS,
     })
 
 
     /** create the postgres rds database */
     const { sgPgdb, pgdb } = pgdbAndAccess(stack, vpc)
+
+    /** create input bucket, and queues */
+    const { inputBucket, sqsInputQ } = bucketAndQueues(stack, vpc)
 
     /** cfn outputs */
     new cdk.CfnOutput(stack, 'AwsAccountId', { value: cdk.Aws.ACCOUNT_ID })
@@ -44,7 +68,9 @@ export class InfraStack extends cdk.Stack {
     // new cdk.CfnOutput(stack, 'SQSFeederQueue', { value: sqsFeederQueue.queueUrl })
     // new cdk.CfnOutput(stack, 'S3Bucket', { value: S3Bucket.bucketName })
     // new cdk.CfnOutput(stack, 'SQSInputQueue', { value: sqsInputQueue.queueUrl })
-    // new cdk.CfnOutput(stack, 'LogGroupArn', { value: shepherdServicesLogGroup.logGroupArn }) //move to services stack?
+    new cdk.CfnOutput(stack, 'LogGroupArn', { value: logGroup.logGroupArn }) //move to services stack?
+    new cdk.CfnOutput(stack, 'LoadBalancerArn', { value: alb.loadBalancerArn })
+    new cdk.CfnOutput(stack, 'LoadBalancerDnsName', { value: alb.loadBalancerDnsName })
   }
 }
 
@@ -82,10 +108,40 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
     securityGroups: [sgPgdb],
   })
 
-
-
   return {
     sgPgdb,
     pgdb,
+  }
+}
+
+const bucketAndQueues = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
+
+  /** create AWS_SQS_INPUT_QUEUE, with DLQ and policies */
+  const sqsInputDLQ = new cdk.aws_sqs.Queue(stack, 'shepherd-input-dlq', {
+    queueName: 'shepherd-input-dlq',
+    retentionPeriod: cdk.Duration.days(14),
+  })
+  const sqsInputQ = new cdk.aws_sqs.Queue(stack, 'shepherd-input-q', {
+    queueName: 'shepherd-input',
+    retentionPeriod: cdk.Duration.days(14),
+    visibilityTimeout: cdk.Duration.minutes(15),
+    deadLetterQueue: {
+      maxReceiveCount: 3,
+      queue: sqsInputDLQ,
+    },
+  })
+
+  /** create the input bucket */
+  const inputBucket = new cdk.aws_s3.Bucket(stack, 'shepherd-input', {
+    accessControl: cdk.aws_s3.BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
+    bucketName: `shepherd-input-${cdk.Aws.REGION}`,
+    removalPolicy: cdk.RemovalPolicy.DESTROY,
+    autoDeleteObjects: true,
+  })
+  inputBucket.addObjectCreatedNotification(new cdk.aws_s3_notifications.SqsDestination(sqsInputQ))
+
+  return {
+    sqsInputQ,
+    inputBucket,
   }
 }
