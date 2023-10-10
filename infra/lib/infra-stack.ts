@@ -86,7 +86,23 @@ export class InfraStack extends cdk.Stack {
       }))
     })
 
+    /** S3 input bucket security */
 
+    const s3Endpoint = new cdk.aws_ec2.GatewayVpcEndpoint(stack, 's3VpcEndpoint', {
+      vpc,
+      service: cdk.aws_ec2.GatewayVpcEndpointAwsService.S3,
+    })
+    inputBucket.addToResourcePolicy(new cdk.aws_iam.PolicyStatement({
+      effect: cdk.aws_iam.Effect.ALLOW,
+      principals: [new cdk.aws_iam.AnyPrincipal()],
+      actions: ['s3:*'],
+      resources: [inputBucket.bucketArn, `${inputBucket.bucketArn}/*`],
+      conditions: {
+        StringEquals: {
+          'aws:SourceVpce': s3Endpoint.vpcEndpointId,
+        },
+      },
+    }))
 
 
     /** cfn outputs */
