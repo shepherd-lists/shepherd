@@ -42,8 +42,6 @@ export class InfraStack extends cdk.Stack {
       // deletionProtection: true, //might want this in prod!!!
       dropInvalidHeaderFields: true,
     })
-    // !!! alb has an SG auto created !!!
-    alb.loadBalancerSecurityGroups
 
     /** general log group for the vpc */
     const logGroup = new cdk.aws_logs.LogGroup(this, 'logGroup', {
@@ -61,7 +59,38 @@ export class InfraStack extends cdk.Stack {
     /** create feeder Q */
     const { feederQ } = feederQs(stack, vpc)
 
+
+    /** SQS queue security */
+
+    /* create vpc interface endoint for SQS queues */
+    const sqsVpcEndpoint = new cdk.aws_ec2.InterfaceVpcEndpoint(stack, 'sqsVpcEndpoint', {
+      vpc,
+      service: new cdk.aws_ec2.InterfaceVpcEndpointAwsService('sqs'),
+      // subnets: -- defaults to private subnets
+      // securityGroups: --- defaults to the vpc default sg
+    })
+
+    /* grant vpc resources access to the queues */
+    const queues = [sqsInputQ, feederQ]
+    queues.map(q => {
+      q.addToResourcePolicy(new cdk.aws_iam.PolicyStatement({
+        effect: cdk.aws_iam.Effect.ALLOW,
+        principals: [new cdk.aws_iam.AccountPrincipal(cdk.Aws.ACCOUNT_ID)],
+        actions: ['sqs:*'],
+        resources: [q.queueArn],
+        conditions: {
+          StringEquals: {
+            'aws:SourceVpce': sqsVpcEndpoint.vpcEndpointId,
+          },
+        },
+      }))
+    })
+
+
+
+
     /** cfn outputs */
+
     new cdk.CfnOutput(stack, 'AwsAccountId', { value: cdk.Aws.ACCOUNT_ID })
     new cdk.CfnOutput(stack, 'ShepherdVPC', { value: vpc.vpcId })
     new cdk.CfnOutput(stack, 'ShepherdSecurityGroup', { value: sgPgdb.securityGroupId })
@@ -84,6 +113,9 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
     securityGroupName: 'shepherd-pgdb-sg',
   })
   sgPgdb.addIngressRule(cdk.aws_ec2.Peer.ipv4(vpc.vpcCidrBlock), cdk.aws_ec2.Port.tcp(5432), 'allow db traffic') // allow traffic from within the vpc
+  /**
+   * is sgPgdb actually required and/or the ingress rule what we need?
+   */
 
   /** create the postgres rds database */
   const pgdb = new cdk.aws_rds.DatabaseInstance(stack, 'shepherd-pgdb', {
