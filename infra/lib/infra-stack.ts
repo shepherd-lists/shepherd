@@ -107,16 +107,16 @@ export class InfraStack extends cdk.Stack {
 
     /** cfn outputs */
 
-    new cdk.CfnOutput(stack, 'AwsAccountId', { value: cdk.Aws.ACCOUNT_ID })
-    new cdk.CfnOutput(stack, 'ShepherdVPC', { value: vpc.vpcId })
-    new cdk.CfnOutput(stack, 'ShepherdSecurityGroup', { value: sgPgdb.securityGroupId })
-    new cdk.CfnOutput(stack, 'RdsEndpointUrl', { value: pgdb.dbInstanceEndpointAddress })
-    new cdk.CfnOutput(stack, 'SQSFeederQueue', { value: feederQ.queueUrl })
-    new cdk.CfnOutput(stack, 'S3Bucket', { value: inputBucket.bucketName })
-    new cdk.CfnOutput(stack, 'SQSInputQueue', { value: sqsInputQ.queueUrl })
-    new cdk.CfnOutput(stack, 'LogGroupArn', { value: logGroup.logGroupArn }) //move to services stack?
-    new cdk.CfnOutput(stack, 'LoadBalancerArn', { value: alb.loadBalancerArn })
-    new cdk.CfnOutput(stack, 'LoadBalancerDnsName', { value: alb.loadBalancerDnsName })
+    new cdk.CfnOutput(stack, 'AWS_ACCOUNT_ID', { value: cdk.Aws.ACCOUNT_ID })
+    new cdk.CfnOutput(stack, 'AWS_VPC_ID', { value: vpc.vpcId })
+    new cdk.CfnOutput(stack, 'AWS_SECURITY_GROUP_ID', { value: vpc.vpcDefaultSecurityGroup })
+    new cdk.CfnOutput(stack, 'DB_HOST', { value: pgdb.dbInstanceEndpointAddress })
+    new cdk.CfnOutput(stack, 'AWS_FEEDER_QUEUE', { value: feederQ.queueUrl })
+    new cdk.CfnOutput(stack, 'AWS_INPUT_BUCKET', { value: inputBucket.bucketName })
+    new cdk.CfnOutput(stack, 'AWS_SQS_INPUT_QUEUE', { value: sqsInputQ.queueUrl })
+    new cdk.CfnOutput(stack, 'LOG_GROUP_ARN', { value: logGroup.logGroupArn }) //move to services stack?
+    new cdk.CfnOutput(stack, 'LB_ARN', { value: alb.loadBalancerArn })
+    new cdk.CfnOutput(stack, 'LB_DNSNAME', { value: alb.loadBalancerDnsName })
   }
 }
 
