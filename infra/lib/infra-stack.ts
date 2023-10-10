@@ -39,8 +39,8 @@ export class InfraStack extends cdk.Stack {
       loadBalancerName: 'shepherd-alb',
       internetFacing: true,
       http2Enabled: false,
-      // deletionProtection: true, //might want this in prod!!!
       dropInvalidHeaderFields: true,
+      deletionProtection: true, //might want this in prod
     })
 
     /** general log group for the vpc */
