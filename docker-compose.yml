@@ -53,8 +53,8 @@ services:
     # ports: 
     #   - '84:84'
     restart: always
-    depends_on:
-      - indexer
+    # depends_on:
+    #   - indexer
   feeder:
     build:
       context: ./services

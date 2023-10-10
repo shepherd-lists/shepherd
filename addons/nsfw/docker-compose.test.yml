@@ -20,14 +20,14 @@ services:
       AWS_INPUT_BUCKET: shepherd-input-mod-local
       S3_LOCAL: 'yes'
       S3_LOCAL_ENDPOINT: http://s3-local:9000
-      HTTP_API_URL: http://http-api-test:84/postupdate
+      HTTP_API_URL: http://http-api:84/postupdate
       
     depends_on:
       - pgdb-test
       - localbridge
       - sqs-local
       - s3-local
-      - http-api-test
+      - http-api
 
   pgdb-test:
     extends:
@@ -41,10 +41,12 @@ services:
     extends:
       file: ../../docker-compose.test.yml
       service: s3-local
-  http-api-test:
+  http-api:
     extends:
-      file: ../../docker-compose.test.yml
-      service: http-api-test
+      file: ../../docker-compose.yml
+      service: http-api
+    environment:
+      DB_HOST: pgdb-test
   shep-runner:
     extends:
       file: ../../docker-compose.test.yml
