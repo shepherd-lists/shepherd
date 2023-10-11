@@ -33,7 +33,7 @@ if [ -f ".env" ]; then
 		echo "ERROR: missing mandatory environment variable, check .env.example, exiting"
 		exit 1
 	fi
-	if [[ -z $ROUTETABLE || -z $AWS_VPC_ID ]]; then
+	if [[ -z $AWS_VPC_ID ]]; then
 		echo "ERROR: missing previously created environment variable, did previous setup.sh script run OK? exiting"
 		exit 1
 	fi
@@ -44,6 +44,7 @@ if [ -f ".env" ]; then
 	else
 		echo "PLUGIN=$PLUGIN" 2>&1 | tee -a setup.log
 	fi
+	echo "Warning! ROUTETABLE, & SUBNETs 1/2/3 are not being created anymore" 2>&1 | tee -a setup.log
 
 	# make sure .env ends in newline
 	lastchar=$(tail -c 1 .env)
