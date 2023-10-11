@@ -40,7 +40,8 @@ export class InfraStack extends cdk.Stack {
       internetFacing: true,
       http2Enabled: false,
       dropInvalidHeaderFields: true,
-      deletionProtection: true, //might want this in prod
+      deletionProtection: true,
+      // vpcSubnets: -- defaults to placing ALB in public subnets
     })
 
     /** general log group for the vpc */
@@ -115,6 +116,7 @@ export class InfraStack extends cdk.Stack {
     new cdk.CfnOutput(stack, 'AWS_INPUT_BUCKET', { value: inputBucket.bucketName })
     new cdk.CfnOutput(stack, 'AWS_SQS_INPUT_QUEUE', { value: sqsInputQ.queueUrl })
     new cdk.CfnOutput(stack, 'LOG_GROUP_ARN', { value: logGroup.logGroupArn }) //move to services stack?
+    new cdk.CfnOutput(stack, 'LOG_GROUP_NAME', { value: logGroup.logGroupName }) //move to services stack?
     new cdk.CfnOutput(stack, 'LB_ARN', { value: alb.loadBalancerArn })
     new cdk.CfnOutput(stack, 'LB_DNSNAME', { value: alb.loadBalancerDnsName })
   }

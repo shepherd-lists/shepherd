@@ -21,8 +21,6 @@ export script_dir=$(dirname "$(realpath $0)")
 echo "script_dir=$script_dir" 2>&1 | tee -a setup.log
 
 
-# ** removing ECR repo section for now. **
-
 
 echo "Deploying shepherd-infra-stack using cdk..." 2>&1 | tee -a setup.log
 # cdk needs to be run from that project's root directory. so save the current dir and return to it after cdk
@@ -59,28 +57,6 @@ stack_output_to_env AWS_FEEDER_QUEUE
 stack_output_to_env AWS_INPUT_BUCKET
 stack_output_to_env AWS_SQS_INPUT_QUEUE
 stack_output_to_env LOG_GROUP_ARN
+stack_output_to_env LOG_GROUP_NAME
 stack_output_to_env LB_ARN
 stack_output_to_env LB_DNSNAME
-
-
-
-## SUBNETs and ROUTETABLE are used in legacy lambda-prod.sh only. 
-
-# export SUBNET1=$(echo $aws_stack_outputs | jq -r '.[] | select(.OutputKey=="Subnet1").OutputValue')
-# sed -i '/^SUBNET1/d' .env  # remove old line before adding new
-# echo "SUBNET1=$SUBNET1" | tee -a .env
-
-# export SUBNET2=$(echo $aws_stack_outputs | jq -r '.[] | select(.OutputKey=="Subnet2").OutputValue')
-# sed -i '/^SUBNET2/d' .env  # remove old line before adding new
-# echo "SUBNET2=$SUBNET2" | tee -a .env
-
-# export SUBNET3=$(echo $aws_stack_outputs | jq -r '.[] | select(.OutputKey=="Subnet3").OutputValue')
-# sed -i '/^SUBNET3/d' .env  # remove old line before adding new
-# echo "SUBNET3=$SUBNET3" | tee -a .env
-
-# export ROUTETABLE=$(echo $aws_stack_outputs | jq -r '.[] | select(.OutputKey=="RouteTable").OutputValue')
-# sed -i '/^ROUTETABLE/d' .env  # remove old line before adding new
-# echo "ROUTETABLE=$ROUTETABLE" | tee -a .env
-
-
-

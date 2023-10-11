@@ -2,7 +2,7 @@ version: '3.7'
 
 # x-aws-cluster: ECS cluster ID
 x-aws-vpc: arn:aws:ec2:${AWS_DEFAULT_REGION}:${AWS_ACCOUNT_ID}:vpc/${AWS_VPC_ID}
-# x-aws-loadbalancer: ${ELB_ARN}
+# x-aws-loadbalancer: ${LB_ARN}
 
 networks:
   default:
@@ -16,7 +16,7 @@ services:
     logging:
       driver: awslogs
       options:
-        awslogs-group: shepherd-services
+        awslogs-group: ${LOG_GROUP_NAME}
         # awslogs-format: json/emf
     deploy:
       resources:
@@ -34,18 +34,19 @@ services:
     platform: linux/amd64
     logging:
       options:
-        awslogs-group: shepherd-services
+        awslogs-group: ${LOG_GROUP_NAME}
     deploy:
       resources:
         limits:
           cpus: '2.0'
           memory: 4G # (2 vCPU) Between 4 GB and 16 GB in 1 GB increments
+
   indexer:
     image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/shepherd:indexer
     platform: linux/amd64
     logging:
       options:
-        awslogs-group: shepherd-services    
+        awslogs-group: ${LOG_GROUP_NAME}    
     deploy:
       resources:
         limits:
@@ -56,7 +57,7 @@ services:
     platform: linux/amd64
     logging:
       options:
-        awslogs-group: shepherd-services    
+        awslogs-group: ${LOG_GROUP_NAME}    
     deploy:
       resources:
         limits:
@@ -75,7 +76,7 @@ services:
     platform: linux/amd64
     logging:
       options:
-        awslogs-group: shepherd-services    
+        awslogs-group: ${LOG_GROUP_NAME}    
     deploy:
       resources:
         limits:
@@ -103,7 +104,7 @@ services:
     container_name: ${PLUGIN:-nsfw} # not implemented in docker ecs yet
     logging:
       options:
-        awslogs-group: shepherd-services    
+        awslogs-group: ${LOG_GROUP_NAME}    
     depends_on:
       - indexer
     # x-aws-* doesn't get created when this comes from the extended file. bug!
