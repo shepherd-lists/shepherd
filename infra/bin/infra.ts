@@ -5,10 +5,10 @@ import { InfraStack } from '../lib/infra-stack';
 
 const app = new cdk.App();
 new InfraStack(app, 'InfraStack', {
-  env: {
-    account: process.env.CDK_DEFAULT_ACCOUNT,
-    region: process.env.CDK_DEFAULT_REGION
-  },
-  stackName: 'shepherd-infra-stack',
-  description: 'shepherd main infrastructure stack. network, rds, etc.'
+	env: {
+		account: process.env.CDK_DEFAULT_ACCOUNT,
+		region: process.env.CDK_DEFAULT_REGION
+	},
+	stackName: 'shepherd-infra-stack',
+	description: 'shepherd main infrastructure stack. network, rds, etc.'
 });
