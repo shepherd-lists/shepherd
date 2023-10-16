@@ -1,6 +1,17 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
+/** check our env exist */
+
+const envVarNames = [
+	'CIDR',
+]
+envVarNames.map(name => {
+	if (!process.env[name]) throw new Error(`${name} not set`)
+})
+
+
+
 export class InfraStack extends cdk.Stack {
 	constructor(app: Construct, id: string, props?: cdk.StackProps) {
 		super(app, id, props);
@@ -16,7 +27,7 @@ export class InfraStack extends cdk.Stack {
 			 * need separate cidr for each vpc / shepherd installation, if we are connecting them via vpn peering / tailnet.
 			 * n.b. legacy shepherd uses '10.0.0.0/16', maybe we need peering during cdk migration?
 			 */
-			cidr: '10.1.0.0/16', //hard-coded for now
+			ipAddresses: cdk.aws_ec2.IpAddresses.cidr(process.env.CIDR!),
 			subnetConfiguration: [
 				{
 					cidrMask: 24,
