@@ -27,7 +27,7 @@ echo "Deploying shepherd-services stack using cdk..." 2>&1 | tee -a setup.log
 current_dir="$(pwd)" # save dir
 # run cdk
 cd "$script_dir"
-npx -y cdk synth > "cfn-services.$(date +"%Y.%m.%d-%H:%M").yml"
+npx -y cdk synth > /dev/null	# check for errors before deploying
 npx -y cdk deploy --require-approval never
 cd "$current_dir" # restore dir
 
