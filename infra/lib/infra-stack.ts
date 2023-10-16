@@ -124,6 +124,7 @@ export class InfraStack extends cdk.Stack {
 		cfnOut('LB_ARN', alb.loadBalancerArn)
 		cfnOut('LB_DNSNAME', alb.loadBalancerDnsName)
 		cfnOut('ShepherdPgdbSg', sgPgdb.securityGroupId)
+		cfnOut('ShepherdAlbSg', cdk.Fn.select(0, alb.loadBalancerSecurityGroups)) // like [0]
 
 	}
 }

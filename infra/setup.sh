@@ -61,3 +61,4 @@ stack_output_to_env LOG_GROUP_NAME
 stack_output_to_env LB_ARN
 stack_output_to_env LB_DNSNAME
 stack_output_to_env ShepherdPgdbSg
+stack_output_to_env ShepherdAlbSg
