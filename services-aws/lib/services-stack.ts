@@ -78,7 +78,35 @@ export class ServicesStack extends cdk.Stack {
 			resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd-feeder-q`],
 		}))
 
-
+		const fetchers = createService('fetchers', { stack, cluster, logGroup }, {
+			cpu: 2048,
+			memoryLimitMiB: 8192,
+		}, {
+			DB_HOST: process.env.DB_HOST!,
+			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
+			STREAMS_PER_FETCHER: process.env.STREAMS_PER_FETCHER || '50',
+			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
+			AWS_FEEDER_QUEUE: process.env.AWS_FEEDER_QUEUE!,
+			AWS_INPUT_BUCKET: process.env.AWS_INPUT_BUCKET!,
+			AWS_DEFAULT_REGION: cdk.Aws.REGION,
+		})
+		fetchers.node.addDependency(indexer)
+		fetchers.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
+			actions: ['sqs:*'],
+			resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd-feeder-q`],
+		}))
+		fetchers.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
+			actions: ['s3:*'],
+			resources: [`arn:aws:s3:::${process.env.AWS_INPUT_BUCKET!}/*`],
+		}))
+		fetchers.autoScaleTaskCount({
+			minCapacity: 1,
+			maxCapacity: 10,
+		}).scaleOnCpuUtilization('CpuScaling', {
+			targetUtilizationPercent: 60,
+			scaleInCooldown: cdk.Duration.seconds(60),
+			scaleOutCooldown: cdk.Duration.seconds(60),
+		})
 
 
 
