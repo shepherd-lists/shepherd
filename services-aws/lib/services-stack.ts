@@ -48,7 +48,11 @@ export class ServicesStack extends cdk.Stack {
 
 		/** create a cluster for fargates */
 
-		const cluster = new cdk.aws_ecs.Cluster(stack, 'shepherd-services-cluster', { vpc, clusterName: 'shepherd-services' })
+		const cluster = new cdk.aws_ecs.Cluster(stack, 'shepherd-services-cluster', {
+			vpc,
+			clusterName: 'shepherd-services',
+			defaultCloudMapNamespace: { name: 'shepherd.local' },
+		})
 
 		/** create a test fargate service */
 
@@ -154,6 +158,7 @@ const createIndexer = ({ stack, cluster, logGroup }: FargateBuilderProps) => {
 		cpu: 4096,
 		memoryLimitMiB: 16384, //check usage on these
 		runtimePlatform: { cpuArchitecture: cdk.aws_ecs.CpuArchitecture.X86_64 },
+		family: 'indexer',
 	})
 	tdefIndexer.addContainer('containerIndexer', {
 		image: cdk.aws_ecs.ContainerImage.fromDockerImageAsset(dockerImage),
@@ -173,6 +178,10 @@ const createIndexer = ({ stack, cluster, logGroup }: FargateBuilderProps) => {
 	const fgIndexer = new cdk.aws_ecs.FargateService(stack, 'fgIndexer', {
 		cluster,
 		taskDefinition: tdefIndexer,
+		serviceName: 'indexer',
+		cloudMapOptions: {
+			name: 'indexer',
+		},
 	})
 
 	return fgIndexer
