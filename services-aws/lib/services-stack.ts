@@ -60,10 +60,13 @@ export class ServicesStack extends cdk.Stack {
 
 		/** create fargate services required for shepherd */
 
+		/* tailscale vpn service */
 		const tailscale = createTailscale({ stack, cluster, logGroup, vpc, alb, sgAlb, port: 443 })
 
+		/** indexer service */
 		const indexer = createIndexer({ stack, cluster, logGroup })
 
+		/* feeder service */
 		const feeder = createService('feeder', { stack, cluster, logGroup }, {
 			cpu: 2048,
 			memoryLimitMiB: 8192,
@@ -78,6 +81,7 @@ export class ServicesStack extends cdk.Stack {
 			resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd-feeder-q`],
 		}))
 
+		/* fetchers service */
 		const fetchers = createService('fetchers', { stack, cluster, logGroup }, {
 			cpu: 2048,
 			memoryLimitMiB: 8192,
@@ -108,7 +112,23 @@ export class ServicesStack extends cdk.Stack {
 			scaleOutCooldown: cdk.Duration.seconds(60),
 		})
 
-
+		/* http-api service */
+		const httpApi = createService('http-api', { stack, cluster, logGroup }, {
+			cpu: 2048,
+			memoryLimitMiB: 4096,
+		}, {
+			DB_HOST: process.env.DB_HOST!,
+			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
+			SLACK_POSITIVE: process.env.SLACK_POSITIVE!,
+			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
+			GQL_URL: process.env.GQL_URL || 'https://arweave.net/graphql',
+			GQL_URL_SECONDARY: process.env.GQL_URL_SECONDARY || 'https://arweave-search.goldsky.com/graphql',
+		})
+		httpApi.connections.securityGroups[0].addIngressRule(
+			cdk.aws_ec2.Peer.ipv4(vpc.vpcCidrBlock),
+			cdk.aws_ec2.Port.tcp(84),
+			'allow traffic from within the vpc on port 84'
+		)
 
 
 		new cdk.CfnOutput(stack, 'ShepherdCluster', { exportName: 'ShepherdCluster', value: cluster.clusterName })
