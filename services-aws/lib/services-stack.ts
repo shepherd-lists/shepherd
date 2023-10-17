@@ -54,13 +54,32 @@ export class ServicesStack extends cdk.Stack {
 			defaultCloudMapNamespace: { name: 'shepherd.local' },
 		})
 
-		/** create a test fargate service */
 
+		/** create a test fargate service */
 		const fgNginx = fargateNginx({ stack, cluster, logGroup, vpc, alb, sgAlb, port: 80 })
+
+		/** create fargate services required for shepherd */
 
 		const tailscale = createTailscale({ stack, cluster, logGroup, vpc, alb, sgAlb, port: 443 })
 
 		const indexer = createIndexer({ stack, cluster, logGroup })
+
+		const feeder = createService('feeder', { stack, cluster, logGroup }, {
+			cpu: 2048,
+			memoryLimitMiB: 8192,
+		}, {
+			DB_HOST: process.env.DB_HOST!,
+			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
+			AWS_FEEDER_QUEUE: process.env.AWS_FEEDER_QUEUE!,
+		})
+		feeder.node.addDependency(indexer)
+		feeder.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
+			actions: ['sqs:*'],
+			resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd-feeder-q`],
+		}))
+
+
+
 
 
 
@@ -189,3 +208,48 @@ const createIndexer = ({ stack, cluster, logGroup }: FargateBuilderProps) => {
 	return fgIndexer
 }
 
+interface ServiceResources {
+	cpu: number
+	memoryLimitMiB: number
+}
+interface Environment {
+	[key: string]: string
+}
+const createService = (
+	name: string,
+	{ stack, cluster, logGroup }: FargateBuilderProps,
+	{ cpu, memoryLimitMiB }: ServiceResources,
+	environment: Environment
+) => {
+	const Name = name.charAt(0).toUpperCase() + name.slice(1)
+	const dockerImage = new cdk.aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
+		directory: new URL('../../services/', import.meta.url).pathname,
+		target: name,
+		assetName: `${name}-image`,
+		platform: cdk.aws_ecr_assets.Platform.LINUX_AMD64,
+	})
+	const tdef = new cdk.aws_ecs.FargateTaskDefinition(stack, `tdef${Name}`, {
+		cpu,
+		memoryLimitMiB,
+		runtimePlatform: { cpuArchitecture: cdk.aws_ecs.CpuArchitecture.X86_64 },
+		family: name,
+	})
+	tdef.addContainer(`container${Name}`, {
+		image: cdk.aws_ecs.ContainerImage.fromDockerImageAsset(dockerImage),
+		logging: new cdk.aws_ecs.AwsLogDriver({
+			logGroup,
+			streamPrefix: name,
+		}),
+		containerName: `${name}Container`,
+		environment,
+	})
+	const fg = new cdk.aws_ecs.FargateService(stack, `fg${Name}`, {
+		cluster,
+		taskDefinition: tdef,
+		serviceName: name,
+		cloudMapOptions: { name },
+		desiredCount: 1,
+	})
+
+	return fg
+}
