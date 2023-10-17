@@ -166,7 +166,7 @@ const createIndexer = ({ stack, cluster, logGroup }: FargateBuilderProps) => {
 			logGroup,
 			streamPrefix: 'indexer',
 		}),
-		containerName: 'indexerContainer',
+		containerName: 'indexer',
 		environment: {
 			DB_HOST: process.env.DB_HOST!,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
@@ -182,7 +182,10 @@ const createIndexer = ({ stack, cluster, logGroup }: FargateBuilderProps) => {
 		cloudMapOptions: {
 			name: 'indexer',
 		},
+		minHealthyPercent: 0, // these seem to make deployment faster
+		desiredCount: 1,
 	})
 
 	return fgIndexer
 }
+
