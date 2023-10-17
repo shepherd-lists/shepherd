@@ -4,7 +4,7 @@ import { Construct } from 'constructs'
 /** check our env exist */
 
 const envVarNames = [
-	/** from shepherd-infra-stack */
+	/** from shepherd-infra-stack. created when you run the stack's setup */
 	'AWS_VPC_ID',
 	'AWS_SECURITY_GROUP_ID', //vpc default sg. this is wrong/not set up correctly
 	'DB_HOST',
@@ -17,6 +17,7 @@ const envVarNames = [
 	'LB_DNSNAME',
 	'ShepherdPgdbSg',
 	'ShepherdAlbSg',
+	/** tailscale key */
 	'TS_AUTHKEY',
 ]
 envVarNames.map(name => {
@@ -54,6 +55,8 @@ export class ServicesStack extends cdk.Stack {
 		const fgNginx = fargateNginx({ stack, cluster, logGroup, vpc, alb, sgAlb, port: 80 })
 
 		const tailscale = createTailscale({ stack, cluster, logGroup, vpc, alb, sgAlb, port: 443 })
+
+		const indexer = createIndexer({ stack, cluster, logGroup })
 
 
 
@@ -138,4 +141,39 @@ const createTailscale = ({ stack, cluster, logGroup, vpc, alb, sgAlb, port }: Fa
 	})
 
 	return fgTailscale
+}
+
+const createIndexer = ({ stack, cluster, logGroup }: FargateBuilderProps) => {
+	const dockerImage = new cdk.aws_ecr_assets.DockerImageAsset(stack, 'imageIndexer', {
+		directory: new URL('../../services/', import.meta.url).pathname,
+		target: 'indexer',
+		assetName: 'indexer-image',
+		platform: cdk.aws_ecr_assets.Platform.LINUX_AMD64,
+	})
+	const tdefIndexer = new cdk.aws_ecs.FargateTaskDefinition(stack, 'tdefIndexer', {
+		cpu: 4096,
+		memoryLimitMiB: 16384, //check usage on these
+		runtimePlatform: { cpuArchitecture: cdk.aws_ecs.CpuArchitecture.X86_64 },
+	})
+	tdefIndexer.addContainer('containerIndexer', {
+		image: cdk.aws_ecs.ContainerImage.fromDockerImageAsset(dockerImage),
+		logging: new cdk.aws_ecs.AwsLogDriver({
+			logGroup,
+			streamPrefix: 'indexer',
+		}),
+		containerName: 'indexerContainer',
+		environment: {
+			DB_HOST: process.env.DB_HOST!,
+			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
+			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
+			GQL_URL: process.env.GQL_URL || 'https://arweave.net/graphql',
+			GQL_URL_SECONDARY: process.env.GQL_URL_SECONDARY || 'https://arweave-search.goldsky.com/graphql',
+		}
+	})
+	const fgIndexer = new cdk.aws_ecs.FargateService(stack, 'fgIndexer', {
+		cluster,
+		taskDefinition: tdefIndexer,
+	})
+
+	return fgIndexer
 }
