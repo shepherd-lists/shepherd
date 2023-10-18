@@ -55,13 +55,10 @@ export class ServicesStack extends cdk.Stack {
 		})
 
 
-		/** create a test fargate service */
-		// const fgNginx = fargateNginx({ stack, cluster, logGroup, vpc, alb, sgAlb, port: 80 })
-
 		/** create fargate services required for shepherd */
 
 		/* tailscale vpn service */
-		const tailscale = createTailscale({ stack, cluster, logGroup, vpc, alb, sgAlb, port: 443 })
+		const tailscale = createTailscale({ stack, cluster, logGroup, vpc })
 
 		/** indexer service */
 		const indexer = createIndexer({ stack, cluster, logGroup })
@@ -169,50 +166,12 @@ interface FargateBuilderProps {
 	cluster: cdk.aws_ecs.Cluster
 	logGroup: cdk.aws_logs.ILogGroup
 }
-interface FargateBuilderIngressProps extends FargateBuilderProps {
+interface FargateBuilderVpcProps extends FargateBuilderProps {
 	vpc: cdk.aws_ec2.IVpc
-	alb: cdk.aws_elasticloadbalancingv2.IApplicationLoadBalancer
-	sgAlb: cdk.aws_ec2.ISecurityGroup
-	port: number
 }
 
-const fargateNginx = ({ stack, cluster, logGroup, vpc, alb, port, sgAlb }: FargateBuilderIngressProps) => {
 
-	/** create tdef, image, service */
-
-	const taskDefinition = new cdk.aws_ecs.FargateTaskDefinition(stack, 'tdefNginx', {
-		cpu: 512,
-		memoryLimitMiB: 1024,
-	})
-	taskDefinition.addContainer('nginxImage', {
-		image: cdk.aws_ecs.ContainerImage.fromRegistry('nginx:latest'),
-		portMappings: [{ containerPort: port }],
-		logging: new cdk.aws_ecs.AwsLogDriver({
-			logGroup,
-			streamPrefix: 'nginx',
-		}),
-	})
-	const fgNginx = new cdk.aws_ecs.FargateService(stack, 'fgNginx', {
-		cluster,
-		taskDefinition,
-		// securityGroups: [sgNginx]
-	})
-
-	/** add port mapping */
-
-	alb.addListener('fargateFromWebListener', {
-		protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
-		port,
-	}).addTargets('fargateFromWebTarget', {
-		protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
-		port,
-		targets: [fgNginx],
-	})
-
-	return fgNginx
-}
-
-const createTailscale = ({ stack, cluster, logGroup, vpc, alb, sgAlb, port }: FargateBuilderIngressProps) => {
+const createTailscale = ({ stack, cluster, logGroup, vpc }: FargateBuilderVpcProps) => {
 
 	/* N.B. there's no need for any AWS port mapping when using tailscale */
 
