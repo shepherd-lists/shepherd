@@ -6,19 +6,17 @@ import { Construct } from 'constructs'
 const envVarNames = [
 	/** from shepherd-infra-stack. created when you run the stack's setup */
 	'AWS_VPC_ID',
-	'AWS_SECURITY_GROUP_ID', //vpc default sg. this is wrong/not set up correctly
 	'DB_HOST',
 	'AWS_FEEDER_QUEUE',
 	'AWS_INPUT_BUCKET',
-	'AWS_SQS_INPUT_QUEUE',
-	'LOG_GROUP_ARN',
+	'AWS_SQS_INPUT_QUEUE', //addons use this
 	'LOG_GROUP_NAME',
 	'LB_ARN',
 	'LB_DNSNAME',
-	'ShepherdPgdbSg',
-	'ShepherdAlbSg',
 	/** tailscale key */
 	'TS_AUTHKEY',
+	/** required variables */
+
 ]
 envVarNames.map(name => {
 	if (!process.env[name]) throw new Error(`${name} not set`)

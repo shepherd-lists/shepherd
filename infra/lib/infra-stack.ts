@@ -125,17 +125,14 @@ export class InfraStack extends cdk.Stack {
 		}
 		cfnOut('AWS_ACCOUNT_ID', cdk.Aws.ACCOUNT_ID)
 		cfnOut('AWS_VPC_ID', vpc.vpcId)
-		cfnOut('AWS_SECURITY_GROUP_ID', vpc.vpcDefaultSecurityGroup) // this is wrong/not set up correctly
 		cfnOut('DB_HOST', pgdb.dbInstanceEndpointAddress)
 		cfnOut('AWS_FEEDER_QUEUE', feederQ.queueUrl)
 		cfnOut('AWS_INPUT_BUCKET', inputBucket.bucketName)
 		cfnOut('AWS_SQS_INPUT_QUEUE', sqsInputQ.queueUrl)
-		cfnOut('LOG_GROUP_ARN', logGroup.logGroupArn)
 		cfnOut('LOG_GROUP_NAME', logGroup.logGroupName)
 		cfnOut('LB_ARN', alb.loadBalancerArn)
 		cfnOut('LB_DNSNAME', alb.loadBalancerDnsName)
-		cfnOut('ShepherdPgdbSg', sgPgdb.securityGroupId)
-		cfnOut('ShepherdAlbSg', cdk.Fn.select(0, alb.loadBalancerSecurityGroups)) // like [0]
+		// cfnOut('ShepherdAlbSg', cdk.Fn.select(0, alb.loadBalancerSecurityGroups)) // like [0]
 
 	}
 }

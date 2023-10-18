@@ -51,14 +51,10 @@ function stack_output_to_env {
 
 stack_output_to_env AWS_ACCOUNT_ID
 stack_output_to_env AWS_VPC_ID
-stack_output_to_env AWS_SECURITY_GROUP_ID
 stack_output_to_env DB_HOST
 stack_output_to_env AWS_FEEDER_QUEUE
 stack_output_to_env AWS_INPUT_BUCKET
 stack_output_to_env AWS_SQS_INPUT_QUEUE
-stack_output_to_env LOG_GROUP_ARN
 stack_output_to_env LOG_GROUP_NAME
 stack_output_to_env LB_ARN
 stack_output_to_env LB_DNSNAME
-stack_output_to_env ShepherdPgdbSg
-stack_output_to_env ShepherdAlbSg
