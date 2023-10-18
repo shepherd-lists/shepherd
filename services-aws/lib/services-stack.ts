@@ -58,7 +58,7 @@ export class ServicesStack extends cdk.Stack {
 		/** create fargate services required for shepherd */
 
 		/* tailscale vpn service */
-		const tailscale = createTailscale({ stack, cluster, logGroup, vpc })
+		const tailscale = createTailscale(vpc, { stack, cluster, logGroup })
 
 		/** indexer service. setting `minHealthyPercent` seems to make deployment faster */
 		const indexer = createService('indexer', { stack, cluster, logGroup, minHealthyPercent: 0 }, {
@@ -71,8 +71,6 @@ export class ServicesStack extends cdk.Stack {
 			GQL_URL: process.env.GQL_URL || 'https://arweave.net/graphql',
 			GQL_URL_SECONDARY: process.env.GQL_URL_SECONDARY || 'https://arweave-search.goldsky.com/graphql',
 		})
-
-
 
 		/* feeder service */
 		const feeder = createService('feeder', { stack, cluster, logGroup }, {
@@ -178,12 +176,8 @@ interface FargateBuilderProps {
 	logGroup: cdk.aws_logs.ILogGroup
 	minHealthyPercent?: number
 }
-interface FargateBuilderVpcProps extends FargateBuilderProps {
-	vpc: cdk.aws_ec2.IVpc
-}
 
-
-const createTailscale = ({ stack, cluster, logGroup, vpc }: FargateBuilderVpcProps) => {
+const createTailscale = (vpc: cdk.aws_ec2.IVpc, { stack, cluster, logGroup, }: FargateBuilderProps) => {
 
 	/* N.B. there's no need for any AWS port mapping when using tailscale */
 
@@ -215,12 +209,33 @@ const createTailscale = ({ stack, cluster, logGroup, vpc }: FargateBuilderVpcPro
 
 
 interface ServiceResources {
+	// this is handy for hovering over the props in vscode
+	/** Valid values for cpu and ram units used by the Fargate launch type. 
+	 * https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html 
+	 * 
+	 * 256 (.25 vCPU) - Available memory values: 512 (0.5 GB), 1024 (1 GB), 2048 (2 GB)
+	 * 
+	 * 512 (.5 vCPU) - Available memory values: 1024 (1 GB), 2048 (2 GB), 3072 (3 GB), 4096 (4 GB)
+	 * 
+	 * 1024 (1 vCPU) - Available memory values: 2048 (2 GB), 3072 (3 GB), 4096 (4 GB), 5120 (5 GB), 6144 (6 GB), 7168 (7 GB), 8192 (8 GB)
+	 * 
+	 * 2048 (2 vCPU) - Available memory values: Between 4096 (4 GB) and 16384 (16 GB) in increments of 1024 (1 GB)
+	 *  
+	 * 4096 (4 vCPU) - Available memory values: Between 8192 (8 GB) and 30720 (30 GB) in increments of 1024 (1 GB)
+	 * 
+	 * 8192 (8 vCPU) - Available memory values: Between 16384 (16 GB) and 61440 (60 GB) in increments of 4096 (4 GB)
+	 * 
+	 * 16384 (16 vCPU) - Available memory values: Between 32768 (32 GB) and 122880 (120 GB) in increments of 8192 (8 GB)
+	 * 
+	 * @default cpu 256 && memoryLimitMiB: 512
+	 */
 	cpu: number
 	memoryLimitMiB: number
 }
 interface Environment {
 	[key: string]: string
 }
+/** create a standard shepherd fargate service */
 const createService = (
 	name: string,
 	{ stack, cluster, logGroup, minHealthyPercent }: FargateBuilderProps,
