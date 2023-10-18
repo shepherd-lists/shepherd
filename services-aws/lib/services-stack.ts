@@ -60,8 +60,19 @@ export class ServicesStack extends cdk.Stack {
 		/* tailscale vpn service */
 		const tailscale = createTailscale({ stack, cluster, logGroup, vpc })
 
-		/** indexer service */
-		const indexer = createIndexer({ stack, cluster, logGroup })
+		/** indexer service. setting `minHealthyPercent` seems to make deployment faster */
+		const indexer = createService('indexer', { stack, cluster, logGroup, minHealthyPercent: 0 }, {
+			cpu: 4096,
+			memoryLimitMiB: 16384,
+		}, {
+			DB_HOST: process.env.DB_HOST!,
+			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
+			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
+			GQL_URL: process.env.GQL_URL || 'https://arweave.net/graphql',
+			GQL_URL_SECONDARY: process.env.GQL_URL_SECONDARY || 'https://arweave-search.goldsky.com/graphql',
+		})
+
+
 
 		/* feeder service */
 		const feeder = createService('feeder', { stack, cluster, logGroup }, {
@@ -165,6 +176,7 @@ interface FargateBuilderProps {
 	stack: cdk.Stack
 	cluster: cdk.aws_ecs.Cluster
 	logGroup: cdk.aws_logs.ILogGroup
+	minHealthyPercent?: number
 }
 interface FargateBuilderVpcProps extends FargateBuilderProps {
 	vpc: cdk.aws_ec2.IVpc
@@ -201,47 +213,6 @@ const createTailscale = ({ stack, cluster, logGroup, vpc }: FargateBuilderVpcPro
 	return fgTailscale
 }
 
-const createIndexer = ({ stack, cluster, logGroup }: FargateBuilderProps) => {
-	const dockerImage = new cdk.aws_ecr_assets.DockerImageAsset(stack, 'imageIndexer', {
-		directory: new URL('../../services/', import.meta.url).pathname,
-		target: 'indexer',
-		assetName: 'indexer-image',
-		platform: cdk.aws_ecr_assets.Platform.LINUX_AMD64,
-	})
-	const tdefIndexer = new cdk.aws_ecs.FargateTaskDefinition(stack, 'tdefIndexer', {
-		cpu: 4096,
-		memoryLimitMiB: 16384, //check usage on these
-		runtimePlatform: { cpuArchitecture: cdk.aws_ecs.CpuArchitecture.X86_64 },
-		family: 'indexer',
-	})
-	tdefIndexer.addContainer('containerIndexer', {
-		image: cdk.aws_ecs.ContainerImage.fromDockerImageAsset(dockerImage),
-		logging: new cdk.aws_ecs.AwsLogDriver({
-			logGroup,
-			streamPrefix: 'indexer',
-		}),
-		containerName: 'indexer',
-		environment: {
-			DB_HOST: process.env.DB_HOST!,
-			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
-			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
-			GQL_URL: process.env.GQL_URL || 'https://arweave.net/graphql',
-			GQL_URL_SECONDARY: process.env.GQL_URL_SECONDARY || 'https://arweave-search.goldsky.com/graphql',
-		}
-	})
-	const fgIndexer = new cdk.aws_ecs.FargateService(stack, 'fgIndexer', {
-		cluster,
-		taskDefinition: tdefIndexer,
-		serviceName: 'indexer',
-		cloudMapOptions: {
-			name: 'indexer',
-		},
-		minHealthyPercent: 0, // these seem to make deployment faster
-		desiredCount: 1,
-	})
-
-	return fgIndexer
-}
 
 interface ServiceResources {
 	cpu: number
@@ -252,7 +223,7 @@ interface Environment {
 }
 const createService = (
 	name: string,
-	{ stack, cluster, logGroup }: FargateBuilderProps,
+	{ stack, cluster, logGroup, minHealthyPercent }: FargateBuilderProps,
 	{ cpu, memoryLimitMiB }: ServiceResources,
 	environment: Environment
 ) => {
@@ -284,6 +255,7 @@ const createService = (
 		serviceName: name,
 		cloudMapOptions: { name },
 		desiredCount: 1,
+		...(minHealthyPercent ? { minHealthyPercent } : {})
 	})
 
 	return fg
