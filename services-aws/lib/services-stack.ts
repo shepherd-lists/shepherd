@@ -56,7 +56,7 @@ export class ServicesStack extends cdk.Stack {
 
 
 		/** create a test fargate service */
-		const fgNginx = fargateNginx({ stack, cluster, logGroup, vpc, alb, sgAlb, port: 80 })
+		// const fgNginx = fargateNginx({ stack, cluster, logGroup, vpc, alb, sgAlb, port: 80 })
 
 		/** create fargate services required for shepherd */
 
@@ -129,6 +129,34 @@ export class ServicesStack extends cdk.Stack {
 			cdk.aws_ec2.Port.tcp(84),
 			'allow traffic from within the vpc on port 84'
 		)
+
+		/* webserver service */
+		const webserver = createService('webserver', { stack, cluster, logGroup }, {
+			cpu: 2048,
+			memoryLimitMiB: 8192,
+		}, {
+			DB_HOST: process.env.DB_HOST!,
+			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
+			SLACK_POSITIVE: process.env.SLACK_POSITIVE!,
+			SLACK_PROBE: process.env.SLACK_PROBE!,
+			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
+			GQL_URL: process.env.GQL_URL || 'https://arweave.net/graphql',
+			GQL_URL_SECONDARY: process.env.GQL_URL_SECONDARY || 'https://arweave-search.goldsky.com/graphql',
+			BLACKLIST_ALLOWED: process.env.BLACKLIST_ALLOWED || '',
+			RANGELIST_ALLOWED: process.env.RANGELIST_ALLOWED || '',
+			GW_URLS: process.env.GW_URLS || '',
+		})
+		webserver.taskDefinition.defaultContainer?.addPortMappings({
+			containerPort: 80,
+		})
+		alb.addListener('port80Listener', {
+			protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
+			port: 80,
+		}).addTargets('port80Target', {
+			protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
+			port: 80,
+			targets: [webserver],
+		})
 
 
 		new cdk.CfnOutput(stack, 'ShepherdCluster', { exportName: 'ShepherdCluster', value: cluster.clusterName })
