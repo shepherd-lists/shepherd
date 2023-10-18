@@ -3,12 +3,17 @@ version: '3.7'
 services:
 
   plugin:
-    extends: 
-      file: addons/nsfw/docker-compose.base.yml
-      service: plugin
+    hostname: ${IMAGE_REPO:-local}-nsfw-container
+    build: 
+      context: .
+      target: ${TARGET_NSFW:-nsfw} # nsfw to rebuild tfjs node bindings. set to no-nsfw to skip
     environment:
-      SQS_LOCAL: 'no'
-      S3_LOCAL: 'no'
+      DB_HOST: ${DB_HOST:-pgdb}
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
+      HOST_URL: ${HOST_URL:-https://arweave.net}
+      NUM_FILES: ${NUM_FILES:-50}
+      TOTAL_FILESIZE_GB: ${TOTAL_FILESIZE_GB:-10}
+      
       AWS_SQS_INPUT_QUEUE: ${AWS_SQS_INPUT_QUEUE}
       AWS_INPUT_BUCKET: ${AWS_INPUT_BUCKET}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
@@ -21,10 +26,6 @@ services:
         limits:
           cpus: '4.0'
           memory: 30G
-      # replicas: 2 # initial scaling & needed for update_config
-      # update_config:
-      #   parallelism: 2
-        # order: start-first # unsupported for ecs
       x-aws-autoscaling:
         min: 1
         max: 10

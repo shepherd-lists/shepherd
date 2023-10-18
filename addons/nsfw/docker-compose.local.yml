@@ -3,13 +3,20 @@ version: '3.7'
 services:
 
   plugin:
-    extends: 
-      file: ./docker-compose.base.yml
-      service: plugin
+    hostname: ${IMAGE_REPO:-local}-nsfw-container
+    build: 
+      context: .
+      target: ${TARGET_NSFW:-nsfw} # nsfw to rebuild tfjs node bindings. set to no-nsfw to skip
     deploy:
       mode: replicated
       replicas: 2
     environment: 
+      DB_HOST: ${DB_HOST:-pgdb}
+      SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}
+      HOST_URL: ${HOST_URL:-https://arweave.net}
+      NUM_FILES: ${NUM_FILES:-50}
+      TOTAL_FILESIZE_GB: ${TOTAL_FILESIZE_GB:-10}
+
       SQS_LOCAL: 'yes'
       S3_LOCAL: 'yes'
       AWS_ACCESS_KEY_ID: minioroot
@@ -19,3 +26,4 @@ services:
       AWS_INPUT_BUCKET: shepherd-input-mod-local
       S3_LOCAL_ENDPOINT: http://s3-local:9000
       HTTP_API_URL: http://http-api:84/postupdate
+    restart: always

@@ -9,14 +9,14 @@ COPY ./tsconfig.json ./tsconfig.json
 COPY ./package*.json ./
 RUN npm ci --omit=dev
 
-FROM base as tfjs
+FROM base as nsfw
 RUN npm i shepherd-plugin-nsfw
 RUN npm rebuild @tensorflow/tfjs-node --build-from-source
 COPY ./src ./src
 COPY ./shepherd.config.json ./shepherd.config.json
 ENTRYPOINT node -r ts-node/register src/index.ts
 
-FROM base as no-tfjs
+FROM base as no-nsfw
 COPY ./src ./src
 COPY ./shepherd.config.json ./shepherd.config.json
 ENTRYPOINT node -r ts-node/register src/index.ts
