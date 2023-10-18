@@ -32,18 +32,8 @@ export class ServicesStack extends cdk.Stack {
 		/** import shepherd-infra-stack items  */
 
 		const vpc = cdk.aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcId: process.env.AWS_VPC_ID })
-		const sgVpcDefault = cdk.aws_ec2.SecurityGroup.fromSecurityGroupId(stack, 'sgVpcDefault', process.env.AWS_SECURITY_GROUP_ID!)
-		const sgPgdb = cdk.aws_ec2.SecurityGroup.fromSecurityGroupId(stack, 'sgPgdb', process.env.ShepherdPgdbSg!)
-		// const pgdb = cdk.aws_rds.DatabaseInstance.fromDatabaseInstanceAttributes(stack, 'pgdb', {
-		// 	instanceEndpointAddress: process.env.DB_HOST!,
-		// 	securityGroups: [defaultVpcSg],
-		// 	instanceIdentifier: 'shepherd-pgdb',
-		// 	port: 5432,
-		// })
 		const alb = cdk.aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn: process.env.LB_ARN })
-		const sgAlb = cdk.aws_ec2.SecurityGroup.fromSecurityGroupId(stack, 'sgAlb', process.env.ShepherdAlbSg!)
 		const logGroup = cdk.aws_logs.LogGroup.fromLogGroupName(stack, 'logGroup', process.env.LOG_GROUP_NAME!)
-		//to be continued...
 
 
 		/** create a cluster for fargates */
