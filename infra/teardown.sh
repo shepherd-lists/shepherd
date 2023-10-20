@@ -11,7 +11,7 @@ else
 	exit 1
 fi
 
-echo "Deleting cloudformation stack...(networks and RDS)" 2>&1 | tee -a setup.log
+echo "Deleting cloudformation stack...(networks and RDS)"
 
 # save dir
 current_dir="$(pwd)"
@@ -24,5 +24,5 @@ cd "$current_dir"
 
 
 echo "Deleting ecr repositories..." 2>&1 | tee -a setup.log
-aws ecr delete-repository --repository-name shepherd --force  2>&1 | tee -a setup.log
+aws ecr delete-repository --repository-name shepherd --force
 
