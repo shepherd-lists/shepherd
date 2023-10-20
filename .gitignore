@@ -12,3 +12,4 @@ _dev*/
 _prod*/
 docker-compose.override.yml
 cdk.context.json
+cdk.out
