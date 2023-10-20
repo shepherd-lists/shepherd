@@ -14,9 +14,11 @@ RUN npm i shepherd-plugin-nsfw
 RUN npm rebuild @tensorflow/tfjs-node --build-from-source
 COPY ./src ./src
 COPY ./shepherd.config.json ./shepherd.config.json
+RUN npm run typecheck
 ENTRYPOINT node -r ts-node/register src/index.ts
 
 FROM base as no-nsfw
 COPY ./src ./src
 COPY ./shepherd.config.json ./shepherd.config.json
+RUN npm run typecheck
 ENTRYPOINT node -r ts-node/register src/index.ts

@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "test:grep": "mocha tests/**/*.spec.ts --grep",
     "test": "mocha tests/**/*.spec.ts"
   },
