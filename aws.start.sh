@@ -7,13 +7,19 @@ set -euo pipefail
 
 # for relative paths
 script_dir=$(dirname "$(realpath $0)")
-echo "script_dir=$script_dir" 2>&1 | tee -a setup.log
+echo "script_dir=$script_dir" 
+
+colour="\033[0;34m"
+reset="\033[0m"
+function echoHeading() {
+	echo -e "${colour}$1${reset}"
+}
 
 # -= ensure `shepherd.config.json` exists =-
 
 config_file="$script_dir/addons/nsfw/shepherd.config.json"
 if [ ! -f "$config_file" ]; then
-  echo "$config_file not found. creating default..." 2>&1 | tee -a setup.log
+  echo "$config_file not found. creating default..." 
   cat <<EOF > "$config_file"
 {
 "plugins": [ 
@@ -29,22 +35,25 @@ fi
 if [ -f ".env" ]; then
 	export $(grep -Ev '^#' .env | xargs)
 	# check for mandatory vars here
-	if [[ -z $AWS_DEFAULT_REGION || -z $AWS_ACCESS_KEY_ID || -z $AWS_SECRET_ACCESS_KEY ]]; then
+	if [[ -z $AWS_DEFAULT_REGION ]]; then
 		echo "ERROR: missing mandatory environment variable, check .env.example, exiting"
 		exit 1
 	fi
+
+	echo "WARNING!!! Might want to check for AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY missing issues!"
+
 	if [[ -z $AWS_VPC_ID ]]; then
 		echo "ERROR: missing previously created environment variable, did previous setup.sh script run OK? exiting"
 		exit 1
 	fi
 	plugin_checker=${PLUGIN:-}
 	if [[ -z $plugin_checker ]]; then
-		echo "PLUGIN var not found. defaulting to 'nsfw'" 2>&1 | tee -a setup.log
+		echo "PLUGIN var not found. defaulting to 'nsfw'" 
 		export PLUGIN=nsfw
 	else
-		echo "PLUGIN=$PLUGIN" 2>&1 | tee -a setup.log
+		echo "PLUGIN=$PLUGIN" 
 	fi
-	echo "Warning! ROUTETABLE, & SUBNETs 1/2/3 are not being created anymore" 2>&1 | tee -a setup.log
+	echo "Warning! ROUTETABLE, & SUBNETs 1/2/3 are not being created anymore" 
 
 	# make sure .env ends in newline
 	lastchar=$(tail -c 1 .env)
@@ -67,63 +76,55 @@ fi
 echo "RANGELIST_ALLOWED=${RANGELIST_ALLOWED:-}"
 
 #################################################
-# -= finally run docker setup & run commands =- #
+# -= finally deploy all cdk stacks           =- #
 #################################################
 
-# -= setup docker ecs context =-
+# function to save/cd/reset pwd when running cdk deploys
+function cdk_deploy() {
+	local target_dir="$1"
+	local cdk_command="$2"
+	# save pwd
+	pwd=$(pwd)
+	# cd to cdk dir
+	cd "$target_dir"
+	# run cdk command
+	eval "$cdk_command"
+	# cd back to original dir
+	cd "$pwd"
+}
 
-echo "Remove existing docker ecs context..."
-docker context rm ecs 2>&1 | tee -a setup.log
+echoHeading "Deploy shepherd-infra-stack..."
+$script_dir/infra/setup.sh
 
-echo "Creating docker ecs context ..."
-docker context create ecs ecs --from-env  2>&1 | tee -a setup.log
+echoHeading "Deploy shepherd-services core stack..."
+$script_dir/services-aws/start.sh
 
-export IMAGE_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
-echo "$IMAGE_REPO"  2>&1 | tee -a setup.log
 
-echo "Docker login ecr..."
-# docker logout
-aws ecr get-login-password | docker login --password-stdin --username AWS $IMAGE_REPO
+## reimport .env to get new vars and deploy plugins
+## this is just a hack for now. all of this bash scripting will likely be replaced.
+export $(grep -Ev '^#' .env | xargs)
+# check an example mandatory var here
+if [[ -z $ShepherdCluster ]]; then
+	echo "ERROR: missing generated environment variable, check .env and logs, exiting."
+	exit 1
+fi
 
-# -= add compose files to the command args =-
-
-compose_file_args=" \
-  -f $script_dir/docker-compose.yml \
-  -f $script_dir/docker-compose.aws.yml \
-  -f $script_dir/addons/$PLUGIN/docker-compose.aws.yml"
+# -= deploy plugins =-
+echoHeading "Deploying plugins..."
+# loop through PLUGINS and deploy them
 
 plugins_checker=${PLUGINS:-}
 if [[ -z $plugins_checker ]]; then
-	echo "Info: PLUGINS=undefined." 2>&1 | tee -a setup.log
+	echo "ERROR: PLUGINS=undefined."
+	exit 1
 else
-	echo "PLUGINS=$PLUGINS" 2>&1 | tee -a setup.log
+	echo "PLUGINS=$PLUGINS" 
 	IFS=',' read -ra plugin_names <<< "$PLUGINS"
 	for plugin_name in "${plugin_names[@]}"; do
 		plugin_name=$(echo "$plugin_name" | tr -d '[:space:]') # remove whitespace
-		compose_file_args="$compose_file_args -f $script_dir/addons/$plugin_name/docker-compose.aws.yml"
+		cdk_deploy "$script_dir/addons/$plugin_name" "npx cdk deploy --require-approval never"
 	done
 fi
 
-cmd_docker_compose="docker compose $compose_file_args"
-echo "cmd_docker_compose=$cmd_docker_compose" 2>&1 | tee -a setup.log
-
-echo "Docker build..." 2>&1 | tee -a setup.log
-eval "$cmd_docker_compose build"
-
-echo "Docker push..."  2>&1 | tee -a setup.log
-# prime the docker caches first. indexer has no dependencies
-eval "$cmd_docker_compose push indexer"
-eval "$cmd_docker_compose push"
-
-cmd_docker_compose_ecs="docker --context ecs compose $compose_file_args"
-
-echo "Docker convert..." 2>&1 | tee -a setup.log
-eval "$cmd_docker_compose_ecs convert" > "cfn.yml.$(date +"%Y.%m.%d-%H:%M").log"
-
-echo "Docker up..." 2>&1 | tee -a setup.log
-# do `docker --debug` if you want extra info
-eval "$cmd_docker_compose_ecs up"
-
-echo "Docker ps..." 2>&1 | tee -a setup.log
-eval "$cmd_docker_compose_ecs ps"
+echoHeading "Finished all deployments."
 

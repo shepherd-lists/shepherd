@@ -48,3 +48,6 @@ function stack_output_to_env {
 }
 
 stack_output_to_env ShepherdCluster
+stack_output_to_env ShepherdNamespaceArn
+stack_output_to_env ShepherdNamespaceId
+
