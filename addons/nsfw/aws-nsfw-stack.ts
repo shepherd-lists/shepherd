@@ -1,15 +1,16 @@
-import { App, Aws, Duration, Stack, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs } from 'aws-cdk-lib'
+import { App, Aws, Duration, Stack, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
 
 /** check mandatoy envs exist */
 const envs = [
 	'AWS_VPC_ID',
 	'LOG_GROUP_NAME',
 	'ShepherdCluster',
+	'ShepherdNamespaceArn',
+	'ShepherdNamespaceId',
 	'DB_HOST',
 	'AWS_SQS_INPUT_QUEUE',
 	'AWS_INPUT_BUCKET',
-	'AWS_DEFAULT_REGION',
-	'HTTP_API_URL',
+	'AWS_DEFAULT_REGION', // not specificaly used, but needs to be set for cdk.
 ]
 envs.map((name: string) => {
 	if (!process.env[name]) throw new Error(`${name} not set`)
@@ -29,7 +30,15 @@ const stack = new Stack(app, 'NsfwStack', {
 /** import stack components from the shepherd stack */
 const vpc = aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcId: process.env.AWS_VPC_ID })
 const logGroup = aws_logs.LogGroup.fromLogGroupName(stack, 'logGroup', process.env.LOG_GROUP_NAME!)
-const cluster = aws_ecs.Cluster.fromClusterArn(stack, 'shepherd-cluster', process.env.ShepherdCluster!)
+const cluster = aws_ecs.Cluster.fromClusterAttributes(stack, 'shepherd-cluster', {
+	clusterName: 'shepherd-services',
+	vpc,
+})
+const cloudMapNamespace = aws_servicediscovery.PrivateDnsNamespace.fromPrivateDnsNamespaceAttributes(stack, 'shepherd.local', {
+	namespaceName: 'shepherd.local',
+	namespaceArn: process.env.ShepherdNamespaceArn!,
+	namespaceId: process.env.ShepherdNamespaceId!,
+})
 
 /** template for a standard addon service */
 interface FargateBuilderProps {
@@ -70,7 +79,7 @@ const createAddonService = (
 			TOTAL_FILESIZE_GB: process.env.TOTAL_FILESIZE_GB || '10',
 			AWS_SQS_INPUT_QUEUE: process.env.AWS_SQS_INPUT_QUEUE!,
 			AWS_INPUT_BUCKET: process.env.AWS_INPUT_BUCKET!,
-			AWS_DEFAULT_REGION: process.env.AWS_DEFAULT_REGION!,
+			AWS_DEFAULT_REGION: Aws.REGION,
 			HTTP_API_URL: 'http://http-api.shepherd.local:84/postupdate',
 		},
 	})
@@ -78,7 +87,10 @@ const createAddonService = (
 		cluster,
 		taskDefinition: tdef,
 		serviceName: name,
-		cloudMapOptions: { name },
+		cloudMapOptions: {
+			name,
+			cloudMapNamespace,
+		},
 		desiredCount: 1,
 	})
 
