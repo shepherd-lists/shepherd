@@ -50,8 +50,8 @@ export class ServicesStack extends cdk.Stack {
 
 		/** indexer service. setting `minHealthyPercent` seems to make deployment faster */
 		const indexer = createService('indexer', { stack, cluster, logGroup, minHealthyPercent: 0 }, {
-			cpu: 512,
-			memoryLimitMiB: 1024,
+			cpu: 256,
+			memoryLimitMiB: 512,
 		}, {
 			DB_HOST: process.env.DB_HOST!,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
