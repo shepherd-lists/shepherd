@@ -18,11 +18,11 @@ else
 fi
 # for any relative paths
 export script_dir=$(dirname "$(realpath $0)")
-echo "script_dir=$script_dir" 2>&1 | tee -a setup.log
+echo "script_dir=$script_dir" 
 
 
 
-echo "Deploying shepherd-infra-stack using cdk..." 2>&1 | tee -a setup.log
+echo "Deploying shepherd-infra-stack using cdk..." 
 # cdk needs to be run from that project's root directory. so save the current dir and return to it after cdk
 # save dir
 current_dir="$(pwd)"
@@ -34,7 +34,7 @@ cd "$current_dir"
 
 
 echo 
-echo "Retrieve stack outputs..." 2>&1 | tee -a setup.log
+echo "Retrieve stack outputs..." 
 aws_stack_outputs=$(aws cloudformation describe-stacks \
 	--stack-name "shepherd-infra-stack" \
 	--query "Stacks[0].Outputs" \
