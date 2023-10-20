@@ -153,7 +153,7 @@ export class ServicesStack extends cdk.Stack {
 		})
 
 
-		new cdk.CfnOutput(stack, 'ShepherdCluster', { exportName: 'ShepherdCluster', value: cluster.clusterName })
+		new cdk.CfnOutput(stack, 'ShepherdCluster', { exportName: 'ShepherdCluster', value: cluster.clusterArn })
 		new cdk.CfnOutput(stack, 'ShepherdAlbDnsName', { exportName: 'ShepherdAlbDnsName', value: alb.loadBalancerDnsName })
 	}
 }
