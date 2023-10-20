@@ -5,7 +5,7 @@ import { ServicesStack } from '../lib/services-stack'
 
 
 const app = new cdk.App()
-new ServicesStack(app, 'ServicesAwsStack', {
+new ServicesStack(app, 'ServicesStack', {
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
   stackName: 'shepherd-services',
   description: 'Shepherd services stack: ecs, lambdas, etc',
