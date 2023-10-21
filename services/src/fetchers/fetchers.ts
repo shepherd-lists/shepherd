@@ -1,5 +1,5 @@
 import { SQS } from 'aws-sdk'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { FEEDER_Q_VISIBILITY_TIMEOUT, FetchersStatus, HOST_URL, NO_STREAM_TIMEOUT, network_EXXX_codes } from '../common/constants'
 import { TxScanned } from '../common/shepherd-plugin-interfaces/types'
 import { logger } from '../common/shepherd-plugin-interfaces/logger'
@@ -23,8 +23,8 @@ const sqs = new SQS({
 })
 
 // debug output for sanity
-console.log(`process.env.SQS_LOCAL`, process.env.SQS_LOCAL)
-console.log(`process.env.AWS_FEEDER_QUEUE`, process.env.AWS_FEEDER_QUEUE)
+console.log('process.env.SQS_LOCAL', process.env.SQS_LOCAL)
+console.log('process.env.AWS_FEEDER_QUEUE', process.env.AWS_FEEDER_QUEUE)
 console.log('sqs.config.endpoint', sqs.config.endpoint)
 console.log('process.env.STREAMS_PER_FETCHER', process.env.STREAMS_PER_FETCHER)
 
@@ -38,16 +38,16 @@ const getMessages = async(): Promise<SQS.Message[]> => {
 	}).promise()
 	const msgs = Messages! || []
 	// logger(prefix, `received ${msgs.length} messages`)
-	
-	return msgs;
+
+	return msgs
 }
 //exported for test
 let _messages: SQS.Message[] = []
 let _loading = false
 export const getMessage = async()=> {
-	
+
 	while(_loading) await sleep(10)
-	
+
 	if(_messages.length === 0){
 		if(!_loading){
 			_loading = true
@@ -55,7 +55,7 @@ export const getMessage = async()=> {
 			_loading = false
 		}
 	}
-	
+
 	return _messages.pop() // if no messages, returns undefined
 }
 
@@ -70,25 +70,25 @@ export const deleteMessage = async(msg: SQS.Message)=> {
 		if(e instanceof Error){
 			if(e.name === 'UnknownEndpoint'){
 				console.log('sqs UnknownEndpoint error.', e.name, ':', e.message)
-				throw e;
+				throw e
 			}
 			if(e.name === 'ReceiptHandleIsInvalid'){
 				if(process.env.NODE_ENV !== 'test'){
 					console.log('sqs ReceiptHandleIsInvalid error. Message deleted already?', e.name, ':', e.message)
 				}
-				return;
+				return
 			}
 
 			console.log(prefix, `sqs delete error. ${e.name} : ${e.message}`)
 		}
-		throw e;
+		throw e
 	}
 }
-  
+
 export const fetchers = async()=> {
 
 	console.log('STREAMS_PER_FETCHER', STREAMS_PER_FETCHER)
-	for (let i = 0; i < STREAMS_PER_FETCHER; i++) {
+	for(let i = 0; i < STREAMS_PER_FETCHER; i++){
 		fetcherLoop()
 	}
 
@@ -96,32 +96,34 @@ export const fetchers = async()=> {
 
 export const fetcherLoop = async(loop: boolean = true)=> {
 
-	do{ // simple loop for mvp fetcher
+	do { // simple loop for mvp fetcher
 		const msg = await getMessage()
 		if(msg){
 			const rec: TxScanned = JSON.parse(msg.Body!)
 			const txid = rec.txid
 
-			logger(fetcherLoop.name, 
-				`starting ${msg.MessageId}`, 
+			logger(fetcherLoop.name,
+				`starting ${msg.MessageId}`,
 				`txid ${rec.txid}`,
 				`size ${(Number(rec.content_size)/1024).toFixed(1)} kb`,
 			)
 
 			let incoming: IncomingMessage
 			try{
-				/** 
-				 * N.B. This is written in a very strange way, streams are not piped as you might expect. 
+				/**
+				 * N.B. This is written in a very strange way, streams are not piped as you might expect.
 				 * Rather the same ReadableStream is reused, passed around, and errors emitted to it.
 				 * */
 				incoming = await dataStream(txid, rec.content_type)
 				await s3UploadStream(incoming, rec.content_type, txid)
-				
-			}catch(e:any){
+
+			}catch(err:unknown){
+				const e = err as AxiosError & { statusCode?: number, response?: { status: number, code?: string } }
+
 				const badMime = e.message as FetchersStatus === 'BAD_MIME'
 				const status = Number(e.response?.status) || Number(e.statusCode) || 0
 				const code = e.response?.code || e.code || 'no-code'
-				
+
 				if(status === 404){
 					logger(fetcherLoop.name, `404 returned for ${txid}`)
 					await dbNoDataFound404(txid)
@@ -140,32 +142,32 @@ export const fetcherLoop = async(loop: boolean = true)=> {
 				){
 					logger(fetcherLoop.name, `network error during ${txid}. continue after SQS timeout`, status, code)
 					// dont delete the SQS message, let it retry
-					continue;
+					continue
 				}
 				else{
 					logger(fetcherLoop.name, 'Unhandled error', txid, e.name, e.message)
 					slackLogger(fetcherLoop.name, 'Unhandled error', txid, e.name, e.message)
-					throw e;
+					throw e
 				}
 			}
 
 			// complete, so delete the SQS message
 			await deleteMessage(msg)
 			logger(fetcherLoop.name, `deleted message: ${msg.MessageId} ${rec.txid}`)
-			
+
 		}else{
 			// console.log('got no message. waiting 5s ..')
 			await sleep(5000)
 		}
-	}while(loop)
+	} while(loop)
 }
 
 
 export const dataStream = async(txid: string, dbMime: string)=> {
-	
-	let networkError = false;
+
+	let networkError = false
 	const control = new AbortController()
-	const { data, headers} = await axios.get(`${HOST_URL}/${txid}`, { 
+	const { data, headers} = await axios.get(`${HOST_URL}/${txid}`, {
 		responseType: 'stream',
 		signal: control.signal,
 	})
@@ -184,9 +186,9 @@ export const dataStream = async(txid: string, dbMime: string)=> {
 		if(mimeNotFound){
 			filehead = Buffer.concat([filehead, chunk])
 			if(filehead.length > 4100){
-				mimeNotFound = false;
-				process.nextTick(()=>	
-					filetypeCheck(incoming, filehead, txid, dbMime) 
+				mimeNotFound = false
+				process.nextTick(()=>
+					filetypeCheck(incoming, filehead, txid, dbMime)
 				)
 			}
 		}
@@ -196,20 +198,20 @@ export const dataStream = async(txid: string, dbMime: string)=> {
 		( process.env.NODE_ENV==='test' && console.log('close', txid, received, 'readableEnded:', incoming.readableEnded) )
 		if(!incoming.readableEnded && !networkError){ //i.e. 'end' not called
 			if(received === 0n){
-				logger(dataStream.name, 'NO_DATA detected. length', received, txid) 
+				logger(dataStream.name, 'NO_DATA detected. length', received, txid)
 				//inform other consumers
 				const NO_DATA: FetchersStatus = 'NO_DATA'
 				incoming.emit('error', new Error(NO_DATA)) //signal consumers to abort
 				//clean up and mark bad txid
-				await dbNoDataFound(txid) 
+				await dbNoDataFound(txid)
 			}else if(received < 125n){
-				logger(dataStream.name, 'NEGLIGIBLE_DATA, PARTIAL detected. length', received, txid) 
+				logger(dataStream.name, 'NEGLIGIBLE_DATA, PARTIAL detected. length', received, txid)
 				const NEGLIGIBLE_DATA: FetchersStatus = 'NEGLIGIBLE_DATA'
 				await dbNegligibleData(txid)
 				// await s3Delete(txid) //just in case
-				incoming.emit('error', new Error(NEGLIGIBLE_DATA)) 
+				incoming.emit('error', new Error(NEGLIGIBLE_DATA))
 			}else if(contentLength !== received){
-				logger(dataStream.name, 'partial detected. length', received, txid) 
+				logger(dataStream.name, 'partial detected. length', received, txid)
 				//partial data can be classified too
 				incoming.emit('end') //end the stream so consumers can finish processing.
 			}else{
@@ -224,19 +226,19 @@ export const dataStream = async(txid: string, dbMime: string)=> {
 			}
 		}
 	})
-	
-	if(process.env.NODE_ENV === 'test'){ 
+
+	if(process.env.NODE_ENV === 'test'){
 		incoming.on('end', ()=> console.log('end', txid))
 	}
 
 	incoming.on('error', e => {
-		const code = (e as any).code
+		const code = (e as Error & { code: string}).code
 		if(code && network_EXXX_codes.includes(code)){
 			logger(dataStream.name, 'net error event', e.name, e.message, code, txid)
 			networkError = true
 		}
 	})
-	
+
 	incoming.setTimeout(NO_STREAM_TIMEOUT, ()=>{
 		logger(dataStream.name, 'stream no-activity timeout. aborting', txid)
 		control.abort() //abort axios
@@ -244,6 +246,6 @@ export const dataStream = async(txid: string, dbMime: string)=> {
 	})
 
 
-	return incoming;
-} 
+	return incoming
+}
 

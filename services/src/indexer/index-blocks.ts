@@ -22,7 +22,7 @@ export const scanBlocks = async (minBlock: number, maxBlock: number, gql: ArGqlI
 }
 
 /* our specialised queries */
- 
+
 const queryGoldskyWild = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 	transactions(
 		block: {
@@ -110,29 +110,30 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 
 	let hasNextPage = true
 	let cursor = ''
-	let numRecords = 0 
+	let numRecords = 0
 
 	while(hasNextPage){
 		const t0 = performance.now()
 		let tGql = t0, tUpsert = t0
 
-		let res; 
+		let res
 		while(true){
 			try{
-				res = (await gql.run(query, { 
+				res = (await gql.run(query, {
 					minBlock,
 					maxBlock,
 					cursor,
 				})).data.transactions
-				break;
-			}catch(e:any){
+				break
+			}catch(err: unknown){
+				const e = err as Error & { status?: number }
 				if(!e.cause){
 					logger(indexName, `gql-error '${e.message}'. trying again`, gqlProvider)
-					continue;
+					continue
 				}
 
 				logger(indexName, 'gql-error', e.status, ':', e.message, gqlProvider)
-				throw e;
+				throw e
 			}
 		}
 		tGql = performance.now() - t0
@@ -166,11 +167,11 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 }
 
 const getParent = moize(
-	async(p: string, gql: ArGqlInterface)=> {
+	async (p: string, gql: ArGqlInterface) => {
 		const res = await gql.tx(p)
 		return res.parent?.id || null
 	},
-	{ 
+	{
 		isPromise: true,
 		maxSize: 10000, //allows for caching of maxSize number of bundles per query (1 block).
 		// onCacheHit: ()=>console.log(`getParent cache hit`),
@@ -178,12 +179,12 @@ const getParent = moize(
 	},
 )
 
-const buildRecords = async(metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: IndexName, gqlProvider: string)=> {
-	let records: TxScanned[] = []
+const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: IndexName, gqlProvider: string) => {
+	const records: TxScanned[] = []
 
-	for (const item of metas) {
+	for(const item of metas){
 		const txid = item.node.id
-		const content_type = item.node.data.type || item.node.tags.find(t=>t.name === 'Content-Type')!.value
+		const content_type = item.node.data.type || item.node.tags.find(t => t.name === 'Content-Type')!.value
 		const content_size = item.node.data.size.toString()
 		const height = item.node.block.height // missing height should not happen and cause `TypeError : Cannot read properties of null (reading 'height')`
 		const parent = item.node.parent?.id || null // the direct parent, if exists
@@ -192,16 +193,17 @@ const buildRecords = async(metas: GQLEdgeInterface[], gql: ArGqlInterface, index
 		// loop to find all nested parents
 		if(parent){
 			let p: string | null = parent
-			do{
+			do {
 				const t0 = performance.now()
 				const p0 = p
 
 				try{
 					p = await getParent(p, gql)
-				}catch(e:any){
+				}catch(err:unknown){
+					const e = err as Error
 					throw new TypeError(`getParent error: "${e.message}" while fetching parent: ${p} for dataItem: ${txid} using gqlProvider: ${gqlProvider}`)
 				}
-				
+
 				const t1 = performance.now() - t0
 
 				/* if time less than 10ms, it's definitely a cache hit */
@@ -218,16 +220,16 @@ const buildRecords = async(metas: GQLEdgeInterface[], gql: ArGqlInterface, index
 					logger(indexName, txid, logstring, gqlProvider)
 				}
 
-			}while(p && parents.push(p))
+			} while(p && parents.push(p))
 		}
 
 		records.push({
-			txid, 
+			txid,
 			content_type,
 			content_size,
 			height,
 			parent,
-			...(parents.length > 0 && {parents}), //leave `parents` null if not nested
+			...(parents.length > 0 && { parents }), //leave `parents` null if not nested
 		})
 	}
 
@@ -235,9 +237,9 @@ const buildRecords = async(metas: GQLEdgeInterface[], gql: ArGqlInterface, index
 }
 
 /** export insertRecords for test only */
-export const insertRecords = async(records: TxScanned[], indexName: IndexName, gqlProvider: string)=> {
-	
-	if(records.length === 0) return 0;
+export const insertRecords = async (records: TxScanned[], indexName: IndexName, gqlProvider: string) => {
+
+	if(records.length === 0) return 0
 
 	let alteredCount = 0
 	try{
@@ -249,35 +251,35 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 			await knex<TxRecord>('inbox').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byteStart', 'byteEnd'])
 			alteredCount = records.length
 		}else{
-			/** generally speaking, it's the norm to not see updates on pass2. 
-			 * we would be expecting mostly conflicts here, so we will only update 
-			 * records with newer height, and insert missing records 
+			/** generally speaking, it's the norm to not see updates on pass2.
+			 * we would be expecting mostly conflicts here, so we will only update
+			 * records with newer height, and insert missing records
 			 */
 
-			const recordsInInbox = await knex<TxRecord>('inbox').whereIn('txid', records.map(r=>r.txid)) 
-			const recordsInTxs = await knex<TxRecord>('txs').whereIn('txid', records.map(r=>r.txid)) 
+			const recordsInInbox = await knex<TxRecord>('inbox').whereIn('txid', records.map(r => r.txid))
+			const recordsInTxs = await knex<TxRecord>('txs').whereIn('txid', records.map(r => r.txid))
 			const recordsInDb = [...recordsInInbox, ...recordsInTxs]
 
 			/** need to account for records that have already been processed and moved to txs */
 
-				
+
 			/* step 1: update records with newer height */
 
 			/* filter out records with same or less height */
-			const updateRecords = records.filter(r => recordsInDb.some( exist => (r.txid === exist.txid && r.height > exist.height) ))
+			const updateRecords = records.filter(r => recordsInDb.some(exist => (r.txid === exist.txid && r.height > exist.height)))
 
-			const updatedIds = await Promise.all(updateRecords.map(async r => 
+			const updatedIds = await Promise.all(updateRecords.map(async r =>
 				(
 					await knex<TxRecord>('inbox')
-					.update({
-						height: r.height,
-						parent: r.parent,
-						parents: r.parents,
-						byteStart: undefined,
-						byteEnd: undefined,
-					})
-					.where('txid', r.txid)
-					.returning('txid')
+						.update({
+							height: r.height,
+							parent: r.parent,
+							parents: r.parents,
+							byteStart: undefined,
+							byteEnd: undefined,
+						})
+						.where('txid', r.txid)
+						.returning('txid')
 				)[0]
 			))
 
@@ -287,32 +289,33 @@ export const insertRecords = async(records: TxScanned[], indexName: IndexName, g
 
 			/* step 2: insert missing records */
 
-			const missingRecords = records.filter(r => !recordsInDb.map(r=>r.txid).includes(r.txid))
+			const missingRecords = records.filter(r => !recordsInDb.map(r => r.txid).includes(r.txid))
 			alteredCount += missingRecords.length
 
 			console.log(`missingRecords: length ${missingRecords.length}`)
 
 			if(missingRecords.length > 0){
 				const res = await knex<TxRecord>('inbox')
-				.insert(missingRecords)
-				.onConflict().ignore() //can occur in restart during half finished height
-				.returning('txid')
+					.insert(missingRecords)
+					.onConflict().ignore() //can occur in restart during half finished height
+					.returning('txid')
 				console.log(`inserted ${res.length}/${missingRecords.length} missingRecords`, JSON.stringify(missingRecords))
 			}
 
 			logger(indexName, `inserted ${alteredCount}/${records.length} records`)
 		}
-		
-	}catch(e:any){
+
+	}catch(err: unknown){
+		const e = err as Error & { code?: string, detail: string }
 		if(e.code && Number(e.code) === 23502){
 			logger('Error!', 'Null value in column violates not-null constraint', e.detail, gqlProvider, indexName)
 			slackLogger('Error!', 'Null value in column violates not-null constraint', e.detail, gqlProvider, indexName)
 			throw e
-		} else { 
+		}else{
 			if(e.code) logger('Error!', e.code, gqlProvider, indexName, e)
 			throw e
 		}
 	}
 
-	return alteredCount;
+	return alteredCount
 }

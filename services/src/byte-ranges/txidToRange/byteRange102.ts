@@ -13,25 +13,25 @@ const fetchFullRetriedMemo = moize(fetchFullRetried, { maxSize: 1000, isPromise:
 
 //DataItemJson is actually the only thing we need from arweave-bundles package
 class DataItemJson {
-  owner: string = "";
-  target: string = "";
-  nonce: string = "";
-  tags: { name: string; value: string }[] = [];
-  data: string = "";
-  signature: string = "";
-  id: string = "";
-} 
+	owner: string = ''
+	target: string = ''
+	nonce: string = ''
+	tags: { name: string; value: string }[] = []
+	data: string = ''
+	signature: string = ''
+	id: string = ''
+}
 
 //some ans102 constants
-const head_size = `{"items":[`.length
-const end_size = `]}`.length
+const head_size = '{"items":['.length
+const end_size = ']}'.length
 
 const fetchHeaderInfo = async(txid: string, parent: string)=> {
 
 	/* fetch the entire L1 parent data & sanity check */
 
 	const { status, json: bundleJson } = await fetchFullRetried(`${HOST_URL}/${parent}`)
-	if(status === 404) return{
+	if(status === 404) return {
 		status,
 		diSizes: [] as number[], indexTxid: -1, //keep ts happy
 	}
@@ -39,7 +39,7 @@ const fetchHeaderInfo = async(txid: string, parent: string)=> {
 	const {items} = bundleJson as { items: DataItemJson[] }
 	let indexTxid: number | undefined
 	const diSizes: number[] = []
-	for (let i = 0; i < items.length; i++) {
+	for(let i = 0; i < items.length; i++){
 		const id = items[i].id
 		const size = JSON.stringify(items[i]).length
 		if(id === txid) indexTxid = i
@@ -47,7 +47,7 @@ const fetchHeaderInfo = async(txid: string, parent: string)=> {
 		if(process.env.NODE_ENV === 'test') console.debug({i, id, size})
 	}
 	//sanity
-	if(indexTxid === undefined) throw new Error(`indexTxid not defined`)
+	if(indexTxid === undefined) throw new Error('indexTxid not defined')
 
 	return {
 		diSizes,
@@ -61,16 +61,16 @@ export const byteRange102 = async(txid: string, parent: string)=> {
 	/* fetch the L1 parent header details (expensive) */
 
 	const {status, diSizes, indexTxid} = await fetchHeaderInfoMemo(txid, parent)
-	if(status === 404) return{
-		status, 
+	if(status === 404) return {
+		status,
 		start: -1n, end: -1n,
 	}
 
 	/* get weave offset & sanity check */
-	
+
 	const { status: statusOffset, json } = await fetchFullRetriedMemo(`${HOST_URL}/tx/${parent}/offset`)
 	if(statusOffset === 404) return {
-		status: statusOffset, 
+		status: statusOffset,
 		start: -1n, end: -1n,
 	}
 	const offset = json as {size: string, offset: string}
@@ -84,8 +84,8 @@ export const byteRange102 = async(txid: string, parent: string)=> {
 
 	/* calculate range within the bundle */
 
-	let start = head_size + diSizes.slice(0, indexTxid).reduce((sum, size) => sum += size + 1, 0)
-	let end = start + diSizes[indexTxid] 
+	const start = head_size + diSizes.slice(0, indexTxid).reduce((sum, size) => sum += size + 1, 0)
+	const end = start + diSizes[indexTxid]
 
 	if(process.env.NODE_ENV === 'test') console.debug({bundleWeaveStart, bundleWeaveSize, bundleWeaveEnd, indexTxid, start, end})
 
@@ -106,8 +106,8 @@ export const byteRange102 = async(txid: string, parent: string)=> {
 	let weaveStart = weaveStartUnaligned - modStart
 	let weaveEnd = weaveEndUnaligned + addEnd
 
-	if(process.env.NODE_ENV === 'test') console.debug({weaveStart, modStart, weaveEnd, addEnd, 
-		rangeSize: weaveEnd - weaveStart, 
+	if(process.env.NODE_ENV === 'test') console.debug({weaveStart, modStart, weaveEnd, addEnd,
+		rangeSize: weaveEnd - weaveStart,
 		rangeUnaligned: weaveEndUnaligned - weaveStartUnaligned
 	})
 
@@ -123,18 +123,18 @@ export const byteRange102 = async(txid: string, parent: string)=> {
 	/* final sanity checks */
 
 	if(bundleWeaveStart >= CHUNK_ALIGN_GENESIS){
-		if((weaveStart - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE !== 0n) throw new Error(`post-CHUNK_ALIGN_GENESIS weaveStart not on chunk alignment`)
-		if((weaveEnd - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE !== 0n) throw new Error(`post-CHUNK_ALIGN_GENESIS weaveEnd not on chunk alignment`)
+		if((weaveStart - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE !== 0n) throw new Error('post-CHUNK_ALIGN_GENESIS weaveStart not on chunk alignment')
+		if((weaveEnd - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE !== 0n) throw new Error('post-CHUNK_ALIGN_GENESIS weaveEnd not on chunk alignment')
 	}
-	if(weaveStart > weaveEnd) throw new Error(`weaveStart cannot be greater than weaveEnd`)
-	if((weaveEnd - weaveStart) < BigInt(diSizes[indexTxid])) throw new Error(`byte range too small to contain dataItem`)
-	if(weaveStart < bundleWeaveStart) throw new Error(`weaveStart out of range`)
-	if(weaveEnd > (bundleWeaveEnd + addEnd)) throw new Error(`weaveEnd out of range`) //not the cleanest test
+	if(weaveStart > weaveEnd) throw new Error('weaveStart cannot be greater than weaveEnd')
+	if((weaveEnd - weaveStart) < BigInt(diSizes[indexTxid])) throw new Error('byte range too small to contain dataItem')
+	if(weaveStart < bundleWeaveStart) throw new Error('weaveStart out of range')
+	if(weaveEnd > (bundleWeaveEnd + addEnd)) throw new Error('weaveEnd out of range') //not the cleanest test
 
 	/* final values */
-	
-	if(process.env.NODE_ENV === 'test') console.debug(`return`, {weaveStart, weaveEnd})
-	return{
+
+	if(process.env.NODE_ENV === 'test') console.debug('return', {weaveStart, weaveEnd})
+	return {
 		start: weaveStart,
 		end: weaveEnd,
 	}

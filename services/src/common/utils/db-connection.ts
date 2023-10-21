@@ -1,20 +1,21 @@
 import knex, { Knex } from 'knex'
-import { checkHeartbeat } from 'knex-utils';
-import { logger } from '../shepherd-plugin-interfaces/logger';
+import { checkHeartbeat } from 'knex-utils'
+import { logger } from '../shepherd-plugin-interfaces/logger'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let cachedConnection: Knex<any, unknown[]>
 
 export default () => {
-  if (cachedConnection) {
-    logger("using cached db connection");
-    return cachedConnection;
-  }
+	if(cachedConnection){
+		logger('using cached db connection')
+		return cachedConnection
+	}
 	let connTimeout = 120000 //default value
 	if(process.env.NODE_ENV === 'test'){
 		connTimeout = 5000
 	}
 
-	logger("creating new db connection");
+	logger('creating new db connection')
 	const connection = knex({
 		client: 'pg',
 		pool: {
@@ -40,6 +41,6 @@ export default () => {
 		logger('*** ERROR IN DB CONNECTION ***', JSON.stringify(res), JSON.stringify(`host: ${process.env.DB_HOST}`))
 	})
 
-	cachedConnection = connection;
-  return connection;
-};
+	cachedConnection = connection
+	return connection
+}

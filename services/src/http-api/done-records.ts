@@ -1,7 +1,7 @@
-import { logger } from "../common/shepherd-plugin-interfaces/logger"
-import { StateRecord, TxRecord } from "../common/shepherd-plugin-interfaces/types"
-import dbConnection from "../common/utils/db-connection"
-import { moveInboxToTxs } from "./move-records"
+import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { StateRecord, TxRecord } from '../common/shepherd-plugin-interfaces/types'
+import dbConnection from '../common/utils/db-connection'
+import { moveInboxToTxs } from './move-records'
 import moize from 'moize'
 
 const knex = dbConnection()
@@ -17,13 +17,13 @@ let last = Date.now()
 export const doneInit = async()=>{
 	const pass2height = await pass2Height()
 	const archived  = await knex<TxRecord>('inbox')
-	.select('txid', 'height')
-	.whereNotNull('flagged')
+		.select('txid', 'height')
+		.whereNotNull('flagged')
 
 	logger(doneInit.name, `found ${archived.length} records in inbox. pass2.height: ${pass2height}`)
-	
+
 	//return for test
-	return done = archived;
+	return done = archived
 }
 
 /** export for test */
@@ -36,12 +36,12 @@ export const doneAdd = async(txid: string, height: number)=>{
 	/** dont add dupes */
 	if(done.map(r=>r.txid).includes(txid)){
 		logger(txid, doneAdd.name, 'warning: not adding duplicate!')
-		return done.length;
-	}  
+		return done.length
+	}
 
 	logger(txid, doneAdd.name, `adding to done. moving: ${moving}, done.length: ${done.length}`)
 	done.push({ txid, height })
-	
+
 	const now = Date.now()
 	const timeDiff = now - last
 	if(done.length >= 100 || timeDiff > 60_000){
@@ -59,7 +59,7 @@ let moving = false
 export const moveDone = async()=>{
 	if(!moving){
 		moving = true
-		
+
 		const pass2height = await pass2Height()
 		const movable = done.filter(r=>r.height < pass2height)
 
@@ -72,10 +72,10 @@ export const moveDone = async()=>{
 		}
 
 		moving = false
-		return count;
+		return count
 	}else{
 		logger(moveDone.name, 'already moving')
-		return;
+		return
 	}
 }
 

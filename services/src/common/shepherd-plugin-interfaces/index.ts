@@ -1,5 +1,5 @@
-import { Readable } from "stream"
-import * as Types from "./types" 
+import { Readable } from 'stream'
+import * as Types from './types'
 
 export interface FilterResult extends Types.TxFlaggedOptions {
 	flagged: boolean // main output: whether the image is filtered or not
@@ -11,18 +11,17 @@ export interface FilterResult extends Types.TxFlaggedOptions {
 /* Feedback error types to the host app. Host may process image and try submitting to plugin again. */
 export interface FilterErrorResult {
 	flagged: undefined
-	data_reason: 
-		'oversized'       // oversized compressed png files that cannot be opened by most image libraries. 
+	data_reason:
+		'oversized'       // oversized compressed png files that cannot be opened by most image libraries.
 		| 'partial'       // partial image that library cannnot open
 		| 'unsupported'   // unsupported file type (your plugin is expected to handle jpeg/png/gif at a minimum)
 		| 'corrupt'       // image data is corrupt
 		| 'corrupt-maybe' // image data is corrupt, but can be displayed by a browser
 		| 'noop'					// no operation
 		| 'retry'					// clean up and retry
-		| (string & {})
+		| 'mimetype'			// mimetype mismatch
 	err_message?: string // optional error message
 }
-
 
 export interface FilterPluginInterface {
 	/**
@@ -45,5 +44,5 @@ export interface APIFilterResult {
 }
 
 export interface StreamPluginInterface {
-	checkStream(read: Readable, mimetype: string, txid: string):Promise<string | Error> 
+	checkStream(read: Readable, mimetype: string, txid: string):Promise<string | Error>
 }

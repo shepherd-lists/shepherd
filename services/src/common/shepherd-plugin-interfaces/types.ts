@@ -14,18 +14,20 @@ export interface TxScanned {
 export interface TxRecord extends TxScanned, TxFlaggedOptions {
 	flagged: boolean
 	valid_data: boolean
-	data_reason: 
-		'oversized' 
-		| 'partial' 
-		| 'timeout' 
-		| '404' 
-		| 'corrupt' 
-		| 'corrupt-maybe' 
-		| 'unsupported' 
+	data_reason:
+		'oversized'
+		| 'partial'
+		| 'partial-seed' //these vids have never occurred?
+		| 'timeout'
+		| '404'
+		| 'corrupt'
+		| 'corrupt-maybe'
+		| 'unsupported'
 		| 'noop'
-		| 'mime-type'
+		| 'mimetype'
 		| 'negligible-data'
-		| (string & {}) //intellisense hack
+		| 'nodata'
+		| 'MalformedXML-data'
 
 	byteStart?: string	// convert to BigInt
 	byteEnd?: string		// convert to BigInt
@@ -33,13 +35,13 @@ export interface TxRecord extends TxScanned, TxFlaggedOptions {
 	last_update_date: Date
 }
 export interface TxFlaggedOptions {
-	flag_type?: 'test' | 'matched' | 'classified' | (string & {})
+	flag_type?: 'test' | 'matched' | 'classified'
 	top_score_name?: string
 	top_score_value?: number
 }
 
 export interface StateRecord {
-	pname: 'indexer_pass1' | 'indexer_pass2' | 'seed_position' | (string & {})
+	pname: 'indexer_pass1' | 'indexer_pass2' | 'seed_position'
 	value: number
 }
 

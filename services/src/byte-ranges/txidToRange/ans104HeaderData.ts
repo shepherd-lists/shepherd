@@ -1,6 +1,6 @@
 /**
  * NOTICE
- * This file uses code inspired from the Apache 2.0 licensed code permalinked here 
+ * This file uses code inspired from the Apache 2.0 licensed code permalinked here
  * (https://github.com/Bundlr-Network/arbundles/blob/c6aa659a63d386066504e7cd8cab415d422d4f8f/stream/index.ts#L1-L195).
  * The license of the shepherd repo is LGPL-3.0-or-later which is compatible.
  */
@@ -12,40 +12,40 @@ import moize from 'moize'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-//bundlr style conversion 
+//bundlr style conversion
 const byteArrayToNumber = (buffer: Uint8Array): number => {
 	let value = 0
-	for (let i = buffer.length - 1; i >=0; --i) {
+	for(let i = buffer.length - 1; i >=0; --i){
 		value = value * 256 + buffer[i]
 	}
 	return value
 }
 
 const readEnoughBytes = async(
-  reader: ReadableStreamDefaultReader,
-  buffer: Uint8Array,
-  length: number,
+	reader: ReadableStreamDefaultReader,
+	buffer: Uint8Array,
+	length: number,
 ): Promise<Uint8Array> => {
-	// process.env['NODE_ENV'] === 'test' && console.log(buffer.byteLength) 
+	// process.env['NODE_ENV'] === 'test' && console.log(buffer.byteLength)
 
-	if (buffer.byteLength > length) return buffer!;
+	if(buffer.byteLength > length) return buffer!
 
-	let { done, value } = await reader.read();
+	let { done, value } = await reader.read()
 
-	if (done && !value) throw new Error(`Invalid stream buffer`);
+	if(done && !value) throw new Error('Invalid stream buffer')
 
 	//concat and clean up old buffers for gc
 	const joined = concatByteArray(buffer, value)
-	buffer = null as any
+	buffer = null as unknown as Uint8Array // keep ts happy
 	value = null
 
-	return readEnoughBytes(reader, joined, length);
+	return readEnoughBytes(reader, joined, length)
 }
 const concatByteArray = (a: Uint8Array, b: Uint8Array) => {
-	const temp = new Uint8Array(a.byteLength + b.byteLength) 
-	temp.set(a) 
+	const temp = new Uint8Array(a.byteLength + b.byteLength)
+	temp.set(a)
 	temp.set(b, a.byteLength)
-	return temp;
+	return temp
 }
 
 /* handle errors during the stream */
@@ -65,22 +65,22 @@ const fetchHeader = async(parent: string)=> {
 				numDataItems: -1,
 				headerLength: 0n,
 			}
-			
+
 			/* fetch the bytes we're interested in */
-		
+
 			//read bytes for numDataItems and calculate header size
 			reader = stream!.getReader()
 			header = await readEnoughBytes(reader, header, 32)
 			const numDataItems = byteArrayToNumber(header.slice(0, 32))
 			const totalHeaderLength = 64 * numDataItems + 32
-			
+
 			if(process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`, {numDataItems, totalHeaderLength})
-			
+
 			//read bytes for the rest of the header index
 			header = await readEnoughBytes(reader, header, totalHeaderLength)
-		
+
 			if(process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`)
-		
+
 			/* close the stream & return results */
 			aborter!.abort()
 			reader.releaseLock()
@@ -106,23 +106,23 @@ const fetchHeader = async(parent: string)=> {
 
 const ans104HeaderDataUnmemoized = async(parent: string)=> {
 
-	/* get data stream */	
+	/* get data stream */
 
 	let { status, header, numDataItems, headerLength } = await fetchHeader(parent)
 	if(status === 404) return {
-		status, 
+		status,
 		numDataItems,
 		diIds: [] as string[],
 		diSizes: [] as number[],
 		headerLength: 0n,
 	}
-	
+
 	/* process the return data */
 
 	const diIds: string[] = []
 	const diSizes: number[] = []
 
-	for(let i = 0; i < numDataItems; i++) {
+	for(let i = 0; i < numDataItems; i++){
 		const base = 32 + i * 64
 		const nextSize = byteArrayToNumber(header.subarray(
 			base,
@@ -138,7 +138,7 @@ const ans104HeaderDataUnmemoized = async(parent: string)=> {
 	}
 
 	//ensure buffer available for gc
-	header = null as any
+	header = null as unknown as Uint8Array // keep ts happy
 
 	return {
 		status,
@@ -146,6 +146,6 @@ const ans104HeaderDataUnmemoized = async(parent: string)=> {
 		diIds,
 		diSizes,
 		headerLength,
-	};
+	}
 }
 export const ans104HeaderData = moize(ans104HeaderDataUnmemoized, { maxSize: 1000, isPromise: true })

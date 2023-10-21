@@ -13,10 +13,10 @@ export const byteRangesUpdateDb = async (id: string, parent: string | null, pare
 
 	/** rare retrospective update, so go direct to output table */
 	const checkId = await updateTxsDb(
-		id, 
+		id,
 		{
 			byteStart: chunkRange.start.toString(),
-			byteEnd: chunkRange.end.toString(), 
+			byteEnd: chunkRange.end.toString(),
 		},
 		tablename,
 	)
@@ -24,22 +24,23 @@ export const byteRangesUpdateDb = async (id: string, parent: string | null, pare
 		throw new Error(`Error writing byte-range to database! Wanted '${id}'. Returned '${checkId}'.`)
 	}
 
-	return chunkRange;
+	return chunkRange
 }
 
 /** just returns the byte-range for the id */
 export const getByteRange = async (id: string, parent: string | null, parents: string[] | undefined) => {
 
-		/* get byte-range (if applicable) */
+	/* get byte-range (if applicable) */
 
-		let chunkRange: ByteRange = { start: -1n, end: -1n }
-		try{
-			chunkRange = await txidToRange(id, parent, parents)
-		}catch(e:any){
-			logger(getByteRange.name, "UNHANLDED error", e.name, e.message, `id:${id}, parent:${parent}, parents:${parents}}`, e)
-			slackLogger(getByteRange.name, "UNHANLDED error", e.name, e.message, `id:${id}, parent:${parent}, parents:${parents}}`)
-		}
+	let chunkRange: ByteRange = { start: -1n, end: -1n }
+	try{
+		chunkRange = await txidToRange(id, parent, parents)
+	}catch(err:unknown){
+		const e = err as Error
+		logger(getByteRange.name, 'UNHANLDED error', e.name, e.message, `id:${id}, parent:${parent}, parents:${parents}}`, e)
+		slackLogger(getByteRange.name, 'UNHANLDED error', e.name, e.message, `id:${id}, parent:${parent}, parents:${parents}}`)
+	}
 
-		return chunkRange;
+	return chunkRange
 }
 

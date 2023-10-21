@@ -28,14 +28,14 @@ app.get('/', async (req, res) => {
 
 	const ip = req.headers['x-forwarded-for'] as string || 'undefined'
 	res.write(`your ip is ${ip}\n`)
-	if (process.env.BLACKLIST_ALLOWED) {
+	if(process.env.BLACKLIST_ALLOWED){
 		res.write(`access blacklist: ${ipAllowBlacklist(ip)}\n`)
-	} else {
+	}else{
 		res.write('$BLACKLIST_ALLOWED is not defined\n')
 	}
-	if (process.env.RANGELIST_ALLOWED) {
+	if(process.env.RANGELIST_ALLOWED){
 		res.write(`access rangelist: ${ipAllowRangelist(ip)}\n`)
-	} else {
+	}else{
 		res.write('$RANGELIST_ALLOWED is not defined\n')
 	}
 	res.write('\n\n')
@@ -97,11 +97,11 @@ const server = app.listen(port, () => logger(`started on http://localhost:${port
  * catch malformed client requests.
  * useful for testing: curl -v -X POST -H 'content-length: 3' --data-raw 'aaaa' http://localhost
  */
-server.on('clientError', (e: any, socket: Socket)=> {
+server.on('clientError', (e: Error & {code: string}, socket: Socket)=> {
 
-	logger(`express-clientError`, `${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
+	logger('express-clientError', `${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
 	//debug
-	console.log(`Socket:`, {
+	console.log('Socket:', {
 		timeout: socket.timeout,
 		allowHalfOpen: socket.allowHalfOpen,
 		destroyed: socket.destroyed,
@@ -119,17 +119,17 @@ server.on('clientError', (e: any, socket: Socket)=> {
 		writable: socket.writable,
 	})
 
-	if(e.code === 'HPE_INVALID_METHOD' || e.code === 'HPE_INVALID_HEADER_TOKEN') {
-		logger(`express-clientError`, `malformed request. ${e.name} (${e.code}) : ${e.message}. Closing the socket with HTTP/1.1 400 Bad Request.`)
+	if(e.code === 'HPE_INVALID_METHOD' || e.code === 'HPE_INVALID_HEADER_TOKEN'){
+		logger('express-clientError', `malformed request. ${e.name} (${e.code}) : ${e.message}. Closing the socket with HTTP/1.1 400 Bad Request.`)
 		return socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
 	}
 
 	//make sure connection still open
 	if(
 		( e.code && network_EXXX_codes.includes(e.code) )
-		|| !socket.writable) {
-    return;
-  }
+		|| !socket.writable){
+		return
+	}
 
 	socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
 })

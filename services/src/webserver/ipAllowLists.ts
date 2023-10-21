@@ -6,9 +6,9 @@ const prefix = 'ipAllowLists'
 
 /* load the IP access lists */
 const accessBlacklist: string[] = JSON.parse(process.env.BLACKLIST_ALLOWED || '[]')
-logger(prefix, `accessList (BLACKLIST_ALLOWED) for '/blacklist.txt' access`, accessBlacklist)
+logger(prefix, 'accessList (BLACKLIST_ALLOWED) for \'/blacklist.txt\' access', accessBlacklist)
 const accessRangelist: string[] = (JSON.parse(process.env.RANGELIST_ALLOWED || '[]') as RangelistAllowedItem[]).map(item => item.server)
-logger(prefix, `accessList (RANGELIST_ALLOWED) for '/rangelist.txt' access`, accessRangelist)
+logger(prefix, 'accessList (RANGELIST_ALLOWED) for \'/rangelist.txt\' access', accessRangelist)
 
 /** older ip whitelist checking functions */
 
@@ -17,7 +17,7 @@ export const ipAllowBlacklist = (ip: string) => ipAllowList(ip, 'txids')
 export const ipAllowRangelist = (ip: string) => ipAllowList(ip, 'ranges')
 
 const ipAllowList = (ip: string, listType: ('txids'|'ranges')) => {
-	if(ip.startsWith("::ffff:")){
+	if(ip.startsWith('::ffff:')){
 		ip = ip.substring(7)
 	}
 	const whitelist = listType === 'txids' ? accessBlacklist : accessRangelist
@@ -33,7 +33,7 @@ export const ipAllowRangesMiddleware = (req: Request, res: Response, next: NextF
 const ipAllowMiddlewareFunction = (listType: ('txids'|'ranges')) => (req: Request, res: Response, next: NextFunction) => {
 	const routepath = req.route.path
 	const ip = req.headers['x-forwarded-for'] as string || 'undefined'
-	if( 
+	if(
 		(listType === 'txids' && process.env.BLACKLIST_ALLOWED)
 		|| (listType === 'ranges' && process.env.RANGELIST_ALLOWED)
 	){
