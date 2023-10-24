@@ -1,6 +1,6 @@
 import { getByteRange } from '../byte-ranges/byteRanges'
 import { APIFilterResult } from '../common/shepherd-plugin-interfaces'
-import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { logger } from '../common/utils/logger'
 import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, getTxFromInbox, updateInboxDb } from '../common/utils/db-update-txs'
 import { slackLogger } from '../common/utils/slackLogger'
 import { slackLoggerPositive } from '../common/utils/slackLoggerPositive'

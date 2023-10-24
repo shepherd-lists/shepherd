@@ -1,4 +1,4 @@
-import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { logger } from '../common/utils/logger'
 import { slackLogger } from '../common/utils/slackLogger'
 import si from 'systeminformation'
 import { feeder } from './feeder'

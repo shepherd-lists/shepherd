@@ -1,6 +1,6 @@
 import knex, { Knex } from 'knex'
 import { checkHeartbeat } from 'knex-utils'
-import { logger } from '../shepherd-plugin-interfaces/logger'
+import { logger } from './logger'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let cachedConnection: Knex<any, unknown[]>

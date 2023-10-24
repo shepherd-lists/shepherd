@@ -3,7 +3,7 @@ console.log(`process.env.SLACK_POSITIVE ${process.env.SLACK_POSITIVE}`)
 console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
 import express from 'express'
-import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { logger } from '../common/utils/logger'
 import { ipAllowBlacklist, ipAllowRangelist, ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
 import { getBlacklist, getRangelist, getRecords } from './blacklist'
 import { getPerfHistory, getDevStats } from './metrics'

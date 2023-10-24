@@ -1,6 +1,6 @@
 /** -= Unresponsive Servers =- */
 
-import { logger } from '../../common/shepherd-plugin-interfaces/logger'
+import { logger } from '../../common/utils/logger'
 import { RangelistAllowedItem } from '../webserver-types'
 import { pagerdutyAlert } from './pagerduty-alert'
 

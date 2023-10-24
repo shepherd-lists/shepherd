@@ -1,6 +1,6 @@
-import { Knex } from "knex";
+import { Knex } from 'knex'
 import { StateRecord, TxRecord } from '../src/common/shepherd-plugin-interfaces/types'
-import { logger } from '../src/common/shepherd-plugin-interfaces/logger'
+import { logger } from '../src/common/utils/logger'
 import { parse } from 'csv-parse'
 import col from 'ansi-colors'
 import got from 'got' // needs non-esm 11.8.3
@@ -9,27 +9,27 @@ export async function seed(knex: Knex): Promise<void> {
 
 	const getPosition = async()=> (await knex<StateRecord>('states').where({pname: 'indexer_pass1'}))[0].value
 
-	let currentPosition = await getPosition()
+	const currentPosition = await getPosition()
 	logger('data-seed', 'scanner_position', currentPosition)
 
 	/**
 	 * *** THIS SEED & SCRIPT ARE OUR OF DATE NOW ***
 	 */
-	
-	if(currentPosition >= /* 856599 */ 0){ 
+
+	if(currentPosition >= /* 856599 */ 0){
 		logger('data-seed', 'shepherd data already above 856599. exiting seed.')
-		return;
+		return
 	}
-	
-	// const parser = fs.createReadStream(`${__dirname}/` + '../../../db-dumps/shepgdb-20220223-txs-TEST.csv').pipe( 
+
+	// const parser = fs.createReadStream(`${__dirname}/` + '../../../db-dumps/shepgdb-20220223-txs-TEST.csv').pipe(
 
 	const parser = got.stream('https://shepherd-seed.s3.eu-central-1.amazonaws.com/shepgdb-20220224-txs.csv').pipe(
 		parse({
-			columns: (header: any[]) => { 
+			columns: (header: any[]) => {
 				header[0] = false  //remove id from records
-				return header;
+				return header
 			}
-		}) 
+		})
 	)
 
 	// incoming csv columns guide {
@@ -48,8 +48,8 @@ export async function seed(knex: Knex): Promise<void> {
 	let batch = []
 	const batchsize = 100
 
-	for await (const record of parser) {
-		// turn empty strings into boolean/integer equivalents 
+	for await (const record of parser){
+		// turn empty strings into boolean/integer equivalents
 		if(record.flagged === '') record.flagged = null
 		if(record.valid_data === '') record.valid_data = null
 		if(record.height === '') record.height = null
@@ -75,4 +75,4 @@ export async function seed(knex: Knex): Promise<void> {
 	await knex<StateRecord>('states').update({ value: 856599}).where({ pname: 'indexer_pass1'})
 	logger('data-seed', 'updated scanner_position', await getPosition())
 
-};
+}

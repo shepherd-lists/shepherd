@@ -1,6 +1,6 @@
 import { InflightsRecord, TxRecord } from '../shepherd-plugin-interfaces/types'
 import getDbConnection from './db-connection'
-import { logger } from '../shepherd-plugin-interfaces/logger'
+import { logger } from './logger'
 import { slackLogger } from './slackLogger'
 
 

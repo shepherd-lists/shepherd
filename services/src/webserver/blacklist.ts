@@ -1,6 +1,6 @@
 import { TxRecord } from '../common/shepherd-plugin-interfaces/types'
 import getDb from '../common/utils/db-connection'
-import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { logger } from '../common/utils/logger'
 import { byteRangesUpdateDb } from '../byte-ranges/byteRanges'
 import { Writable } from 'stream'
 import { slackLogger } from '../common/utils/slackLogger'

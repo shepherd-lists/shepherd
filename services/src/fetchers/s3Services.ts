@@ -2,7 +2,7 @@ import { S3 } from 'aws-sdk'
 import { Readable } from 'stream'
 import { FetchersStatus } from '../common/constants'
 import { dbCorruptDataConfirmed, dbMalformedXMLData } from '../common/utils/db-update-txs'
-import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { logger } from '../common/utils/logger'
 import { slackLogger } from '../common/utils/slackLogger'
 
 const prefix = 's3stream'

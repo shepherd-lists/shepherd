@@ -1,6 +1,6 @@
 import express from 'express'
 import { Socket } from 'net'
-import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { logger } from '../common/utils/logger'
 import { slackLogger } from '../common/utils/slackLogger'
 import { network_EXXX_codes } from '../common/constants'
 import { pluginResultHandler } from './pluginResultHandler'

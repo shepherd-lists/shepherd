@@ -1,4 +1,4 @@
-import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { logger } from '../common/utils/logger'
 import { StateRecord, TxRecord } from '../common/shepherd-plugin-interfaces/types'
 import dbConnection from '../common/utils/db-connection'
 import { moveInboxToTxs } from './move-records'

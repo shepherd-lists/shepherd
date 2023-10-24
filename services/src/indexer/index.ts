@@ -3,7 +3,7 @@
  * Indexer depends-on Pgdb service. All other services depend-on Indexer
  */
 import dbConnection from '../common/utils/db-connection'
-import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { logger } from '../common/utils/logger'
 import { indexer } from './indexer'
 import col from 'ansi-colors'
 import { arGql } from 'ar-gql'

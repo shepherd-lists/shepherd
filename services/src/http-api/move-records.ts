@@ -1,5 +1,5 @@
 import { Knex } from 'knex'
-import { logger } from '../common/shepherd-plugin-interfaces/logger'
+import { logger } from '../common/utils/logger'
 import { TxRecord } from '../common/shepherd-plugin-interfaces/types'
 import dbConnection from '../common/utils/db-connection'
 import { slackLogger } from '../common/utils/slackLogger'
