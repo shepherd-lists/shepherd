@@ -1,17 +1,12 @@
 {
   "name": "shepherd",
   "version": "0.1.1",
-  "description": "Server that creates & maintains a strict adult content filter list.",
+  "description": "Cloud app that creates & maintains transaction filtering lists.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "scripts": {
+    "migrate": "knex migrate:latest",
     "typecheck": "tsc --noEmit",
-    "start": "docker-compose up --build -d",
-    "logs": "docker-compose logs -f --tail=15",
-    "up": "docker-compose up --build -d && docker-compose logs -f",
-    "down": "docker-compose down --remove-orphans",
-    "rebuild": "npm run down && npm run up",
-    "psql": "docker exec -it shepherd_pgdb_1 psql -U postgres arblacklist",
     "test:grep": "mocha tests/**/*.spec.ts --grep",
     "test": "mocha tests/**/*.spec.ts"
   },
