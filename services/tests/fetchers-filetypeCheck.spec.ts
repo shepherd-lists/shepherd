@@ -1,8 +1,6 @@
-process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import {  } from 'mocha'
 import sinon from 'sinon'
-import { PassThrough } from 'stream'
 import { createReadStream, readFileSync } from 'fs'
 import { filetypeCheck } from '../src/fetchers/fileType'
 import { FetchersStatus } from '../src/common/constants'
@@ -32,15 +30,15 @@ describe('fetchers-filetypeCheck tests', ()=>{
 		// we're not testing these
 		const stubDbWrongMime = sinon.stub(dbStub, 'dbWrongMimeType').resolves()
 		const spyS3Delete = sinon.stub(s3Stub, 's3Delete')
-		
+
 		const BAD_MIME: FetchersStatus = 'BAD_MIME'
 		rs.on('error', e => {
 			expect(e.message).eq(BAD_MIME)
 			rs.destroy() //clean up
-		}) 
+		})
 
 		await filetypeCheck(rs, buffer, 'txid-bad-mime', 'image/fake-mime')
-			
+
 		expect(stubDbWrongMime.calledOnce, 'dbWrongMimeType should be called once').true
 		expect(spyS3Delete.calledOnce, 's3Delete should be called once').true
 	}).timeout(0)

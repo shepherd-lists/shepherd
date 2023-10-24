@@ -1,4 +1,3 @@
-process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import {  } from 'mocha'
 import { InflightsRecord, TxRecord, TxScanned } from '../src/common/shepherd-plugin-interfaces/types'
@@ -114,7 +113,7 @@ describe('http-api tests', ()=>{
 
 	it('6. should calculate the byte-range for a txid with top_score_value > 0.9', async()=>{
 		const data: APIFilterResult = {
-			txid: `PGE1rpLLKjQHNdTGF-NlNZ2cvKWuZwLCtRQCJcX_-88`, // a small jpeg
+			txid: 'PGE1rpLLKjQHNdTGF-NlNZ2cvKWuZwLCtRQCJcX_-88', // a small jpeg
 			filterResult: {
 				flagged: false,
 				top_score_value: 0.95,
@@ -130,7 +129,7 @@ describe('http-api tests', ()=>{
 		})
 
 		const res = await axios.post('http://localhost:84/postupdate', data)
-		
+
 		expect(res.status, 'http-api returned an error code').eq(200)
 		const rec = (await knex<TxRecord>('inbox').select().where({ txid: data.txid }))[0]
 		expect(rec.byteStart).to.exist

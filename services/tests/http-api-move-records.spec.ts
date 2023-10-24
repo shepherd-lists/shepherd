@@ -1,4 +1,3 @@
-process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import {  } from 'mocha'
 import { moveInboxToTxs } from '../src/http-api/move-records'
@@ -42,7 +41,7 @@ describe('http-api move-records tests', ()=>{
 		await knex('txs').delete()
 	})
 
-	it(`should move test records from inbox to txs`, async()=>{
+	it('should move test records from inbox to txs', async()=>{
 
 		const moved = await moveInboxToTxs([mockRecord1.txid, mockRecord2.txid])
 

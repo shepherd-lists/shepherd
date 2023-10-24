@@ -1,4 +1,3 @@
-process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import {  } from 'chai-as-promised'
 import {  } from 'mocha'
@@ -26,8 +25,8 @@ describe('http-api done-records tests', ()=>{
 		last_update_date: new Date(),
 	}
 	const mockRecord200: TxRecord = {
-		...mockRecord100, 
-		txid: 'MOCK_RECORD3_456789012345678901234567890123', 
+		...mockRecord100,
+		txid: 'MOCK_RECORD3_456789012345678901234567890123',
 		height: 200,
 	}
 
@@ -40,7 +39,7 @@ describe('http-api done-records tests', ()=>{
 		await knex('txs').delete()
 	})
 
-	it(`should init`, async()=>{
+	it('should init', async()=>{
 
 		console.log('about to call doneInit for the first time')
 		const init = await DoneRecords.doneInit()
@@ -61,8 +60,8 @@ describe('http-api done-records tests', ()=>{
 
 		//set the height for moving
 		const stubPasss2Height = sinon.stub(DoneRecords, 'pass2Height')
-		.onCall(0).resolves(150)
-		.onCall(1).resolves(250)
+			.onCall(0).resolves(150)
+			.onCall(1).resolves(250)
 
 		// N.B. module property `last` could run over time and break this test!
 		const res = await DoneRecords.doneAdd(mockRecord200.txid, mockRecord200.height)
@@ -73,7 +72,7 @@ describe('http-api done-records tests', ()=>{
 		expect(stubPasss2Height.lastCall.returnValue, 'pass2height is now 150').to.eventually.equal(150)
 		expect(spyMoveInboxToTxs.lastCall.args[0], 'moveInboxToTxs called with').deep.eq([mockRecord100.txid])
 		expect(count, 'moved one record to txs').to.equal(1)
-		
+
 		count = await DoneRecords.moveDone() //pass2height is now 250
 		expect(stubPasss2Height.callCount, 'call pass2Height twice').to.equal(2)
 		expect(stubPasss2Height.lastCall.returnValue, 'pass2height is now 250').to.eventually.equal(250)

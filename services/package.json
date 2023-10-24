@@ -7,8 +7,8 @@
   "scripts": {
     "migrate": "knex migrate:latest",
     "typecheck": "tsc --noEmit",
-    "test:grep": "mocha tests/**/*.spec.ts --grep",
-    "test": "mocha tests/**/*.spec.ts"
+    "test:grep": "NODE_ENV=test mocha tests/**/*.spec.ts --grep",
+    "test": "NODE_ENV=test mocha tests/**/*.spec.ts"
   },
   "mocha": {
     "extension": [

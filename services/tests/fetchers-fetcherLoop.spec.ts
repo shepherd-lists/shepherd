@@ -1,4 +1,3 @@
-process.env['NODE_ENV'] = 'test'
 import sinon from 'sinon'
 import chai, { expect } from 'chai'
 import chaiPromised from 'chai-as-promised'
@@ -29,10 +28,10 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 				content_type: 'image/png',
 			})
 		}
-		sinon.stub(Fetchers, 'getMessage').resolves(mockGoodMsg) 
-		const readStream = createReadStream(`${__dirname}/`+`./fixtures/test.png`)
+		sinon.stub(Fetchers, 'getMessage').resolves(mockGoodMsg)
+		const readStream = createReadStream(`${__dirname}/`+'./fixtures/test.png')
 		sinon.stub(Fetchers, 'dataStream').resolves(readStream as unknown as IncomingMessage)
-		
+
 		const spyS3Stream = sinon.spy(S3Services, 's3UploadStream')
 		const spyDeleteMessage = sinon.spy(Fetchers, 'deleteMessage')
 
@@ -41,12 +40,12 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 		await Fetchers.fetcherLoop(false)
 
 		/* check expected results */
-		
+
 		expect(spyS3Stream.callCount).eq(1, 's3UploadStream was not called')
 		expect(spyS3Stream.firstCall.returnValue).to.eventually.eq('OK', 's3UploadStream didn\'t return OK')
-		
+
 		expect(spyDeleteMessage.callCount).eq(1, 'deleteMessage was not called')
-		
+
 	}).timeout(0)
 
 
@@ -62,11 +61,11 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 				content_type: 'image/png',
 				content_size: 404,
 			})
-		}) 
-		sinon.stub(Fetchers, 'dataStream').callsFake(()=>axios.get('http://httpstat.us/404')) 
+		})
+		sinon.stub(Fetchers, 'dataStream').callsFake(()=>axios.get('http://httpstat.us/404'))
 
-		const stubDbNoDataFound404 = sinon.stub(DbUpdate, 'dbNoDataFound404').resolves() 
-		
+		const stubDbNoDataFound404 = sinon.stub(DbUpdate, 'dbNoDataFound404').resolves()
+
 		const spyS3Stream = sinon.spy(S3Services, 's3UploadStream')
 		const spyDeleteMessage = sinon.spy(Fetchers, 'deleteMessage')
 
@@ -75,12 +74,12 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 		await Fetchers.fetcherLoop(false)
 
 		/* check expected results */
-		
+
 		expect(spyS3Stream.callCount).eq(0, 's3UploadStream should not be called')
 		expect(stubDbNoDataFound404.callCount).eq(1, 'dbNoDataFound404 should be called')
-		
+
 		expect(spyDeleteMessage.callCount).eq(1, 'deleteMessage should be called')
-		
+
 	}).timeout(0)
 
 
@@ -96,11 +95,11 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 				content_type: 'image/png',
 				content_size: 666,
 			})
-		}) 
-		sinon.stub(Fetchers, 'dataStream').callsFake(()=>axios.get('http://localhost:1')) 
+		})
+		sinon.stub(Fetchers, 'dataStream').callsFake(()=>axios.get('http://localhost:1'))
 
-		const stubDbNoDataFound404 = sinon.stub(DbUpdate, 'dbNoDataFound404').resolves() 
-		
+		const stubDbNoDataFound404 = sinon.stub(DbUpdate, 'dbNoDataFound404').resolves()
+
 		const spyS3Stream = sinon.spy(S3Services, 's3UploadStream')
 		const spyDeleteMessage = sinon.spy(Fetchers, 'deleteMessage')
 
@@ -109,12 +108,12 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 		await Fetchers.fetcherLoop(false)
 
 		/* check expected results */
-		
+
 		expect(spyS3Stream.callCount).eq(0, 's3UploadStream should not be called')
 		expect(stubDbNoDataFound404.callCount).eq(0, 'dbNoDataFound404 should not be called')
-		
+
 		expect(spyDeleteMessage.callCount).eq(0, 'deleteMessage should not be called') //most importantly
-		
+
 	}).timeout(0)
 
 	it('tests a single NEGLIGIBLE_DATA stream gets processed', async()=> {
@@ -126,7 +125,7 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 				content_type: 'image/png',
 				content_size: 15,
 			})
-		}) 
+		})
 		const mockStream = new PassThrough()
 		mockStream.push('not enough data')
 		// mockStream.push(null) leave the stream open so it can be aborted ?

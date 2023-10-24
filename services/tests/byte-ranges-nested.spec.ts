@@ -1,4 +1,3 @@
-process.env['NODE_ENV'] = 'test'
 import 'mocha'
 import { expect } from 'chai'
 import dbConnection from '../src/common/utils/db-connection'
@@ -15,11 +14,11 @@ describe('byte-ranges-nested tests', ()=>{
 
 	it('should return correct byte range for a trivially small ans104 2D nested dataItem', async()=> {
 
-		// tiny one with text. easier maths. 
+		// tiny one with text. easier maths.
 		const res = await txidToRange(
-			`h1xFy--WzwsHkF0mmLnrQLn6kB8lie4kfeudt_WD9rs`, //dataItem number [0][0] <= doesn't affect result what item we pick
-			`GsU6C6m0593jLCSIGpQxJMNE2eCvl7MqgmU75e7JagI`,
-			[`RkqustTWVhOmwhFp0LGoh6g9WvLP1QiUJoPDDdJ8APk`]
+			'h1xFy--WzwsHkF0mmLnrQLn6kB8lie4kfeudt_WD9rs', //dataItem number [0][0] <= doesn't affect result what item we pick
+			'GsU6C6m0593jLCSIGpQxJMNE2eCvl7MqgmU75e7JagI',
+			['RkqustTWVhOmwhFp0LGoh6g9WvLP1QiUJoPDDdJ8APk']
 		)
 		// very small example, so result is 1 chunk holding all nested bundles. checked and on L1's boundaries
 		expect(res.start).equal(123025199767798n)
@@ -58,7 +57,7 @@ describe('byte-ranges-nested tests', ()=>{
 		 * 	'VnFtyOwf9BNGg1myRbBqM8X_bXu5oV9_-hYN90ngrSA',
 		 * 	'0r8UpaH63SuZ39zSfFYPuI8ITBDTAmgP9KQTODzksUk'
 		 * ]
-		 * 
+		 *
 		 * Full list of chunk boundaries:
 		 * 	chunks
 		 * 1	123388269994230
@@ -95,32 +94,32 @@ describe('byte-ranges-nested tests', ()=>{
 		 * 32	123388278120694
 		 * 33	123388278382838
 		 * 34	123388278644982
-		 * 
+		 *
 		 */
 
 		//right at the beginning. spanning 3
 		const beginning = await txidToRange(
-			`ioaP_ChqkvSPGZpEQj4Ye0Q9DdgjqbGe7oKcifJdnCs`,
-			`GrcvhWQPP95MkHTvpEHlOpkEbfrFC5Svi8nyuteZuIE`,
-			[`V98Mn7rbEOPtOZSbpmgytF5Z5r8Eumw47aHHlVboLe0`]
+			'ioaP_ChqkvSPGZpEQj4Ye0Q9DdgjqbGe7oKcifJdnCs',
+			'GrcvhWQPP95MkHTvpEHlOpkEbfrFC5Svi8nyuteZuIE',
+			['V98Mn7rbEOPtOZSbpmgytF5Z5r8Eumw47aHHlVboLe0']
 		)
 		expect(beginning.start).equal(123388269994230n)
 		expect(beginning.end).equal(123388270780662n)
 
 		//right from the middle of the chunks. spanning 3
 		const res = await txidToRange(
-			`22QXisiUn-6RF5OJan-2_1jvC6B1W3CPozumG2sWPoo`,
-			`KfUDG4dXAbzt4UgNSRyorgl8ZxyNf5nciV5bizJqi3g`,
-			[`V98Mn7rbEOPtOZSbpmgytF5Z5r8Eumw47aHHlVboLe0`]
+			'22QXisiUn-6RF5OJan-2_1jvC6B1W3CPozumG2sWPoo',
+			'KfUDG4dXAbzt4UgNSRyorgl8ZxyNf5nciV5bizJqi3g',
+			['V98Mn7rbEOPtOZSbpmgytF5Z5r8Eumw47aHHlVboLe0']
 		)
 		expect(res.start).equal(123388273926390n)
 		expect(res.end).equal(123388274712822n)
 
 		//right at the end. spanning 3
 		const end = await txidToRange(
-			`0r8UpaH63SuZ39zSfFYPuI8ITBDTAmgP9KQTODzksUk`,
-			`HyVW_SVJ2T8SKYGo9BTOOmKHmCHA2-8Tw2flZtL2s-A`,
-			[`V98Mn7rbEOPtOZSbpmgytF5Z5r8Eumw47aHHlVboLe0`]
+			'0r8UpaH63SuZ39zSfFYPuI8ITBDTAmgP9KQTODzksUk',
+			'HyVW_SVJ2T8SKYGo9BTOOmKHmCHA2-8Tw2flZtL2s-A',
+			['V98Mn7rbEOPtOZSbpmgytF5Z5r8Eumw47aHHlVboLe0']
 		)
 		expect(end.start).equal(123388277858550n)
 		expect(end.end).equal(123388278644982n)

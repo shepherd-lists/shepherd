@@ -1,4 +1,3 @@
-process.env['NODE_ENV'] = 'test'
 import { expect } from 'chai'
 import { TxRecord } from '../src/common/shepherd-plugin-interfaces/types'
 import dbConnection from '../src/common/utils/db-connection'
@@ -18,7 +17,8 @@ describe('updateDb tests', ()=>{
 			if(checkId.length !== 1){
 				await knex<TxRecord>('txs').insert({txid: fakeTxid, content_type: 'text/plain', content_size: '321'})
 			}
-		}catch(e:any){
+		}catch(err:unknown){
+			const e = err as Error
 			console.log('error connecting to DB', JSON.stringify(e))
 			process.exit(1)
 		}
@@ -49,7 +49,8 @@ describe('updateDb tests', ()=>{
 			if(checkId.length !== 1){
 				await knex<TxRecord>('inbox').insert({txid: fakeTxid, content_type: 'text/plain', content_size: '321'})
 			}
-		}catch(e:any){
+		}catch(err:unknown){
+			const e = err as Error
 			console.log('error connecting to DB', JSON.stringify(e))
 			process.exit(1)
 		}
