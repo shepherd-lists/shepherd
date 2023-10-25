@@ -80,7 +80,7 @@ echo "RANGELIST_ALLOWED=${RANGELIST_ALLOWED:-}"
 #################################################
 
 # function to save/cd/reset pwd when running cdk deploys
-function cdk_deploy() {
+function run_cdk() {
 	local target_dir="$1"
 	local cdk_command="$2"
 	# save pwd
@@ -122,7 +122,7 @@ else
 	IFS=',' read -ra plugin_names <<< "$PLUGINS"
 	for plugin_name in "${plugin_names[@]}"; do
 		plugin_name=$(echo "$plugin_name" | tr -d '[:space:]') # remove whitespace
-		cdk_deploy "$script_dir/addons/$plugin_name" "npx cdk deploy --require-approval never"
+		run_cdk "$script_dir/addons/$plugin_name" "npx cdk deploy --require-approval never"
 	done
 fi
 
