@@ -106,7 +106,7 @@ export class InfraStack extends cdk.Stack {
 		})
 		inputBucket.addToResourcePolicy(new cdk.aws_iam.PolicyStatement({
 			effect: cdk.aws_iam.Effect.ALLOW,
-			principals: [new cdk.aws_iam.AnyPrincipal()],
+			principals: [new cdk.aws_iam.AnyPrincipal()], //need to be in the vpc though
 			actions: ['s3:*'],
 			resources: [inputBucket.bucketArn, `${inputBucket.bucketArn}/*`],
 			conditions: {
@@ -117,7 +117,7 @@ export class InfraStack extends cdk.Stack {
 		}))
 
 
-		/** cfn outputs */
+		/** cfn outputs. CONVERT ALL OF THESE TO PARAMS */
 
 		const cfnOut = (name: string, value: string) => {
 			name = name.replace(/[-_.]/g, '')
@@ -132,7 +132,17 @@ export class InfraStack extends cdk.Stack {
 		cfnOut('LOG_GROUP_NAME', logGroup.logGroupName)
 		cfnOut('LB_ARN', alb.loadBalancerArn)
 		cfnOut('LB_DNSNAME', alb.loadBalancerDnsName)
-		// cfnOut('ShepherdAlbSg', cdk.Fn.select(0, alb.loadBalancerSecurityGroups)) // like [0]
+
+		/** write parameters to ssm */
+		const writeParam = (name: string, value: string) => {
+			new cdk.aws_ssm.StringParameter(stack, name, {
+				parameterName: `/shepherd/${name}`,
+				stringValue: value,
+			})
+		}
+		// writeParam('VpcId', vpc.vpcId) <== can't create a vpc from a token lookup!
+		writeParam('VpcSg', vpc.vpcDefaultSecurityGroup)
+		writeParam('PgdbSg', sgPgdb.securityGroupId)
 
 	}
 }
