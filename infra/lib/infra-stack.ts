@@ -143,6 +143,8 @@ export class InfraStack extends cdk.Stack {
 		// writeParam('VpcId', vpc.vpcId) <== can't create a vpc from a token lookup!
 		writeParam('VpcSg', vpc.vpcDefaultSecurityGroup)
 		writeParam('PgdbSg', sgPgdb.securityGroupId)
+		writeParam('InputBucket', inputBucket.bucketName)
+		writeParam('SqsVpcEndpoint', sqsVpcEndpoint.vpcEndpointId)
 
 	}
 }
