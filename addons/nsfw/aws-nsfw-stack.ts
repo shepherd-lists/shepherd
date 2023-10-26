@@ -4,7 +4,7 @@ import { App, Aws, Duration, Stack, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, a
 const envs = [
 	'AWS_VPC_ID',
 	'LOG_GROUP_NAME',
-	'ShepherdCluster',
+	'ShepherdClusterName',
 	'ShepherdNamespaceArn',
 	'ShepherdNamespaceId',
 	'DB_HOST',

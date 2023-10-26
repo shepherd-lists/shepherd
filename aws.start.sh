@@ -104,7 +104,7 @@ $script_dir/services-aws/start.sh
 ## this is just a hack for now. all of this bash scripting will likely be replaced.
 export $(grep -Ev '^#' .env | xargs)
 # check an example mandatory var here
-if [[ -z $ShepherdCluster ]]; then
+if [[ -z $ShepherdClusterName ]]; then
 	echo "ERROR: missing generated environment variable, check .env and logs, exiting."
 	exit 1
 fi

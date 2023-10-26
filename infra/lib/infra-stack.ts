@@ -146,7 +146,7 @@ export class InfraStack extends cdk.Stack {
 		writeParam('InputBucket', inputBucket.bucketName)
 		writeParam('SqsVpcEndpoint', sqsVpcEndpoint.vpcEndpointId)
 		writeParam('LogGroup', logGroup.logGroupName)
-		writeParam('InputQ', sqsInputQ.queueUrl)
+		writeParam('InputQueueUrl', sqsInputQ.queueUrl)
 
 	}
 }

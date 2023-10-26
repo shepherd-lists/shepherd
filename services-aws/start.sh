@@ -47,7 +47,7 @@ function stack_output_to_env {
 	echo "$name=$value" | tee -a .env
 }
 
-stack_output_to_env ShepherdCluster
+stack_output_to_env ShepherdClusterName
 stack_output_to_env ShepherdNamespaceArn
 stack_output_to_env ShepherdNamespaceId
 
