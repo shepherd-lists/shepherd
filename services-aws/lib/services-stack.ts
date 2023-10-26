@@ -157,6 +157,15 @@ export class ServicesStack extends cdk.Stack {
 		new cdk.CfnOutput(stack, 'ShepherdNamespaceArn', { exportName: 'ShepherdNamespaceArn', value: cluster.defaultCloudMapNamespace!.namespaceArn })
 		new cdk.CfnOutput(stack, 'ShepherdNamespaceId', { exportName: 'ShepherdNamespaceId', value: cluster.defaultCloudMapNamespace!.namespaceId })
 		new cdk.CfnOutput(stack, 'ShepherdAlbDnsName', { exportName: 'ShepherdAlbDnsName', value: alb.loadBalancerDnsName })
+
+		/** write parameters to ssm */
+		const writeParam = (name: string, value: string) => {
+			new cdk.aws_ssm.StringParameter(stack, name, {
+				parameterName: `/shepherd/${name}`,
+				stringValue: value,
+			})
+		}
+		writeParam('Cluster', cluster.clusterArn)
 	}
 }
 
