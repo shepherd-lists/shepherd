@@ -77,8 +77,8 @@ export class ServicesStack extends cdk.Stack {
 
 		/* fetchers service */
 		const fetchers = createService('fetchers', { stack, cluster, logGroup }, {
-			cpu: 2048,
-			memoryLimitMiB: 8192,
+			cpu: 1024,
+			memoryLimitMiB: 4096,
 		}, {
 			DB_HOST: process.env.DB_HOST!,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,

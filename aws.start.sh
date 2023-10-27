@@ -9,7 +9,7 @@ set -euo pipefail
 script_dir=$(dirname "$(realpath $0)")
 echo "script_dir=$script_dir" 
 
-colour="\033[0;34m"
+colour="\033[30;43m"
 reset="\033[0m"
 function echoHeading() {
 	echo -e "${colour}$1${reset}"
@@ -122,6 +122,7 @@ else
 	IFS=',' read -ra plugin_names <<< "$PLUGINS"
 	for plugin_name in "${plugin_names[@]}"; do
 		plugin_name=$(echo "$plugin_name" | tr -d '[:space:]') # remove whitespace
+		echoHeading "Deploying $plugin_name..."
 		run_cdk "$script_dir/addons/$plugin_name" "npx cdk deploy --require-approval never"
 	done
 fi
