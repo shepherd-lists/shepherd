@@ -5,6 +5,7 @@ import { Construct } from 'constructs';
 
 const envVarNames = [
 	'CIDR',
+	'AWS_DEFAULT_REGION', // not specificaly used, but needs to be set for cdk.
 ]
 envVarNames.map(name => {
 	if (!process.env[name]) throw new Error(`${name} not set`)
@@ -19,8 +20,9 @@ export class InfraStack extends cdk.Stack {
 
 		/** create the main network stack */
 
+		const vpcName = 'shepherd-vpc'
 		const vpc = new cdk.aws_ec2.Vpc(stack, 'shepherd-vpc', {
-			vpcName: 'shepherd-vpc',
+			vpcName,
 			maxAzs: 2,
 			natGateways: 1,
 			/** 
@@ -124,7 +126,6 @@ export class InfraStack extends cdk.Stack {
 			new cdk.CfnOutput(stack, name, { exportName: name, value })
 		}
 		cfnOut('AWS_ACCOUNT_ID', cdk.Aws.ACCOUNT_ID) //where could this be used?
-		cfnOut('AWS_VPC_ID', vpc.vpcId)
 		cfnOut('DB_HOST', pgdb.dbInstanceEndpointAddress)
 		cfnOut('AWS_FEEDER_QUEUE', feederQ.queueUrl)
 		cfnOut('AWS_INPUT_BUCKET', inputBucket.bucketName)
@@ -140,7 +141,7 @@ export class InfraStack extends cdk.Stack {
 				stringValue: value,
 			})
 		}
-		// writeParam('VpcId', vpc.vpcId) <== can't create a vpc from a token lookup!
+		writeParam('VpcName', vpcName)
 		writeParam('VpcSg', vpc.vpcDefaultSecurityGroup)
 		writeParam('PgdbSg', sgPgdb.securityGroupId)
 		writeParam('InputBucket', inputBucket.bucketName)

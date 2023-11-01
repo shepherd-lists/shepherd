@@ -6,15 +6,12 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 
 const envVarNames = [
 	/** from shepherd-infra-stack. created when you run the stack's setup */
-	'AWS_VPC_ID',
 	'DB_HOST',
 	'AWS_FEEDER_QUEUE',
 	'AWS_INPUT_BUCKET',
 	'AWS_SQS_INPUT_QUEUE', //addons use this
 	'LOG_GROUP_NAME',
 	'LB_ARN',
-	/** required variables */
-
 ]
 envVarNames.map(name => {
 	if (!process.env[name]) throw new Error(`${name} not set`)
@@ -29,10 +26,11 @@ const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new 
 const ssmLondon = new SSMClient({ region: 'eu-west-2' })
 const TS_AUTHKEY = await remoteParam('TS_AUTHKEY', ssmLondon)
 
-// const albDnsName = (await ssm.send(new GetParameterCommand({
-// 	Name: '/shepherd/AlbDnsName',
-// 	WithDecryption: true, // ignored if unencrypted
-// }))).Parameter?.Value
+const readParam = async (paramName: string) => {
+	const ssm = new SSMClient() //local region
+	return remoteParam(paramName, ssm)
+}
+const vpcName = await readParam('VpcName')
 
 
 export class ServicesStack extends cdk.Stack {
@@ -42,7 +40,7 @@ export class ServicesStack extends cdk.Stack {
 
 		/** import shepherd-infra-stack items  */
 
-		const vpc = cdk.aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcId: process.env.AWS_VPC_ID })
+		const vpc = cdk.aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcName })
 		const alb = cdk.aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn: process.env.LB_ARN })
 		const logGroup = cdk.aws_logs.LogGroup.fromLogGroupName(stack, 'logGroup', process.env.LOG_GROUP_NAME!)
 
@@ -55,7 +53,6 @@ export class ServicesStack extends cdk.Stack {
 			defaultCloudMapNamespace: { name: 'shepherd.local' },
 			containerInsights: true,
 		})
-
 
 		/** create fargate services required for shepherd */
 

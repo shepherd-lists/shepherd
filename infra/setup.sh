@@ -50,7 +50,6 @@ function stack_output_to_env {
 }
 
 stack_output_to_env AWS_ACCOUNT_ID
-stack_output_to_env AWS_VPC_ID
 stack_output_to_env DB_HOST
 stack_output_to_env AWS_FEEDER_QUEUE
 stack_output_to_env AWS_INPUT_BUCKET

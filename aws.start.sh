@@ -42,10 +42,10 @@ if [ -f ".env" ]; then
 
 	echo "WARNING!!! Might want to check for AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY missing issues!"
 
-	if [[ -z $AWS_VPC_ID ]]; then
-		echo "ERROR: missing previously created environment variable, did previous setup.sh script run OK? exiting"
-		exit 1
-	fi
+	# if [[ -z $AWS_VPC_ID ]]; then
+	# 	echo "ERROR: missing previously created environment variable, did previous setup.sh script run OK? exiting"
+	# 	exit 1
+	# fi
 	plugin_checker=${PLUGIN:-}
 	if [[ -z $plugin_checker ]]; then
 		echo "PLUGIN var not found. defaulting to 'nsfw'" 
