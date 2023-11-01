@@ -12,7 +12,6 @@ const envVarNames = [
 	'AWS_SQS_INPUT_QUEUE', //addons use this
 	'LOG_GROUP_NAME',
 	'LB_ARN',
-	'LB_DNSNAME',
 	/** tailscale key */
 	'TS_AUTHKEY',
 	/** required variables */

@@ -149,6 +149,7 @@ export class InfraStack extends cdk.Stack {
 		writeParam('InputQueueUrl', sqsInputQ.queueUrl)
 		writeParam('InputQueueName', sqsInputQ.queueName)
 		writeParam('DB_HOST', pgdb.dbInstanceEndpointAddress)
+		writeParam('AlbDnsName', alb.loadBalancerDnsName)
 
 	}
 }
