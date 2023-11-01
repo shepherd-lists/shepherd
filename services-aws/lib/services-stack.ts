@@ -40,6 +40,7 @@ export class ServicesStack extends cdk.Stack {
 			vpc,
 			clusterName: 'shepherd-services',
 			defaultCloudMapNamespace: { name: 'shepherd.local' },
+			containerInsights: true,
 		})
 
 
