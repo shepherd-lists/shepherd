@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib'
 import { Construct } from 'constructs'
+import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 
 /** check our env exist */
 
@@ -12,14 +13,27 @@ const envVarNames = [
 	'AWS_SQS_INPUT_QUEUE', //addons use this
 	'LOG_GROUP_NAME',
 	'LB_ARN',
-	/** tailscale key */
-	'TS_AUTHKEY',
 	/** required variables */
 
 ]
 envVarNames.map(name => {
 	if (!process.env[name]) throw new Error(`${name} not set`)
 })
+
+/** import params from shepherd regions (London is global) */
+const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new GetParameterCommand({
+	Name: `/shepherd/${name}`,
+	WithDecryption: true, // ignored if unencrypted
+}))).Parameter!.Value // throws if undefined
+
+const ssmLondon = new SSMClient({ region: 'eu-west-2' })
+const TS_AUTHKEY = await remoteParam('TS_AUTHKEY', ssmLondon)
+
+// const albDnsName = (await ssm.send(new GetParameterCommand({
+// 	Name: '/shepherd/AlbDnsName',
+// 	WithDecryption: true, // ignored if unencrypted
+// }))).Parameter?.Value
+
 
 export class ServicesStack extends cdk.Stack {
 	constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -192,7 +206,7 @@ const createTailscale = (vpc: cdk.aws_ec2.IVpc, { stack, cluster, logGroup, }: F
 		}),
 		containerName: 'tailscaleContainer',
 		environment: {
-			TS_AUTHKEY: process.env.TS_AUTHKEY!,
+			TS_AUTHKEY: TS_AUTHKEY!,
 			TS_ROUTES: vpc.privateSubnets.map(s => s.ipv4CidrBlock).join(','),
 			TS_EXPIRY_KEY_DISABLE: 'true',
 			TS_ADVERTISE_ROUTES: 'true',
