@@ -13,7 +13,6 @@ const main = async () => {
 		'ShepherdClusterName',
 		'ShepherdNamespaceArn',
 		'ShepherdNamespaceId',
-		'DB_HOST',
 		'AWS_SQS_INPUT_QUEUE',
 		'AWS_INPUT_BUCKET',
 	]
@@ -27,9 +26,10 @@ const main = async () => {
 		return (await ssm.send(new GetParameterCommand({
 			Name: `/shepherd/${name}`,
 			WithDecryption: true, // ignored if unencrypted
-		}))).Parameter!.Value // throw undefined
+		}))).Parameter!.Value as string // throw undefined
 	}
 	const vpcName = await readParam('VpcName')
+	const rdsEndpoint = await readParam('RdsEndpoint')
 
 
 	/** standard stack boilerplate */
@@ -88,7 +88,7 @@ const main = async () => {
 			}),
 			containerName: `${name}Container`,
 			environment: {
-				DB_HOST: process.env.DB_HOST!,
+				DB_HOST: rdsEndpoint,
 				SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
 				HOST_URL: process.env.HOST_URL || 'https://arweave.net',
 				NUM_FILES: process.env.NUM_FILES || '50',
