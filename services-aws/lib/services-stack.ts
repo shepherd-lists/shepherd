@@ -207,6 +207,7 @@ const createTailscale = (vpc: cdk.aws_ec2.IVpc, { stack, cluster, logGroup, }: F
 			TS_ROUTES: vpc.privateSubnets.map(s => s.ipv4CidrBlock).join(','),
 			TS_EXPIRY_KEY_DISABLE: 'true',
 			TS_ADVERTISE_ROUTES: 'true',
+			TS_HOSTNAME: `${cdk.Aws.REGION}.subnet-router.local`
 		}
 	})
 	const fgTailscale = new cdk.aws_ecs.FargateService(stack, 'fgTailscale', {
