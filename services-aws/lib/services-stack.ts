@@ -6,7 +6,6 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 
 const envVarNames = [
 	/** from shepherd-infra-stack. created when you run the stack's setup */
-	'DB_HOST',
 	'AWS_FEEDER_QUEUE',
 	'AWS_INPUT_BUCKET',
 	'AWS_SQS_INPUT_QUEUE', //addons use this
@@ -21,7 +20,7 @@ envVarNames.map(name => {
 const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new GetParameterCommand({
 	Name: `/shepherd/${name}`,
 	WithDecryption: true, // ignored if unencrypted
-}))).Parameter!.Value // throws if undefined
+}))).Parameter!.Value as string // throws if undefined
 
 const ssmLondon = new SSMClient({ region: 'eu-west-2' })
 const TS_AUTHKEY = await remoteParam('TS_AUTHKEY', ssmLondon)
@@ -31,6 +30,7 @@ const readParam = async (paramName: string) => {
 	return remoteParam(paramName, ssm)
 }
 const vpcName = await readParam('VpcName')
+const rdsEndpoint = await readParam('RdsEndpoint')
 
 
 export class ServicesStack extends cdk.Stack {
@@ -64,7 +64,7 @@ export class ServicesStack extends cdk.Stack {
 			cpu: 256,
 			memoryLimitMiB: 512,
 		}, {
-			DB_HOST: process.env.DB_HOST!,
+			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
 			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
 			GQL_URL: process.env.GQL_URL || 'https://arweave.net/graphql',
@@ -76,7 +76,7 @@ export class ServicesStack extends cdk.Stack {
 			cpu: 2048,
 			memoryLimitMiB: 8192,
 		}, {
-			DB_HOST: process.env.DB_HOST!,
+			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
 			AWS_FEEDER_QUEUE: process.env.AWS_FEEDER_QUEUE!,
 		})
@@ -91,7 +91,7 @@ export class ServicesStack extends cdk.Stack {
 			cpu: 1024,
 			memoryLimitMiB: 4096,
 		}, {
-			DB_HOST: process.env.DB_HOST!,
+			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
 			STREAMS_PER_FETCHER: process.env.STREAMS_PER_FETCHER || '50',
 			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
@@ -122,7 +122,7 @@ export class ServicesStack extends cdk.Stack {
 			cpu: 2048,
 			memoryLimitMiB: 4096,
 		}, {
-			DB_HOST: process.env.DB_HOST!,
+			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
 			SLACK_POSITIVE: process.env.SLACK_POSITIVE!,
 			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
@@ -140,7 +140,7 @@ export class ServicesStack extends cdk.Stack {
 			cpu: 2048,
 			memoryLimitMiB: 8192,
 		}, {
-			DB_HOST: process.env.DB_HOST!,
+			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
 			SLACK_POSITIVE: process.env.SLACK_POSITIVE!,
 			SLACK_PROBE: process.env.SLACK_PROBE!,
