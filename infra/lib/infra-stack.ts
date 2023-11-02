@@ -126,7 +126,6 @@ export class InfraStack extends cdk.Stack {
 			new cdk.CfnOutput(stack, name, { exportName: name, value })
 		}
 		cfnOut('AWS_ACCOUNT_ID', cdk.Aws.ACCOUNT_ID) //where could this be used?
-		cfnOut('DB_HOST', pgdb.dbInstanceEndpointAddress)
 		cfnOut('AWS_FEEDER_QUEUE', feederQ.queueUrl)
 		cfnOut('AWS_INPUT_BUCKET', inputBucket.bucketName)
 		cfnOut('AWS_SQS_INPUT_QUEUE', sqsInputQ.queueUrl)
@@ -149,7 +148,7 @@ export class InfraStack extends cdk.Stack {
 		writeParam('LogGroup', logGroup.logGroupName)
 		writeParam('InputQueueUrl', sqsInputQ.queueUrl)
 		writeParam('InputQueueName', sqsInputQ.queueName)
-		writeParam('DB_HOST', pgdb.dbInstanceEndpointAddress)
+		writeParam('RdsEndpoint', pgdb.dbInstanceEndpointAddress)
 		writeParam('AlbDnsName', alb.loadBalancerDnsName)
 
 	}
