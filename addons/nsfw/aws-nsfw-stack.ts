@@ -7,20 +7,7 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
  */
 const main = async () => {
 
-	/** check mandatory envs exist */
-	const envs = [
-		'LOG_GROUP_NAME',
-		'ShepherdClusterName',
-		'ShepherdNamespaceArn',
-		'ShepherdNamespaceId',
-		'AWS_SQS_INPUT_QUEUE',
-		'AWS_INPUT_BUCKET',
-	]
-	envs.map((name: string) => {
-		if (!process.env[name]) throw new Error(`${name} not set`)
-	})
-
-	/** import param */
+	/** import stack params */
 	const readParam = async (name: string) => {
 		const ssm = new SSMClient()
 		return (await ssm.send(new GetParameterCommand({
@@ -30,6 +17,12 @@ const main = async () => {
 	}
 	const vpcName = await readParam('VpcName')
 	const rdsEndpoint = await readParam('RdsEndpoint')
+	const logGroupName = await readParam('LogGroup')
+	const clusterName = await readParam('ClusterName')
+	const namespaceArn = await readParam('NamespaceArn')
+	const namespaceId = await readParam('NamespaceId')
+	const inputQueueUrl = await readParam('InputQueueUrl')
+	const inputBucketName = await readParam('InputBucket')
 
 
 	/** standard stack boilerplate */
@@ -45,15 +38,15 @@ const main = async () => {
 
 	/** import stack components from the shepherd stack */
 	const vpc = aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcName })
-	const logGroup = aws_logs.LogGroup.fromLogGroupName(stack, 'logGroup', process.env.LOG_GROUP_NAME!)
+	const logGroup = aws_logs.LogGroup.fromLogGroupName(stack, 'logGroup', logGroupName)
 	const cluster = aws_ecs.Cluster.fromClusterAttributes(stack, 'shepherd-cluster', {
-		clusterName: 'shepherd-services',
+		clusterName,
 		vpc,
 	})
 	const cloudMapNamespace = aws_servicediscovery.PrivateDnsNamespace.fromPrivateDnsNamespaceAttributes(stack, 'shepherd.local', {
 		namespaceName: 'shepherd.local',
-		namespaceArn: process.env.ShepherdNamespaceArn!,
-		namespaceId: process.env.ShepherdNamespaceId!,
+		namespaceArn: namespaceArn,
+		namespaceId: namespaceId,
 	})
 
 	/** template for a standard addon service */
@@ -93,8 +86,8 @@ const main = async () => {
 				HOST_URL: process.env.HOST_URL || 'https://arweave.net',
 				NUM_FILES: process.env.NUM_FILES || '50',
 				TOTAL_FILESIZE_GB: process.env.TOTAL_FILESIZE_GB || '10',
-				AWS_SQS_INPUT_QUEUE: process.env.AWS_SQS_INPUT_QUEUE!,
-				AWS_INPUT_BUCKET: process.env.AWS_INPUT_BUCKET!,
+				AWS_SQS_INPUT_QUEUE: inputQueueUrl,
+				AWS_INPUT_BUCKET: inputBucketName,
 				AWS_DEFAULT_REGION: Aws.REGION,
 				HTTP_API_URL: 'http://http-api.shepherd.local:84/postupdate',
 			},
@@ -124,7 +117,7 @@ const main = async () => {
 		scaleInCooldown: Duration.seconds(60),
 		scaleOutCooldown: Duration.seconds(60),
 	})
-	const inputQueueName = process.env.AWS_SQS_INPUT_QUEUE!.split('/').pop()
+	const inputQueueName = inputQueueUrl.split('/').pop()
 	nsfw.taskDefinition.taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['sqs:*'],
 		resources: [`arn:aws:sqs:${Aws.REGION}:${Aws.ACCOUNT_ID}:${inputQueueName}`],
@@ -132,7 +125,7 @@ const main = async () => {
 	nsfw.taskDefinition.taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['s3:*'],
 		resources: [
-			`arn:aws:s3:::${process.env.AWS_INPUT_BUCKET!}/*`,
+			`arn:aws:s3:::${inputBucketName}/*`,
 		],
 	}))
 }//end main
