@@ -119,19 +119,13 @@ export class InfraStack extends cdk.Stack {
 		}))
 
 
-		/** cfn outputs. CONVERT ALL OF THESE TO PARAMS */
+		/** cfn outputs. basically unused now. */
 
 		const cfnOut = (name: string, value: string) => {
 			name = name.replace(/[-_.]/g, '')
 			new cdk.CfnOutput(stack, name, { exportName: name, value })
 		}
-		cfnOut('AWS_ACCOUNT_ID', cdk.Aws.ACCOUNT_ID) //where could this be used?
-		cfnOut('AWS_FEEDER_QUEUE', feederQ.queueUrl)
-		cfnOut('AWS_INPUT_BUCKET', inputBucket.bucketName)
-		cfnOut('AWS_SQS_INPUT_QUEUE', sqsInputQ.queueUrl)
-		cfnOut('LOG_GROUP_NAME', logGroup.logGroupName)
-		cfnOut('LB_ARN', alb.loadBalancerArn)
-		cfnOut('LB_DNSNAME', alb.loadBalancerDnsName)
+		cfnOut('LB_DNSNAME', alb.loadBalancerDnsName) // handy in aws console
 
 		/** write parameters to ssm */
 		const writeParam = (name: string, value: string) => {
@@ -140,16 +134,19 @@ export class InfraStack extends cdk.Stack {
 				stringValue: value,
 			})
 		}
+
 		writeParam('VpcName', vpcName)
 		writeParam('VpcSg', vpc.vpcDefaultSecurityGroup)
 		writeParam('PgdbSg', sgPgdb.securityGroupId)
-		writeParam('InputBucket', inputBucket.bucketName)
+		writeParam('InputBucket', inputBucket.bucketName)	// AWS_INPUT_BUCKET
 		writeParam('SqsVpcEndpoint', sqsVpcEndpoint.vpcEndpointId)
-		writeParam('LogGroup', logGroup.logGroupName)
-		writeParam('InputQueueUrl', sqsInputQ.queueUrl)
+		writeParam('LogGroup', logGroup.logGroupName)		 	//LOG_GROUP_NAME
+		writeParam('InputQueueUrl', sqsInputQ.queueUrl)		// AWS_SQS_INPUT_QUEUE
 		writeParam('InputQueueName', sqsInputQ.queueName)
+		writeParam('FeederQueueUrl', feederQ.queueUrl)		// AWS_FEEDER_QUEUE
 		writeParam('RdsEndpoint', pgdb.dbInstanceEndpointAddress)
 		writeParam('AlbDnsName', alb.loadBalancerDnsName)
+		writeParam('AlbArn', alb.loadBalancerArn)					// LB_ARN
 
 	}
 }
