@@ -2,21 +2,8 @@ import * as cdk from 'aws-cdk-lib'
 import { Construct } from 'constructs'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 
-/** check our env exist */
 
-const envVarNames = [
-	/** from shepherd-infra-stack. created when you run the stack's setup */
-	'AWS_FEEDER_QUEUE',
-	'AWS_INPUT_BUCKET',
-	'AWS_SQS_INPUT_QUEUE', //addons use this
-	'LOG_GROUP_NAME',
-	'LB_ARN',
-]
-envVarNames.map(name => {
-	if (!process.env[name]) throw new Error(`${name} not set`)
-})
-
-/** import params from shepherd regions (London is global) */
+/** import params from shepherd regions (London is global store) */
 const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new GetParameterCommand({
 	Name: `/shepherd/${name}`,
 	WithDecryption: true, // ignored if unencrypted
@@ -25,12 +12,17 @@ const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new 
 const ssmLondon = new SSMClient({ region: 'eu-west-2' })
 const TS_AUTHKEY = await remoteParam('TS_AUTHKEY', ssmLondon)
 
+/** import params from infra stack */
 const readParam = async (paramName: string) => {
 	const ssm = new SSMClient() //local region
 	return remoteParam(paramName, ssm)
 }
 const vpcName = await readParam('VpcName')
 const rdsEndpoint = await readParam('RdsEndpoint')
+const feederQueueUrl = await readParam('FeederQueueUrl')
+const inputBucketName = await readParam('InputBucket')
+const logGroupName = await readParam('LogGroup')
+const albArn = await readParam('AlbArn')
 
 
 export class ServicesStack extends cdk.Stack {
@@ -41,8 +33,8 @@ export class ServicesStack extends cdk.Stack {
 		/** import shepherd-infra-stack items  */
 
 		const vpc = cdk.aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcName })
-		const alb = cdk.aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn: process.env.LB_ARN })
-		const logGroup = cdk.aws_logs.LogGroup.fromLogGroupName(stack, 'logGroup', process.env.LOG_GROUP_NAME!)
+		const alb = cdk.aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn: albArn })
+		const logGroup = cdk.aws_logs.LogGroup.fromLogGroupName(stack, 'logGroup', logGroupName)
 
 
 		/** create a cluster for fargates */
@@ -78,7 +70,7 @@ export class ServicesStack extends cdk.Stack {
 		}, {
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
-			AWS_FEEDER_QUEUE: process.env.AWS_FEEDER_QUEUE!,
+			AWS_FEEDER_QUEUE: feederQueueUrl,
 		})
 		feeder.node.addDependency(indexer)
 		feeder.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
@@ -93,10 +85,10 @@ export class ServicesStack extends cdk.Stack {
 		}, {
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
-			STREAMS_PER_FETCHER: process.env.STREAMS_PER_FETCHER || '50',
+			STREAMS_PER_FETCHER: '50',
 			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
-			AWS_FEEDER_QUEUE: process.env.AWS_FEEDER_QUEUE!,
-			AWS_INPUT_BUCKET: process.env.AWS_INPUT_BUCKET!,
+			AWS_FEEDER_QUEUE: feederQueueUrl,
+			AWS_INPUT_BUCKET: inputBucketName,
 			AWS_DEFAULT_REGION: cdk.Aws.REGION,
 		})
 		fetchers.node.addDependency(indexer)
@@ -106,7 +98,7 @@ export class ServicesStack extends cdk.Stack {
 		}))
 		fetchers.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
 			actions: ['s3:*'],
-			resources: [`arn:aws:s3:::${process.env.AWS_INPUT_BUCKET!}/*`],
+			resources: [`arn:aws:s3:::${inputBucketName}/*`],
 		}))
 		fetchers.autoScaleTaskCount({
 			minCapacity: 1,
