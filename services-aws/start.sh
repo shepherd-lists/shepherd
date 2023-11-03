@@ -38,22 +38,3 @@ npx -y cdk deploy --require-approval never
 cd "$current_dir" # restore dir
 
 
-echo "Retrieve shepherd-services stack outputs..."
-shepherd_services_outputs=$(aws cloudformation describe-stacks \
-	--stack-name "shepherd-services" \
-	--query "Stacks[0].Outputs" \
-	--output json)
-
-function stack_output_to_env {
-	local name=$1
-	local name_no_underscores=${name//_/} # allow for cdk/cfn quirk 
-	value=$(echo $shepherd_services_outputs | jq -r ".[] | select(.OutputKey==\"$name_no_underscores\").OutputValue")
-	export "$name=$value"
-	sed -i "/^$name/d" .env  # remove old line before adding new
-	echo "$name=$value" | tee -a .env
-}
-
-stack_output_to_env ShepherdClusterName
-stack_output_to_env ShepherdNamespaceArn
-stack_output_to_env ShepherdNamespaceId
-
