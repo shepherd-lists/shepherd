@@ -65,6 +65,15 @@ else
 	exit 1
 fi
 
+# if there's one env var we need it's the region
+if [[ -z $AWS_DEFAULT_REGION ]]; then
+	echo "ERROR: missing mandatory environment variable AWS_DEFAULT_REGION, exiting."
+	exit 1
+fi
+
+# hack needed for aws-sdk 
+export AWS_REGION=$AWS_DEFAULT_REGION
+
 # import .RANGELIST_ALLOWED.json as a string
 
 if [ ! -f ".RANGELIST_ALLOWED.json" ]; then
