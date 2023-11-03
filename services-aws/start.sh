@@ -12,6 +12,10 @@ set -euo pipefail
 if [ -f ".env" ]; then
 	export $(egrep -v '^#' .env | xargs)
 	# should probably check for mandatory vars here
+	if [ -z "$AWS_DEFAULT_REGION" ]; then
+		echo "AWS_DEFAULT_REGION not set. exiting"
+		exit 1
+	fi
 else
 	echo "file .env not found. exiting"
 	exit 1
@@ -20,6 +24,8 @@ fi
 export script_dir=$(dirname "$(realpath $0)")
 echo "script_dir=$script_dir"
 
+# aws-sdk needs this
+export AWS_REGION=$AWS_DEFAULT_REGION
 
 
 echo "Deploying shepherd-services stack using cdk..."
