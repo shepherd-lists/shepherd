@@ -59,8 +59,9 @@ export class InfraStack extends cdk.Stack {
 
 		/** general log group for the vpc */
 		const logGroup = new cdk.aws_logs.LogGroup(this, 'logGroup', {
-			logGroupName: 'shepherd-logs',
+			logGroupName: 'shepherd-service-logs', //avoid name clash with legacy shepherd
 			retention: cdk.aws_logs.RetentionDays.THREE_MONTHS,
+			removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
 		})
 
 
