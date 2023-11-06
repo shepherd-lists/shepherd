@@ -155,10 +155,10 @@ export class InfraStack extends cdk.Stack {
 const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 
 	/** create the security group for the postgres rds database */
-	const sgPgdb = new cdk.aws_ec2.SecurityGroup(stack, 'shepherd-pgdb-sg', {
+	const sgPgdb = new cdk.aws_ec2.SecurityGroup(stack, 'shepherd2-pgdb-sg', {
 		vpc,
 		allowAllOutbound: true,
-		securityGroupName: 'shepherd-pgdb-sg',
+		securityGroupName: 'shepherd2-pgdb-sg',
 	})
 	sgPgdb.addIngressRule(cdk.aws_ec2.Peer.ipv4(vpc.vpcCidrBlock), cdk.aws_ec2.Port.tcp(5432), 'allow db traffic') // allow traffic from within the vpc
 	/**
@@ -166,9 +166,9 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 	 */
 
 	/** create the postgres rds database */
-	const pgdb = new cdk.aws_rds.DatabaseInstance(stack, 'shepherd-pgdb', {
+	const pgdb = new cdk.aws_rds.DatabaseInstance(stack, 'shepherd2-pgdb', {
 		vpc,
-		instanceIdentifier: 'shepherd-pgdb',
+		instanceIdentifier: 'shepherd2-pgdb',
 		engine: cdk.aws_rds.DatabaseInstanceEngine.postgres({
 			version: cdk.aws_rds.PostgresEngineVersion.VER_13_10,
 		}),
@@ -198,14 +198,14 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 const bucketAndNotificationQs = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 
 	/** create AWS_SQS_INPUT_QUEUE, with DLQ and policies */
-	const sqsInputQ = new cdk.aws_sqs.Queue(stack, 'shepherd-input-q', {
-		queueName: 'shepherd-input-q',
+	const sqsInputQ = new cdk.aws_sqs.Queue(stack, 'shepherd2-input-q', {
+		queueName: 'shepherd2-input-q',
 		retentionPeriod: cdk.Duration.days(14),
 		visibilityTimeout: cdk.Duration.minutes(15),
 		deadLetterQueue: {
 			maxReceiveCount: 10,
-			queue: new cdk.aws_sqs.Queue(stack, 'shepherd-input-dlq', {
-				queueName: 'shepherd-input-dlq',
+			queue: new cdk.aws_sqs.Queue(stack, 'shepherd2-input-dlq', {
+				queueName: 'shepherd2-input-dlq',
 				retentionPeriod: cdk.Duration.days(14),
 			}),
 		},
@@ -227,14 +227,14 @@ const bucketAndNotificationQs = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 }
 
 const feederQs = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
-	const feederQ = new cdk.aws_sqs.Queue(stack, 'shepherd-feeder-q', {
-		queueName: 'shepherd-feeder-q',
+	const feederQ = new cdk.aws_sqs.Queue(stack, 'shepherd2-feeder-q', {
+		queueName: 'shepherd2-feeder-q',
 		retentionPeriod: cdk.Duration.days(14), //max value
 		visibilityTimeout: cdk.Duration.minutes(15),
 		deadLetterQueue: {
 			maxReceiveCount: 10,
-			queue: new cdk.aws_sqs.Queue(stack, 'shepherd-feeder-dlq', {
-				queueName: 'shepherd-feeder-dlq',
+			queue: new cdk.aws_sqs.Queue(stack, 'shepherd2-feeder-dlq', {
+				queueName: 'shepherd2-feeder-dlq',
 				retentionPeriod: cdk.Duration.days(14),
 			}),
 		},

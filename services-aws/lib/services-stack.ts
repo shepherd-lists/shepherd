@@ -75,7 +75,7 @@ export class ServicesStack extends cdk.Stack {
 		feeder.node.addDependency(indexer)
 		feeder.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
 			actions: ['sqs:*'],
-			resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd-feeder-q`],
+			resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd2-feeder-q`],
 		}))
 
 		/* fetchers service */
@@ -94,7 +94,7 @@ export class ServicesStack extends cdk.Stack {
 		fetchers.node.addDependency(indexer)
 		fetchers.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
 			actions: ['sqs:*'],
-			resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd-feeder-q`],
+			resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd2-feeder-q`],
 		}))
 		fetchers.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
 			actions: ['s3:*'],
