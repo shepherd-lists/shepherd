@@ -120,13 +120,16 @@ export class InfraStack extends cdk.Stack {
 		}))
 
 
-		/** cfn outputs. basically unused now. */
+		/** cfn outputs. unused, but handy to have in aws console */
 
 		const cfnOut = (name: string, value: string) => {
-			name = name.replace(/[-_.]/g, '')
+			name = `shepherd${name}`
 			new cdk.CfnOutput(stack, name, { exportName: name, value })
 		}
-		cfnOut('LB_DNSNAME', alb.loadBalancerDnsName) // handy in aws console
+		cfnOut('AlbDnsName', alb.loadBalancerDnsName)
+		cfnOut('NatEip', (vpc.publicSubnets[0].node.tryFindChild('EIP') as cdk.aws_ec2.CfnEIP).ref)
+		cfnOut('RdsEndpoint', pgdb.dbInstanceEndpointAddress)
+
 
 		/** write parameters to ssm */
 		const writeParam = (name: string, value: string) => {
