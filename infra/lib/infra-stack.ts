@@ -133,7 +133,7 @@ export class InfraStack extends cdk.Stack {
 
 		/** write parameters to ssm */
 		const writeParam = (name: string, value: string) => {
-			new cdk.aws_ssm.StringParameter(stack, name, {
+			new cdk.aws_ssm.StringParameter(stack, `param${name}`, {
 				parameterName: `/shepherd/${name}`,
 				stringValue: value,
 			})
