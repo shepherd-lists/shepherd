@@ -34,8 +34,8 @@ const ipAllowMiddlewareFunction = (listType: ('txids'|'ranges')) => (req: Reques
 	const routepath = req.route.path
 	const ip = req.headers['x-forwarded-for'] as string || 'undefined'
 	if(
-		(listType === 'txids' && process.env.BLACKLIST_ALLOWED)
-		|| (listType === 'ranges' && process.env.RANGELIST_ALLOWED)
+		(listType === 'txids' && accessBlacklist.length > 0)
+		|| (listType === 'ranges' && accessRangelist.length > 0)
 	){
 		if(ipAllowList(ip, listType)){
 			logger(prefix, `access ${routepath} list: ${ip} ALLOWED`)
