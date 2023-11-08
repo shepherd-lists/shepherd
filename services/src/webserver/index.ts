@@ -24,7 +24,7 @@ const port = 80
 
 app.get('/', async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
-	res.write('Webserver operational.\n\n\n')
+	res.write('Webserver operational. v2.\n\n\n')
 
 	const ip = req.headers['x-forwarded-for'] as string || 'undefined'
 	res.write(`your ip is ${ip}\n`)
