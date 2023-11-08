@@ -8,7 +8,7 @@ const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new 
 	Name: `/shepherd/${name}`,
 	WithDecryption: true, // ignored if unencrypted
 }))).Parameter!.Value as string // throws if undefined
-
+console.log('reading remote params...')
 const ssmLondon = new SSMClient({ region: 'eu-west-2' })
 const TS_AUTHKEY = await remoteParam('TS_AUTHKEY', ssmLondon)
 
@@ -17,6 +17,7 @@ const readParam = async (paramName: string) => {
 	const ssm = new SSMClient() //local region
 	return remoteParam(paramName, ssm)
 }
+console.log('reading params from infra stack...')
 const vpcName = await readParam('VpcName')
 const rdsEndpoint = await readParam('RdsEndpoint')
 const feederQueueUrl = await readParam('FeederQueueUrl')
@@ -155,10 +156,9 @@ export class ServicesStack extends cdk.Stack {
 			targets: [webserver],
 		})
 
-
 		/** write parameters to ssm */
 		const writeParam = (name: string, value: string) => {
-			new cdk.aws_ssm.StringParameter(stack, name, {
+			new cdk.aws_ssm.StringParameter(stack, `param-${name}`, {
 				parameterName: `/shepherd/${name}`,
 				stringValue: value,
 			})

@@ -33,6 +33,13 @@ fi
 # -= import .env vars =-
 
 if [ -f ".env" ]; then
+	# make sure .env ends in newline
+	lastchar=$(tail -c 1 .env)
+	if [ "$lastchar" != "" ]; then 
+		echo >> .env
+	fi
+
+	# import .env vars
 	export $(grep -Ev '^#' .env | xargs)
 	# check for mandatory vars here
 	if [[ -z $AWS_DEFAULT_REGION ]]; then
@@ -40,26 +47,15 @@ if [ -f ".env" ]; then
 		exit 1
 	fi
 
-	echo "WARNING!!! Might want to check for AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY missing issues!"
-
-	# if [[ -z $AWS_VPC_ID ]]; then
-	# 	echo "ERROR: missing previously created environment variable, did previous setup.sh script run OK? exiting"
-	# 	exit 1
-	# fi
 	plugin_checker=${PLUGIN:-}
 	if [[ -z $plugin_checker ]]; then
-		echo "PLUGIN var not found. defaulting to 'nsfw'" 
-		export PLUGIN=nsfw
+		echo "PLUGINS var not found. defaulting to 'nsfw'" 
+		export PLUGINS=nsfw
 	else
-		echo "PLUGIN=$PLUGIN" 
+		echo "PLUGINS=$PLUGINS" 
 	fi
-	echo "Warning! ROUTETABLE, & SUBNETs 1/2/3 are not being created anymore" 
 
-	# make sure .env ends in newline
-	lastchar=$(tail -c 1 .env)
-	if [ "$lastchar" != "" ]; then 
-		echo >> .env
-	fi
+
 else
 	echo "file .env not found. exiting"
 	exit 1
@@ -78,7 +74,6 @@ export AWS_REGION=$AWS_DEFAULT_REGION
 
 if [ ! -f ".RANGELIST_ALLOWED.json" ]; then
 	echo "WARNING: .RANGELIST_ALLOWED.json not found"
-
 else
 	export RANGELIST_ALLOWED=$(cat ./.RANGELIST_ALLOWED.json | tr -d ' \n\t')
 fi
