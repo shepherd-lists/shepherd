@@ -181,6 +181,7 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 		storageType: cdk.aws_rds.StorageType.GP2,
 		deletionProtection: true,
 		removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
+		backupRetention: cdk.Duration.days(10),
 		databaseName: 'arblacklist',  //legacy
 		credentials: {
 			username: 'postgres',
