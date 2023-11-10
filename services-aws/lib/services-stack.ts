@@ -131,7 +131,7 @@ export class ServicesStack extends cdk.Stack {
 		/* webserver service */
 		const webserver = createService('webserver', { stack, cluster, logGroup }, {
 			cpu: 2048,
-			memoryLimitMiB: 8192,
+			memoryLimitMiB: 4096,
 		}, {
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
