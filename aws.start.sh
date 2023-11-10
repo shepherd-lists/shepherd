@@ -86,22 +86,22 @@ echo "RANGELIST_ALLOWED=${RANGELIST_ALLOWED:-}"
 # function to save/cd/reset pwd when running cdk deploys
 function run_cdk() {
 	local target_dir="$1"
-	local cdk_command="$2"
+	local change_name=$(basename "$target_dir")
 	# save pwd
 	pwd=$(pwd)
 	# cd to cdk dir
 	cd "$target_dir"
 	# run cdk command
-	eval "$cdk_command"
+	npx cdk deploy --require-approval never --output="./cdk.out.$AWS_DEFAULT_REGION" --change-set-name "$change_name-$AWS_DEFAULT_REGION"
 	# cd back to original dir
 	cd "$pwd"
 }
 
 echoHeading "Deploy shepherd-infra-stack..."
-$script_dir/infra/setup.sh
+run_cdk "$script_dir/infra" 
 
 echoHeading "Deploy shepherd-services core stack..."
-$script_dir/services-aws/start.sh
+run_cdk "$script_dir/services-aws"
 
 
 echoHeading "Deploying plugins..."
@@ -117,7 +117,7 @@ else
 	for plugin_name in "${plugin_names[@]}"; do
 		plugin_name=$(echo "$plugin_name" | tr -d '[:space:]') # remove whitespace
 		echoHeading "Deploying $plugin_name..."
-		run_cdk "$script_dir/addons/$plugin_name" "npx cdk deploy --require-approval never"
+		run_cdk "$script_dir/addons/$plugin_name"
 	done
 fi
 
