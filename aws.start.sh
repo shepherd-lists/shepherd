@@ -47,10 +47,10 @@ if [ -f ".env" ]; then
 		exit 1
 	fi
 
-	plugin_checker=${PLUGIN:-}
+	plugin_checker=${PLUGINS:-}
 	if [[ -z $plugin_checker ]]; then
-		echo "PLUGINS var not found. defaulting to 'nsfw'" 
-		export PLUGINS=nsfw
+		echo '***'
+		echo -e "*** WARNING ***\n\n    PLUGINS not found. No addons will be loaded! \n\n***\n" 
 	else
 		echo "PLUGINS=$PLUGINS" 
 	fi
