@@ -54,7 +54,8 @@ const createAddonService = (
 ) => {
 	const Name = name.charAt(0).toUpperCase() + name.slice(1)
 	const dockerImage = new aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
-		directory: __dirname, //this folder
+		directory: new URL('../', import.meta.url).pathname,
+		exclude: ['cdk.out', 'infra'],
 		target: name,
 		assetName: `${name}-image`,
 		platform: aws_ecr_assets.Platform.LINUX_AMD64,
