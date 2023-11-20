@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ES2022",
+		"moduleResolution": "node",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+	},
+	"ts-node": {
+		"transpileOnly": true,
+		"esm": true,
+		"experimentalSpecifierResolution": "node",
+	}
+}
