@@ -23,6 +23,7 @@
         "semi": [ "error", "never", { "beforeStatementContinuationChars": "always" } ],
         "no-unused-vars": "off",
         "@typescript-eslint/no-unused-vars": "warn",
+        "@typescript-eslint/no-this-alias": "warn",
         "no-trailing-spaces": "error",
         "keyword-spacing": [ 
             "error", 
