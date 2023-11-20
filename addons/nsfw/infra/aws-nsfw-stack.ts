@@ -16,7 +16,6 @@ const main = async () => {
 		}))).Parameter!.Value as string // throw undefined
 	}
 	const vpcName = await readParam('VpcName')
-	const rdsEndpoint = await readParam('RdsEndpoint')
 	const logGroupName = await readParam('LogGroup')
 	const clusterName = await readParam('ClusterName')
 	const namespaceArn = await readParam('NamespaceArn')
@@ -81,7 +80,6 @@ const main = async () => {
 			}),
 			containerName: `${name}Container`,
 			environment: {
-				DB_HOST: rdsEndpoint,
 				SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
 				HOST_URL: process.env.HOST_URL || 'https://arweave.net',
 				NUM_FILES: process.env.NUM_FILES || '50',
