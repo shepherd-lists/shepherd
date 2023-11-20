@@ -86,7 +86,7 @@ echo "RANGELIST_ALLOWED=${RANGELIST_ALLOWED:-}"
 # function to save/cd/reset pwd when running cdk deploys
 function run_cdk() {
 	local target_dir="$1"
-	local change_name=$(basename "$target_dir")
+	local change_name="$(basename "$target_dir")"-$(basename "$(dirname "$target_dir")") # e.g. "infra-services"
 	# save pwd
 	pwd=$(pwd)
 	# cd to cdk dir
@@ -101,7 +101,7 @@ echoHeading "Deploy shepherd-infra-stack..."
 run_cdk "$script_dir/infra" 
 
 echoHeading "Deploy shepherd-services core stack..."
-run_cdk "$script_dir/services-aws"
+run_cdk "$script_dir/services/infra"
 
 
 echoHeading "Deploying plugins..."
