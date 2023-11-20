@@ -1,4 +1,4 @@
-import { App, Aws, Duration, Stack, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
+import { App, Aws, Duration, Stack, aws_cloudwatch, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 
 
@@ -27,8 +27,6 @@ const stack = new Stack(app, 'NsfwStack', {
 		region: process.env.CDK_DEFAULT_REGION,
 	},
 })
-
-/* let's not bother with that std cdk stack class c'tor nonsense, and just build our stack here */
 
 /** import stack components from the shepherd stack */
 const vpc = aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcName })
@@ -100,8 +98,10 @@ const createAddonService = (
 }
 
 /** create the nsfw service */
+
 const nsfw = createAddonService('nsfw', { stack, cluster, logGroup })
 // nsfw.node.addDependency(httpApi)
+
 /** permissions */
 const inputQueueName = inputQueueUrl.split('/').pop()
 nsfw.taskDefinition.taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
@@ -114,12 +114,21 @@ nsfw.taskDefinition.taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		`arn:aws:s3:::${inputBucketName}/*`,
 	],
 }))
+
 /** auto-scaling */
+const oldestMessageMetric = new aws_cloudwatch.Metric({
+	namespace: 'AWS/SQS',
+	metricName: 'NsfwOldestMessage',
+	dimensionsMap: {
+		QueueName: inputQueueName,
+	},
+})
 nsfw.autoScaleTaskCount({
 	minCapacity: 1,
 	maxCapacity: 10,
-}).scaleOnCpuUtilization('CpuScaling', {
-	targetUtilizationPercent: 40, // seems low??
+}).scaleToTrackCustomMetric('NsfwOldestMessageScaling', {
+	targetValue: 60,
+	metric: oldestMessageMetric,
 	scaleInCooldown: Duration.seconds(60),
 	scaleOutCooldown: Duration.seconds(60),
 })
