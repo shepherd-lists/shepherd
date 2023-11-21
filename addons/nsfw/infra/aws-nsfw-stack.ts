@@ -1,4 +1,4 @@
-import { App, Aws, Duration, Stack, aws_cloudwatch, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
+import { App, Aws, Duration, Stack, aws_applicationautoscaling, aws_cloudwatch, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 
 
@@ -119,7 +119,9 @@ nsfw.taskDefinition.taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 /** auto-scaling */
 const oldestMessageMetric = new aws_cloudwatch.Metric({
 	namespace: 'AWS/SQS',
-	metricName: 'NsfwOldestMessage',
+	metricName: 'ApproximateAgeOfOldestMessage',
+	statistic: 'Maximum',
+	period: Duration.minutes(1),
 	dimensionsMap: {
 		QueueName: inputQueueName,
 	},
@@ -127,9 +129,12 @@ const oldestMessageMetric = new aws_cloudwatch.Metric({
 nsfw.autoScaleTaskCount({
 	minCapacity: 1,
 	maxCapacity: 10,
-}).scaleToTrackCustomMetric('NsfwOldestMessageScaling', {
-	targetValue: 60,
+}).scaleOnMetric('NsfwOldestMessageScaling', {
 	metric: oldestMessageMetric,
-	scaleInCooldown: Duration.seconds(60),
-	scaleOutCooldown: Duration.seconds(60),
+	datapointsToAlarm: 1,
+	evaluationPeriods: 1,
+	scalingSteps: [
+		{ upper: 60, change: -1 },
+		{ lower: 60, change: +1 },
+	],
 })
