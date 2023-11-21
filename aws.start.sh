@@ -117,7 +117,7 @@ else
 	for plugin_name in "${plugin_names[@]}"; do
 		plugin_name=$(echo "$plugin_name" | tr -d '[:space:]') # remove whitespace
 		echoHeading "Deploying $plugin_name..."
-		run_cdk "$script_dir/addons/$plugin_name"
+		run_cdk "$script_dir/addons/$plugin_name/infra"
 	done
 fi
 
