@@ -13,3 +13,4 @@ _prod*/
 docker-compose.override.yml
 cdk.context.json
 cdk.out*
+.nx/cache
