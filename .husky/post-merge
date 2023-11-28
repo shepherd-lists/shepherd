@@ -1,0 +1,10 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "Running post-merge hook"
+
+# Check if package-lock.json was changed
+if git diff --name-only HEAD@{1} HEAD | grep -e 'package-lock.json$'; then
+  echo "package-lock.json change detected. Running 'npm ci' on all lerna tracked packages..."
+  npx lerna exec -- npm ci
+fi
