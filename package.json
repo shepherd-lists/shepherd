@@ -1,0 +1,17 @@
+{
+  "name": "shepherd",
+  "version": "3.0.0",
+  "description": "<img src=\"./docs/logo-github.png\">",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "author": "Ros McMahon <rosmcmahon@gmail.com> (https://github.com/rosmcmahon) ",
+  "license": "LGPL-3.0-or-later",
+  "devDependencies": {
+    "husky": "^8.0.3",
+    "lerna": "^8.0.0"
+  }
+}
