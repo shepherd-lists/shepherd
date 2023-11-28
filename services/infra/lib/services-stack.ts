@@ -119,8 +119,6 @@ export class ServicesStack extends cdk.Stack {
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
 			SLACK_POSITIVE: process.env.SLACK_POSITIVE!,
 			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
-			GQL_URL: process.env.GQL_URL || 'https://arweave.net/graphql',
-			GQL_URL_SECONDARY: process.env.GQL_URL_SECONDARY || 'https://arweave-search.goldsky.com/graphql',
 		})
 		httpApi.connections.securityGroups[0].addIngressRule(
 			cdk.aws_ec2.Peer.ipv4(vpc.vpcCidrBlock),
