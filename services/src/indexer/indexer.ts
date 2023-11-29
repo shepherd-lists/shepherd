@@ -134,7 +134,7 @@ export const indexer = async(gql: ArGqlInterface, CONFIRMATIONS: number, loop: b
 				const e = err as AxiosError & { cause?: number }
 				const status = Number(e.cause) || Number(e.response?.status) || 0
 				if( status >= 500 ){
-					logger(indexName, `GATEWAY ERROR! ${e.name}(${status}) : ${e.message}`)
+					logger(indexName, `GATEWAY ERROR! ${e.name}(${status}) : ${e.message}`, e)
 				}
 
 				if( status === 429 ){

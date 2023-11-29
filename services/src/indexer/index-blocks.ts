@@ -132,7 +132,17 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 					continue
 				}
 
+				/** getting a lot of temporary 502 errors lately */
+				if(e.status === 502){
+					logger(indexName, 'gql-error', e.status, ':', e.message, gqlProvider)
+					slackLogger(indexName, 'gql-error', e.status, ':', e.message, gqlProvider, 'retrying in 10s')
+					console.log(err)
+					await sleep(10_000)
+					continue
+				}
+
 				logger(indexName, 'gql-error', e.status, ':', e.message, gqlProvider)
+
 				throw e
 			}
 		}
