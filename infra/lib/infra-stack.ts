@@ -24,7 +24,7 @@ export class InfraStack extends cdk.Stack {
 		const vpc = new cdk.aws_ec2.Vpc(stack, 'shepherd-vpc', {
 			vpcName,
 			maxAzs: 2,
-			natGateways: 1,
+			// natGateways: 1, //defaults to 1 per AZ
 			/** 
 			 * need separate cidr for each vpc / shepherd installation, if we are connecting them via vpn peering / tailnet.
 			 * n.b. legacy shepherd uses '10.0.0.0/16', maybe we need peering during cdk migration?
@@ -127,7 +127,7 @@ export class InfraStack extends cdk.Stack {
 			new cdk.CfnOutput(stack, name, { exportName: name, value })
 		}
 		cfnOut('AlbDnsName', alb.loadBalancerDnsName)
-		cfnOut('NatEip', (vpc.publicSubnets[0].node.tryFindChild('EIP') as cdk.aws_ec2.CfnEIP).ref)
+		cfnOut('NatEips', (vpc.publicSubnets.map(sub => (sub.node.tryFindChild('EIP') as cdk.aws_ec2.CfnEIP).ref).join(';')))
 		cfnOut('RdsEndpoint', pgdb.dbInstanceEndpointAddress)
 
 
