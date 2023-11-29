@@ -126,22 +126,23 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 				})).data.transactions
 				break
 			}catch(err: unknown){
-				const e = err as Error & { status?: number }
+				const e = err as Error
+				const status = Number(e.cause) || 0
 				if(!e.cause){
 					logger(indexName, `gql-error '${e.message}'. trying again`, gqlProvider)
 					continue
 				}
 
 				/** getting a lot of temporary 502 errors lately */
-				if(e.status === 502){
-					logger(indexName, 'gql-error', e.status, ':', e.message, gqlProvider)
-					slackLogger(indexName, 'gql-error', e.status, ':', e.message, gqlProvider, 'retrying in 10s')
+				if(status === 502){
+					logger(indexName, 'gql-error', status, ':', e.message, gqlProvider)
+					slackLogger(indexName, 'gql-error', status, ':', e.message, gqlProvider, 'retrying in 10s')
 					console.log(err)
 					await sleep(10_000)
 					continue
 				}
 
-				logger(indexName, 'gql-error', e.status, ':', e.message, gqlProvider)
+				logger(indexName, 'gql-error', status, ':', e.message, gqlProvider)
 
 				throw e
 			}
