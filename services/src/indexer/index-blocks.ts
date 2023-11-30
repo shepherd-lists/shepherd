@@ -148,7 +148,7 @@ const getRecords = async (
 				/** getting a lot of temporary 502 errors lately */
 				if(status === 502){
 					logger(indexName, 'gql-error', status, ':', e.message, gqlProvider)
-					slackLogger(indexName, 'gql-error', status, ':', e.message, gqlProvider, 'retrying in 10s')
+					await slackLogger(indexName, 'gql-error', status, ':', e.message, gqlProvider, 'retrying in 10s')
 					console.log(err)
 					await sleep(10_000)
 					continue
@@ -196,7 +196,7 @@ const getParent = moize(
 	},
 	{
 		isPromise: true,
-		maxSize: 10000, //allows for caching of maxSize number of bundles per query (1 block).
+		maxSize: 10_000, //allow for caching of maxSize number of bundles per query (1 block).
 		// onCacheHit: ()=>console.log(`getParent cache hit`),
 		// onCacheAdd: async(cache, options)=> console.log(cache.keys, cache.values),
 	},
@@ -218,16 +218,18 @@ const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 			let p: string | null = parent
 			do {
 				const t0 = performance.now()
-				const p0 = p as string // p is not null here
+				const p0: string = p
 
 				try{
 					p = await getParent(p0, gql)
-				}catch(err:unknown){
-					await slackLogger(`getParent error: "${(err as Error).message}" while fetching parent: "${p}" for dataItem: ${txid} using gqlProvider: ${gqlProvider}. ${height} Trying gqlBackup now.`)
+				}catch(eOuter:unknown){
+					const outerMessage = (eOuter as Error).message
+					console.log(`getParent error: "${outerMessage}" while fetching parent: "${p}" for dataItem: ${txid} using gqlProvider: ${gqlProvider}. ${height} Trying gqlBackup now.`)
+					await slackLogger(`getParent error: "${outerMessage}" while fetching parent: "${p}" using: ${gqlProvider}, ${height}. Trying gqlBackup now.`)
 					try{
 						p = await getParent(p0, gqlBackup)
-					}catch(e:unknown){
-						throw new TypeError(`getParent error: "${(e as Error).message}" while fetching parent: ${p} for dataItem: ${txid} using gqlProvider: ${gqlBackup.endpointUrl.includes('goldsky') ? 'gold' : 'ario'}`)
+					}catch(eInner:unknown){
+						throw new TypeError(`getParent error: "${(eInner as Error).message}" while fetching parent: ${p0} for dataItem: ${txid} USING GQLBACKUP: ${gqlBackup.endpointUrl.includes('goldsky') ? 'gold' : 'ario'}`)
 					}
 				}
 
