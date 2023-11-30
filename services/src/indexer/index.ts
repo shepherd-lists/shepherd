@@ -36,16 +36,18 @@ const start = async()=> {
 		logger('info', 'applied the following seed files', seed)
 
 
+		const arGql1 = arGql(GQL_URL)
+		const arGql2 = arGql(GQL_URL_SECONDARY)
 		/** first pass indexer.
 		 * this is bleeding edge for earlier detection times
 		 */
-		indexer(arGql(GQL_URL), PASS1_CONFIRMATIONS)
+		indexer(arGql1, arGql2, PASS1_CONFIRMATIONS)
 
 		/** second pass indexer
 		 * - leave some space from weave head (trail behind) to pick up reorged txs.
 		 * - recheck 404s that may have been uploaded since.
 		 */
-		indexer(arGql(GQL_URL_SECONDARY), PASS2_CONFIRMATIONS)
+		indexer(arGql2, arGql1, PASS2_CONFIRMATIONS)
 
 
 	}catch(err:unknown){

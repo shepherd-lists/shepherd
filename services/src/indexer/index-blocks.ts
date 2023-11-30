@@ -13,12 +13,18 @@ const knex = getDbConnection()
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-export const scanBlocks = async (minBlock: number, maxBlock: number, gql: ArGqlInterface, indexName: IndexName) => {
+export const scanBlocks = async (
+	minBlock: number,
+	maxBlock: number,
+	gql: ArGqlInterface,
+	indexName: IndexName,
+	gqlBackup: ArGqlInterface
+) => {
 
 	/* get images and videos */
 
 	logger(indexName, `making 1 scans of ${((maxBlock - minBlock) + 1)} blocks, from block ${minBlock} to ${maxBlock}`)
-	return await getRecords(minBlock, maxBlock, gql, indexName)
+	return await getRecords(minBlock, maxBlock, gql, indexName, gqlBackup)
 }
 
 /* our specialised queries */
@@ -103,7 +109,13 @@ const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 
 /* Generic getRecords */
 
-const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterface, indexName: IndexName) => {
+const getRecords = async (
+	minBlock: number,
+	maxBlock: number,
+	gql: ArGqlInterface,
+	indexName: IndexName,
+	gqlBackup: ArGqlInterface
+) => {
 
 	const gqlProvider = gql.endpointUrl.includes('goldsky') ? 'gold' : 'ario'
 	const query = gqlProvider === 'gold' ? queryGoldskyWild : queryArio
@@ -156,7 +168,7 @@ const getRecords = async (minBlock: number, maxBlock: number, gql: ArGqlInterfac
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
-			numRecords += await buildRecords(edges, gql, indexName, gqlProvider)
+			numRecords += await buildRecords(edges, gql, indexName, gqlProvider, gqlBackup)
 			tUpsert = performance.now() - t0 - tGql
 		}
 		hasNextPage = res.pageInfo.hasNextPage
@@ -190,7 +202,7 @@ const getParent = moize(
 	},
 )
 
-const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: IndexName, gqlProvider: string) => {
+const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: IndexName, gqlProvider: string, gqlBackup: ArGqlInterface) => {
 	const records: TxScanned[] = []
 
 	for(const item of metas){
@@ -212,7 +224,9 @@ const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 					p = await getParent(p, gql)
 				}catch(err:unknown){
 					const e = err as Error
-					throw new TypeError(`getParent error: "${e.message}" while fetching parent: ${p} for dataItem: ${txid} using gqlProvider: ${gqlProvider}`)
+					await slackLogger(`getParent error: "${e.message}" while fetching parent: ${p} for dataItem: ${txid} using gqlProvider: ${gqlProvider}. Trying gqlBackup now.`)
+					p = await getParent(p0, gqlBackup)
+					throw new TypeError(`getParent error: "${e.message}" while fetching parent: ${p} for dataItem: ${txid} using gqlProvider: ${gqlBackup.endpointUrl.includes('goldsky') ? 'gold' : 'ario'}`)
 				}
 
 				const t1 = performance.now() - t0

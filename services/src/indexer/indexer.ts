@@ -7,7 +7,7 @@ import { StateRecord, TxRecord } from '../common/shepherd-plugin-interfaces/type
 import { logger } from '../common/utils/logger'
 import { slackLogger } from '../common/utils/slackLogger'
 import { ArGqlInterface } from 'ar-gql'
-import { IndexName, PASS1_CONFIRMATIONS, PASS2_CONFIRMATIONS } from '../common/constants'
+import { IndexName, PASS1_CONFIRMATIONS } from '../common/constants'
 import { AxiosError } from 'axios'
 
 
@@ -44,7 +44,7 @@ export const topAvailableBlock =  async (height: number, CONFIRMATIONS: number, 
 }
 
 
-export const indexer = async(gql: ArGqlInterface, CONFIRMATIONS: number, loop: boolean = true)=> {
+export const indexer = async(gql: ArGqlInterface, gqlBackup: ArGqlInterface, CONFIRMATIONS: number, loop: boolean = true)=> {
 	const indexName: IndexName = (CONFIRMATIONS === PASS1_CONFIRMATIONS) ? 'indexer_pass1' : 'indexer_pass2'
 	const gqlEndpoint = gql.endpointUrl
 	try{
@@ -89,7 +89,7 @@ export const indexer = async(gql: ArGqlInterface, CONFIRMATIONS: number, loop: b
 					topBlock = await topAvailableBlock(maxBlock + CONFIRMATIONS, CONFIRMATIONS, gqlEndpoint, indexName)
 				}
 
-				const numMediaFiles = await scanBlocks(minBlock, maxBlock, gql, indexName)
+				const numMediaFiles = await scanBlocks(minBlock, maxBlock, gql, indexName, gqlBackup)
 				logger(`${indexName} results`,
 					`media files: ${numMediaFiles},`,
 					`height: ${maxBlock},`,
