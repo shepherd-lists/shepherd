@@ -223,7 +223,7 @@ const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 				try{
 					p = await getParent(p0, gql)
 				}catch(err:unknown){
-					await slackLogger(`getParent error: "${(err as Error).message}" while fetching parent: ${p} for dataItem: ${txid} using gqlProvider: ${gqlProvider}. Trying gqlBackup now.`)
+					await slackLogger(`getParent error: "${(err as Error).message}" while fetching parent: "${p}" for dataItem: ${txid} using gqlProvider: ${gqlProvider}. ${height} Trying gqlBackup now.`)
 					try{
 						p = await getParent(p0, gqlBackup)
 					}catch(e:unknown){
