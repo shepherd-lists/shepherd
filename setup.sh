@@ -106,16 +106,16 @@ else
 fi
 
 
-##########################################
-# -= finally run the compose commands =- #
-##########################################
+# ##########################################
+# # -= finally run the compose commands =- #
+# ##########################################
 
-command_string="docker compose -f $script_dir/docker-compose.yml -f $generated_file "
-echo "command_string=$command_string"
+# command_string="docker compose -f $script_dir/docker-compose.yml -f $generated_file "
+# echo "command_string=$command_string"
 
-echo "cd to $script_dir"
-cd "$script_dir"
+# echo "cd to $script_dir"
+# cd "$script_dir"
 
-eval "$command_string up --build -d "
+# eval "$command_string up --build -d "
 
-eval "$command_string logs -f"
+# eval "$command_string logs -f"
