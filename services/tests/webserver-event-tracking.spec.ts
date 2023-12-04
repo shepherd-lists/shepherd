@@ -108,7 +108,7 @@ describe('event-tracking tests', () => {
 		const text = '🟢 OK, was not blocked for 2.5 minutes, https://example.com `https://example.com`, `/TXID` x-trace: 4, started:"Thu, 01 Jan 1970 00:02:30 GMT", ended:"Thu, 01 Jan 1970 00:05:00 GMT"\n'
 		+ '🔴 ALARM google-dns `1.1.1.1`, `/chunk` started:"Thu, 01 Jan 1970 00:07:30 GMT". x-trace:4, age:1, http-status:200, content-length:2\n'
 
-		process.env.AWS_REGION = 'eu-west-2'
+		process.env.AWS_DEFAULT_REGION = 'eu-west-2'
 		await pagerdutyAlert(text, 'my-server-name')
 	}).timeout(10_000)
 
