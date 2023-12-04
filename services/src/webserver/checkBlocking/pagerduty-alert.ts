@@ -1,23 +1,13 @@
-import { SecretsManager } from '@aws-sdk/client-secrets-manager'
+import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { slackLogger } from '../../common/utils/slackLogger'
 
-const secretsManager = new SecretsManager()
+const ssmClient = new SSMClient()
 
-const getSecret = async (secretKey: string) => {
-	const region = await secretsManager.config.region()
-	try{
-		const res = await secretsManager.getSecretValue({ SecretId: `shepherd/${secretKey}` })
-		if(res.SecretString){
-			console.log(`SecretsManager: retrieved secret 'shepherd/${secretKey}' ok.`)
-			return res.SecretString
-		}
-		throw new Error('SecretString not defined.')
-	}catch(err: unknown){
-		const e = err as Error
-		throw new Error(`SecretsManager: error fetching 'shepherd/${secretKey}' in region ${region}. ${e.name}:${e.message}`)
-	}
+const readPagerdutyKey = async () => (await ssmClient.send(new GetParameterCommand({
+	Name: '/shepherd/PAGERDUTY_KEY',
+	WithDecryption: true, // ignored if unencrypted
+}))).Parameter!.Value as string // throws if undefined
 
-}
 
 /** rate-limit our calls to pagerduty */
 const rateLimit = 60_000
@@ -25,25 +15,42 @@ const callArgs: { [serverName: string]: { lastCall: number } } = {}
 
 let _PAGERDUTY_KEY: string
 let _region: string
-/** log these values early in case there is a problem */
-const sanityLogs = async () => {
+let enabled: boolean
+
+const setup = async () => {
 	try{
-		_PAGERDUTY_KEY = await getSecret('PAGERDUTY_KEY')
-	}catch(err: unknown){
-		const e = err as Error
-		console.error(`Error fetching PAGERDUTY_KEY. ${e.message}`)
-	}
-	try{
-		_region = await secretsManager.config.region()
+		_region = await ssmClient.config.region()
 		console.log(`pagerdutyAlerts region: ${_region}`)
 	}catch(err: unknown){
 		const e = err as Error
 		console.error(`Error fetching region. ${e.name}:${e.message}`)
 	}
+	if(_region === 'eu-west-2'){
+		try{
+			_PAGERDUTY_KEY = await readPagerdutyKey()
+			return true
+		}catch(err: unknown){
+			const e = err as Error
+			console.error(`Error fetching PAGERDUTY_KEY. ${e.message}`)
+			await slackLogger(`Error fetching PAGERDUTY_KEY. ${e.message}`)
+		}
+	}
+	return false
 }
-sanityLogs()
+/** setup these values early in case there is a problem */
+setup().then(res => enabled = res)
 
 export const pagerdutyAlert = async (alertString: string, serverName: string) => {
+
+	/** check pagerduty setup and enabled in this region */
+	if(enabled === false){
+		return
+	}else if(enabled === undefined){
+		enabled = await setup()
+		if(enabled === false){
+			return
+		}
+	}
 
 	/** don't get rate-limited by PagerDuty */
 	if(callArgs[serverName] && (Date.now() - callArgs[serverName].lastCall) < rateLimit){
@@ -51,25 +58,6 @@ export const pagerdutyAlert = async (alertString: string, serverName: string) =>
 	}
 	callArgs[serverName] = { lastCall: Date.now() }
 
-	/** only call these once */
-	if(!_PAGERDUTY_KEY){
-		try{
-			_PAGERDUTY_KEY = await getSecret('PAGERDUTY_KEY')
-		}catch(err: unknown){
-			const e = err as Error
-			if(e.message.includes('ResourceNotFoundException')){
-				/** this means pagerduty is not set up for this region */
-				console.log('disabling Pagerduty Alerts', e.message)
-				callArgs[serverName].lastCall = 4092512698 // don't call again until 2099 AD
-				return
-			}else{
-				throw e
-			}
-		}
-	}
-	if(!_region){
-		_region = await secretsManager.config.region()
-	}
 
 	/** trigger a pagerduty alert */
 	const res = await fetch('https://events.pagerduty.com/v2/enqueue', {
@@ -96,6 +84,6 @@ export const pagerdutyAlert = async (alertString: string, serverName: string) =>
 	}else{
 		const errMsg = `PagerDuty alert failed. ${res.status}, a${res.statusText}, ${await res.text()}`
 		console.error(errMsg)
-		slackLogger(errMsg)
+		await slackLogger(errMsg)
 	}
 }
