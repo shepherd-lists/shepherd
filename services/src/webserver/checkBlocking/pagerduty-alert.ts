@@ -28,6 +28,7 @@ const setup = async () => {
 	if(_region === 'eu-west-2'){
 		try{
 			_PAGERDUTY_KEY = await readPagerdutyKey()
+			console.log('pagerdutyAlerts: key was retrieved.')
 			return true
 		}catch(err: unknown){
 			const e = err as Error
