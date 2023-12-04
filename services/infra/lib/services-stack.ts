@@ -153,6 +153,10 @@ export class ServicesStack extends cdk.Stack {
 			port: 80,
 			targets: [webserver],
 		})
+		webserver.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
+			actions: ['ssm:GetParameter'],
+			resources: [`arn:aws:ssm:${cdk.Aws.REGION}:*:parameter/shepherd/*`],
+		}))
 
 		/** write parameters to ssm */
 		const writeParam = (name: string, value: string) => {
