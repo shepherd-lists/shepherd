@@ -17,6 +17,7 @@ const namespaceArn = await readParam('NamespaceArn')
 const namespaceId = await readParam('NamespaceId')
 const inputQueueUrl = await readParam('InputQueueUrl')
 const inputBucketName = await readParam('InputBucket')
+const inputAgeMetricProps: aws_cloudwatch.MetricProps = JSON.parse(await readParam('InputMetricProps'))
 
 
 /** standard stack boilerplate */
@@ -117,24 +118,13 @@ nsfw.taskDefinition.taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 }))
 
 /** auto-scaling */
-const oldestMessageMetric = new aws_cloudwatch.Metric({
-	namespace: 'AWS/SQS',
-	metricName: 'ApproximateAgeOfOldestMessage',
-	statistic: 'Maximum',
-	period: Duration.minutes(1),
-	dimensionsMap: {
-		QueueName: inputQueueName,
-	},
-})
+const metric = new aws_cloudwatch.Metric(inputAgeMetricProps)
 nsfw.autoScaleTaskCount({
 	minCapacity: 1,
 	maxCapacity: 10,
-}).scaleOnMetric('NsfwOldestMessageScaling', {
-	metric: oldestMessageMetric,
-	datapointsToAlarm: 1,
-	evaluationPeriods: 1,
-	scalingSteps: [
-		{ upper: 60, change: -1 },
-		{ lower: 60, change: +1 },
-	],
+}).scaleToTrackCustomMetric('NsfwScaling', {
+	metric,
+	targetValue: 60,
+	scaleInCooldown: Duration.seconds(60),
+	scaleOutCooldown: Duration.seconds(60),
 })
