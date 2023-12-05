@@ -207,7 +207,7 @@ const bucketAndNotificationQs = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 		retentionPeriod: cdk.Duration.days(14),
 		visibilityTimeout: cdk.Duration.minutes(15),
 		deadLetterQueue: {
-			maxReceiveCount: 10,
+			maxReceiveCount: 3,
 			queue: new cdk.aws_sqs.Queue(stack, 'shepherd2-input-dlq', {
 				queueName: 'shepherd2-input-dlq',
 				retentionPeriod: cdk.Duration.days(14),
