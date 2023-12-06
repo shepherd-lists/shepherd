@@ -50,7 +50,7 @@ export const handler: Handler = async (event: SNSEvent): Promise<any> => {
 	let text = ''
 	if (message.AlarmName) {
 		const alarmMsg: AlarmMessage = message
-		const icon = alarmMsg.NewStateValue === 'ALARM' ? `⛔` : `✅`
+		const icon = alarmMsg.NewStateValue === 'ALARM' ? '❌' : '✅'
 		const stateChangeMins = ((+alarmMsg.Trigger?.Period * +alarmMsg.Trigger?.EvaluationPeriods) / 60).toFixed(1)
 		text = `${alarmMsg.AlarmDescription} ${icon} ${alarmMsg.NewStateValue} triggered in last ${stateChangeMins} minutes\n`
 			+ `${alarmMsg.NewStateReason} @ ${alarmMsg.StateChangeTime}`
