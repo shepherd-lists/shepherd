@@ -1,11 +1,13 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import { inputQMetricAndNotifications } from './queue-notifications';
 
 /** check our env exist */
 
 const envVarNames = [
 	'CIDR',
 	'AWS_DEFAULT_REGION', // not specificaly used, but needs to be set for cdk.
+	'SLACK_PUBLIC', // used by the slack lambda
 ]
 envVarNames.map(name => {
 	if (!process.env[name]) throw new Error(`${name} not set`)
@@ -71,6 +73,9 @@ export class InfraStack extends cdk.Stack {
 		/** create input bucket, and queues */
 		const { inputBucket, sqsInputQ } = bucketAndNotificationQs(stack, vpc)
 
+		/** inputQ metric and notifications */
+		const { inputAgeMetricProps } = inputQMetricAndNotifications(stack, vpc, sqsInputQ.queueName)
+
 		/** create feeder Q */
 		const { feederQ } = feederQs(stack, vpc)
 
@@ -132,10 +137,10 @@ export class InfraStack extends cdk.Stack {
 
 
 		/** write parameters to ssm */
-		const writeParam = (name: string, value: string) => {
+		const writeParam = (name: string, value: string | object) => {
 			new cdk.aws_ssm.StringParameter(stack, `param${name}`, {
 				parameterName: `/shepherd/${name}`,
-				stringValue: value,
+				stringValue: typeof value === 'string' ? value : JSON.stringify(value),
 			})
 		}
 
@@ -151,6 +156,7 @@ export class InfraStack extends cdk.Stack {
 		writeParam('RdsEndpoint', pgdb.dbInstanceEndpointAddress)
 		writeParam('AlbDnsName', alb.loadBalancerDnsName)
 		writeParam('AlbArn', alb.loadBalancerArn)					// LB_ARN
+		writeParam('InputMetricProps', inputAgeMetricProps)	// object to re-create the metric
 
 	}
 }
