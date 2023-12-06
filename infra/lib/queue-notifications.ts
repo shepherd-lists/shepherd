@@ -1,4 +1,4 @@
-import { Duration, Stack, aws_cloudwatch, aws_cloudwatch_actions, aws_ec2, aws_sns } from 'aws-cdk-lib'
+import { Duration, Stack, aws_cloudwatch, aws_cloudwatch_actions, aws_ec2, aws_lambda, aws_lambda_event_sources, aws_lambda_nodejs, aws_logs, aws_sns } from 'aws-cdk-lib'
 
 export const inputQMetricAndNotifications = (
 	stack: Stack,
@@ -22,13 +22,32 @@ export const inputQMetricAndNotifications = (
 		metric: unexportableMetric,
 		threshold: 300,
 		evaluationPeriods: 1,
-		alarmDescription: 'shepherd2-input-q a message age is too old',
+		alarmDescription: 'shepherd2-input-q oldest message age',
 		alarmName: 'shepherdInputAgeAlarm',
 		actionsEnabled: true,
 	})
-	const topic = new aws_sns.Topic(stack, 'inputAgeAlarmTopic', {
-		displayName: 'shepherd2-input-q a message age is too old',
+
+	/** create a slack posting lambda */
+	const fnSlack = new aws_lambda_nodejs.NodejsFunction(stack, 'fnSlackInputAgeAlarm', {
+		runtime: aws_lambda.Runtime.NODEJS_18_X,
+		architecture: aws_lambda.Architecture.X86_64,
+		handler: 'handler',
+		entry: new URL('../lambdas/slack/index.ts', import.meta.url).pathname,
+		bundling: {
+			format: aws_lambda_nodejs.OutputFormat.ESM,
+		},
+		logRetention: aws_logs.RetentionDays.THREE_MONTHS,
+		timeout: Duration.seconds(10),
+		environment: {
+			SLACK_PUBLIC: process.env.SLACK_PUBLIC!,
+		}
 	})
+
+	/** topic is just a pipe */
+	const topic = new aws_sns.Topic(stack, 'inputAgeAlarmTopic')
+	fnSlack.addEventSource(new aws_lambda_event_sources.SnsEventSource(topic))
+	inputAgeAlarm.addAlarmAction(new aws_cloudwatch_actions.SnsAction(topic)) //lambda determines alarm state
+	inputAgeAlarm.addOkAction(new aws_cloudwatch_actions.SnsAction(topic))
 
 
 	return {

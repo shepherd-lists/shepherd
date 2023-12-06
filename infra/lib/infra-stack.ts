@@ -7,6 +7,7 @@ import { inputQMetricAndNotifications } from './queue-notifications';
 const envVarNames = [
 	'CIDR',
 	'AWS_DEFAULT_REGION', // not specificaly used, but needs to be set for cdk.
+	'SLACK_PUBLIC', // used by the slack lambda
 ]
 envVarNames.map(name => {
 	if (!process.env[name]) throw new Error(`${name} not set`)
