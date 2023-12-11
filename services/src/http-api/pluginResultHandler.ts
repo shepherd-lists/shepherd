@@ -44,8 +44,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 
 					/** sqs messages can be read more than once */
 					if(!record){
-						logger(txid, pluginResultHandler.name, 'record not found in inbox', JSON.stringify(result))
-						slackLogger(txid, pluginResultHandler.name, 'record not found in inbox', JSON.stringify(result))
+						logger(txid, pluginResultHandler.name, 'record not found in inbox. assuming multi read of sqs mesg', JSON.stringify(result))
 						return
 					}
 
