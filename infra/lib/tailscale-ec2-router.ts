@@ -1,5 +1,15 @@
 import { Aws, Stack, aws_ec2, aws_iam } from 'aws-cdk-lib'
+import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm'
 
+
+const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new GetParameterCommand({
+	Name: `/shepherd/${name}`,
+	WithDecryption: true, // ignored if unencrypted
+}))).Parameter!.Value as string // throws if undefined
+/***
+ * THIS IS FOR DEV ONLY. DON'T FORGET TO UPDATE THE REGION.
+ */
+const TS_AUTHKEY = await remoteParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' }))
 
 
 
