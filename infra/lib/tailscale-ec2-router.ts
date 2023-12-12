@@ -12,7 +12,6 @@ const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new 
 const TS_AUTHKEY = await remoteParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' }))
 
 
-
 export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 
 	/** permissions */
@@ -33,9 +32,50 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 			'ap-southeast-1': 'ami-078c1149d8ad719a7',
 			'eu-central-1': 'ami-06dd92ecc74fdfb36',
 		}),
-		securityGroup: aws_ec2.SecurityGroup.fromSecurityGroupId(stack, 'vpcDefaultSG', vpc.vpcDefaultSecurityGroup),
+		securityGroup: new aws_ec2.SecurityGroup(stack, 'tsSubRouterSG', {
+			vpc,
+			allowAllOutbound: true,
+			description: 'allow all outbound for tailscale subrouter (cw agent)'
+		}),
 	})
 
 
+	instance.addUserData(userData)
 
 }
+
+const userData = `#!/bin/bash
+exec > >(tee /var/log/user-data.log) 2>&1
+echo "Starting user data script execution"
+
+# Update packages and install necessary dependencies
+apt-get update
+apt-get install -y unzip
+
+# Download and install the CloudWatch Agent
+wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -O /tmp/amazon-cloudwatch-agent.deb
+dpkg -i /tmp/amazon-cloudwatch-agent.deb
+
+# CloudWatch Agent configuration
+cat <<EOF > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/user-data.log",
+            "log_group_name": "shepherd-infra-ts",
+            "log_stream_name": "{instance_id}"
+          }
+        ]
+      }
+    }
+  }
+}
+EOF
+
+# Start the CloudWatch Agent
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+
+`
