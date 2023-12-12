@@ -1,4 +1,4 @@
-import { Aws, Stack, aws_ec2, aws_iam } from 'aws-cdk-lib'
+import { Aws, Stack, aws_ec2, aws_iam, aws_logs } from 'aws-cdk-lib'
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm'
 
 
@@ -13,6 +13,13 @@ const TS_AUTHKEY = await remoteParam('TS_AUTHKEY', new SSMClient({ region: 'ap-s
 
 
 export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
+
+	/** make a separate log group for this subrouter */
+	const logGroupName = 'shepherd-infra-ts'
+	const logGroup = new aws_logs.LogGroup(stack, 'tsLogGroup', {
+		logGroupName,
+		retention: aws_logs.RetentionDays.ONE_MONTH,
+	})
 
 	/** permissions */
 	const role = new aws_iam.Role(stack, 'tailscaleSubrouterRole', {
@@ -40,11 +47,11 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 	})
 
 
-	instance.addUserData(userData)
+	instance.addUserData(userData(logGroupName))
 
 }
 
-const userData = `#!/bin/bash
+const userData = (logGroupName: string) => `#!/bin/bash
 exec > >(tee /var/log/user-data.log) 2>&1
 echo "Starting user data script execution"
 
@@ -65,7 +72,7 @@ cat <<EOF > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
         "collect_list": [
           {
             "file_path": "/var/log/user-data.log",
-            "log_group_name": "shepherd-infra-ts",
+            "log_group_name": "${logGroupName}",
             "log_stream_name": "{instance_id}"
           }
         ]
@@ -79,3 +86,4 @@ EOF
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
 `
+
