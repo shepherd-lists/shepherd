@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { inputQMetricAndNotifications } from './queue-notifications';
+import { createTailscaleSubrouter } from './tailscale-ec2-router';
 
 /** check our env exist */
 
@@ -66,6 +67,9 @@ export class InfraStack extends cdk.Stack {
 			removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
 		})
 
+
+		/** create tailscale subrouter for the vpc */
+		createTailscaleSubrouter(stack, vpc)
 
 		/** create the postgres rds database */
 		const { sgPgdb, pgdb } = pgdbAndAccess(stack, vpc)
