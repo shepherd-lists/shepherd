@@ -16,7 +16,7 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 
 	/** make a separate log group for this subrouter */
 	const logGroup = new aws_logs.LogGroup(stack, 'tsLogGroup', {
-		logGroupName: 'shepherd-infra-ts',
+		logGroupName: 'shepherd2-infra-ts',
 		retention: aws_logs.RetentionDays.ONE_MONTH,
 	})
 
@@ -31,7 +31,7 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 	const instance = new aws_ec2.Instance(stack, "tsSubRouterInstance", {
 		vpc,
 		role,
-		instanceType: new aws_ec2.InstanceType('t3.micro'), // t3a.nano is cheapest
+		instanceType: new aws_ec2.InstanceType('t3a.nano'), // t3a.nano is cheapest
 		machineImage: aws_ec2.MachineImage.genericLinux({
 			/** ubuntu 22.04 LTS amd64 */
 			'eu-west-2': 'ami-0505148b3591e4c07',
