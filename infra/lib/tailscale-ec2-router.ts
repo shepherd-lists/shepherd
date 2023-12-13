@@ -2,14 +2,13 @@ import { Aws, Stack, aws_ec2, aws_iam, aws_logs } from 'aws-cdk-lib'
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm'
 
 
-const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new GetParameterCommand({
+const globalParam = async (name: string, ssm: SSMClient) => (await ssm.send(new GetParameterCommand({
 	Name: `/shepherd/${name}`,
 	WithDecryption: true, // ignored if unencrypted
 }))).Parameter!.Value as string // throws if undefined
-/***
- * THIS IS FOR DEV ONLY. DON'T FORGET TO UPDATE THE REGION.
- */
-const TS_AUTHKEY = await remoteParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' }))
+
+// const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' })) //THIS IS FOR DEV ONLY.
+const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'eu-west-2' }))
 
 
 export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
@@ -33,7 +32,7 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 		role,
 		instanceType: new aws_ec2.InstanceType('t3a.nano'), // t3a.nano is cheapest
 		machineImage: aws_ec2.MachineImage.genericLinux({
-			/** ubuntu 22.04 LTS amd64 */
+			/** ubuntu 22.04 LTS amd64. TODO: add more regions */
 			'eu-west-2': 'ami-0505148b3591e4c07',
 			'ap-southeast-1': 'ami-078c1149d8ad719a7',
 			'eu-central-1': 'ami-06dd92ecc74fdfb36',
