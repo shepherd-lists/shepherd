@@ -20,8 +20,8 @@ export const inputQMetricAndNotifications = (
 	/** create alarm */
 	const inputAgeAlarm = new aws_cloudwatch.Alarm(stack, 'inputAgeAlarm', {
 		metric: unexportableMetric,
-		threshold: 900, //15 mins
-		evaluationPeriods: 3,
+		threshold: 9_000, //150 mins, 2.5 hrs
+		evaluationPeriods: 1,
 		alarmDescription: 'shepherd2-input-q oldest message age',
 		alarmName: 'shepherdInputAgeAlarm',
 		actionsEnabled: true,
