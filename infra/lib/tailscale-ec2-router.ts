@@ -7,15 +7,15 @@ const globalParam = async (name: string, ssm: SSMClient) => (await ssm.send(new 
 	WithDecryption: true, // ignored if unencrypted
 }))).Parameter!.Value as string // throws if undefined
 
-// const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' })) //THIS IS FOR DEV ONLY.
-const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'eu-west-2' }))
+const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' })) //THIS IS FOR DEV ONLY.
+// const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'eu-west-2' }))
 
 
 export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 
 	/** make a separate log group for this subrouter */
 	const logGroup = new aws_logs.LogGroup(stack, 'tsLogGroup', {
-		logGroupName: 'shepherd2-infra-ts',
+		logGroupName: 'shepherd2-infra-ts2',
 		retention: aws_logs.RetentionDays.ONE_MONTH,
 	})
 
@@ -27,7 +27,7 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 	role.addManagedPolicy(aws_iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMReadOnlyAccess'))
 
 	/** instance */
-	const instance = new aws_ec2.Instance(stack, "tsSubRouterInstance", {
+	const instance = new aws_ec2.Instance(stack, "tsSubRouterInstance2", {
 		vpc,
 		role,
 		instanceType: new aws_ec2.InstanceType('t3a.nano'), // t3a.nano is cheapest
@@ -52,17 +52,17 @@ const userData = (logGroupName: string, subnets: string) => `#!/bin/bash
 exec > >(tee /var/log/user-data.log) 2>&1
 echo "Starting user data script execution"
 
-# Update packages and install necessary dependencies
+echo "# Update packages and install necessary dependencies"
 curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg | sudo tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null
 curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list
 apt-get update
 apt-get install -y unzip tailscale
 
-# Download and install the CloudWatch Agent
+echo "# Download and install the CloudWatch Agent"
 wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -O /tmp/amazon-cloudwatch-agent.deb
 dpkg -i /tmp/amazon-cloudwatch-agent.deb
 
-# CloudWatch Agent configuration
+echo "# CloudWatch Agent configuration"
 cat <<EOF > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
 {
   "logs": {
@@ -81,23 +81,41 @@ cat <<EOF > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
 }
 EOF
 
-# Start the CloudWatch Agent
+echo "# Start the CloudWatch Agent"
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
 
-# Start the tailscale subrouter
-## enable ip forwarding
+echo "# Configure, then start the tailscale subrouter"
+echo "## enable ip forwarding"
 echo 'net.ipv4.ip_forward = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
 echo 'net.ipv6.conf.all.forwarding = 1' | sudo tee -a /etc/sysctl.d/99-tailscale.conf
 sudo sysctl -p /etc/sysctl.d/99-tailscale.conf
 
-## recommended tailscale enhancement
+echo "## recommended tailscale enhancement"
 printf '#!/bin/sh\n\nethtool -K %s rx-udp-gro-forwarding on rx-gro-list off \n' "$(ip route show 0/0 | cut -f5 -d" ")" | sudo tee /etc/networkd-dispatcher/routable.d/50-tailscale
 sudo chmod 755 /etc/networkd-dispatcher/routable.d/50-tailscale
 sudo /etc/networkd-dispatcher/routable.d/50-tailscale
 test $? -eq 0 || echo 'An error occurred in tailscale enhancement.'
 
+echo "# Create a service file for Tailscale"
+cat <<EOF > /etc/systemd/system/tailscale.service
+[Unit]
+Description=Tailscale Node
+After=network.target
 
-## start the subrouter
-tailscale up --authkey=${TS_AUTHKEY} --advertise-routes=${subnets} --hostname=${Aws.REGION}.subnet-router.local 
+[Service]
+ExecStart=/usr/sbin/tailscaled
+ExecStartPost=/usr/bin/tailscale up --authkey=${TS_AUTHKEY} --advertise-routes=${subnets} --hostname=${Aws.REGION}.subnet-router.local
+StandardOutput=append:/var/log/user-data.log
+StandardError=inherit
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+echo "# Reload the systemd daemon and start Tailscale service"
+systemctl daemon-reload
+systemctl enable tailscale
+systemctl start tailscale
 
 `
