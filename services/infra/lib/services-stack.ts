@@ -49,9 +49,6 @@ export class ServicesStack extends cdk.Stack {
 
 		/** create fargate services required for shepherd */
 
-		/* tailscale vpn service */
-		const tailscale = createTailscale(vpc, { stack, cluster, logGroup })
-
 		/** indexer service. setting `minHealthyPercent` seems to make deployment faster */
 		const indexer = createService('indexer', { stack, cluster, logGroup, minHealthyPercent: 0 }, {
 			cpu: 256,
@@ -176,37 +173,6 @@ interface FargateBuilderProps {
 	cluster: cdk.aws_ecs.Cluster
 	logGroup: cdk.aws_logs.ILogGroup
 	minHealthyPercent?: number
-}
-
-const createTailscale = (vpc: cdk.aws_ec2.IVpc, { stack, cluster, logGroup, }: FargateBuilderProps) => {
-
-	/* N.B. there's no need for any AWS port mapping when using tailscale */
-
-	const tdefTailscale = new cdk.aws_ecs.FargateTaskDefinition(stack, 'tdefTailscale', {
-		cpu: 256,
-		memoryLimitMiB: 512,
-	})
-	tdefTailscale.addContainer('tailscaleImage', {
-		image: cdk.aws_ecs.ContainerImage.fromRegistry('tailscale/tailscale'),
-		logging: new cdk.aws_ecs.AwsLogDriver({
-			logGroup,
-			streamPrefix: 'tailscale',
-		}),
-		containerName: 'tailscaleContainer',
-		environment: {
-			TS_AUTHKEY: TS_AUTHKEY!,
-			TS_ROUTES: vpc.privateSubnets.map(s => s.ipv4CidrBlock).join(','),
-			TS_EXPIRY_KEY_DISABLE: 'true',
-			TS_ADVERTISE_ROUTES: 'true',
-			TS_HOSTNAME: `${cdk.Aws.REGION}.subnet-router.local`
-		}
-	})
-	const fgTailscale = new cdk.aws_ecs.FargateService(stack, 'fgTailscale', {
-		cluster,
-		taskDefinition: tdefTailscale,
-	})
-
-	return fgTailscale
 }
 
 
