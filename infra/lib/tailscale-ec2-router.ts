@@ -7,15 +7,15 @@ const globalParam = async (name: string, ssm: SSMClient) => (await ssm.send(new 
 	WithDecryption: true, // ignored if unencrypted
 }))).Parameter!.Value as string // throws if undefined
 
-const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' })) //THIS IS FOR DEV ONLY.
-// const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'eu-west-2' }))
+// const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' })) //THIS IS FOR DEV ONLY.
+const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'eu-west-2' }))
 
 
 export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 
 	/** make a separate log group for this subrouter */
 	const logGroup = new aws_logs.LogGroup(stack, 'tsLogGroup', {
-		logGroupName: 'shepherd2-infra-ts2',
+		logGroupName: 'shepherd-infra-ts',
 		retention: aws_logs.RetentionDays.ONE_MONTH,
 	})
 
@@ -34,7 +34,7 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 	securityGroup.addIngressRule(aws_ec2.Peer.ipv4(vpc.vpcCidrBlock), aws_ec2.Port.allTraffic(), 'allow traffic from within the vpc')
 
 	/** instance */
-	const instance = new aws_ec2.Instance(stack, "tsSubRouterInstance2", {
+	const instance = new aws_ec2.Instance(stack, "tsSubRouterInstance", {
 		vpc,
 		role,
 		instanceType: new aws_ec2.InstanceType('t3a.nano'), // t3a.nano is cheapest
@@ -52,7 +52,9 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 }
 
 const userData = (logGroupName: string, subnets: string) => `#!/bin/bash
+# starts a new shell and logs this script to /var/log/user-data.log
 exec > >(tee /var/log/user-data.log) 2>&1
+
 echo "Starting user data script execution"
 
 echo "# Update packages and install necessary dependencies"
