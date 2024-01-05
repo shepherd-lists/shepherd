@@ -26,6 +26,13 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 	role.addManagedPolicy(aws_iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchAgentServerPolicy'))
 	role.addManagedPolicy(aws_iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMReadOnlyAccess'))
 
+	const securityGroup = new aws_ec2.SecurityGroup(stack, 'tsSubrouterSg', {
+		vpc,
+		allowAllOutbound: true,
+		securityGroupName: 'ts-subrouter-sg',
+	})
+	securityGroup.addIngressRule(aws_ec2.Peer.ipv4(vpc.vpcCidrBlock), aws_ec2.Port.allTraffic(), 'allow traffic from within the vpc')
+
 	/** instance */
 	const instance = new aws_ec2.Instance(stack, "tsSubRouterInstance2", {
 		vpc,
@@ -37,11 +44,7 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 			'ap-southeast-1': 'ami-078c1149d8ad719a7',
 			'eu-central-1': 'ami-06dd92ecc74fdfb36',
 		}),
-		securityGroup: new aws_ec2.SecurityGroup(stack, 'tsSubRouterSG', {
-			vpc,
-			allowAllOutbound: true,
-			description: 'allow all outbound for tailscale subrouter (cw agent)'
-		}),
+		securityGroup,
 	})
 
 	instance.addUserData(userData(logGroup.logGroupName, vpc.privateSubnets.map(s => s.ipv4CidrBlock).join(',')))

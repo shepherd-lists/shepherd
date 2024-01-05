@@ -67,7 +67,6 @@ export class InfraStack extends cdk.Stack {
 			removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
 		})
 
-
 		/** create tailscale subrouter for the vpc */
 		createTailscaleSubrouter(stack, vpc)
 
@@ -174,9 +173,6 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 		securityGroupName: 'shepherd2-pgdb-sg',
 	})
 	sgPgdb.addIngressRule(cdk.aws_ec2.Peer.ipv4(vpc.vpcCidrBlock), cdk.aws_ec2.Port.tcp(5432), 'allow db traffic') // allow traffic from within the vpc
-	/**
-	 * is sgPgdb actually required and/or the ingress rule what we need?
-	 */
 
 	/** create the postgres rds database */
 	const pgdb = new cdk.aws_rds.DatabaseInstance(stack, 'shepherd2-pgdb', {
