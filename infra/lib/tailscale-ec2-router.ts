@@ -45,6 +45,9 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 			'eu-central-1': 'ami-06dd92ecc74fdfb36',
 		}),
 		securityGroup,
+		vpcSubnets: {
+			subnetType: aws_ec2.SubnetType.PUBLIC,
+		},
 	})
 
 	instance.addUserData(userData(logGroup.logGroupName, vpc.privateSubnets.map(s => s.ipv4CidrBlock).join(',')))
