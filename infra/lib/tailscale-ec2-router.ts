@@ -7,8 +7,15 @@ const globalParam = async (name: string, ssm: SSMClient) => (await ssm.send(new 
 	WithDecryption: true, // ignored if unencrypted
 }))).Parameter!.Value as string // throws if undefined
 
-// const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' })) //THIS IS FOR DEV ONLY.
-const TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'eu-west-2' }))
+let TS_AUTHKEY: string
+const region = await (new SSMClient({})).config.region()
+if (region == 'ap-southeast-1') {
+	console.info('INFO: using dev authkey for tailscale')
+	TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' })) //THIS IS FOR DEV ONLY.
+} else {
+	console.info('INFO: using prod authkey for tailscale')
+	TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'eu-west-2' }))
+}
 
 
 export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
