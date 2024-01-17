@@ -73,6 +73,7 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 		threshold: 1,
 		evaluationPeriods: 1,
 		comparisonOperator: aws_cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+		treatMissingData: aws_cloudwatch.TreatMissingData.BREACHING
 	})
 	alarm.addAlarmAction({
 		bind: () => ({
