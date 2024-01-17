@@ -1,4 +1,4 @@
-import { Aws, Stack, aws_ec2, aws_iam, aws_logs } from 'aws-cdk-lib'
+import { Aws, Stack, aws_cloudwatch, aws_ec2, aws_iam, aws_logs } from 'aws-cdk-lib'
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm'
 
 
@@ -58,6 +58,27 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 	})
 
 	instance.addUserData(userData(logGroup.logGroupName, vpc.privateSubnets.map(s => s.ipv4CidrBlock).join(',')))
+
+	/** recover when unreachable */
+	const alarm = new aws_cloudwatch.Alarm(stack, 'tsSubrouterReachablityAlarm', {
+		alarmName: 'ts-subrouter-reachable-alarm',
+		alarmDescription: 'recover when unreachable',
+		metric: new aws_cloudwatch.Metric({
+			namespace: 'AWS/EC2',
+			metricName: 'StatusCheckFailed_System',
+			dimensionsMap: {
+				InstanceId: instance.instanceId,
+			},
+		}),
+		threshold: 1,
+		evaluationPeriods: 1,
+		comparisonOperator: aws_cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+	})
+	alarm.addAlarmAction({
+		bind: () => ({
+			alarmActionArn: `arn:aws:automate:${Aws.REGION}:ec2:recover`,
+		})
+	})
 
 }
 
