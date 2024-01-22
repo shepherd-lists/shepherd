@@ -8,9 +8,8 @@ const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new 
 	Name: `/shepherd/${name}`,
 	WithDecryption: true, // ignored if unencrypted
 }))).Parameter!.Value as string // throws if undefined
-console.log('reading remote params...')
-const ssmLondon = new SSMClient({ region: 'eu-west-2' })
-const TS_AUTHKEY = await remoteParam('TS_AUTHKEY', ssmLondon)
+// console.log('reading remote params...') //--currently no remote params!
+
 
 /** import params from infra stack */
 const readParam = async (paramName: string) => {
