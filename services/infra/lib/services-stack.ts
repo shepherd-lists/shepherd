@@ -109,7 +109,7 @@ export class ServicesStack extends cdk.Stack {
 		/* http-api service */
 		const httpApi = createService('http-api', { stack, cluster, logGroup }, {
 			cpu: 1024,
-			memoryLimitMiB: 3072,
+			memoryLimitMiB: 2048,
 		}, {
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
