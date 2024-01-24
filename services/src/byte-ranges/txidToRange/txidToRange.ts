@@ -52,12 +52,13 @@ export const txidToRange = async (id: string, parent: string|null, parents: stri
 	/** handle bugs in the gql indexing services */
 	if(!txParent){
 		/** notify on missing parents */
-		await slackLogger(txidToRange.name, `Parent ${parent} not found using ${gqlUrlGoldsky}. Trying ${gqlUrlArweave} next. id: ${id}`)
+		console.error(txidToRange.name, `Parent ${parent} not found using ${gqlUrlGoldsky}. Trying ${gqlUrlArweave} next. id: ${id}`)
 		const gqlArweave = arGql(gqlUrlArweave)
 		txParent = await gqlTxRetry(parent, gqlArweave)
 		//fail fast
 		if(!txParent){
-			throw new Error(`Parent ${parent} not found using ${gqlUrlArweave} or ${gqlUrlGoldsky}`)
+			slackLogger(`Parent ${parent} not found using ${gqlUrlArweave} or ${gqlUrlGoldsky}. id ${id}`) //overzealous? important not to miss this
+			throw new Error(`Parent ${parent} not found using ${gqlUrlArweave} or ${gqlUrlGoldsky}. id ${id}`)
 		}
 	}
 
