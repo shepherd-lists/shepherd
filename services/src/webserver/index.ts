@@ -13,6 +13,7 @@ import './checkBlocking/checkBlocking-timer' //starts automatically
 import { network_EXXX_codes } from '../common/constants'
 import { Socket } from 'net'
 import { txsTableNames } from './tablenames'
+import { slackLogger } from '../common/utils/slackLogger'
 
 const prefix = 'webserver'
 const app = express()
@@ -68,14 +69,26 @@ txsTableNames().then((tablenames) => {
 
 app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
-	await getBlacklist(res)
-	res.status(200).end()
+	try{
+		await getBlacklist(res)
+		res.status(200).end()
+	}catch(err:unknown){
+		const e = err as Error
+		await slackLogger('/blacklist.txt', `❌ FATAL ERROR retrieving rangelist! ${e.name}:${e.message}. DEVICE WILL REBOOT`)
+		res.status(500).send('internal server error')
+	}
 })
 
 app.get('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
-	await getRangelist(res)
-	res.status(200).end()
+	try{
+		await getRangelist(res)
+		res.status(200).end()
+	}catch(err:unknown){
+		const e = err as Error
+		await slackLogger('/rangelist.txt', `❌ FATAL ERROR retrieving rangelist! ${e.name}:${e.message}. DEVICE WILL REBOOT`)
+		res.status(500).send('internal server error')
+	}
 })
 
 app.get('/stats', async (req, res) => {

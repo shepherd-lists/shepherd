@@ -42,8 +42,18 @@ export const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename
 	cache.last = now
 
 	/** get records from db, stream straight out to respones, and cache for both lists */
+	let records
+	try{
+		records = knex<TxRecord>(tablename).where({flagged: true}).stream()
+	}catch(err:unknown){
+		const e = err as Error
+		slackLogger(getRecords.name, `❌ Error retrieving records! ${e.name}:${e.message}. Serving cache` )
+		/** return cache if error */
+		const text = type == 'txids' ? cache.txids : cache.ranges
+		logger(getRecords.name, `❌ Error retrieving records! serving cache, ${text.length} bytes. inProgress: ${cache.inProgress}`)
+		return res.write(text)
+	}
 
-	const records = knex<TxRecord>(tablename).where({flagged: true}).stream()
 	let txids = ''
 	let ranges = ''
 	let promises = []
