@@ -11,7 +11,8 @@ import dbConnection from '../src/common/utils/db-connection'
 const knex = dbConnection()
 
 const main = async () => {
-	const recRead = knex<TxRecord>('txs').where({ flagged: true, byteStart: '-1' }).stream()
+	// const recRead = knex<TxRecord>('txs').where({ flagged: true, byteStart: '-1' }).stream()
+	const recRead = knex<TxRecord>('txs').where('top_score_value', '>', 0.9).where({ byteStart: '-1' }).stream()
 	const promises = []
 	let count = 0
 	for await (const rec of recRead){
