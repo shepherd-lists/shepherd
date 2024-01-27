@@ -2,7 +2,7 @@
   "name": "services-aws",
   "version": "0.1.0",
   "bin": {
-    "services-aws": "bin/services-aws.js"
+    "services-aws": "stack.js"
   },
   "type": "module",
   "scripts": {
