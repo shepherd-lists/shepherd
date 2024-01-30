@@ -1,9 +1,11 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env -S npx tsx
 
 import { Config } from './Config'
 import { program } from 'commander'
-import { dirname } from 'path'
+import { basename, dirname } from 'path'
 import col from 'ansi-colors'
+import { App } from 'aws-cdk-lib'
+import { InfraStack } from './infra/stack'
 
 /** use commander to handle script inputs */
 program
@@ -24,13 +26,26 @@ if (options.help || !options.config) {
 
 /** useful functions */
 const __dirname = dirname(new URL(import.meta.url).pathname)
+const __filename = basename(new URL(import.meta.url).pathname)
 const logHeading = (msg: string) => console.info(col.bgYellow.black(msg))
 
 
-logHeading('import config...')
+logHeading(`import config...`)
 const config: Config = (await import(`${__dirname}/config.${options.config as string}`)).config
 console.info(config)
 
 
+/** use root cdk project that will import the various stacks into it */
 logHeading(`import stacks... (${config.region})`)
-console.log('test', program.args)
+const app = new App()
+
+logHeading(`--import infra stack...${config.region}`)
+new InfraStack(app, 'Infra', {
+	env: {
+		account: process.env.CDK_DEFAULT_ACCOUNT,
+		region: config.region
+	},
+	stackName: 'shepherd-infra-stack',
+	description: 'shepherd main infrastructure stack. network, rds, etc.',
+	config,
+})
