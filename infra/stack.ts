@@ -4,14 +4,6 @@ import { inputQMetricAndNotifications } from './lib/queue-notifications';
 import { createTailscaleSubrouter } from './lib/tailscale-ec2-router';
 import { Config } from '../Config'
 
-/** check our config exist */
-
-// const envVarNames = [
-// 	'AWS_DEFAULT_REGION', // not specificaly used, but needs to be set for cdk.
-// ]
-// envVarNames.map(name => {
-// 	if (!process.env[name]) throw new Error(`${name} not set`)
-// })
 
 interface InfraStackProps extends cdk.StackProps {
 	config: Config
