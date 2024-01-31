@@ -1,0 +1,20 @@
+import { App } from 'aws-cdk-lib'
+import { InfraStack } from './infra/stack'
+import { Config } from './Config'
+
+const configName = process.argv[2]
+
+const config: Config = (await import(`./config.${configName}.ts`)).config
+if (!config) throw new Error(`config not set. configName: ${configName}`)
+
+const app = new App()
+
+new InfraStack(app, 'Infra', {
+	env: {
+		account: process.env.CDK_DEFAULT_ACCOUNT,
+		region: config.region
+	},
+	stackName: 'shepherd-infra-stack',
+	description: 'shepherd main infrastructure stack. network, rds, etc.',
+	config,
+})
