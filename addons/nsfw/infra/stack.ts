@@ -1,4 +1,4 @@
-import { App, Aws, Duration, Stack, aws_applicationautoscaling, aws_cloudwatch, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
+import { App, Aws, Duration, Stack, aws_cloudwatch, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 
 
