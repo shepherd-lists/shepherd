@@ -217,7 +217,7 @@ const createService = (
 ) => {
 	const Name = name.charAt(0).toUpperCase() + name.slice(1)
 	const dockerImage = new cdk.aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
-		directory: new URL('../../', import.meta.url).pathname,
+		directory: new URL('../', import.meta.url).pathname,
 		exclude: ['infra', `cdk.out.${cdk.Aws.REGION}`],
 		target: name,
 		assetName: `${name}-image`,
