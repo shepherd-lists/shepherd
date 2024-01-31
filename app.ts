@@ -20,9 +20,9 @@ new InfraStack(app, 'Infra', {
 	config,
 })
 
-new ServicesStack(app, 'ServicesStack', {
+new ServicesStack(app, 'Services', {
 	env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 	stackName: 'shepherd-services',
 	description: 'Shepherd services stack: ecs, lambdas, etc',
-	/* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
+	config,
 })

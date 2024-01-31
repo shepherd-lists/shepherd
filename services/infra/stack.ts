@@ -1,7 +1,7 @@
 import * as cdk from 'aws-cdk-lib'
 import { Construct } from 'constructs'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
-
+import { Config } from '../../Config'
 
 /** import params from shepherd regions (London is global store) */
 const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new GetParameterCommand({
@@ -24,11 +24,17 @@ const inputBucketName = await readParam('InputBucket')
 const logGroupName = await readParam('LogGroup')
 const albArn = await readParam('AlbArn')
 
+interface ServicesStackProps extends cdk.StackProps {
+	config: Config
+}
 
 export class ServicesStack extends cdk.Stack {
-	constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+	constructor(scope: Construct, id: string, props: ServicesStackProps) {
 		super(scope, id, props)
 		const stack = this
+
+		const { config } = props
+
 
 		/** import shepherd-infra-stack items  */
 
@@ -54,10 +60,10 @@ export class ServicesStack extends cdk.Stack {
 			memoryLimitMiB: 512,
 		}, {
 			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
-			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
-			GQL_URL: process.env.GQL_URL || 'https://arweave.net/graphql',
-			GQL_URL_SECONDARY: process.env.GQL_URL_SECONDARY || 'https://arweave-search.goldsky.com/graphql',
+			SLACK_WEBHOOK: config.slack_webhook!,
+			HOST_URL: config.host_url || 'https://arweave.net',
+			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
+			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 		})
 
 		/* feeder service */
@@ -66,7 +72,7 @@ export class ServicesStack extends cdk.Stack {
 			memoryLimitMiB: 8192,
 		}, {
 			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
+			SLACK_WEBHOOK: config.slack_webhook!,
 			AWS_FEEDER_QUEUE: feederQueueUrl,
 		})
 		feeder.node.addDependency(indexer)
@@ -81,9 +87,9 @@ export class ServicesStack extends cdk.Stack {
 			memoryLimitMiB: 4096,
 		}, {
 			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
+			SLACK_WEBHOOK: config.slack_webhook!,
 			STREAMS_PER_FETCHER: '50',
-			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
+			HOST_URL: config.host_url || 'https://arweave.net',
 			AWS_FEEDER_QUEUE: feederQueueUrl,
 			AWS_INPUT_BUCKET: inputBucketName,
 			AWS_DEFAULT_REGION: cdk.Aws.REGION,
@@ -112,9 +118,9 @@ export class ServicesStack extends cdk.Stack {
 			memoryLimitMiB: 2048,
 		}, {
 			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
-			SLACK_POSITIVE: process.env.SLACK_POSITIVE!,
-			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
+			SLACK_WEBHOOK: config.slack_webhook!,
+			SLACK_POSITIVE: config.slack_positive!,
+			HOST_URL: config.host_url || 'https://arweave.net',
 		})
 		httpApi.connections.securityGroups[0].addIngressRule(
 			cdk.aws_ec2.Peer.ipv4(vpc.vpcCidrBlock),
@@ -128,15 +134,15 @@ export class ServicesStack extends cdk.Stack {
 			memoryLimitMiB: 4096,
 		}, {
 			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: process.env.SLACK_WEBHOOK!,
-			SLACK_POSITIVE: process.env.SLACK_POSITIVE!,
-			SLACK_PROBE: process.env.SLACK_PROBE!,
-			HOST_URL: process.env.HOST_URL || 'https://arweave.net',
-			GQL_URL: process.env.GQL_URL || 'https://arweave.net/graphql',
-			GQL_URL_SECONDARY: process.env.GQL_URL_SECONDARY || 'https://arweave-search.goldsky.com/graphql',
-			BLACKLIST_ALLOWED: process.env.BLACKLIST_ALLOWED || '',
-			RANGELIST_ALLOWED: process.env.RANGELIST_ALLOWED || '',
-			GW_URLS: process.env.GW_URLS || '',
+			SLACK_WEBHOOK: config.slack_webhook!,
+			SLACK_POSITIVE: config.slack_positive!,
+			SLACK_PROBE: config.slack_probe!,
+			HOST_URL: config.host_url || 'https://arweave.net',
+			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
+			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
+			BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
+			RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
+			GW_URLS: JSON.stringify(config.gw_urls) || '',
 		})
 		webserver.taskDefinition.defaultContainer?.addPortMappings({
 			containerPort: 80,
