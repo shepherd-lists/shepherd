@@ -4,12 +4,18 @@ import { Config } from './Config'
 import { program } from 'commander'
 import { basename, dirname } from 'path'
 import col from 'ansi-colors'
-import { App } from 'aws-cdk-lib'
-import { InfraStack } from './infra/stack'
+import { execSync } from 'child_process'
+
+
+
+/** useful functions */
+const __dirname = dirname(new URL(import.meta.url).pathname)
+const __filename = basename(new URL(import.meta.url).pathname)
+const logHeading = (msg: string) => console.info(col.bgYellow.black(msg))
 
 /** use commander to handle script inputs */
 program
-	.name('shepherd launcher')
+	.name(__filename)
 	.description('wrapper for cdk that loads config. cdk options can be included after a solo `--`')
 	.option('-c, --config <config-name>', '(required) config name. e.g. dev for `config.dev.ts`')
 	.option('-h, --help', 'get help')
@@ -18,16 +24,12 @@ program
 	.argument('[stacks...]', 'the stacks to run the command on')
 
 program.parse(process.argv)
+console.debug(program.args)
 
 const options = program.opts()
 if (options.help || !options.config) {
 	program.help()
 }
-
-/** useful functions */
-const __dirname = dirname(new URL(import.meta.url).pathname)
-const __filename = basename(new URL(import.meta.url).pathname)
-const logHeading = (msg: string) => console.info(col.bgYellow.black(msg))
 
 
 logHeading(`import config...`)
@@ -35,17 +37,14 @@ const config: Config = (await import(`${__dirname}/config.${options.config as st
 console.info(config)
 
 
-/** use root cdk project that will import the various stacks into it */
-logHeading(`import stacks... (${config.region})`)
-const app = new App()
+logHeading(`exec cdk commands on stacks... (${config.region})`)
+let cdkCommand = `npx cdk -a 'npx tsx app.ts ${options.config}' ${program.args.join(' ')}`
 
-logHeading(`--import infra stack...${config.region}`)
-new InfraStack(app, 'Infra', {
-	env: {
-		account: process.env.CDK_DEFAULT_ACCOUNT,
-		region: config.region
-	},
-	stackName: 'shepherd-infra-stack',
-	description: 'shepherd main infrastructure stack. network, rds, etc.',
-	config,
+console.debug(`executing: ${cdkCommand}`)
+
+execSync(cdkCommand, {
+	encoding: 'utf8',
+	stdio: 'inherit',
 })
+
+
