@@ -10,7 +10,7 @@ if (!config) throw new Error(`config not set. configName: ${configName}`)
 
 const app = new App()
 
-new InfraStack(app, 'Infra', {
+new InfraStack(app, 'InfraStack', {
 	env: {
 		account: process.env.CDK_DEFAULT_ACCOUNT,
 		region: config.region
@@ -20,9 +20,11 @@ new InfraStack(app, 'Infra', {
 	config,
 })
 
-new ServicesStack(app, 'Services', {
+new ServicesStack(app, 'ServicesStack', {
 	env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
 	stackName: 'shepherd-services',
 	description: 'Shepherd services stack: ecs, lambdas, etc',
 	config,
 })
+
+
