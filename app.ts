@@ -1,6 +1,7 @@
 import { App } from 'aws-cdk-lib'
-import { InfraStack } from './infra/stack'
 import { Config } from './Config'
+import { InfraStack } from './infra/stack'
+import { ServicesStack } from './services/infra/stack'
 
 const configName = process.argv[2]
 
@@ -17,4 +18,11 @@ new InfraStack(app, 'Infra', {
 	stackName: 'shepherd-infra-stack',
 	description: 'shepherd main infrastructure stack. network, rds, etc.',
 	config,
+})
+
+new ServicesStack(app, 'ServicesStack', {
+	env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
+	stackName: 'shepherd-services',
+	description: 'Shepherd services stack: ecs, lambdas, etc',
+	/* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
 })
