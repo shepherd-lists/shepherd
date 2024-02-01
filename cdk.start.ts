@@ -40,6 +40,16 @@ console.info(config)
 logHeading(`exec cdk commands on stacks... (${config.region})`)
 let cdkCommand = `npx cdk -a 'npx tsx app.ts ${options.config}' ${program.args.join(' ')}`
 
+if (program.args.length > 0) {
+	if (program.args[0] === 'deploy') {
+		cdkCommand += ' --require-approval never '
+		// --hotswap-fallback  
+	}
+	if (['synth', 'deploy', 'diff'].includes(program.args[0])) {
+		cdkCommand += ` --output='./cdk.out.${config.region}' --change-set-name 'change-name-${config.region}' `
+	}
+}
+
 console.debug(`executing: ${cdkCommand}`)
 
 execSync(cdkCommand, {
