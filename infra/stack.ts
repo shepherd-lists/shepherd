@@ -195,7 +195,7 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 		databaseName: 'arblacklist',  //legacy
 		credentials: {
 			username: 'postgres',
-			password: cdk.SecretValue.plainText('postgres'),
+			password: cdk.SecretValue.unsafePlainText('postgres'),
 		},
 		vpcSubnets: {
 			subnetType: cdk.aws_ec2.SubnetType.PRIVATE_WITH_EGRESS,
