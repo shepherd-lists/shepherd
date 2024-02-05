@@ -59,8 +59,14 @@ export class InfraStack extends cdk.Stack {
 		})
 
 		/** general log group for the vpc */
-		const logGroup = new cdk.aws_logs.LogGroup(this, 'logGroup', {
+		const logGroupServices = new cdk.aws_logs.LogGroup(this, 'logGroup', {
 			logGroupName: 'shepherd-service-logs', //avoid name clash with legacy shepherd
+			retention: cdk.aws_logs.RetentionDays.THREE_MONTHS,
+			removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
+		})
+		/** log group for infra only stuff */
+		const logGroupInfra = new cdk.aws_logs.LogGroup(this, 'logGroupInfra', {
+			logGroupName: 'shepherd-infra-logs',
 			retention: cdk.aws_logs.RetentionDays.THREE_MONTHS,
 			removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
 		})
@@ -75,7 +81,7 @@ export class InfraStack extends cdk.Stack {
 		const { inputBucket, sqsInputQ } = bucketAndNotificationQs(stack, vpc)
 
 		/** inputQ metric and notifications */
-		const { inputAgeMetricProps } = inputQMetricAndNotifications(stack, vpc, sqsInputQ.queueName, config.slack_public!)
+		const { inputAgeMetricProps } = inputQMetricAndNotifications(stack, vpc, sqsInputQ.queueName, config.slack_public!, logGroupInfra)
 
 		/** create feeder Q */
 		const { feederQ } = feederQs(stack, vpc)
@@ -150,7 +156,7 @@ export class InfraStack extends cdk.Stack {
 		writeParam('PgdbSg', sgPgdb.securityGroupId)
 		writeParam('InputBucket', inputBucket.bucketName)	// AWS_INPUT_BUCKET
 		writeParam('SqsVpcEndpoint', sqsVpcEndpoint.vpcEndpointId)
-		writeParam('LogGroup', logGroup.logGroupName)		 	//LOG_GROUP_NAME
+		writeParam('LogGroup', logGroupServices.logGroupName)		 	//LOG_GROUP_NAME
 		writeParam('InputQueueUrl', sqsInputQ.queueUrl)		// AWS_SQS_INPUT_QUEUE
 		writeParam('InputQueueName', sqsInputQ.queueName)
 		writeParam('FeederQueueUrl', feederQ.queueUrl)		// AWS_FEEDER_QUEUE

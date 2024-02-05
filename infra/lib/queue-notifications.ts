@@ -5,6 +5,7 @@ export const inputQMetricAndNotifications = (
 	vpc: aws_ec2.Vpc,
 	sqsInputQueueName: string,
 	slackPublic: string,
+	logGroupInfra: aws_logs.LogGroup,
 ) => {
 
 	/** we need to use this metric throughout shepherd, but you can't import metrics by lookup */
@@ -37,7 +38,8 @@ export const inputQMetricAndNotifications = (
 		bundling: {
 			format: aws_lambda_nodejs.OutputFormat.ESM,
 		},
-		logRetention: aws_logs.RetentionDays.THREE_MONTHS,
+		logGroup: logGroupInfra,
+		// logFormat: aws_lambda.LogFormat.JSON,
 		timeout: Duration.seconds(10),
 		environment: {
 			SLACK_PUBLIC: slackPublic,
