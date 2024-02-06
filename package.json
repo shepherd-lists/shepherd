@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "postinstall": "nvm use || echo 'nvm not found. please use nodejs v20+'",
+    "prepare": "husky",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Ros McMahon <rosmcmahon@gmail.com",
   "license": "GPL-3.0",
   "devDependencies": {
     "@types/node": "^20.11.16",
+    "husky": "^9.0.10",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }
