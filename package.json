@@ -4,7 +4,7 @@
   "description": " ingested_at based indexer",
   "type": "module",
   "scripts": {
-    "postinstall": "nvm use || echo 'nvm not found. please use nodejs v20+'",
+    "postinstall": "(source $NVM_DIR/nvm.sh && nvm use) || echo 'nvm not found. please use nodejs v20+'",
     "prepare": "husky",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
