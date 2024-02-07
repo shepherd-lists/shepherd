@@ -4,7 +4,11 @@
 echo "Running post-merge hook"
 
 git diff --name-only HEAD@{1} HEAD | grep -e 'package-lock.json$' | while read -r lockfile; do
-  dir=$(dirname "$lockfile")
-  echo "$lockfile change detected. Running 'npm ci' in '$dir'..."
-  (cd "$dir" && npm ci)
+  if [ -f "$lockfile" ]; then
+    dir=$(dirname "$lockfile")
+    echo "$lockfile change detected. Running 'npm ci' in '$dir'..."
+    (cd "$dir" && npm ci)
+  else
+    echo "$lockfile was deleted. Skipping 'npm ci'."
+  fi
 done
