@@ -1,25 +1,23 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { inputQMetricAndNotifications } from './queue-notifications';
-import { createTailscaleSubrouter } from './tailscale-ec2-router';
-
-/** check our env exist */
-
-const envVarNames = [
-	'CIDR',
-	'AWS_DEFAULT_REGION', // not specificaly used, but needs to be set for cdk.
-	'SLACK_PUBLIC', // used by the slack lambda
-]
-envVarNames.map(name => {
-	if (!process.env[name]) throw new Error(`${name} not set`)
-})
+import { inputQMetricAndNotifications } from './lib/queue-notifications';
+import { createTailscaleSubrouter } from './lib/tailscale-ec2-router';
+import { Config } from '../Config'
 
 
+interface InfraStackProps extends cdk.StackProps {
+	config: Config
+}
 
 export class InfraStack extends cdk.Stack {
-	constructor(app: Construct, id: string, props?: cdk.StackProps) {
+	constructor(app: Construct, id: string, props: InfraStackProps) {
 		super(app, id, props);
 		const stack = this // idc for `this`
+
+		const { config } = props
+		if (!config) throw new Error('config not set')
+		if (!config.cidr) throw new Error('config.cidr not set')
+		if (!config.slack_public) throw new Error('config.slack_public not set')
 
 		/** create the main network stack */
 
@@ -32,7 +30,7 @@ export class InfraStack extends cdk.Stack {
 			 * need separate cidr for each vpc / shepherd installation, if we are connecting them via vpn peering / tailnet.
 			 * n.b. legacy shepherd uses '10.0.0.0/16', maybe we need peering during cdk migration?
 			 */
-			ipAddresses: cdk.aws_ec2.IpAddresses.cidr(process.env.CIDR!),
+			ipAddresses: cdk.aws_ec2.IpAddresses.cidr(config.cidr),
 			subnetConfiguration: [
 				{
 					cidrMask: 24,
@@ -61,8 +59,14 @@ export class InfraStack extends cdk.Stack {
 		})
 
 		/** general log group for the vpc */
-		const logGroup = new cdk.aws_logs.LogGroup(this, 'logGroup', {
+		const logGroupServices = new cdk.aws_logs.LogGroup(this, 'logGroup', {
 			logGroupName: 'shepherd-service-logs', //avoid name clash with legacy shepherd
+			retention: cdk.aws_logs.RetentionDays.THREE_MONTHS,
+			removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
+		})
+		/** log group for infra only stuff */
+		const logGroupInfra = new cdk.aws_logs.LogGroup(this, 'logGroupInfra', {
+			logGroupName: 'shepherd-infra-logs',
 			retention: cdk.aws_logs.RetentionDays.THREE_MONTHS,
 			removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
 		})
@@ -77,7 +81,7 @@ export class InfraStack extends cdk.Stack {
 		const { inputBucket, sqsInputQ } = bucketAndNotificationQs(stack, vpc)
 
 		/** inputQ metric and notifications */
-		const { inputAgeMetricProps } = inputQMetricAndNotifications(stack, vpc, sqsInputQ.queueName)
+		const { inputAgeMetricProps } = inputQMetricAndNotifications(stack, vpc, sqsInputQ.queueName, config.slack_public!, logGroupInfra)
 
 		/** create feeder Q */
 		const { feederQ } = feederQs(stack, vpc)
@@ -152,7 +156,7 @@ export class InfraStack extends cdk.Stack {
 		writeParam('PgdbSg', sgPgdb.securityGroupId)
 		writeParam('InputBucket', inputBucket.bucketName)	// AWS_INPUT_BUCKET
 		writeParam('SqsVpcEndpoint', sqsVpcEndpoint.vpcEndpointId)
-		writeParam('LogGroup', logGroup.logGroupName)		 	//LOG_GROUP_NAME
+		writeParam('LogGroup', logGroupServices.logGroupName)		 	//LOG_GROUP_NAME
 		writeParam('InputQueueUrl', sqsInputQ.queueUrl)		// AWS_SQS_INPUT_QUEUE
 		writeParam('InputQueueName', sqsInputQ.queueName)
 		writeParam('FeederQueueUrl', feederQ.queueUrl)		// AWS_FEEDER_QUEUE
@@ -191,7 +195,7 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 		databaseName: 'arblacklist',  //legacy
 		credentials: {
 			username: 'postgres',
-			password: cdk.SecretValue.plainText('postgres'),
+			password: cdk.SecretValue.unsafePlainText('postgres'),
 		},
 		vpcSubnets: {
 			subnetType: cdk.aws_ec2.SubnetType.PRIVATE_WITH_EGRESS,
