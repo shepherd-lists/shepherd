@@ -15,4 +15,4 @@ cdk.context.json
 cdk.out*
 .nx/cache
 config.*.ts
-!cdk.example.ts
+!config.example.ts
