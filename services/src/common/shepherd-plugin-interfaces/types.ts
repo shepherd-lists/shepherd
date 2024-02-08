@@ -10,6 +10,7 @@ export interface TxScanned {
 	height: number
 	parent: string | null
 	parents?: string[] | undefined
+	owner: string | null
 }
 export interface TxRecord extends TxScanned, TxFlaggedOptions {
 	flagged: boolean

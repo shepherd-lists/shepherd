@@ -34,6 +34,7 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		'byteStart',
 		'byteEnd',
 		'parents',
+		'owner',
 	]
 
 	let trx: Knex.Transaction

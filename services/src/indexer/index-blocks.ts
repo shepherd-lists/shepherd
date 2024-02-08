@@ -50,6 +50,7 @@ const queryGoldskyWild = `query($cursor: String, $minBlock: Int, $maxBlock: Int)
 				tags{ name value }
 				block{ height }
 				parent{ id }
+				owner{ address }
 			}
 		}
 	}
@@ -100,6 +101,7 @@ const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 				tags{ name value }
 				block{ height }
 				parent{ id }
+				owner{ address }
 			}
 		}
 	}
@@ -212,6 +214,7 @@ const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 		const height = item.node.block.height // missing height should not happen and cause `TypeError : Cannot read properties of null (reading 'height')`
 		const parent = item.node.parent?.id || null // the direct parent, if exists
 		const parents: string[] = []
+		const owner = item.node.owner?.address || null
 
 		// loop to find all nested parents
 		if(parent){
@@ -259,6 +262,7 @@ const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 			height,
 			parent,
 			...(parents.length > 0 && { parents }), //leave `parents` null if not nested
+			owner,
 		})
 	}
 
