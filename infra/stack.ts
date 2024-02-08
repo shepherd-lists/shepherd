@@ -48,7 +48,7 @@ export const createStack = async (app: App, config: Config) => {
 	) => {
 		const Name = name.charAt(0).toUpperCase() + name.slice(1)
 		const dockerImage = new aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
-			directory: new URL('..', import.meta.url).pathname, //parent folder
+			directory: new URL(`../services/${name}`, import.meta.url).pathname,
 			exclude: ['cdk.out*', 'node_modules', 'test', 'infra'],
 			target: name,
 			assetName: `${name}-image`,

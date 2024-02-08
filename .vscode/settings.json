@@ -9,5 +9,6 @@
 	"[typescriptreact]": {
 		"editor.defaultFormatter": "vscode.typescript-language-features"
 	},
-	"editor.formatOnSave": true // Optional: Enable format on save
+	"editor.formatOnSave": true,
+	"typescript.tsdk": "node_modules/typescript/lib" // Optional: Enable format on save
 }
