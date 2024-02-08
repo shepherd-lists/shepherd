@@ -1,0 +1,13 @@
+{
+	"eslint.enable": false,
+	"editor.codeActionsOnSave": {
+		"source.fixAll.eslint": "never"
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "vscode.typescript-language-features"
+	},
+	"[typescriptreact]": {
+		"editor.defaultFormatter": "vscode.typescript-language-features"
+	},
+	"editor.formatOnSave": true // Optional: Enable format on save
+}
