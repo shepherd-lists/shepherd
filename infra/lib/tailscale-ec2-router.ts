@@ -9,10 +9,10 @@ const globalParam = async (name: string, ssm: SSMClient) => (await ssm.send(new 
 
 let TS_AUTHKEY: string
 const region = await (new SSMClient({})).config.region()
-if (region == 'ap-southeast-1') {
+if(region == 'ap-southeast-1'){
 	console.info('INFO: using dev authkey for tailscale')
 	TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' })) //THIS IS FOR DEV ONLY.
-} else {
+}else{
 	console.info('INFO: using prod authkey for tailscale')
 	TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'eu-west-2' }))
 }
@@ -41,7 +41,7 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 	securityGroup.addIngressRule(aws_ec2.Peer.ipv4(vpc.vpcCidrBlock), aws_ec2.Port.allTraffic(), 'allow traffic from within the vpc')
 
 	/** instance */
-	const instance = new aws_ec2.Instance(stack, "tsSubRouterInstance", {
+	const instance = new aws_ec2.Instance(stack, 'tsSubRouterInstance', {
 		vpc,
 		role,
 		instanceType: new aws_ec2.InstanceType('t3a.nano'), // t3a.nano is cheapest

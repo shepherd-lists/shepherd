@@ -27,7 +27,6 @@ export const createStack = (app: App, config: Config) => {
 			account: process.env.CDK_DEFAULT_ACCOUNT,
 			region: config.region,
 		},
-		stackName: 'nsfw',
 		description: 'nsfw addon stack',
 	})
 

@@ -6,7 +6,7 @@ import { ServicesStack } from './services/infra/stack'
 const configName = process.argv[2]
 
 const config: Config = (await import(`./config.${configName}.ts`)).config
-if (!config) throw new Error(`config not set. configName: ${configName}`)
+if(!config) throw new Error(`config not set. configName: ${configName}`)
 
 const app = new App()
 
@@ -28,7 +28,7 @@ new ServicesStack(app, 'ServicesStack', {
 })
 
 /** addons. these get imported a little differently as they don't use classes. */
-for (const addon of config.plugins) {
+for(const addon of config.plugins){
 	const { createStack } = await import(`./addons/${addon}/infra/stack`)
 	createStack(app, config)
 }

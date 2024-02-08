@@ -1,10 +1,10 @@
 /**
  * this needs pgdb port 5432 opened in docker-compose.override.yml
- * run with: npx ts-node db-scripts/insert-heights.ts 
+ * run with: npx ts-node db-scripts/insert-heights.ts
  */
-import axios from "axios";
-import { TxRecord } from "../src/common/shepherd-plugin-interfaces/types";
-import dbConnection from "../src/common/utils/db-connection";
+import axios from 'axios'
+import { TxRecord } from '../src/common/shepherd-plugin-interfaces/types'
+import dbConnection from '../src/common/utils/db-connection'
 import col from 'ansi-colors'
 import { performance } from 'perf_hooks'
 
@@ -16,7 +16,7 @@ const main = async()=> {
 	/* create txs_temp table */
 
 	await knex.schema.createTable('txs_temp', (table)=>{
-		table.increments('id') 
+		table.increments('id')
 		table.specificType('txid', 'char(43)').unique().notNullable()
 		table.text('content_type').notNullable()
 		table.bigInteger('content_size').notNullable() //returns string
@@ -33,8 +33,8 @@ const main = async()=> {
 	/* stream values from txs->txs_temp + add height values retrieved from gql */
 
 	const stream = knex<TxRecord>('txs').select(
-		'txid', 
-		'content_type', 
+		'txid',
+		'content_type',
 		'content_size',
 		'flagged',
 		'valid_data',
@@ -53,7 +53,7 @@ const main = async()=> {
 		let heights = []
 		if(++count % 100 === 0){
 			const t0 = performance.now()
-			
+
 			let done = false
 			while(!done){
 				try{
@@ -63,9 +63,9 @@ const main = async()=> {
 					console.log(col.redBright(`Error! Waiting 2 mins..${e}`))
 					await sleep(120000)
 				}
-			} 
+			}
 
-			for (let i = 0; i < records.length; i++) {
+			for(let i = 0; i < records.length; i++){
 				records[i].height = heights[i]
 			}
 
@@ -76,11 +76,11 @@ const main = async()=> {
 			if(count % 10000===0) console.log('count', count)
 
 			const tProcess = performance.now() - t0
-			let timeout = 100 - tProcess
+			const timeout = 100 - tProcess
 			if(timeout > 0){
 				process.stdout.write('_') //denotes normal processing time
 				// console.log(`process time ${tProcess.toFixed(0)} ms. pausing for ${timeout.toFixed(0)}ms`)
-				// await sleep(timeout) //slow down, we're getting rate-limited 
+				// await sleep(timeout) //slow down, we're getting rate-limited
 			}else{
 				process.stdout.write('-') //denotes that processing took longer than normal
 			}
@@ -92,17 +92,17 @@ const main = async()=> {
 		let heights = []
 
 		let done = false
-			while(!done){
-				try{
-					heights = await gqlHeights(txids)
-					done = true
-				}catch(e){
-					console.log(col.redBright(`Error! Waiting 2 mins..${e}`))
-					await sleep(120000)
-				}
-			} 
+		while(!done){
+			try{
+				heights = await gqlHeights(txids)
+				done = true
+			}catch(e){
+				console.log(col.redBright(`Error! Waiting 2 mins..${e}`))
+				await sleep(120000)
+			}
+		}
 
-		for (let i = 0; i < records.length; i++) {
+		for(let i = 0; i < records.length; i++){
 			records[i].height = heights[i]
 		}
 		await knex<TxRecord>('txs_temp').insert(records).onConflict('txid').ignore()
@@ -123,7 +123,7 @@ const main = async()=> {
 
 	knex.destroy()
 }
-main();
+main()
 
 const gqlHeights = async(txids: string[])=> {
 	/* querying by hand */
@@ -152,11 +152,11 @@ const gqlHeights = async(txids: string[])=> {
 	}
 
 	const { data } = await axios.post(
-		'https://arweave.net/graphql', 
-		JSON.stringify({ query, variables }), 
+		'https://arweave.net/graphql',
+		JSON.stringify({ query, variables }),
 		{ headers: {'content-type': 'application/json'} },
 	)
-	
+
 	const edges = data.data.transactions.edges
 	const heights = []
 	for(const edge of edges){
@@ -164,7 +164,7 @@ const gqlHeights = async(txids: string[])=> {
 	}
 	if(heights.length !== edges.length){
 		throw new Error('ERROR, NUM HEIGHTS !== NUM TXIDS')
-	} 
+	}
 
-	return heights;
+	return heights
 }

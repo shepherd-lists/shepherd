@@ -1,7 +1,7 @@
-import * as cdk from 'aws-cdk-lib';
-import { Construct } from 'constructs';
-import { inputQMetricAndNotifications } from './lib/queue-notifications';
-import { createTailscaleSubrouter } from './lib/tailscale-ec2-router';
+import * as cdk from 'aws-cdk-lib'
+import { Construct } from 'constructs'
+import { inputQMetricAndNotifications } from './lib/queue-notifications'
+import { createTailscaleSubrouter } from './lib/tailscale-ec2-router'
 import { Config } from '../Config'
 
 
@@ -11,13 +11,13 @@ interface InfraStackProps extends cdk.StackProps {
 
 export class InfraStack extends cdk.Stack {
 	constructor(app: Construct, id: string, props: InfraStackProps) {
-		super(app, id, props);
+		super(app, id, props)
 		const stack = this // idc for `this`
 
 		const { config } = props
-		if (!config) throw new Error('config not set')
-		if (!config.cidr) throw new Error('config.cidr not set')
-		if (!config.slack_public) throw new Error('config.slack_public not set')
+		if(!config) throw new Error('config not set')
+		if(!config.cidr) throw new Error('config.cidr not set')
+		if(!config.slack_public) throw new Error('config.slack_public not set')
 
 		/** create the main network stack */
 
@@ -26,7 +26,7 @@ export class InfraStack extends cdk.Stack {
 			vpcName,
 			maxAzs: 2,
 			// natGateways: 1, //defaults to 1 per AZ
-			/** 
+			/**
 			 * need separate cidr for each vpc / shepherd installation, if we are connecting them via vpn peering / tailnet.
 			 * n.b. legacy shepherd uses '10.0.0.0/16', maybe we need peering during cdk migration?
 			 */
@@ -45,7 +45,7 @@ export class InfraStack extends cdk.Stack {
 			],
 		})
 
-		// N.B. removing cluster to services stack 
+		// N.B. removing cluster to services stack
 
 
 		const alb = new cdk.aws_elasticloadbalancingv2.ApplicationLoadBalancer(this, 'alb', {
@@ -67,7 +67,7 @@ export class InfraStack extends cdk.Stack {
 		/** log group for infra only stuff */
 		const logGroupInfra = new cdk.aws_logs.LogGroup(this, 'logGroupInfra', {
 			logGroupName: 'shepherd-infra-logs',
-			retention: cdk.aws_logs.RetentionDays.THREE_MONTHS,
+			retention: cdk.aws_logs.RetentionDays.ONE_MONTH,
 			removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
 		})
 
