@@ -38,7 +38,7 @@ console.info(config)
 
 
 logHeading(`exec cdk commands on stacks... (${config.region})`)
-let cdkCommand = `npx cdk -a 'npx tsx app.ts ${options.config}' ${program.args.join(' ')}`
+let cdkCommand = `AWS_REGION=${config.region} npx cdk -a 'npx tsx app.ts ${options.config}' ${program.args.join(' ')}`
 
 if (program.args.length > 0) {
 	if (program.args[0] === 'deploy') {
