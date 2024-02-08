@@ -5,9 +5,8 @@ node_modules
 NOTES.txt
 *.log
 .DS_Store
-.vscode/settings.json
 *.tgz
-.vscode
+
 _dev*/
 _prod*/
 docker-compose.override.yml
