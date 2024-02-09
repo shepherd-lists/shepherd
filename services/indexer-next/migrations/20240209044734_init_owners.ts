@@ -3,11 +3,11 @@ import type { Knex } from "knex";
 
 export async function up(knex: Knex): Promise<void> {
 	await knex.schema.createTable('owners_whitelist', (table) => {
-		table.string('owner').primary()
+		table.specificType('owner', 'char(43)').primary()
 		table.dateTime('last_update').defaultTo(knex.fn.now())
 	})
 	await knex.schema.createTable('owners_list', (table) => {
-		table.string('owner').primary()
+		table.specificType('owner', 'char(43)').primary()
 		table.dateTime('last_update').defaultTo(knex.fn.now())
 		table.integer('infractions').defaultTo(0).index()
 	})
