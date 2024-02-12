@@ -6,7 +6,7 @@
  */
 import Arweave from 'arweave'
 import { fetchRetryConnection } from './fetch-retry'
-import { HOST_URL } from '../../common/constants'
+import { HOST_URL } from '../../utils/constants'
 import moize from 'moize'
 
 
@@ -15,24 +15,24 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 //bundlr style conversion
 const byteArrayToNumber = (buffer: Uint8Array): number => {
 	let value = 0
-	for(let i = buffer.length - 1; i >=0; --i){
+	for (let i = buffer.length - 1; i >= 0; --i) {
 		value = value * 256 + buffer[i]
 	}
 	return value
 }
 
-const readEnoughBytes = async(
+const readEnoughBytes = async (
 	reader: ReadableStreamDefaultReader,
 	buffer: Uint8Array,
 	length: number,
 ): Promise<Uint8Array> => {
 	// process.env['NODE_ENV'] === 'test' && console.log(buffer.byteLength)
 
-	if(buffer.byteLength > length) return buffer!
+	if (buffer.byteLength > length) return buffer!
 
 	let { done, value } = await reader.read()
 
-	if(done && !value) throw new Error('Invalid stream buffer')
+	if (done && !value) throw new Error('Invalid stream buffer')
 
 	//concat and clean up old buffers for gc
 	const joined = concatByteArray(buffer, value)
@@ -49,17 +49,17 @@ const concatByteArray = (a: Uint8Array, b: Uint8Array) => {
 }
 
 /* handle errors during the stream */
-const fetchHeader = async(parent: string)=> {
-	while(true){
+const fetchHeader = async (parent: string) => {
+	while (true) {
 		let reader: ReadableStreamDefaultReader<Uint8Array>
-		try{
+		try {
 			/* start the stream connection */
 
 			let header = new Uint8Array(0)
 
-			const { aborter, res: { status, body: stream} } = await fetchRetryConnection(`${HOST_URL}/${parent}`)
+			const { aborter, res: { status, body: stream } } = await fetchRetryConnection(`${HOST_URL}/${parent}`)
 			//pass 404s up
-			if(status === 404) return {
+			if (status === 404) return {
 				status,
 				header,
 				numDataItems: -1,
@@ -74,12 +74,12 @@ const fetchHeader = async(parent: string)=> {
 			const numDataItems = byteArrayToNumber(header.slice(0, 32))
 			const totalHeaderLength = 64 * numDataItems + 32
 
-			if(process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`, {numDataItems, totalHeaderLength})
+			if (process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`, { numDataItems, totalHeaderLength })
 
 			//read bytes for the rest of the header index
 			header = await readEnoughBytes(reader, header, totalHeaderLength)
 
-			if(process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`)
+			if (process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`)
 
 			/* close the stream & return results */
 			aborter!.abort()
@@ -93,7 +93,7 @@ const fetchHeader = async(parent: string)=> {
 				headerLength: BigInt(totalHeaderLength),
 			}
 
-		}catch(e){
+		} catch (e) {
 			reader!.releaseLock()
 			//can we just retry everything?
 			const retryMs = 10_000
@@ -104,12 +104,12 @@ const fetchHeader = async(parent: string)=> {
 	}
 }
 
-const ans104HeaderDataUnmemoized = async(parent: string)=> {
+const ans104HeaderDataUnmemoized = async (parent: string) => {
 
 	/* get data stream */
 
 	let { status, header, numDataItems, headerLength } = await fetchHeader(parent)
-	if(status === 404) return {
+	if (status === 404) return {
 		status,
 		numDataItems,
 		diIds: [] as string[],
@@ -122,7 +122,7 @@ const ans104HeaderDataUnmemoized = async(parent: string)=> {
 	const diIds: string[] = []
 	const diSizes: number[] = []
 
-	for(let i = 0; i < numDataItems; i++){
+	for (let i = 0; i < numDataItems; i++) {
 		const base = 32 + i * 64
 		const nextSize = byteArrayToNumber(header.subarray(
 			base,
