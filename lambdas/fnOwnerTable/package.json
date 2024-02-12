@@ -1,0 +1,11 @@
+{
+  "name": "fnflagowner",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@types/pg": "^8.11.0",
+    "pg": "^8.11.3"
+  }
+}
