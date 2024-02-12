@@ -1,0 +1,20 @@
+export interface OwnerTableRecord {
+	txid: string
+	parent: string | null
+	parents: string[] | null
+	byte_start?: string
+	byte_end?: string
+	last_update?: Date //default to now on creation
+}
+
+export interface OwnerWhitelistRecord {
+	owner: string
+	last_update: Date
+}
+
+export interface OwnersListRecord {
+	owner: string
+	last_update: Date
+	infractions: number
+}
+
