@@ -18,20 +18,14 @@ const config = {
 	idleTimeoutMillis: 120_000,
 }
 
-let pool: pg.Pool
-try {
-	pool = new pg.Pool({
-		...config,
-		ssl: true,
-	})
-} catch (err: unknown) {
-	const e = err as Error
-	console.error({ logType: 'warn', message: `failed connecting with SSL, attempting without: ${e.message}` })
-	pool = new pg.Pool({
-		...config,
-		ssl: false,
-	})
-}
+
+const pool = new pg.Pool({
+	...config,
+	ssl: {
+		rejectUnauthorized: false, //ignore ssl cert (firewalls and a private network)
+	},
+})
+
 
 pool.on('error', (e, client) => {
 	console.error({ logType: 'error', message: `pg-error: ${e.message} ${e.stack}` })
