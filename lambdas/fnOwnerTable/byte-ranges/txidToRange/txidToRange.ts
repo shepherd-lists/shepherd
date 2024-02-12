@@ -1,4 +1,3 @@
-import axios, { AxiosError } from 'axios'
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, } from './constants-byteRange'
 import { HOST_URL } from '../../utils/constants'
 import { ans104HeaderData } from './ans104HeaderData'
@@ -85,7 +84,7 @@ export const txidToRange = async (id: string, parent: string | null, parents: st
 }
 
 const offsetL1 = async (id: string): Promise<ByteRange> => {
-	const { data: { offset: end, size } } = await axiosRetryUnmemoized(`/tx/${id}/offset`, id)
+	const { offset: end, size } = await axiosRetryUnmemoized(`/tx/${id}/offset`, id)
 	const modEnd = (BigInt(end) - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE
 	const addEnd = modEnd === 0n ? 0n : CHUNK_SIZE - modEnd
 
@@ -103,7 +102,7 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 
 	const L1Parent = parents ? parents[parents.length - 1] : parent
 
-	const { data: { offset: strL1End, size: strL1Size } } = await axiosRetry(`/tx/${L1Parent}/offset`, txid)
+	const { offset: strL1End, size: strL1Size } = await axiosRetry(`/tx/${L1Parent}/offset`, txid)
 	const L1WeaveEnd = BigInt(strL1End)
 	const L1WeaveSize = BigInt(strL1Size)
 	const L1WeaveStart = L1WeaveEnd - L1WeaveSize
@@ -214,22 +213,27 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const axiosRetryUnmemoized = async (url: string, id: string) => {
 	while (true) {
 		try {
-			return await axios.get(HOST_URL + url)
-		} catch (err: unknown) {
-			const e = err as AxiosError & { statusCode?: number }
-			//no point retrying 404 errors?
-			const status = Number(e.response?.status) || Number(e.statusCode) || null
-			if (status === 404) {
-				console.log(axiosRetryUnmemoized.name, `Error fetching byte-range data with '${HOST_URL + url}' Not retrying.`, e.name, e.message, '. child-id', id)
+			const res = await fetch(HOST_URL + url)
 
+			if (res.status === 404) throw new Error('404')
+			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+
+			return await res.json() as { offset: string, size: string }
+
+		} catch (err: unknown) {
+			const e = err as Error
+			//no point retrying 404 errors?
+			if (e.message === '404') {
+				console.error(axiosRetryUnmemoized.name, `Error fetching byte-range data with '${HOST_URL + url}' Not retrying.`, e.name, e.message, '. child-id', id)
 				throw e
 			}
-			console.log(axiosRetryUnmemoized.name, `Error fetching byte-range data with '${HOST_URL + url}' Retrying in 10secs..`, e.name, e.message, id)
+			console.error(axiosRetryUnmemoized.name, `Error fetching byte-range data with '${HOST_URL + url}' Retrying in 10secs..`, e.name, e.message, id)
 			await sleep(10000)
 		}
 	}
 }
 const axiosRetry = moize(axiosRetryUnmemoized, { maxSize: 1000, isPromise: true })
+
 const gqlTxRetryUnmemoized = async (id: string, gql: ArGqlInterface) => {
 	while (true) {
 		try {
