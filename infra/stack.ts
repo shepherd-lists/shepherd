@@ -1,4 +1,4 @@
-import { App, Duration, Stack, aws_ec2, aws_ecs, aws_lambda, aws_lambda_nodejs, aws_logs, aws_ssm } from 'aws-cdk-lib'
+import { App, Duration, Stack, aws_ec2, aws_ecs, aws_iam, aws_lambda, aws_lambda_nodejs, aws_logs, aws_ssm } from 'aws-cdk-lib'
 import { Config } from '../../../Config'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { createAddonService } from './createService'
@@ -48,5 +48,13 @@ export const createStack = async (app: App, config: Config) => {
 		SLACK_WEBHOOK: config.slack_webhook!,
 		GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 		GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
+		FN_OWNER_TABLE: fnOwnerTable.functionName
 	})
+	/* allow service to invoke lambda fnOwnerTable */
+	service.taskDefinition.taskRole?.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['lambda:InvokeFunction'],
+		resources: [fnOwnerTable.functionArn],
+	}))
+
+
 }
