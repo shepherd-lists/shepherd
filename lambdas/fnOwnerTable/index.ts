@@ -1,4 +1,4 @@
-import pg from './utils/pgClient'
+import pg, { batchInsert } from './utils/pgClient'
 import { slackLog } from './utils/slackLog'
 import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
 import { OwnerTableRecord } from './types'
@@ -10,24 +10,28 @@ import { getByteRange } from './byte-ranges/byteRanges'
 const gql = arGql(GQLUrls.goldsky)
 const gqlBackup = arGql(GQLUrls.arweave)
 const query = `
-query($cursor: String) {
+query($cursor: String, $owner: String!) {
   transactions(
     # your query parameters
-    owners: "v2XXwq_FvVqH2KR4p_x8H-SQ7rDwZBbykSv-59__Avc"
+    owners: [$owner]
+    tags: [
+      {name:"Bundle-Version", op:NEQ},
+      {name: "type", values: "redstone-oracles", op: NEQ},
+    ]
+    
     # standard template below
     after: $cursor
     first: 100
   ) {
-    pageInfo {
-      hasNextPage
-    }
+    pageInfo{hasNextPage}
+
     edges {
       cursor
       node {
         # what tx data you want to query for:
         id
         parent{id}
-				data{size}
+        data{size}
       }
     }
   }
@@ -47,6 +51,10 @@ const getParent = moize(
 
 export const handler = async (event: any) => {
 	console.log('event', event)
+	const inputs = event as { owner: string, tablename: string }
+	if (!inputs.owner || !inputs.tablename) {
+		throw new Error('missing inputs. should have { "owner": "string", "tablename": "string" }')
+	}
 
 	/** plan:
 	 * receive tableName & owner
@@ -55,13 +63,19 @@ export const handler = async (event: any) => {
 	 * batch inserts to db, gql page at a time
 	 */
 	const records: OwnerTableRecord[] = []
-
-	await gql.all(query, {}, async (page) => {
+	const variables = {
+		owner: inputs.owner,
+		// cursor: '',
+	}
+	const counts = { page: 0, items: 0, inserts: 0 }
+	await gql.all(query, variables, async (page) => {
+		console.info('processing page', ++counts.page)
 		await Promise.all(page.map(async ({ node }) => {
+			counts.items++
 
 			/** skip small files */
 			if (+node.data.size < 1_000) {
-				console.log(`file too small ${node.data.size}`, JSON.stringify(node))
+				console.log(`file too small, size: ${node.data.size}, txid: ${node.id}`)
 				return;
 			}
 
@@ -99,6 +113,7 @@ export const handler = async (event: any) => {
 			}
 
 			/** add to records */
+			counts.inserts++
 			records.push({
 				txid,
 				parent,
@@ -108,12 +123,12 @@ export const handler = async (event: any) => {
 			})
 		})) //eo promise.all(map)
 
-
+		// /** batch insert this pages results */
+		const inserted = await batchInsert(records, inputs.tablename)
 
 	})
 
-
-
+	console.info(`completed processing ${JSON.stringify(counts)}`)
 
 
 	return event
