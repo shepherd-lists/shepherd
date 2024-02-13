@@ -219,7 +219,7 @@ export const dataStream = async(txid: string, dbMime: string)=> {
 				slackLogger(dataStream.name, 'UNHANDLED. Something unexpected happened before `end` was emitted', txid, received, contentLength)
 			}
 		}else{ //end was called
-			if(received < 125n){
+			if(received < 1000n){
 				logger(dataStream.name, 'negligible data detected', received, txid)
 				await dbNegligibleData(txid)
 				await s3Delete(txid)
