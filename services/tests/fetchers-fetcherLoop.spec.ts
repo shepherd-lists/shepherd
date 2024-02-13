@@ -33,7 +33,7 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 		sinon.stub(Fetchers, 'dataStream').resolves(readStream as unknown as IncomingMessage)
 
 		const spyS3Stream = sinon.spy(S3Services, 's3UploadStream')
-		const spyDeleteMessage = sinon.spy(Fetchers, 'deleteMessage')
+		const stubDeleteMessage = sinon.stub(Fetchers, 'deleteMessage').resolves()
 
 		/* run the function to be tested */
 
@@ -44,7 +44,7 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 		expect(spyS3Stream.callCount).eq(1, 's3UploadStream was not called')
 		expect(spyS3Stream.firstCall.returnValue).to.eventually.eq('OK', 's3UploadStream didn\'t return OK')
 
-		expect(spyDeleteMessage.callCount).eq(1, 'deleteMessage was not called')
+		expect(stubDeleteMessage.callCount).eq(1, 'deleteMessage was not called')
 
 	}).timeout(0)
 
@@ -67,7 +67,7 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 		const stubDbNoDataFound404 = sinon.stub(DbUpdate, 'dbNoDataFound404').resolves()
 
 		const spyS3Stream = sinon.spy(S3Services, 's3UploadStream')
-		const spyDeleteMessage = sinon.spy(Fetchers, 'deleteMessage')
+		const stubDeleteMessage = sinon.stub(Fetchers, 'deleteMessage').resolves()
 
 		/* run the function to be tested */
 
@@ -78,7 +78,7 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 		expect(spyS3Stream.callCount).eq(0, 's3UploadStream should not be called')
 		expect(stubDbNoDataFound404.callCount).eq(1, 'dbNoDataFound404 should be called')
 
-		expect(spyDeleteMessage.callCount).eq(1, 'deleteMessage should be called')
+		expect(stubDeleteMessage.callCount).eq(1, 'deleteMessage should be called')
 
 	}).timeout(0)
 
@@ -132,7 +132,7 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 		mockStream.end()
 		sinon.stub(Fetchers, 'dataStream').resolves(mockStream as unknown as IncomingMessage)
 
-		const spyDeleteMessage = sinon.spy(Fetchers, 'deleteMessage')
+		const stubDeleteMessage = sinon.stub(Fetchers, 'deleteMessage').resolves()
 		const spyS3Stream = sinon.spy(S3Services, 's3UploadStream')
 
 		setTimeout(()=> mockStream.emit('error', new Error('NEGLIGIBLE_DATA')))
@@ -141,7 +141,7 @@ describe('fetchers `fetcherLoop` tests', ()=>{
 
 		expect(spyS3Stream.callCount, 's3Delete should be called once').eq(1)
 		expect(spyS3Stream.firstCall.returnValue, 's3UploadStream should return `ABORTED`').to.eventually.eq('ABORTED')
-		expect(spyDeleteMessage.callCount, 'deleteMessage should be called once').eq(1)
+		expect(stubDeleteMessage.callCount, 'deleteMessage should be called once').eq(1)
 
 
 	}).timeout(0)
