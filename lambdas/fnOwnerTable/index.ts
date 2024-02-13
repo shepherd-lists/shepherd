@@ -63,7 +63,6 @@ export const handler = async (event: any) => {
 		 * calculate ranges
 		 * batch inserts to db, gql page at a time
 		 */
-		const records: OwnerTableRecord[] = []
 		const variables = {
 			owner: inputs.owner,
 			// cursor: '',
@@ -71,6 +70,8 @@ export const handler = async (event: any) => {
 		const counts = { page: 0, items: 0, inserts: 0 }
 		await gql.all(query, variables, async (page) => {
 			console.info('processing page', ++counts.page)
+			const records: OwnerTableRecord[] = []
+
 			await Promise.all(page.map(async ({ node }) => {
 				counts.items++
 
@@ -94,7 +95,7 @@ export const handler = async (event: any) => {
 						try {
 							p = await getParent(p0, gql)
 						} catch (eOuter: unknown) {
-							console.error(`getParent error: "${(eOuter as Error).message}" while fetching parent: "${p}" for dataItem: ${txid} using gqlProvider: ${gql.endpointUrl}. Trying gqlBackup now.`)
+							console.error(`getParent warning: "${(eOuter as Error).message}" while fetching parent: "${p}" for dataItem: ${txid} using gqlProvider: ${gql.endpointUrl}. Trying gqlBackup now.`)
 							try {
 								p = await getParent(p0, gqlBackup)
 							} catch (eInner: unknown) {
@@ -135,7 +136,7 @@ export const handler = async (event: any) => {
 		return event
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog(`${e.name}:${e.message}`)
+		await slackLog(`${e.name}:${e.message}`, JSON.stringify(e))
 		throw e
 	}
 }
