@@ -2,6 +2,7 @@ import { App, Duration, Stack, aws_ec2, aws_ecs, aws_lambda, aws_lambda_nodejs, 
 import { Config } from '../../../Config'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { createAddonService } from './createService'
+import { createFn } from './createFn'
 
 /** import params */
 const readParamSdk = async (name: string) => {
@@ -35,27 +36,17 @@ export const createStack = async (app: App, config: Config) => {
 	const logGroupServices = aws_logs.LogGroup.fromLogGroupName(stack, 'services-logs', readParamCfn('LogGroup'))
 	const cluster = aws_ecs.Cluster.fromClusterAttributes(stack, 'shepherd-cluster', { vpc, clusterName: readParamCfn('ClusterName') })
 
-	/** create indexer-next service */
-	const service = createAddonService('indexer-next', { stack, cluster, logGroup: logGroupServices, config, rdsEndpoint })
-
 	/** create lambda to flag and process an owners txids into byte-ranged */
-	const name = 'fnOwnerTable'
-	const fnOwnerTable = new aws_lambda_nodejs.NodejsFunction(stack, name, {
-		runtime: aws_lambda.Runtime.NODEJS_20_X,
-		architecture: aws_lambda.Architecture.X86_64,
-		handler: 'handler',
-		entry: new URL(`../lambdas/${name}/index.ts`, import.meta.url).pathname,
-		bundling: {
-			format: aws_lambda_nodejs.OutputFormat.ESM,
-			banner: 'import { createRequire } from \'module\';const require = createRequire(import.meta.url);',
-		},
-		timeout: Duration.minutes(15), //max
-		environment: {
-			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: config.slack_webhook!,
-		},
-		vpc,
-		vpcSubnets: { subnetType: aws_ec2.SubnetType.PRIVATE_WITH_EGRESS },
-		securityGroups: [sgPgdb,],
+	const fnOwnerTable = await createFn('fnOwnerTable', stack, vpc, [sgPgdb], {
+		DB_HOST: rdsEndpoint,
+		SLACK_WEBHOOK: config.slack_webhook!
+	})
+
+	/** create indexer-next service */
+	const service = createAddonService('indexer-next', stack, cluster, logGroupServices, {
+		DB_HOST: rdsEndpoint,
+		SLACK_WEBHOOK: config.slack_webhook!,
+		GQL_URL: config.gql_url || 'https://arweave.net/graphql',
+		GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 	})
 }

@@ -1,18 +1,16 @@
 import { Stack, aws_ecr_assets, aws_ecs, aws_logs } from 'aws-cdk-lib'
-import { Config } from '../../../Config'
 
 
 /** from template for a standard addon service (w/o cloudmap) */
 interface FargateBuilderProps {
-	stack: Stack
-	cluster: aws_ecs.ICluster
-	logGroup: aws_logs.ILogGroup
-	config: Config
-	rdsEndpoint: string
+
 }
 export const createAddonService = (
 	name: string,
-	{ stack, cluster, logGroup, config, rdsEndpoint }: FargateBuilderProps,
+	stack: Stack,
+	cluster: aws_ecs.ICluster,
+	logGroup: aws_logs.ILogGroup,
+	environment: Record<string, string> = {},
 ) => {
 	const Name = name.charAt(0).toUpperCase() + name.slice(1)
 	const dockerImage = new aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
@@ -35,12 +33,7 @@ export const createAddonService = (
 			streamPrefix: name,
 		}),
 		containerName: `${name}Container`,
-		environment: {
-			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: config.slack_webhook!,
-			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
-			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
-		},
+		environment,
 	})
 	const fg = new aws_ecs.FargateService(stack, `fg${Name}`, {
 		cluster,
