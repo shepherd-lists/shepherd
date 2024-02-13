@@ -3,6 +3,7 @@ import { slackLog } from './utils/slackLog'
 import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
 import { OwnerTableRecord } from './types'
 import moize from 'moize/mjs/index.mjs'
+import { getByteRange } from './byte-ranges/byteRanges'
 
 
 
@@ -56,14 +57,18 @@ export const handler = async (event: any) => {
 	const records: OwnerTableRecord[] = []
 
 	await gql.all(query, {}, async (page) => {
-		for (const { node } of page) {
+		await Promise.all(page.map(async ({ node }) => {
+
+			/** skip small files */
 			if (+node.data.size < 1_000) {
 				console.log(`file too small ${node.data.size}`, JSON.stringify(node))
-				continue;
+				return;
 			}
+
+			/** build records */
 			const txid = node.id
 			const parent = node.parent?.id || null
-			let parents: string[] | null = []
+			let parents: string[] | undefined = []
 
 			// loop to find all nested parents
 			if (parent) {
@@ -83,18 +88,28 @@ export const handler = async (event: any) => {
 					}
 				} while (p && parents.push(p))
 			}
-			parents = parents.length === 0 ? null : parents
+			parents = parents.length === 0 ? undefined : parents
 
 			/** calculate byte-range */
+			const range = await getByteRange(txid, parent, parents)
 
+			if (range.start === -1n) {
+				console.error(`Error in range calculation for txid: ${txid}`)
+				return;
+			}
+
+			/** add to records */
 			records.push({
 				txid,
 				parent,
 				parents,
-				byte_start,
-				byte_end,
+				byte_start: range.start.toString(),
+				byte_end: range.end.toString(),
 			})
-		}
+		})) //eo promise.all(map)
+
+
+
 	})
 
 
