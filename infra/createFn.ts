@@ -26,4 +26,5 @@ export const createFn = async (
 		securityGroups,
 	})
 
+	return fnOwnerTable;
 }
