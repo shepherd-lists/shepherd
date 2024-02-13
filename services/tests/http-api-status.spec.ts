@@ -13,7 +13,8 @@ const mockRecord: TxScanned = {
 	content_size: '100',
 	content_type: 'test/dummy',
 	height: 123,
-	parent: null
+	parent: null,
+	owner: '123456789_123456789_123456789_123456789_123',
 }
 
 describe('http-api tests', ()=>{

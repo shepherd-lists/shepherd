@@ -13,13 +13,13 @@ const knex = dbConnection()
 describe('indexer tests', ()=>{
 
 	const height1record1: TxScanned = {
-		txid: '01-abcdefghijabcdefghijabcdefghijabcdefghij', content_size: '123', content_type: 'fake', height: 1, parent: null
+		txid: '01-abcdefghijabcdefghijabcdefghijabcdefghij', content_size: '123', content_type: 'fake', height: 1, parent: null, owner: '123456789_123456789_123456789_123456789_123',
 	}
 	const height1record2: TxScanned = {
-		txid: '02-abcdefghijabcdefghijabcdefghijabcdefghij', content_size: '123', content_type: 'fake', height: 1, parent: null
+		txid: '02-abcdefghijabcdefghijabcdefghijabcdefghij', content_size: '123', content_type: 'fake', height: 1, parent: null, owner: '123456789_123456789_123456789_123456789_123',
 	}
 	const height2record3: TxScanned = {
-		txid: '03-abcdefghijabcdefghijabcdefghijabcdefghij', content_size: '123', content_type: 'fake', height: 2, parent: null
+		txid: '03-abcdefghijabcdefghijabcdefghijabcdefghij', content_size: '123', content_type: 'fake', height: 2, parent: null, owner: '123456789_123456789_123456789_123456789_123',
 	}
 
 	/** let's not assume previous unit tests set test data correctly */
