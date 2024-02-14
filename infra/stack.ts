@@ -40,7 +40,7 @@ export const createStack = async (app: App, config: Config) => {
 	const fnOwnerTable = await createFn('fnOwnerTable', stack, vpc, [sgPgdb], {
 		DB_HOST: rdsEndpoint,
 		SLACK_WEBHOOK: config.slack_webhook!
-	})
+	}, Duration.minutes(15), logGroupServices)
 
 	/** create indexer-next service */
 	const service = createAddonService('indexer-next', stack, cluster, logGroupServices, {
