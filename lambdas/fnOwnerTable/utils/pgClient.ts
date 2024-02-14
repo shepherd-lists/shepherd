@@ -18,7 +18,6 @@ const config = {
 	idleTimeoutMillis: 120_000,
 }
 
-
 const pool = new pg.Pool({
 	...config,
 	ssl: {
@@ -26,11 +25,46 @@ const pool = new pg.Pool({
 	},
 })
 
-
 pool.on('error', (e, client) => {
 	console.error({ logType: 'error', message: `pg-error: ${e.message} ${e.stack}` })
 })
 
-
 export default pool
 
+export const batchInsert = async <T extends object>(records: T[], tableName: string) => {
+	console.info(`batchInsert inserting  ${records.length} records.`)
+	if (records.length === 0) return
+
+	/** we'll be using the placeholder method where data is sent separately AKA parameterized query.
+	 * e.g. 
+	 * query: INSERT INTO "ownerTable" ("owner", "txid", "parent", "parents") VALUES ($1, $2, $3, $4), ($5, $6, $7, $8), ($9, $10, $11, $12)
+	 * data: [owner1, txid1, parent1, parents1, owner2, txid2, parent2, parents2, owner3, txid3, parent3, parents3]
+	*/
+	const columns = Object.keys(records[0]).map(k => `"${k}"`).join(', ')
+
+	try {
+		await pool.query('BEGIN')
+		let index = 0
+		const query = `INSERT INTO "${tableName}" (${columns}) `
+			+ `VALUES `
+			+ records.map(r => `(${Object.keys(r).map(() => '$' + ++index).join(', ')})`).join(', ')
+			+ ' RETURNING *'
+
+		console.debug('query', query)
+
+		const values = records.map(r => Object.values(r)).flat()
+
+		console.debug('values', values)
+
+		const res = await pool.query(query, values) // query is a template string, values is an array
+
+		console.debug(`batch inserted ${res.rowCount} records`)
+
+		await pool.query('COMMIT')
+		return res.rowCount;
+	} catch (e) {
+		console.error(`pg-error: ${e.name} ${e.message}`)
+		await pool.query('ROLLBACK')
+		throw e
+	}
+}
