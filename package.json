@@ -7,22 +7,23 @@
     "doc": "docs"
   },
   "scripts": {
-    "prepare": "husky install"
+    "prepare": "husky"
   },
   "author": "Ros McMahon <rosmcmahon@gmail.com> (https://github.com/rosmcmahon) ",
   "license": "LGPL-3.0-or-later",
   "devDependencies": {
     "@aws-sdk/client-ssm": "^3.503.1",
     "@types/node": "^18.19.9",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.1",
+    "@typescript-eslint/parser": "^7.0.1",
     "ansi-colors": "^4.1.3",
     "aws-cdk": "^2.124.0",
     "aws-cdk-lib": "^2.124.0",
-    "commander": "^11.1.0",
+    "commander": "^12.0.0",
     "esbuild": "^0.20.0",
     "eslint": "^8.56.0",
-    "husky": "^8.0.3",
-    "tsx": "^4.7.0"
+    "husky": "^9.0.11",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
   }
 }
