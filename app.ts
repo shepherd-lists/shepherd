@@ -28,7 +28,7 @@ new ServicesStack(app, 'ServicesStack', {
 })
 
 /** addons. these get imported a little differently as they don't use classes. */
-for(const addon of config.plugins){
+for(const addon of config.addons){
 	const { createStack } = await import(`./addons/${addon}/infra/stack`)
 	createStack(app, config)
 }
