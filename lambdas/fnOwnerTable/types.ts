@@ -1,7 +1,7 @@
 export interface OwnerTableRecord {
 	txid: string
 	parent: string | null
-	parents: string[] | null
+	parents: string[] | undefined
 	byte_start?: string
 	byte_end?: string
 	last_update?: Date //default to now on creation

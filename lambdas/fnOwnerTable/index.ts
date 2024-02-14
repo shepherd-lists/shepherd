@@ -136,6 +136,7 @@ export const handler = async (event: any) => {
 
 			// /** batch insert this pages results */
 			const inserted = await batchInsert(records, inputs.tablename)
+			console.info(`inserted ${inserted} records`)
 
 		})
 
