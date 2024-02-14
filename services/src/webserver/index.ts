@@ -47,7 +47,7 @@ app.get('/', async (req, res) => {
 	res.status(200).end()
 })
 
-/** dynamically generate routes from PLUGINS tablenames */
+/** dynamically generate routes from ADDONS tablenames */
 txsTableNames().then((tablenames) => {
 	tablenames.forEach((tablename) => {
 		const routepath = tablename.replace('_txs', '')

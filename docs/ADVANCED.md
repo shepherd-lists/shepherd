@@ -8,7 +8,7 @@ The default configuration for shepherd loads your custom filters (specified in `
 
 ## Cloud containers
 
-Let's presume you want to load a horizontally scaling container to act as classifier on the plugin inputs. There are two features already built into shepherd to accomodate this:
+Let's presume you want to load a horizontally scaling container to act as classifier on the addon inputs. There are two features already built into shepherd to accomodate this:
 
 1. After data is fetched and pre-screened for validity, it's uploaded to a temporary S3 (`shepherd-input-s3-${aws-region}`) and a standard ObjectCreated message appears in shepherd2-input-q. Your container should use these to download the latest files.
 
@@ -41,6 +41,6 @@ There is support for running shepherd on AWS via AWS-CDK.
 
 First thing to do is create a config.dev.ts file by importing the Config.ts type from the project root, and fill in your details. See `/Config.ts` and `/config.example.ts` for reference.
 
-- The `/cdk.launcher.ts` script must be run once WITH EMPTY `plugins` IN CONFIG. This sets up an RDS database, networking, VPC, other microservices.  
-- Addons (plugins) should be added to the `/addons/` folder. the default "nsfw" will already be present.
+- The `/cdk.launcher.ts` script must be run once WITH EMPTY `addons` IN CONFIG. This sets up an RDS database, networking, VPC, other microservices.  
+- Addons should be added to the `/addons/` folder. the default "nsfw" will already be present.
 - Again, after inital launcher run, add your addon names to the config.

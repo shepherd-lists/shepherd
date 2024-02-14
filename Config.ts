@@ -14,8 +14,8 @@ export interface Config {
 	gql_url?: string	//defaults to https://arweave.net/graphql
 	gql_url_secondary?: string	//defaults to https://arweave-search.goldsky.com/graphql
 
-	/** plugins to load. must be installed in ./addons/ */
-	plugins: Array<string>
+	/** addonns to load. must be installed in ./addons/ */
+	addons: Array<string>
 
 	// // ## whitelist IPs for http://webserver/blacklist.txt
 	txids_whitelist: Array<string>
