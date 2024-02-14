@@ -5,7 +5,7 @@ import { OwnerTableRecord } from './types'
 import moize from 'moize/mjs/index.mjs'
 import { getByteRange } from './byte-ranges/byteRanges'
 
-
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const gql = arGql(GQLUrls.goldsky)
 const gqlBackup = arGql(GQLUrls.arweave)
@@ -40,8 +40,17 @@ query($cursor: String, $owner: String!) {
 
 const getParent = moize(
 	async (p: string, gql: ArGqlInterface) => {
-		const res = await gql.tx(p)
-		return res.parent?.id || null
+		let tries = 0
+		while (true) {
+			try {
+				const res = await gql.tx(p)
+				return res.parent?.id || null
+			} catch (e) {
+				tries++
+				if (tries > 2) throw e;
+				await sleep(5_000)
+			}
+		}
 	},
 	{
 		isPromise: true,
@@ -136,7 +145,7 @@ export const handler = async (event: any) => {
 		return event
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog(`${e.name}:${e.message}`, JSON.stringify(e))
+		await slackLog(`Fatal error => ${e.name}:${e.message}`, JSON.stringify(e))
 		throw e
 	}
 }
