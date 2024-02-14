@@ -25,10 +25,6 @@ const pool = new pg.Pool({
 	},
 })
 
-pool.on('error', (e, client) => {
-	console.error({ logType: 'error', message: `pg-error: ${e.message} ${e.stack}` })
-})
-
 export default pool
 
 export const batchInsert = async <T extends object>(records: T[], tableName: string) => {

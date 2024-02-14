@@ -146,7 +146,7 @@ export const handler = async (event: any) => {
 		return event
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog(`Fatal error => ${e.name}:${e.message}`, JSON.stringify(e))
+		await slackLog(`Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
 		throw e
 	}
 }
