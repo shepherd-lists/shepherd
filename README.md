@@ -17,10 +17,10 @@ If you decide to create a filter plugin you are not just limited to specific typ
 
 ## The shepherd plugin system
 
-There are in fact 2 ways to create plugins:
+There are in fact 2 ways to add filters to shepherd, plugins and addons:
 
 1. Basic: use the nsfw plugin harness system to load shepherd compatible plugins.
-2. Advanced: create your own docker container to run a plugin service. Documentation pending, but you read from remote/local SQS/S3, and write results to a http-api server.
+2. Advanced: create your own docker container to run an addon service. Documentation pending, but you read from remote/local SQS/S3, and write results to a http-api server. (FYI the "nsfw plugin harness" is actually an addon)
 
 ### <a name='config'></a>Basic Configuration
 
