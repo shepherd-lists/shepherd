@@ -78,11 +78,11 @@ services:
       - sqs-local
       - s3-local
       - localbridge
-  plugin:
-    # container_name: ${PLUGIN:-nsfw}
+  addon:
+    # container_name: ${ADDON:-nsfw}
     extends:
-      file: ./addons/${PLUGIN:-nsfw}/docker-compose.local.yml
-      service: plugin
+      file: ./addons/${ADDON:-nsfw}/docker-compose.local.yml
+      service: addon
     depends_on:
       - sqs-local
       - s3-local
