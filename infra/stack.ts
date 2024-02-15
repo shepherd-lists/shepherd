@@ -37,10 +37,15 @@ export const createStack = async (app: App, config: Config) => {
 	const cluster = aws_ecs.Cluster.fromClusterAttributes(stack, 'shepherd-cluster', { vpc, clusterName: readParamCfn('ClusterName') })
 
 	/** create lambda to flag and process an owners txids into byte-ranged */
-	const fnOwnerTable = await createFn('fnOwnerTable', stack, vpc, [sgPgdb], {
+	const fnOwnerTable = await createFn('fnOwnerTable', stack, {
+		vpc,
+		securityGroups: [sgPgdb],
+		logGroup: logGroupServices,
+		memorySize: 256,
+	}, {
 		DB_HOST: rdsEndpoint,
 		SLACK_WEBHOOK: config.slack_webhook!
-	}, Duration.minutes(15), logGroupServices)
+	})
 
 	/** create indexer-next service */
 	const service = createAddonService('indexer-next', stack, cluster, logGroupServices, {
