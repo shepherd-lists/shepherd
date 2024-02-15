@@ -7,8 +7,8 @@ import { getByteRange } from './byte-ranges/byteRanges'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const gql = arGql(GQLUrls.goldsky)
-const gqlBackup = arGql(GQLUrls.arweave)
+const gql = arGql(GQLUrls.goldsky, 3)
+const gqlBackup = arGql(GQLUrls.arweave, 3)
 const query = `
 query($cursor: String, $owner: String!) {
   transactions(
