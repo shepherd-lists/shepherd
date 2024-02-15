@@ -1,5 +1,5 @@
 import { slackLog } from './utils/slackLog'
-import { createOwnerTable } from './utils/owner-table-utils'
+import { createInfractionsTable } from './utils/owner-table-utils'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 
 
@@ -14,10 +14,10 @@ while (true) {
 	try {
 
 		if (runonce) {
-			console.info('create owner table.')
+			console.info('create infractions table.')
 			const owner = 'v2XXwq_FvVqH2KR4p_x8H-SQ7rDwZBbykSv-59__Avc'
-			const tablename = await createOwnerTable(owner)
-			console.info('owner table created.')
+			const infractionsTable = await createInfractionsTable(owner)
+			console.info('infractions table created.')
 
 			console.info("let's start a lambda")
 			//import lambda name
@@ -25,15 +25,15 @@ while (true) {
 			console.info('fnOwnerTable', fnOwnerTable)
 			const res = await lambdaClient.send(new InvokeCommand({
 				FunctionName: fnOwnerTable,
-				Payload: JSON.stringify({ owner, tablename }),
+				Payload: JSON.stringify({ owner }),
 				// InvocationType: 'RequestResponse'
 			}))
-			console.info('res', res)
+			console.info(`res: status ${res.StatusCode}, Payload`, new TextDecoder().decode(res.Payload as Uint8Array))
 			runonce = false
 		}
 
 
-		console.info('nothing to do. ssleeping for 50 seconds...')
+		console.info('nothing to do. sleeping for 50 seconds...')
 		await new Promise(resolve => setTimeout(resolve, 50_000))
 
 
