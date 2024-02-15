@@ -1,4 +1,4 @@
-import pg, { batchInsert } from './utils/pgClient'
+import pg, { batchInsert, createOwnerTable } from './utils/pgClient'
 import { slackLog } from './utils/slackLog'
 import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
 import { OwnerTableRecord } from './types'
@@ -61,17 +61,20 @@ const getParent = moize(
 export const handler = async (event: any) => {
 	try {
 		console.log('event', event)
-		const inputs = event as { owner: string, tablename: string }
-		if (!inputs.owner || !inputs.tablename) {
-			throw new Error('missing inputs. should have { "owner": "string", "tablename": "string" }')
+		const inputs = event as { owner: string }
+		if (!inputs.owner) {
+			throw new Error('missing inputs. should have { "owner": "string" }')
 		}
 
 		/** plan:
-		 * receive tableName & owner
+		 * receive owner address
+		 * create owner table
 		 * gql all txids
 		 * calculate ranges
 		 * batch inserts to db, gql page at a time
 		 */
+		const tablename = await createOwnerTable(inputs.owner)
+
 		const variables = {
 			owner: inputs.owner,
 			// cursor: '',
@@ -135,7 +138,7 @@ export const handler = async (event: any) => {
 			})) //eo promise.all(map)
 
 			// /** batch insert this pages results */
-			const inserted = await batchInsert(records, inputs.tablename)
+			const inserted = await batchInsert(records, tablename)
 			console.info(`inserted ${inserted} records`)
 
 		})
@@ -143,7 +146,7 @@ export const handler = async (event: any) => {
 		console.info(`completed processing ${JSON.stringify(counts)}`)
 
 
-		return event
+		return counts
 	} catch (err: unknown) {
 		const e = err as Error
 		await slackLog(`Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))

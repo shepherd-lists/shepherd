@@ -64,3 +64,31 @@ export const batchInsert = async <T extends object>(records: T[], tableName: str
 		throw e
 	}
 }
+
+/** we can't use `-` in postgres table names, and usual starting character rules */
+export const ownerToTablename = (owner: string) => `owner_${owner.replace(/-/g, '·')}`
+export const tablenameToOwner = (tablename: string) => tablename.slice('owner_'.length).replace(/·/g, '-')
+
+export const createOwnerTable = async (owner: string) => {
+	const tablename = ownerToTablename(owner)
+	const query = `
+    CREATE TABLE "${tablename}" (
+      txid CHAR(43) PRIMARY KEY,
+      parent CHAR(43),
+      parents CHAR(43) ARRAY,
+      byte_start BIGINT,
+      byte_end BIGINT,
+      last_update TIMESTAMP DEFAULT NOW()
+    );
+  `
+
+	try {
+		await pool.query(query);
+		console.log(`Table ${tablename} created successfully.`);
+	} catch (e) {
+		console.error('Error creating table:', JSON.stringify(e))
+		throw e
+	}
+
+	return tablename
+}
