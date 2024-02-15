@@ -47,8 +47,10 @@ const getParent = moize(
 				return res.parent?.id || null
 			} catch (e) {
 				tries++
-				if (tries > 2) throw e;
-				await sleep(5_000)
+				if (tries > 2) {
+					throw new Error(`getParent error: "${(e as Error).message}" while fetching parent: "${p}" using gqlProvider: ${gql.endpointUrl}. Tried ${tries} times.`)
+				}
+				await sleep(10_000)
 			}
 		}
 	},
