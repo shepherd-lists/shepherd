@@ -56,18 +56,18 @@ export const blockOwnerHistory = async (owner: string) => {
 	}
 	const counts = { page: 0, items: 0, inserts: 0 }
 	await gql.all(query, variables, async (page) => {
-		console.info(blockOwnerHistory.name, 'processing page', ++counts.page)
+		const pageNumber = ++counts.page
+		console.info(blockOwnerHistory.name, 'processing page', pageNumber)
 
 		const res = await lambdaClient.send(new InvokeCommand({
 			FunctionName: process.env.FN_OWNER_TABLE as string,
-			Payload: JSON.stringify({ owners: [owner], page }), //not to be confused with returned payload
+			Payload: JSON.stringify({ page, pageNumber }),
 		}))
 		//TODO: handle errors in lambda
 
-		//TODO: payload needs a type
-		const payload = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
+		const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
 		counts.items += page.length
-		counts.inserts += payload.inserts
+		counts.inserts += lambdaCounts.total
 	})
 
 	console.info(blockOwnerHistory.name, `completed processing ${JSON.stringify(counts)} for owner: ${owner}`)
