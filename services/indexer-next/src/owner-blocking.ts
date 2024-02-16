@@ -62,6 +62,7 @@ export const blockOwnerHistory = async (owner: string) => {
 		const res = await lambdaClient.send(new InvokeCommand({
 			FunctionName: process.env.FN_OWNER_TABLE as string,
 			Payload: JSON.stringify({ page, pageNumber }),
+			InvocationType: 'RequestResponse',
 		}))
 		//TODO: handle errors in lambda
 
