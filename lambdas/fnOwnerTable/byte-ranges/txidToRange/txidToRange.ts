@@ -102,7 +102,7 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 
 	const L1Parent = parents ? parents[parents.length - 1] : parent
 
-	const { offset: strL1End, size: strL1Size } = await fetchRetryOffset(txid)
+	const { offset: strL1End, size: strL1Size } = await fetchRetryOffset(L1Parent)
 	const L1WeaveEnd = BigInt(strL1End)
 	const L1WeaveSize = BigInt(strL1Size)
 	const L1WeaveStart = L1WeaveEnd - L1WeaveSize
@@ -226,7 +226,7 @@ const fetchRetryOffset = moize(async (id: string) => {
 			const e = err as Error
 			//no point retrying 404 errors?
 			if (e.message === '404') {
-				console.error(fetchRetryOffset.name, `Error fetching offset for '${id}' Not retrying.`, e.name, e.message, '. child-id')
+				console.error(fetchRetryOffset.name, `Error 404 fetching offset for '${id}' Not retrying.`, e.name, e.message, '. child-id')
 				throw e
 			}
 			console.error(fetchRetryOffset.name, `Warning: Error fetching byte-range data with '${id}' Retrying in 10secs..`, e.name, e.message)
