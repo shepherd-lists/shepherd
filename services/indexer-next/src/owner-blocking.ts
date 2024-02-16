@@ -31,6 +31,7 @@ query($cursor: String, $owners: [String!]) {
         id
         parent{id}
         data{size}
+				owner{address}
       }
     }
   }
