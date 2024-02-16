@@ -1,11 +1,13 @@
 import { slackLog } from './utils/slackLog'
 import { createInfractionsTable } from './utils/owner-table-utils'
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
+import { blockOwnerHistory } from './owner-blocking'
 
+
+
+if (!process.env.FN_OWNER_TABLE) throw new Error('missing env var, FN_OWNER_TABLE')
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const lambdaClient = new LambdaClient({})
 
 
 /** restart on errors */
@@ -16,19 +18,13 @@ while (true) {
 		if (runonce) {
 			console.info('create infractions table.')
 			const owner = 'v2XXwq_FvVqH2KR4p_x8H-SQ7rDwZBbykSv-59__Avc'
-			const infractionsTable = await createInfractionsTable(owner)
+			// const infractionsTable = await createInfractionsTable(owner)
 			console.info('infractions table created.')
 
-			console.info("let's start a lambda")
-			//import lambda name
-			const fnOwnerTable = process.env.FN_OWNER_TABLE as string
-			console.info('fnOwnerTable', fnOwnerTable)
-			const res = await lambdaClient.send(new InvokeCommand({
-				FunctionName: fnOwnerTable,
-				Payload: JSON.stringify({ owner }),
-				// InvocationType: 'RequestResponse'
-			}))
-			console.info(`res: status ${res.StatusCode}, Payload`, new TextDecoder().decode(res.Payload as Uint8Array))
+			console.info('run block owner history.')
+
+			await blockOwnerHistory(owner)
+
 			runonce = false
 		}
 
