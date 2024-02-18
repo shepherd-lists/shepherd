@@ -2,47 +2,25 @@ import pg, { batchInsert, ownerToTablename } from './utils/pgClient'
 import { slackLog } from './utils/slackLog'
 import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
 import { OwnerTableRecord } from './types'
-import moize from 'moize/mjs/index.mjs'
 import { getByteRange } from './byte-ranges/byteRanges'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
+import { gqlTx } from './utils/gqlTx'
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const gql = arGql(GQLUrls.goldsky, 3)
 const gqlBackup = arGql(GQLUrls.arweave, 3)
 
-
-const getParent = moize(
-	async (p: string, gql: ArGqlInterface) => {
-		let tries = 0
-		while (true) {
-			try {
-				const res = await gql.tx(p)
-				return res.parent?.id || null
-			} catch (e) {
-				tries++
-				if (tries > 2) {
-					throw new Error(`getParent error: "${(e as Error).message}" while fetching parent: "${p}" using gqlProvider: ${gql.endpointUrl}. Tried ${tries} times.`)
-				}
-				await sleep(10_000)
-			}
-		}
-	},
-	{
-		isPromise: true,
-		maxSize: 1_000	//should be enough?
-	},
-)
 
 /** the handler will receive 1 page of blocked wallet results. 
  * potentially for different wallets, but at scale only from 1 wallet.
  */
 export const handler = async (event: any) => {
 	try {
-		console.log('event', event)
+		console.info('event', JSON.stringify(event))
 		const inputs = event as { page: GQLEdgeInterface[], pageNumber: number }
 		if (!inputs.page || !Array.isArray(inputs.page) || inputs.page.length === 0) {
 			throw new Error('missing inputs. should have { "page": "GQLEdgeInterface[non-zero]", "pageNumber": "number" }')
 		}
+		console.info(`processing page ${inputs.pageNumber}`)
 
 		/** new plan:
 		 * receive page of gql nodes for different blocked wallets
@@ -74,11 +52,11 @@ export const handler = async (event: any) => {
 					const p0: string = p
 
 					try {
-						p = await getParent(p0, gql)
+						p = (await gqlTx(p0, gql)).parent?.id || null
 					} catch (eOuter: unknown) {
 						console.error(`getParent warning: "${(eOuter as Error).message}" while fetching parent: "${p}" for dataItem: ${txid} using gqlProvider: ${gql.endpointUrl}. Trying gqlBackup now.`)
 						try {
-							p = await getParent(p0, gqlBackup)
+							p = (await gqlTx(p0, gqlBackup)).parent?.id || null
 						} catch (eInner: unknown) {
 							slackLog(`getParent error: "${(eInner as Error).message}" while fetching parent: ${p0} for dataItem: ${txid} Tried both gql endpoints.`)
 						}
