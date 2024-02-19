@@ -1,4 +1,4 @@
-import { Stack, aws_ecr_assets, aws_ecs, aws_logs } from 'aws-cdk-lib'
+import { Stack, aws_ecr_assets, aws_ecs, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
 
 
 /** from template for a standard addon service (w/o cloudmap) */
@@ -6,12 +6,16 @@ interface FargateBuilderProps {
 
 }
 export const createAddonService = (
-	name: string,
 	stack: Stack,
-	cluster: aws_ecs.ICluster,
-	logGroup: aws_logs.ILogGroup,
+	name: string,
+	config: {
+		cluster: aws_ecs.ICluster,
+		logGroup: aws_logs.ILogGroup,
+		cloudMapNamespace: aws_servicediscovery.IPrivateDnsNamespace,
+	},
 	environment: Record<string, string> = {},
 ) => {
+	const { cluster, logGroup, cloudMapNamespace } = config
 	const Name = name.charAt(0).toUpperCase() + name.slice(1)
 	const dockerImage = new aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
 		directory: new URL(`../services/${name}`, import.meta.url).pathname,
@@ -39,10 +43,10 @@ export const createAddonService = (
 		cluster,
 		taskDefinition: tdef,
 		serviceName: name,
-		// cloudMapOptions: {
-		// 	name,
-		// 	cloudMapNamespace,
-		// },
+		cloudMapOptions: {
+			name,
+			cloudMapNamespace,
+		},
 		desiredCount: 1,
 	})
 

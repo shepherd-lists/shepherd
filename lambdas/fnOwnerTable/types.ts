@@ -16,5 +16,6 @@ export interface OwnersListRecord {
 	owner: string
 	last_update: Date
 	infractions: number
+	add_method: string
 }
 
