@@ -1,152 +1,101 @@
-import pg, { batchInsert, createOwnerTable } from './utils/pgClient'
+import pg, { batchInsert, ownerToTablename } from './utils/pgClient'
 import { slackLog } from './utils/slackLog'
 import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
 import { OwnerTableRecord } from './types'
-import moize from 'moize/mjs/index.mjs'
 import { getByteRange } from './byte-ranges/byteRanges'
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+import { GQLEdgeInterface } from 'ar-gql/dist/faces'
+import { gqlTx } from './utils/gqlTx'
 
 const gql = arGql(GQLUrls.goldsky, 3)
 const gqlBackup = arGql(GQLUrls.arweave, 3)
-const query = `
-query($cursor: String, $owner: String!) {
-  transactions(
-    # your query parameters
-    owners: [$owner]
-    tags: [
-      {name:"Bundle-Version", op:NEQ},
-      {name: "type", values: "redstone-oracles", op: NEQ},
-    ]
-    
-    # standard template below
-    after: $cursor
-    first: 100
-  ) {
-    pageInfo{hasNextPage}
 
-    edges {
-      cursor
-      node {
-        # what tx data you want to query for:
-        id
-        parent{id}
-        data{size}
-      }
-    }
-  }
-}
-`
 
-const getParent = moize(
-	async (p: string, gql: ArGqlInterface) => {
-		let tries = 0
-		while (true) {
-			try {
-				const res = await gql.tx(p)
-				return res.parent?.id || null
-			} catch (e) {
-				tries++
-				if (tries > 2) {
-					throw new Error(`getParent error: "${(e as Error).message}" while fetching parent: "${p}" using gqlProvider: ${gql.endpointUrl}. Tried ${tries} times.`)
-				}
-				await sleep(10_000)
-			}
-		}
-	},
-	{
-		isPromise: true,
-		maxSize: 1_000	//should be enough
-	},
-)
-
+/** the handler will receive 1 page of blocked wallet results. 
+ * potentially for different wallets, but at scale only from 1 wallet.
+ */
 export const handler = async (event: any) => {
 	try {
-		console.log('event', event)
-		const inputs = event as { owner: string }
-		if (!inputs.owner) {
-			throw new Error('missing inputs. should have { "owner": "string" }')
+		console.info('event', JSON.stringify(event))
+		const inputs = event as { page: GQLEdgeInterface[], pageNumber: number }
+		if (!inputs.page || !Array.isArray(inputs.page) || inputs.page.length === 0) {
+			throw new Error('missing inputs. should have { "page": "GQLEdgeInterface[non-zero]", "pageNumber": "number" }')
 		}
+		console.info(`processing page ${inputs.pageNumber}`)
 
-		/** plan:
-		 * receive owner address
-		 * create owner table
-		 * gql all txids
-		 * calculate ranges
-		 * batch inserts to db, gql page at a time
+		/** new plan:
+		 * receive page of gql nodes for different blocked wallets
+		 * build records for each node
+		 * add them to separate record arrays for each wallet
+		 * batch insert each wallet"s records
 		 */
-		const tablename = await createOwnerTable(inputs.owner)
 
-		const variables = {
-			owner: inputs.owner,
-			// cursor: '',
-		}
-		const counts = { page: 0, items: 0, inserts: 0 }
-		await gql.all(query, variables, async (page) => {
-			console.info('processing page', ++counts.page)
-			const records: OwnerTableRecord[] = []
+		const records: { [owner: string]: OwnerTableRecord[] } = {}
 
-			await Promise.all(page.map(async ({ node }) => {
-				counts.items++
+		await Promise.all(inputs.page.map(async ({ node }) => {
 
-				/** skip small files */
-				if (+node.data.size < 1_000) {
-					console.log(`file too small, size: ${node.data.size}, txid: ${node.id}`)
-					return;
-				}
+			/** skip small files */
+			if (+node.data.size < 1_000) {
+				console.log(`file too small, size: ${node.data.size}, txid: ${node.id}`)
+				return;
+			}
 
-				/** build records */
-				const txid = node.id
-				const parent = node.parent?.id || null
-				let parents: string[] | undefined = []
+			/** build records */
+			const txid = node.id
+			const parent = node.parent?.id || null
+			let parents: string[] | undefined = []
+			const owner = node.owner.address
 
-				// loop to find all nested parents
-				if (parent) {
-					let p: string | null = parent
-					do {
-						const p0: string = p
+			// loop to find all nested parents
+			if (parent) {
+				let p: string | null = parent
+				do {
+					const p0: string = p
 
+					try {
+						p = (await gqlTx(p0, gql)).parent?.id || null
+					} catch (eOuter: unknown) {
+						console.error(`getParent warning: "${(eOuter as Error).message}" while fetching parent: "${p}" for dataItem: ${txid} using gqlProvider: ${gql.endpointUrl}. Trying gqlBackup now.`)
 						try {
-							p = await getParent(p0, gql)
-						} catch (eOuter: unknown) {
-							console.error(`getParent warning: "${(eOuter as Error).message}" while fetching parent: "${p}" for dataItem: ${txid} using gqlProvider: ${gql.endpointUrl}. Trying gqlBackup now.`)
-							try {
-								p = await getParent(p0, gqlBackup)
-							} catch (eInner: unknown) {
-								slackLog(`getParent error: "${(eInner as Error).message}" while fetching parent: ${p0} for dataItem: ${txid} Tried both gql endpoints.`)
-							}
+							p = (await gqlTx(p0, gqlBackup)).parent?.id || null
+						} catch (eInner: unknown) {
+							slackLog(`getParent error: "${(eInner as Error).message}" while fetching parent: ${p0} for dataItem: ${txid} Tried both gql endpoints.`)
 						}
-					} while (p && parents.push(p))
-				}
-				parents = parents.length === 0 ? undefined : parents
+					}
+				} while (p && parents.push(p))
+			}
+			parents = parents.length === 0 ? undefined : parents
 
-				/** calculate byte-range */
-				const range = await getByteRange(txid, parent, parents)
+			/** calculate byte-range */
+			const range = await getByteRange(txid, parent, parents)
 
-				if (range.start === -1n) {
-					console.error(`Error in range calculation for txid: ${txid}`)
-					return;
-				}
+			if (range.start === -1n) {
+				console.error(`Error in range calculation for txid: ${txid}`)
+				return;
+			}
 
-				/** add to records */
-				counts.inserts++
-				records.push({
-					txid,
-					parent,
-					parents,
-					byte_start: range.start.toString(),
-					byte_end: range.end.toString(),
-				})
-			})) //eo promise.all(map)
+			/** add to records */
+			if (!records[owner]) records[owner] = []
 
-			// /** batch insert this pages results */
-			const inserted = await batchInsert(records, tablename)
-			console.info(`inserted ${inserted} records`)
+			records[owner].push({
+				txid,
+				parent,
+				parents,
+				byte_start: range.start.toString(),
+				byte_end: range.end.toString(),
+			})
+		})) //eo promise.all(map)
 
-		})
+		/** batch insert this pages results */
+		const counts: { [owner: string]: number; total: number } = { total: 0 }
+		for (const key of Object.keys(records)) {
+			const inserted = await batchInsert(records[key], ownerToTablename(key))
 
-		console.info(`completed processing ${JSON.stringify(counts)}`)
+			if (!counts[key]) counts[key] = 0
+			counts[key] += inserted!
+			counts.total += inserted!
+		}
 
+		console.info(`completed processing page ${inputs.pageNumber} ${JSON.stringify(counts)}`)
 
 		return counts
 	} catch (err: unknown) {

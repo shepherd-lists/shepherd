@@ -5,6 +5,7 @@ import { byteRange102 } from './byteRange102'
 import moize from 'moize'
 import { arGql, ArGqlInterface } from 'ar-gql'
 import { slackLog } from '../../utils/slackLog'
+import { gqlTx } from '../../utils/gqlTx'
 
 
 if (!HOST_URL) throw new Error(`Missing env var, HOST_URL:${HOST_URL}`)
@@ -47,13 +48,13 @@ export const txidToRange = async (id: string, parent: string | null, parents: st
 
 	const gqlGold = arGql(gqlUrlGoldsky)
 
-	let txParent = await gqlTxRetry(parent, gqlGold)
+	let txParent = await gqlTx(parent, gqlGold)
 	/** handle bugs in the gql indexing services */
 	if (!txParent) {
 		/** notify on missing parents */
 		console.error(txidToRange.name, `Parent ${parent} not found using ${gqlUrlGoldsky}. Trying ${gqlUrlArweave} next. id: ${id}`)
 		const gqlArweave = arGql(gqlUrlArweave)
-		txParent = await gqlTxRetry(parent, gqlArweave)
+		txParent = await gqlTx(parent, gqlArweave)
 		//fail fast
 		if (!txParent) {
 			slackLog(`Parent ${parent} not found using ${gqlUrlArweave} or ${gqlUrlGoldsky}. id ${id}`) //overzealous? important not to miss this
@@ -102,7 +103,7 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 
 	const L1Parent = parents ? parents[parents.length - 1] : parent
 
-	const { offset: strL1End, size: strL1Size } = await fetchRetryOffset(txid)
+	const { offset: strL1End, size: strL1Size } = await fetchRetryOffset(L1Parent)
 	const L1WeaveEnd = BigInt(strL1End)
 	const L1WeaveSize = BigInt(strL1Size)
 	const L1WeaveStart = L1WeaveEnd - L1WeaveSize
@@ -226,7 +227,7 @@ const fetchRetryOffset = moize(async (id: string) => {
 			const e = err as Error
 			//no point retrying 404 errors?
 			if (e.message === '404') {
-				console.error(fetchRetryOffset.name, `Error fetching offset for '${id}' Not retrying.`, e.name, e.message, '. child-id')
+				console.error(fetchRetryOffset.name, `Error 404 fetching offset for '${id}' Not retrying.`, e.name, e.message, '. child-id')
 				throw e
 			}
 			console.error(fetchRetryOffset.name, `Warning: Error fetching byte-range data with '${id}' Retrying in 10secs..`, e.name, e.message)
@@ -235,30 +236,3 @@ const fetchRetryOffset = moize(async (id: string) => {
 	}
 }, { maxSize: 1000, isPromise: true })
 
-const gqlTxRetry = moize(async (id: string, gql: ArGqlInterface) => {
-	let tries = 0, maxTries = 3
-	while (true) {
-		try {
-
-			console.info(gqlTxRetry.name, `unmemoized gql.tx('${id}') using ${gql.endpointUrl}`)
-			return await gql.tx(id)
-
-		} catch (err: unknown) {
-			const e = err as Error & { cause?: number }
-			const status = e.cause ? +e.cause : null
-
-			// check errors: connection || rate-limit || server
-			if (!status || status === 429 || status >= 500) {
-				if (tries++ > maxTries) {
-					throw new Error(`gql-fetch-error: "${e.message}" while fetching tx: "${id}" using gqlProvider: ${gql.endpointUrl}. Tried ${tries} times.`)
-				}
-				console.log(gqlTxRetry.name, `warning: (${status}) '${e.message}', for '${id}'. retrying in 10secs...`)
-				await sleep(10000)
-				continue
-			}
-
-			console.log(e)
-			throw new Error(`UNEXPECTED gql-fetch-error: (${status}) ${e.message} for id ${id}`)
-		}
-	}
-}, { maxSize: 1000, isPromise: true, maxArgs: 1 })
