@@ -1,4 +1,4 @@
-import { App, Duration, Stack, aws_ec2, aws_ecs, aws_iam, aws_lambda, aws_lambda_nodejs, aws_logs, aws_ssm } from 'aws-cdk-lib'
+import { App, Duration, Stack, aws_ec2, aws_ecs, aws_iam, aws_lambda, aws_lambda_nodejs, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
 import { Config } from '../../../Config'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { createAddonService } from './createService'
@@ -35,6 +35,15 @@ export const createStack = async (app: App, config: Config) => {
 	const sgPgdb = aws_ec2.SecurityGroup.fromSecurityGroupId(stack, 'pgdb-sg', readParamCfn('PgdbSg'))
 	const logGroupServices = aws_logs.LogGroup.fromLogGroupName(stack, 'services-logs', readParamCfn('LogGroup'))
 	const cluster = aws_ecs.Cluster.fromClusterAttributes(stack, 'shepherd-cluster', { vpc, clusterName: readParamCfn('ClusterName') })
+	const namespaceArn = readParamCfn('NamespaceArn')
+	const namespaceId = readParamCfn('NamespaceId')
+
+
+	const cloudMapNamespace = aws_servicediscovery.PrivateDnsNamespace.fromPrivateDnsNamespaceAttributes(stack, 'shepherd.local', {
+		namespaceName: 'shepherd.local',
+		namespaceArn: namespaceArn,
+		namespaceId: namespaceId,
+	})
 
 	/** create lambda to flag and process an owners txids into byte-ranged */
 	const fnOwnerTable = await createFn('fnOwnerTable', stack, {
@@ -48,7 +57,11 @@ export const createStack = async (app: App, config: Config) => {
 	})
 
 	/** create indexer-next service */
-	const service = createAddonService('indexer-next', stack, cluster, logGroupServices, {
+	const service = createAddonService(stack, 'indexer-next', {
+		cluster,
+		logGroup: logGroupServices,
+		cloudMapNamespace,
+	}, {
 		DB_HOST: rdsEndpoint,
 		SLACK_WEBHOOK: config.slack_webhook!,
 		GQL_URL: config.gql_url || 'https://arweave.net/graphql',
