@@ -7,7 +7,7 @@ import { checkForManuallyAddedOwners } from './services/check-manually-added-own
 
 const knex = knexCreate()
 
-if (!process.env.FN_OWNER_TABLE) throw new Error('missing env var, FN_OWNER_TABLE')
+if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var, FN_OWNER_BLOCKING')
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 

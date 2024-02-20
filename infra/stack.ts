@@ -46,7 +46,7 @@ export const createStack = async (app: App, config: Config) => {
 	})
 
 	/** create lambda to flag and process an owners txids into byte-ranged */
-	const fnOwnerTable = await createFn('fnOwnerTable', stack, {
+	const fnOwnerBlocking = await createFn('fnOwnerBlocking', stack, {
 		vpc,
 		securityGroups: [sgPgdb],
 		logGroup: logGroupServices,
@@ -66,12 +66,12 @@ export const createStack = async (app: App, config: Config) => {
 		SLACK_WEBHOOK: config.slack_webhook!,
 		GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 		GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
-		FN_OWNER_TABLE: fnOwnerTable.functionName
+		FN_OWNER_BLOCKING: fnOwnerBlocking.functionName
 	})
 	/* allow service to invoke lambda fnOwnerTable */
 	service.taskDefinition.taskRole?.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['lambda:InvokeFunction'],
-		resources: [fnOwnerTable.functionArn],
+		resources: [fnOwnerBlocking.functionArn],
 	}))
 
 
