@@ -1,8 +1,9 @@
-import { App, Duration, Stack, aws_ec2, aws_ecs, aws_iam, aws_lambda, aws_lambda_nodejs, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
+import { App, Stack, aws_ec2, aws_ecs, aws_iam, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
 import { Config } from '../../../Config'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { createAddonService } from './createService'
 import { createFn } from './createFn'
+import { buildListsBucket } from './listsBucket'
 
 /** import params */
 const readParamSdk = async (name: string) => {
@@ -73,6 +74,9 @@ export const createStack = async (app: App, config: Config) => {
 		actions: ['lambda:InvokeFunction'],
 		resources: [fnOwnerBlocking.functionArn],
 	}))
+
+	/** create s3 for lists */
+	const listsBucket = buildListsBucket(stack, config)
 
 
 }
