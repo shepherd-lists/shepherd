@@ -24,7 +24,7 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
 	await knex.raw(`
-		DROP FUNCTION IF EXISTS add_owners(VARIADIC owner_names TEXT[]);
+		DROP FUNCTION IF EXISTS add_owner(owner_names VARCHAR(43));
 	`)
 }
 
