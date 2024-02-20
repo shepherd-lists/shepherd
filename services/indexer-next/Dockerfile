@@ -12,6 +12,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 FROM base as indexer-next
+COPY ./migrations ./migrations
 COPY ./src/ ./src
 RUN npx tsc --noEmit
 ENTRYPOINT npx tsx ./src/index.ts

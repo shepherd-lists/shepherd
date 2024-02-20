@@ -58,7 +58,8 @@ export const batchInsert = async <T extends object>(records: T[], tableName: str
 
 		await pool.query('COMMIT')
 		return res.rowCount;
-	} catch (e) {
+	} catch (err: unknown) {
+		const e = err as Error
 		console.error(`pg-error: ${e.name} ${e.message}`)
 		await pool.query('ROLLBACK')
 		throw e
