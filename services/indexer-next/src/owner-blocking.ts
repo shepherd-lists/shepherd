@@ -61,7 +61,7 @@ export const blockOwnerHistory = async (owner: string) => {
 		console.info(blockOwnerHistory.name, 'processing page', pageNumber)
 
 		const res = await lambdaClient.send(new InvokeCommand({
-			FunctionName: process.env.FN_OWNER_TABLE as string,
+			FunctionName: process.env.FN_OWNER_BLOCKING as string,
 			Payload: JSON.stringify({ page, pageNumber }),
 			InvocationType: 'RequestResponse',
 		}))

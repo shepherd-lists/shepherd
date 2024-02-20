@@ -7,7 +7,7 @@ export interface OwnerTableRecord {
 	last_update?: Date //default to now on creation
 }
 
-export interface OwnerWhitelistRecord {
+export interface OwnersWhitelistRecord {
 	owner: string
 	last_update: Date
 }
