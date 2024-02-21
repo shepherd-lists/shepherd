@@ -1,20 +1,20 @@
 import { Duration, Stack, aws_ec2, aws_lambda, aws_lambda_nodejs, aws_logs } from 'aws-cdk-lib'
 
 
-export const createFn = async (
+export const createFn = (
 	name: string,
 	stack: Stack,
-	config: {
+	init: {
 		vpc: aws_ec2.IVpc,
 		securityGroups: aws_ec2.ISecurityGroup[],
 		memorySize?: number,
 		timeout?: Duration,
 		logGroup?: aws_logs.ILogGroup,
+		environment: Record<string, string>,
 	},
-	environment: Record<string, string>,
 ) => {
 
-	const { vpc, securityGroups, memorySize, timeout, logGroup } = config
+	const { vpc, securityGroups, memorySize, timeout, logGroup, environment } = init
 
 	const fnOwnerTable = new aws_lambda_nodejs.NodejsFunction(stack, name, {
 		runtime: aws_lambda.Runtime.NODEJS_20_X,
