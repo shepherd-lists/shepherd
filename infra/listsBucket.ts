@@ -51,7 +51,7 @@ export const buildListsBucket = (
 		conditions: {
 			'IpAddress': {
 				'aws:SourceIp': [
-					...config.ranges_whitelist,
+					...config.ranges_whitelist.map(range => range.server),
 				]
 			}
 		},
