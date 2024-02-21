@@ -20,9 +20,10 @@ export const checkForManuallyAddedOwners = async () => {
 	const newOwners = res.rows.map((row) => row.owner)
 	console.info('new owners found', newOwners)
 
+	let inserts = 0
 	for (const owner of newOwners) {
-		await blockOwnerHistory(owner)
+		inserts += await blockOwnerHistory(owner)
 	}
 
-	return res.rows
+	return inserts
 }
