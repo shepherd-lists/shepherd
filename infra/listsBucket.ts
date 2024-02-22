@@ -78,7 +78,7 @@ export const buildListsBucket = (
 		logGroup: logGroupServices,
 		environment: {
 			...environment,
-			BUCKET_NAME: listsBucket.bucketName,
+			LISTS_BUCKET: listsBucket.bucketName,
 		},
 	})
 
