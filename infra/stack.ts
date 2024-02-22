@@ -1,9 +1,11 @@
-import { App, Stack, aws_ec2, aws_ecs, aws_iam, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
+import { App, Stack, aws_ec2, aws_ecs, aws_elasticloadbalancingv2, aws_elasticloadbalancingv2_targets, aws_iam, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
 import { Config } from '../../../Config'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { createAddonService } from './createService'
 import { createFn } from './createFn'
 import { buildListsBucket } from './listsBucket'
+
+
 
 /** import params */
 const readParamSdk = async (name: string) => {
@@ -14,6 +16,7 @@ const readParamSdk = async (name: string) => {
 	}))).Parameter!.Value as string // throw when undefined
 }
 const vpcName = await readParamSdk('VpcName')
+const loadBalancerArn = await readParamSdk('AlbArn')
 
 
 export const createStack = async (app: App, config: Config) => {
@@ -38,6 +41,8 @@ export const createStack = async (app: App, config: Config) => {
 	const cluster = aws_ecs.Cluster.fromClusterAttributes(stack, 'shepherd-cluster', { vpc, clusterName: readParamCfn('ClusterName') })
 	const namespaceArn = readParamCfn('NamespaceArn')
 	const namespaceId = readParamCfn('NamespaceId')
+	// const alb = aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn })
+	const listener80fromLookup = aws_elasticloadbalancingv2.ApplicationListener.fromLookup(stack, 'listener80', { listenerArn: await readParamSdk('ListenerPort80') })
 
 
 	const cloudMapNamespace = aws_servicediscovery.PrivateDnsNamespace.fromPrivateDnsNamespaceAttributes(stack, 'shepherd.local', {
@@ -47,14 +52,15 @@ export const createStack = async (app: App, config: Config) => {
 	})
 
 	/** create lambda to flag and process an owners txids into byte-ranged */
-	const fnOwnerBlocking = await createFn('fnOwnerBlocking', stack, {
+	const fnOwnerBlocking = createFn('fnOwnerBlocking', stack, {
 		vpc,
 		securityGroups: [sgPgdb],
 		logGroup: logGroupServices,
 		memorySize: 256,
-	}, {
-		DB_HOST: rdsEndpoint,
-		SLACK_WEBHOOK: config.slack_webhook!
+		environment: {
+			DB_HOST: rdsEndpoint,
+			SLACK_WEBHOOK: config.slack_webhook!
+		},
 	})
 
 	/** create indexer-next service */
@@ -75,8 +81,16 @@ export const createStack = async (app: App, config: Config) => {
 		resources: [fnOwnerBlocking.functionArn],
 	}))
 
-	/** create s3 for lists */
-	const listsBucket = buildListsBucket(stack, config)
+	/** create s3 for lists, with lambda connecting alb paths to requests */
+	const listsBucket = buildListsBucket(stack, {
+		config,
+		vpc,
+		listener: listener80fromLookup,
+		logGroupServices,
+		environment: {
+
+		},
+	})
 
 
 }
