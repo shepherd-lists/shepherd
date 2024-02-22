@@ -5,6 +5,9 @@
     "test": "npx tsx ./**/*.spec.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-lambda": "^3.518.0",
+    "@aws-sdk/client-s3": "^3.515.0",
+    "@aws-sdk/lib-storage": "^3.515.0",
     "@types/node": "^20.11.17",
     "@types/pg": "^8.11.0",
     "ar-gql": "^1.2.8",
@@ -14,9 +17,6 @@
     "typescript": "^5.3.3"
   },
   "devDependencies": {
-    "@aws-sdk/client-lambda": "^3.518.0",
-    "@aws-sdk/client-s3": "^3.515.0",
-    "@aws-sdk/lib-storage": "^3.515.0",
     "dotenv": "^16.4.5"
   }
 }
