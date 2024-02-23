@@ -17,10 +17,11 @@ const config: pg.PoolConfig = {
 	idleTimeoutMillis: 120_000,
 }
 
+//note: ok to ignore ssl cert (firewalls and a private network)
 const pool = new pg.Pool({
 	...config,
-	ssl: {
-		rejectUnauthorized: false, //ignore ssl cert (firewalls and a private network)
+	ssl: process.env.NODE_ENV === 'test' ? false : {
+		rejectUnauthorized: false,
 	},
 })
 
