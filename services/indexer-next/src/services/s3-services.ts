@@ -62,6 +62,7 @@ export const s3GetObjectStream = async (Bucket: string, Key: string) => {
 	} catch (err: unknown) {
 		const e = err as Error
 		slackLog(s3GetObjectStream.name, Key, `UNHANDLED error ${e.name}:${e.message}.`, JSON.stringify(e))
+		throw e
 	}
 }
 
