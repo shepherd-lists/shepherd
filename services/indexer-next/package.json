@@ -2,7 +2,7 @@
   "name": "indexer-next",
   "type": "module",
   "scripts": {
-    "test": "npx tsx ./**/*.spec.ts"
+    "test": "tsx --test **/*.spec.ts"
   },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.518.0",

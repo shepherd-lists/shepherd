@@ -3,7 +3,7 @@ import { s3DeleteObject, s3Exists, s3GetObject, s3GetObjectStream, s3PutObject, 
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
-import { readlineWeb } from '../src/utils/webstream-readline'
+import { readlineWeb } from '../src/utils/webstream-utils'
 
 console.debug(`process.env.LISTS_BUCKET = "${process.env.LISTS_BUCKET}"`)
 const bucketName = process.env.LISTS_BUCKET as string
@@ -42,7 +42,9 @@ describe('s3 services', () => {
 		const stream = Readable.toWeb(Readable.from('this is another test file\n')) as ReadableStream //might be issues?
 		assert.ok(stream)
 
-		await s3UploadStream(bucketName, 'test2.txt', stream)
+		await assert.doesNotReject(async () => {
+			await s3UploadStream(bucketName, 'test2.txt', stream)
+		})
 		//if no error, upload should be successful
 		const exists = await s3Exists(bucketName, 'test2.txt')
 		assert.equal(exists, true)
