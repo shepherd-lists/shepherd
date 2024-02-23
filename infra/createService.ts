@@ -8,14 +8,14 @@ interface FargateBuilderProps {
 export const createAddonService = (
 	stack: Stack,
 	name: string,
-	config: {
+	init: {
 		cluster: aws_ecs.ICluster,
 		logGroup: aws_logs.ILogGroup,
 		cloudMapNamespace: aws_servicediscovery.IPrivateDnsNamespace,
 	},
 	environment: Record<string, string> = {},
 ) => {
-	const { cluster, logGroup, cloudMapNamespace } = config
+	const { cluster, logGroup, cloudMapNamespace } = init
 	const Name = name.charAt(0).toUpperCase() + name.slice(1)
 	const dockerImage = new aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
 		directory: new URL(`../services/${name}`, import.meta.url).pathname,

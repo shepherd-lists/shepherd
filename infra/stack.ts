@@ -73,7 +73,8 @@ export const createStack = async (app: App, config: Config) => {
 		SLACK_WEBHOOK: config.slack_webhook!,
 		GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 		GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
-		FN_OWNER_BLOCKING: fnOwnerBlocking.functionName
+		FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
+		LISTS_BUCKET: `shepherd-lists-${config.region}`,
 	})
 	/* allow service to invoke lambda fnOwnerTable */
 	service.taskDefinition.taskRole?.addToPrincipalPolicy(new aws_iam.PolicyStatement({
