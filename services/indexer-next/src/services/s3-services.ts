@@ -3,8 +3,8 @@ import { Upload } from '@aws-sdk/lib-storage'
 import { slackLog } from '../utils/slackLog'
 
 
-console.info('process.env.AWS_DEFAULT_REGION is', process.env.AWS_DEFAULT_REGION)
-console.info('process.env.AWS_REGION is', process.env.AWS_REGION)
+console.info('AWS_DEFAULT_REGION', process.env.AWS_DEFAULT_REGION)
+console.info('AWS_REGION', process.env.AWS_REGION)
 
 const s3client = new S3Client()
 

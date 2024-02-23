@@ -1,10 +1,11 @@
 import pg from 'pg'
+import { slackLog } from './slackLog'
 
 
 const DB_HOST = process.env.DB_HOST as string
-console.log('DB_HOST', DB_HOST)
+console.info(`DB_HOST=${DB_HOST}`)
 if (!DB_HOST) {
-	console.error({ logType: 'error', message: 'DB_HOST is not defined' })
+	slackLog('pgClient', 'DB_HOST is not defined')
 }
 
 const config: pg.PoolConfig = {
