@@ -1,4 +1,4 @@
-export interface Config {
+export type Config = {
 	region: string
 	// # vpc cidr. private subnets between regions/stacks will be shared by tailscale
 	cidr: string
@@ -25,4 +25,14 @@ export interface Config {
 
 	/* gateways to check for blocked data */
 	gw_urls?: Array<string>
+
+	/** disable core services */
+	services: {
+		indexer: boolean
+		feeder: boolean
+		fetchers: boolean
+		httpApi: boolean
+		webserver: boolean
+	}
+
 }

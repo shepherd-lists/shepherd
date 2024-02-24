@@ -12,4 +12,12 @@ export const config: Config = {
 
 	ranges_whitelist: [],
 
+	services: {
+		indexer: true,
+		feeder: true,
+		fetchers: true,
+		httpApi: true,
+		webserver: true,
+	}
+
 }
