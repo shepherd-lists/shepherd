@@ -52,113 +52,125 @@ export class ServicesStack extends cdk.Stack {
 			containerInsights: true,
 		})
 
+		/** create a listener for the alb.
+		 * (this should be in /infra, but feat may be removed later anyhow) */
+		const listerner80 = alb.addListener('port80Listener', {
+			protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
+			port: 80,
+		})
+
 		/** create fargate services required for shepherd */
 
 		/** indexer service. setting `minHealthyPercent` seems to make deployment faster */
-		const indexer = createService('indexer', { stack, cluster, logGroup, minHealthyPercent: 0 }, {
-			cpu: 256,
-			memoryLimitMiB: 512,
-		}, {
-			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: config.slack_webhook!,
-			HOST_URL: config.host_url || 'https://arweave.net',
-			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
-			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
-		})
+		if(config.services.indexer){
+			const indexer = createService('indexer', { stack, cluster, logGroup, minHealthyPercent: 0 }, {
+				cpu: 256,
+				memoryLimitMiB: 512,
+			}, {
+				DB_HOST: rdsEndpoint,
+				SLACK_WEBHOOK: config.slack_webhook!,
+				HOST_URL: config.host_url || 'https://arweave.net',
+				GQL_URL: config.gql_url || 'https://arweave.net/graphql',
+				GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
+			})
+		}
 
 		/* feeder service */
-		const feeder = createService('feeder', { stack, cluster, logGroup }, {
-			cpu: 2048,
-			memoryLimitMiB: 8192,
-		}, {
-			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: config.slack_webhook!,
-			AWS_FEEDER_QUEUE: feederQueueUrl,
-		})
-		feeder.node.addDependency(indexer)
-		feeder.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
-			actions: ['sqs:*'],
-			resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd2-feeder-q`],
-		}))
+		if(config.services.feeder){
+			const feeder = createService('feeder', { stack, cluster, logGroup }, {
+				cpu: 2048,
+				memoryLimitMiB: 8192,
+			}, {
+				DB_HOST: rdsEndpoint,
+				SLACK_WEBHOOK: config.slack_webhook!,
+				AWS_FEEDER_QUEUE: feederQueueUrl,
+			})
+			feeder.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
+				actions: ['sqs:*'],
+				resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd2-feeder-q`],
+			}))
+		}
 
 		/* fetchers service */
-		const fetchers = createService('fetchers', { stack, cluster, logGroup }, {
-			cpu: 1024,
-			memoryLimitMiB: 4096,
-		}, {
-			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: config.slack_webhook!,
-			STREAMS_PER_FETCHER: '50',
-			HOST_URL: config.host_url || 'https://arweave.net',
-			AWS_FEEDER_QUEUE: feederQueueUrl,
-			AWS_INPUT_BUCKET: inputBucketName,
-			AWS_DEFAULT_REGION: cdk.Aws.REGION,
-		})
-		fetchers.node.addDependency(indexer)
-		fetchers.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
-			actions: ['sqs:*'],
-			resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd2-feeder-q`],
-		}))
-		fetchers.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
-			actions: ['s3:*'],
-			resources: [`arn:aws:s3:::${inputBucketName}/*`],
-		}))
-		fetchers.autoScaleTaskCount({
-			minCapacity: 1,
-			maxCapacity: 10,
-		}).scaleOnCpuUtilization('CpuScaling', {
-			targetUtilizationPercent: 60,
-			scaleInCooldown: cdk.Duration.seconds(60),
-			scaleOutCooldown: cdk.Duration.seconds(60),
-		})
+		if(config.services.fetchers){
+			const fetchers = createService('fetchers', { stack, cluster, logGroup }, {
+				cpu: 1024,
+				memoryLimitMiB: 4096,
+			}, {
+				DB_HOST: rdsEndpoint,
+				SLACK_WEBHOOK: config.slack_webhook!,
+				STREAMS_PER_FETCHER: '50',
+				HOST_URL: config.host_url || 'https://arweave.net',
+				AWS_FEEDER_QUEUE: feederQueueUrl,
+				AWS_INPUT_BUCKET: inputBucketName,
+				AWS_DEFAULT_REGION: cdk.Aws.REGION,
+			})
+			fetchers.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
+				actions: ['sqs:*'],
+				resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd2-feeder-q`],
+			}))
+			fetchers.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
+				actions: ['s3:*'],
+				resources: [`arn:aws:s3:::${inputBucketName}/*`],
+			}))
+			fetchers.autoScaleTaskCount({
+				minCapacity: 1,
+				maxCapacity: 10,
+			}).scaleOnCpuUtilization('CpuScaling', {
+				targetUtilizationPercent: 60,
+				scaleInCooldown: cdk.Duration.seconds(60),
+				scaleOutCooldown: cdk.Duration.seconds(60),
+			})
+		}
 
 		/* http-api service */
-		const httpApi = createService('http-api', { stack, cluster, logGroup }, {
-			cpu: 1024,
-			memoryLimitMiB: 2048,
-		}, {
-			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: config.slack_webhook!,
-			SLACK_POSITIVE: config.slack_positive!,
-			HOST_URL: config.host_url || 'https://arweave.net',
-		})
-		httpApi.connections.securityGroups[0].addIngressRule(
-			cdk.aws_ec2.Peer.ipv4(vpc.vpcCidrBlock),
-			cdk.aws_ec2.Port.tcp(84),
-			'allow traffic from within the vpc on port 84'
-		)
+		if(config.services.httpApi){
+			const httpApi = createService('http-api', { stack, cluster, logGroup }, {
+				cpu: 1024,
+				memoryLimitMiB: 2048,
+			}, {
+				DB_HOST: rdsEndpoint,
+				SLACK_WEBHOOK: config.slack_webhook!,
+				SLACK_POSITIVE: config.slack_positive!,
+				HOST_URL: config.host_url || 'https://arweave.net',
+			})
+			httpApi.connections.securityGroups[0].addIngressRule(
+				cdk.aws_ec2.Peer.ipv4(vpc.vpcCidrBlock),
+				cdk.aws_ec2.Port.tcp(84),
+				'allow traffic from within the vpc on port 84'
+			)
+		}
 
 		/* webserver service */
-		const webserver = createService('webserver', { stack, cluster, logGroup }, {
-			cpu: 2048,
-			memoryLimitMiB: 4096,
-		}, {
-			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: config.slack_webhook!,
-			SLACK_POSITIVE: config.slack_positive!,
-			SLACK_PROBE: config.slack_probe!,
-			HOST_URL: config.host_url || 'https://arweave.net',
-			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
-			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
-			BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
-			RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
-			GW_URLS: JSON.stringify(config.gw_urls) || '',
-		})
-		webserver.taskDefinition.defaultContainer?.addPortMappings({
-			containerPort: 80,
-		})
-		alb.addListener('port80Listener', {
-			protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
-			port: 80,
-		}).addTargets('port80Target', {
-			protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
-			port: 80,
-			targets: [webserver],
-		})
-		webserver.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
-			actions: ['ssm:GetParameter'],
-			resources: [`arn:aws:ssm:${cdk.Aws.REGION}:*:parameter/shepherd/*`],
-		}))
+		if(config.services.webserver){
+			const webserver = createService('webserver', { stack, cluster, logGroup }, {
+				cpu: 2048,
+				memoryLimitMiB: 4096,
+			}, {
+				DB_HOST: rdsEndpoint,
+				SLACK_WEBHOOK: config.slack_webhook!,
+				SLACK_POSITIVE: config.slack_positive!,
+				SLACK_PROBE: config.slack_probe!,
+				HOST_URL: config.host_url || 'https://arweave.net',
+				GQL_URL: config.gql_url || 'https://arweave.net/graphql',
+				GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
+				BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
+				RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
+				GW_URLS: JSON.stringify(config.gw_urls) || '',
+			})
+			webserver.taskDefinition.defaultContainer?.addPortMappings({
+				containerPort: 80,
+			})
+			listerner80.addTargets('port80Target', {
+				protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
+				port: 80,
+				targets: [webserver],
+			})
+			webserver.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
+				actions: ['ssm:GetParameter'],
+				resources: [`arn:aws:ssm:${cdk.Aws.REGION}:*:parameter/shepherd/*`],
+			}))
+		}
 
 		/** write parameters to ssm */
 		const writeParam = (name: string, value: string) => {
@@ -170,6 +182,7 @@ export class ServicesStack extends cdk.Stack {
 		writeParam('ClusterName', cluster.clusterName)
 		writeParam('NamespaceArn', cluster.defaultCloudMapNamespace!.namespaceArn)
 		writeParam('NamespaceId', cluster.defaultCloudMapNamespace!.namespaceId)
+		writeParam('Listener80', listerner80.listenerArn)
 	}
 }
 
