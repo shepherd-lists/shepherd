@@ -42,7 +42,7 @@ export const createStack = async (app: App, config: Config) => {
 	const namespaceArn = readParamCfn('NamespaceArn')
 	const namespaceId = readParamCfn('NamespaceId')
 	// const alb = aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn })
-	const listener80fromLookup = aws_elasticloadbalancingv2.ApplicationListener.fromLookup(stack, 'listener80', { listenerArn: await readParamSdk('ListenerPort80') })
+	const listener80 = aws_elasticloadbalancingv2.ApplicationListener.fromLookup(stack, 'listener80', { listenerArn: await readParamSdk('Listener80') })
 
 
 	const cloudMapNamespace = aws_servicediscovery.PrivateDnsNamespace.fromPrivateDnsNamespaceAttributes(stack, 'shepherd.local', {
@@ -86,10 +86,11 @@ export const createStack = async (app: App, config: Config) => {
 	const listsBucket = buildListsBucket(stack, {
 		config,
 		vpc,
-		listener: listener80fromLookup,
+		listener: listener80,
 		logGroupServices,
 		environment: {
-
+			RANGES_WHITELIST_JSON: JSON.stringify(config.ranges_whitelist),
+			TXIDS_WHITELIST_JSON: JSON.stringify(config.txids_whitelist),
 		},
 	})
 
