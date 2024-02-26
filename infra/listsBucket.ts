@@ -72,28 +72,29 @@ export const buildListsBucket = (
 
 	/** use a lambda as intermediary from alb to s3 */
 
-	const fnListsBucket = createFn('fnListsBucket', stack, {
-		vpc,
-		securityGroups: [],
-		logGroup: logGroupServices,
-		environment: {
-			...environment,
-			LISTS_BUCKET: listsBucket.bucketName,
-		},
-	})
+	// const fnListsBucket = createFn('fnListsBucket', stack, {
+	// 	vpc,
+	// 	securityGroups: [],
+	// 	logGroup: logGroupServices,
+	// 	environment: {
+	// 		...environment,
+	// 		LISTS_BUCKET: listsBucket.bucketName,
+	// 	},
+	// })
 
-	listsBucket.grantRead(fnListsBucket)
+	// listsBucket.grantRead(fnListsBucket)
 
-	const overrideTG = new aws_elasticloadbalancingv2.ApplicationTargetGroup(stack, 'overrideTargetGroup', { vpc, })
+	// const overrideTG = new aws_elasticloadbalancingv2.ApplicationTargetGroup(stack, 'overrideTargetGroup', { vpc, })
 
-	overrideTG.addTarget(new aws_elasticloadbalancingv2_targets.LambdaTarget(fnListsBucket))
+	// overrideTG.addTarget(new aws_elasticloadbalancingv2_targets.LambdaTarget(fnListsBucket))
 
-	listener.addTargetGroups('overrideTarget', {
-		priority: 1,
-		conditions: [aws_elasticloadbalancingv2.ListenerCondition.pathPatterns(['/addresses.txt', '/rangelist.txt'])],
-		targetGroups: [overrideTG],
-	})
+	// listener.addTargetGroups('overrideTarget', {
+	// 	priority: 1,
+	// 	conditions: [aws_elasticloadbalancingv2.ListenerCondition.pathPatterns(['/addresses.txt', '/rangelist.txt'])],
+	// 	targetGroups: [overrideTG],
+	// })
 
+	/** no way of passing stream etc to */
 
 
 	return listsBucket;

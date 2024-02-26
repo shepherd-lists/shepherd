@@ -100,5 +100,43 @@ export const createStack = async (app: App, config: Config) => {
 		},
 	})
 
+	const webserver = createAddonService(stack, 'webserver', {
+		cluster,
+		logGroup: logGroupServices,
+		cloudMapNamespace,
+		resources: {
+			cpu: 256,
+			memoryLimitMiB: 512
+		},
+		environment: {
+			LISTS_BUCKET: listsBucket.bucketName,
+			DB_HOST: rdsEndpoint,
+			SLACK_WEBHOOK: config.slack_webhook!,
+			SLACK_POSITIVE: config.slack_positive!,
+			SLACK_PROBE: config.slack_probe!,
+			HOST_URL: config.host_url || 'https://arweave.net',
+			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
+			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
+			BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
+			RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
+			GW_URLS: JSON.stringify(config.gw_urls) || '',
+		}
+	})
+	webserver.taskDefinition.defaultContainer!.addPortMappings({ containerPort: 80 })
+	listener80.addTargets('web-next-target', {
+		port: 80,
+		protocol: aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
+		targets: [webserver],
+	})
+	const taskRole = webserver.taskDefinition.taskRole!
+	taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['s3:*'],
+		resources: [listsBucket.bucketArn + '/*'],
+	}))
+	taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['ssm:GetParameter'],
+		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
+	}))
+
 
 }
