@@ -41,8 +41,8 @@ export const createStack = async (app: App, config: Config) => {
 	const cluster = aws_ecs.Cluster.fromClusterAttributes(stack, 'shepherd-cluster', { vpc, clusterName: readParamCfn('ClusterName') })
 	const namespaceArn = readParamCfn('NamespaceArn')
 	const namespaceId = readParamCfn('NamespaceId')
-	// const alb = aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn })
-	const listener80 = aws_elasticloadbalancingv2.ApplicationListener.fromLookup(stack, 'listener80', { listenerArn: await readParamSdk('Listener80') })
+	const alb = aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn })
+	// const listener80 = aws_elasticloadbalancingv2.ApplicationListener.fromLookup(stack, 'listener80', { listenerArn: await readParamSdk('Listener80') })
 
 
 	const cloudMapNamespace = aws_servicediscovery.PrivateDnsNamespace.fromPrivateDnsNamespaceAttributes(stack, 'shepherd.local', {
@@ -92,7 +92,7 @@ export const createStack = async (app: App, config: Config) => {
 		config,
 		//this following below is not used
 		vpc,
-		listener: listener80,
+		listener: null as any,
 		logGroupServices,
 		environment: {
 			RANGES_WHITELIST_JSON: JSON.stringify(config.ranges_whitelist),
@@ -100,7 +100,7 @@ export const createStack = async (app: App, config: Config) => {
 		},
 	})
 
-	const webserver = createAddonService(stack, 'webserver', {
+	const webserver = createAddonService(stack, 'webserver-next', {
 		cluster,
 		logGroup: logGroupServices,
 		cloudMapNamespace,
@@ -123,6 +123,7 @@ export const createStack = async (app: App, config: Config) => {
 		}
 	})
 	webserver.taskDefinition.defaultContainer!.addPortMappings({ containerPort: 80 })
+	const listener80 = alb.addListener('listener80', { port: 80 })
 	listener80.addTargets('web-next-target', {
 		port: 80,
 		protocol: aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
