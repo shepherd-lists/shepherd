@@ -1,11 +1,10 @@
-import { TxRecord } from '../common/shepherd-plugin-interfaces/types'
-import getDb from '../common/utils/db-connection'
-import { logger } from '../common/utils/logger'
+import { TxRecord } from 'shepherd-plugin-interfaces/types'
+import createKnex from './utils/knexCreate'
 import { byteRangesUpdateDb } from '../byte-ranges/byteRanges'
 import { Writable } from 'stream'
-import { slackLogger } from '../common/utils/slackLogger'
+import { slackLog } from './utils/slackLog'
 
-const knex = getDb()
+const knex = createKnex()
 
 //serve cache for 3 mins
 const CACHE_TIMEOUT = 3 * 60_000
@@ -18,10 +17,10 @@ interface Cached {
 }
 const _cached: Record<string, Cached> = {}
 
-export const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename: string = 'txs')=> {
+export const getRecords = async (res: Writable, type: 'txids' | 'ranges', tablename: string = 'txs') => {
 
 	/** init cache if necessary */
-	if(!_cached[tablename]){
+	if (!_cached[tablename]) {
 		_cached[tablename] = {
 			last: 0,
 			txids: '',
@@ -33,9 +32,9 @@ export const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename
 
 	/** check if we are returning cache or not */
 	const now = Date.now()
-	if(cache.inProgress || now - cache.last < CACHE_TIMEOUT){
+	if (cache.inProgress || now - cache.last < CACHE_TIMEOUT) {
 		const text = type == 'txids' ? cache.txids : cache.ranges
-		logger(getRecords.name, `serving cache, ${text.length} bytes. inProgress: ${cache.inProgress}`)
+		console.info(getRecords.name, `serving cache, ${text.length} bytes. inProgress: ${cache.inProgress}`)
 		return res.write(text)
 	}
 	cache.inProgress = true
@@ -43,14 +42,13 @@ export const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename
 
 	/** get records from db, stream straight out to respones, and cache for both lists */
 	let records
-	try{
-		records = knex<TxRecord>(tablename).where({flagged: true}).stream()
-	}catch(err:unknown){
+	try {
+		records = knex<TxRecord>(tablename).where({ flagged: true }).stream()
+	} catch (err: unknown) {
 		const e = err as Error
-		slackLogger(getRecords.name, `❌ Error retrieving records! ${e.name}:${e.message}. Serving cache` )
 		/** return cache if error */
 		const text = type == 'txids' ? cache.txids : cache.ranges
-		logger(getRecords.name, `❌ Error retrieving records! serving cache, ${text.length} bytes. inProgress: ${cache.inProgress}`)
+		slackLog(getRecords.name, `❌ Error retrieving records! ${e.name}:${e.message}. Serving cache, ${text.length} bytes.`)
 		return res.write(text)
 	}
 
@@ -58,37 +56,36 @@ export const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename
 	let ranges = ''
 	let promises = []
 	let count = 0
-	for await (const record of records){
+	for await (const record of records) {
 		/* txid part is simple */
 		const lineTxid = record.txid + '\n'
 		txids += lineTxid
 
 		/* ranges needs to be checked for '-1' or null */
 		let lineRange
-		if(record.byteStart && record.byteStart !== '-1'){
+		if (record.byteStart && record.byteStart !== '-1') {
 			lineRange = `${record.byteStart},${record.byteEnd}\n`
 			ranges += lineRange
 		}
-		if(!record.byteStart){
+		if (!record.byteStart) {
 			/** null ranges must get populated (FYI, this code should no longer have to run) */
-			logger(getRecords.name, `no byte-range found, calculating new range for '${record.txid}'...`)
-			slackLogger(getRecords.name, `no byte-range found, calculating new range for '${record.txid}'...`)
+			slackLog(getRecords.name, `no byte-range found, calculating new range for '${record.txid}'...`)
 
-			promises.push((async(txid, parent, parents)=>{
-				const {start, end} = await byteRangesUpdateDb(txid, parent, parents, tablename) //db updated internally
-				if(start !== -1n){
+			promises.push((async (txid, parent, parents) => {
+				const { start, end } = await byteRangesUpdateDb(txid, parent, parents, tablename) //db updated internally
+				if (start !== -1n) {
 					const line = `${start},${end}\n`
 					ranges += line
 
-					if(type == 'ranges'){
+					if (type == 'ranges') {
 						//we'll just write these out of sequence
 						res.write(line)
 					}
 				}
-			}) (record.txid, record.parent, record.parents) )
+			})(record.txid, record.parent, record.parents))
 
 			// batch them if there is a heavy backlog for some reason (this should not happen anymore)
-			if(promises.length >= 100){
+			if (promises.length >= 100) {
 				await Promise.all(promises)
 				promises = []
 			}
@@ -97,13 +94,13 @@ export const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename
 		/** write out available line */
 
 		const line = type == 'txids' ? lineTxid : lineRange
-		if(line){
+		if (line) {
 			res.write(line)
 		}
-		if(++count % 10000 === 0) logger(getRecords.name, count, 'records retrieved...')
+		if (++count % 10000 === 0) console.info(getRecords.name, count, 'records retrieved...')
 	}
 	await Promise.all(promises)
-	logger(getRecords.name, 'TxRecords retrieved', count)
+	console.info(getRecords.name, 'TxRecords retrieved', count)
 
 	cache.txids = txids
 	cache.ranges = ranges
@@ -115,11 +112,11 @@ export const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename
 
 }
 
-export const getBlacklist = async(res: Writable)=> {
+export const getBlacklist = async (res: Writable) => {
 	return getRecords(res, 'txids')
 }
 
-export const getRangelist = async(res: Writable)=> {
+export const getRangelist = async (res: Writable) => {
 	return getRecords(res, 'ranges')
 }
 

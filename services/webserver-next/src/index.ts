@@ -3,17 +3,15 @@ console.log(`process.env.SLACK_POSITIVE ${process.env.SLACK_POSITIVE}`)
 console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
 import express from 'express'
-import { logger } from '../common/utils/logger'
+import { slackLog } from './utils/slackLog'
 import { ipAllowBlacklist, ipAllowRangelist, ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
 import { getBlacklist, getRangelist, getRecords } from './blacklist'
-import { getPerfHistory, getDevStats } from './metrics'
 import si from 'systeminformation'
-// import './perf-cron' //starts automatically
 import './checkBlocking/checkBlocking-timer' //starts automatically
-import { network_EXXX_codes } from '../common/constants'
+import { network_EXXX_codes } from './utils/constants'
 import { Socket } from 'net'
 import { txsTableNames } from './tablenames'
-import { slackLogger } from '../common/utils/slackLogger'
+
 
 const prefix = 'webserver'
 const app = express()
@@ -29,14 +27,14 @@ app.get('/', async (req, res) => {
 
 	const ip = req.headers['x-forwarded-for'] as string || 'undefined'
 	res.write(`your ip is ${ip}\n`)
-	if(process.env.BLACKLIST_ALLOWED){
+	if (process.env.BLACKLIST_ALLOWED) {
 		res.write(`access blacklist: ${ipAllowBlacklist(ip)}\n`)
-	}else{
+	} else {
 		res.write('$BLACKLIST_ALLOWED is not defined\n')
 	}
-	if(process.env.RANGELIST_ALLOWED){
+	if (process.env.RANGELIST_ALLOWED) {
 		res.write(`access rangelist: ${ipAllowRangelist(ip)}\n`)
-	}else{
+	} else {
 		res.write('$RANGELIST_ALLOWED is not defined\n')
 	}
 	res.write('\n\n')
@@ -63,56 +61,44 @@ txsTableNames().then((tablenames) => {
 			await getRecords(res, 'ranges', tablename)
 			res.status(200).end()
 		})
-		console.log(JSON.stringify({tablename, routepath, routeTxids, routeRanges }))
+		console.log(JSON.stringify({ tablename, routepath, routeTxids, routeRanges }))
 	})
 })
 
 app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
-	try{
+	try {
 		await getBlacklist(res)
 		res.status(200).end()
-	}catch(err:unknown){
+	} catch (err: unknown) {
 		const e = err as Error
-		await slackLogger('/blacklist.txt', `❌ FATAL ERROR retrieving rangelist! ${e.name}:${e.message}. DEVICE WILL REBOOT`)
+		await slackLog('/blacklist.txt', `❌ FATAL ERROR retrieving rangelist! ${e.name}:${e.message}. DEVICE WILL REBOOT`)
 		res.status(500).send('internal server error')
 	}
 })
 
 app.get('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
-	try{
+	try {
 		await getRangelist(res)
 		res.status(200).end()
-	}catch(err:unknown){
+	} catch (err: unknown) {
 		const e = err as Error
-		await slackLogger('/rangelist.txt', `❌ FATAL ERROR retrieving rangelist! ${e.name}:${e.message}. DEVICE WILL REBOOT`)
+		await slackLog('/rangelist.txt', `❌ FATAL ERROR retrieving rangelist! ${e.name}:${e.message}. DEVICE WILL REBOOT`)
 		res.status(500).send('internal server error')
 	}
 })
 
-app.get('/stats', async (req, res) => {
-	res.writeHead(200, {
-		'Content-Type': 'text/html',
-		'Cache-Control': 'no-cache',
-		'Connection': 'keep-alive',
-		'Keep-Alive': 'timeout=60, max=1',
-	})
-	res.flushHeaders()
-	await getDevStats(res)
-	res.end()
-})
 
-
-const server = app.listen(port, () => logger(`started on http://localhost:${port}`))
+const server = app.listen(port, () => console.info(`started on http://localhost:${port}`))
 
 /**
  * catch malformed client requests.
  * useful for testing: curl -v -X POST -H 'content-length: 3' --data-raw 'aaaa' http://localhost
  */
-server.on('clientError', (e: Error & {code: string}, socket: Socket)=> {
+server.on('clientError', (e: Error & { code: string }, socket: Socket) => {
 
-	logger('express-clientError', `${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
+	console.error('express-clientError', `${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
 	//debug
 	console.log('Socket:', {
 		timeout: socket.timeout,
@@ -132,15 +118,15 @@ server.on('clientError', (e: Error & {code: string}, socket: Socket)=> {
 		writable: socket.writable,
 	})
 
-	if(e.code === 'HPE_INVALID_METHOD' || e.code === 'HPE_INVALID_HEADER_TOKEN'){
-		logger('express-clientError', `malformed request. ${e.name} (${e.code}) : ${e.message}. Closing the socket with HTTP/1.1 400 Bad Request.`)
+	if (e.code === 'HPE_INVALID_METHOD' || e.code === 'HPE_INVALID_HEADER_TOKEN') {
+		console.error('express-clientError', `malformed request. ${e.name} (${e.code}) : ${e.message}. Closing the socket with HTTP/1.1 400 Bad Request.`)
 		return socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
 	}
 
 	//make sure connection still open
-	if(
-		( e.code && network_EXXX_codes.includes(e.code) )
-		|| !socket.writable){
+	if (
+		(e.code && network_EXXX_codes.includes(e.code))
+		|| !socket.writable) {
 		return
 	}
 
