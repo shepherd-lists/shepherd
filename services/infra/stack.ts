@@ -54,7 +54,7 @@ export class ServicesStack extends cdk.Stack {
 
 		/** create a listener for the alb.
 		 * (this should be in /infra, but feat may be removed later anyhow) */
-		const listerner80 = alb.addListener('port80Listener', {
+		const listener80 = alb.addListener('port80Listener', {
 			protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
 			port: 80,
 		})
@@ -161,7 +161,7 @@ export class ServicesStack extends cdk.Stack {
 			webserver.taskDefinition.defaultContainer?.addPortMappings({
 				containerPort: 80,
 			})
-			listerner80.addTargets('port80Target', {
+			listener80.addTargets('port80Target', {
 				protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
 				port: 80,
 				targets: [webserver],
@@ -182,7 +182,7 @@ export class ServicesStack extends cdk.Stack {
 		writeParam('ClusterName', cluster.clusterName)
 		writeParam('NamespaceArn', cluster.defaultCloudMapNamespace!.namespaceArn)
 		writeParam('NamespaceId', cluster.defaultCloudMapNamespace!.namespaceId)
-		writeParam('Listener80', listerner80.listenerArn)
+		writeParam('Listener80', listener80.listenerArn)
 	}
 }
 
