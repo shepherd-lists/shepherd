@@ -5,7 +5,7 @@ import { byteRange102 } from './byteRange102'
 import moize from 'moize'
 import { arGql, ArGqlInterface } from 'ar-gql'
 import { slackLog } from '../../utils/slackLog'
-import { gqlTx } from '../../utils/gqlTx'
+import { gqlTx } from '../gqlTx'
 
 
 if (!HOST_URL) throw new Error(`Missing env var, HOST_URL:${HOST_URL}`)
