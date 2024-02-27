@@ -8,20 +8,23 @@ RUN npm config set update-notifier false
 WORKDIR /app
 ENV NODE_ENV=production
 COPY tsconfig.json tsconfig.json
+# this is for shared code installed as relative package
+COPY ./libs ./libs
 
 FROM base as indexer-next
 ARG targetArg # same value as target
-COPY services/${targetArg}/package*.json ./
-RUN npm ci --omit=dev -c services/${targetArg} 
-COPY ./services/${targetArg}/migrations ./service/migrations
-COPY ./services/${targetArg}/src ./service/src
-RUN (cd ./service && npx tsc --noEmit)
-ENTRYPOINT npx tsx ./service/src/index.ts
+# need same folder depth
+COPY services/${targetArg}/package*.json ./service/app/
+RUN (cd ./service/app && npm ci --omit=dev)
+COPY ./services/${targetArg}/migrations ./service/app/migrations 
+COPY ./services/${targetArg}/src ./service/app/src
+RUN (cd ./service/app && npx tsc --noEmit)
+ENTRYPOINT npx tsx ./service/app/src/index.ts
 
 FROM base as webserver-next
 ARG targetArg 
-COPY services/${targetArg}/package*.json ./
-RUN npm ci --omit=dev -c services/${targetArg}
-COPY ./services/${targetArg}/src ./service/src
-RUN (cd ./service && npx tsc --noEmit)
-ENTRYPOINT npx tsx ./service/src/index.ts
+COPY services/${targetArg}/package*.json ./service/app/
+RUN (cd ./service/app && npm ci --omit=dev)
+COPY ./services/${targetArg}/src ./service/app/src
+RUN (cd ./service/app && npx tsc --noEmit)
+ENTRYPOINT npx tsx ./service/app/src/index.ts
