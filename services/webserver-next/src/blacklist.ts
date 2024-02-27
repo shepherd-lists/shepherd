@@ -1,6 +1,6 @@
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import createKnex from 'libs/utils/knexCreate'
-import { byteRangesUpdateDb } from 'libs/byte-ranges/byteRanges'
+import { getByteRange } from 'libs/byte-ranges/byteRanges'
 import { Writable } from 'stream'
 import { slackLog } from 'libs/utils/slackLog'
 
@@ -72,7 +72,20 @@ export const getRecords = async (res: Writable, type: 'txids' | 'ranges', tablen
 			slackLog(getRecords.name, `no byte-range found, calculating new range for '${record.txid}'...`)
 
 			promises.push((async (txid, parent, parents) => {
-				const { start, end } = await byteRangesUpdateDb(txid, parent, parents, tablename) //db updated internally
+
+				const { start, end } = await getByteRange(txid, parent, parents)
+
+				try {
+					const checkRes = await knex(tablename).where({ txid }).update({ byteStart: start, byteEnd: end }).returning('txid')
+					//if there's an error throw it, it's a bug
+					const checkId = checkRes[0].txid
+					if (checkId != txid) throw new Error()
+				} catch (e) {
+					const errMsg = `${getRecords.name} ❌ Error updating byte-range for '${txid}' in table ${tablename}!`
+					slackLog(errMsg)
+					throw new Error(errMsg)
+				}
+
 				if (start !== -1n) {
 					const line = `${start},${end}\n`
 					ranges += line
