@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import { updateAddresses } from '../src/services/update-addresses'
-import pg from '../src/utils/pgClient'
+import pg from 'libs/utils/pgClient'
 import { after, describe, it } from 'node:test'
 import assert from 'assert/strict'
 

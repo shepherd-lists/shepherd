@@ -3,7 +3,7 @@ import { s3DeleteObject, s3Exists, s3GetObject, s3GetObjectStream, s3PutObject, 
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
-import { readlineWeb } from '../src/utils/webstream-utils'
+import { readlineWeb } from 'libs/utils/webstream-utils'
 
 console.debug(`process.env.LISTS_BUCKET = "${process.env.LISTS_BUCKET}"`)
 const bucketName = process.env.LISTS_BUCKET as string

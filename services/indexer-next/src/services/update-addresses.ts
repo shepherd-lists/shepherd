@@ -1,6 +1,6 @@
 import pg from 'libs/utils/pgClient'
 import { slackLog } from 'libs/utils/slackLog'
-import { infraction_limit } from '../constants'
+import { infraction_limit } from 'libs/constants'
 import { s3GetObjectStream, s3PutObject } from './s3-services';
 import { readlineWeb } from 'libs/utils/webstream-utils';
 
