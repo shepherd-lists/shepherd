@@ -87,7 +87,7 @@ export const createStack = async (app: App, config: Config) => {
 		resources: [fnOwnerBlocking.functionArn],
 	}))
 
-	/** create s3 for lists, with lambda connecting alb paths to requests */
+	/** create s3 for lists */
 	const listsBucket = buildListsBucket(stack, {
 		config,
 		//this following below is not used
@@ -109,7 +109,7 @@ export const createStack = async (app: App, config: Config) => {
 			memoryLimitMiB: 512
 		},
 		environment: {
-			LISTS_BUCKET: listsBucket.bucketName,
+			LISTS_BUCKET: `shepherd-lists-${config.region}`,
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: config.slack_webhook!,
 			SLACK_POSITIVE: config.slack_positive!,
@@ -139,5 +139,8 @@ export const createStack = async (app: App, config: Config) => {
 		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
 	}))
 
+	/** give both services listsBucket access */
+	listsBucket.grantReadWrite(webserver.taskDefinition.taskRole)
+	listsBucket.grantReadWrite(service.taskDefinition.taskRole)
 
 }
