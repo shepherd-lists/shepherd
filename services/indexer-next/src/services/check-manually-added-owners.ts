@@ -25,5 +25,5 @@ export const checkForManuallyAddedOwners = async () => {
 		inserts += await blockOwnerHistory(owner)
 	}
 
-	return inserts
+	return newOwners.length
 }

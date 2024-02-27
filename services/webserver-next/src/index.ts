@@ -35,7 +35,7 @@ app.get('/addresses.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	} catch (err: unknown) {
 		const e = err as Error
 		await slackLog('/addresses.txt', `❌ ERROR retrieving addresses! ${e.name}:${e.message}.`)
-		res.status(500).send('internal server error')
+		res.status(500).send('internal server error\n')
 	}
 })
 

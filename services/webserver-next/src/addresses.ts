@@ -19,6 +19,7 @@ export const getAddresses = async (res: Writable) => {
 	}
 
 	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, 'addresses.txt')).ETag!
+	console.debug(getAddresses.name, 'eTag', eTag)
 	if (eTag === _current.eTag) {
 		return returnCache()
 	}
@@ -34,15 +35,18 @@ export const getAddresses = async (res: Writable) => {
 	}
 
 
+	console.info(getAddresses.name, 'fetching new addresses.txt...')
 	_current.inProgress = true
 
 	const stream = await s3GetObjectStream(process.env.LISTS_BUCKET!, 'addresses.txt')
 	let text = ''
 	for await (const line of readlineWeb(stream)) {
 		const l = `${line}\n`
+		console.debug(l)
 		text += l
 		res.write(l)
 	}
+	console.info(getAddresses.name, `fetched new addresses.txt, ${text.length} bytes.`)
 	_current = {
 		eTag,
 		text,
