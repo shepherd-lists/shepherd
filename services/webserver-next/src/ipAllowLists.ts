@@ -25,6 +25,10 @@ const ipAllowList = (ip: string, listType: ('txids' | 'ranges')) => {
 
 /** handle ip whitelising as middleware */
 
+/**
+ * uff. this is madness. clean all this up.
+ */
+
 export const ipAllowTxidsMiddleware = (req: Request, res: Response, next: NextFunction) => ipAllowMiddlewareFunction('txids')(req, res, next)
 
 export const ipAllowRangesMiddleware = (req: Request, res: Response, next: NextFunction) => ipAllowMiddlewareFunction('ranges')(req, res, next)

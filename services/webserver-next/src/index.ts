@@ -6,11 +6,11 @@ import express from 'express'
 import { slackLog } from 'libs/utils/slackLog'
 import { ipAllowBlacklist, ipAllowRangelist, ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
 import { getBlacklist, getRangelist, getRecords } from './blacklist'
-import si from 'systeminformation'
 import './checkBlocking/checkBlocking-timer' //starts automatically
 import { network_EXXX_codes } from 'libs/constants'
 import { Socket } from 'net'
 import { txsTableNames } from './tablenames'
+import { getAddresses } from './addresses'
 
 
 const prefix = 'webserver'
@@ -23,26 +23,20 @@ const port = 80
 
 app.get('/', async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
-	res.write('Webserver operational. v2.\n\n\n')
-
-	const ip = req.headers['x-forwarded-for'] as string || 'undefined'
-	res.write(`your ip is ${ip}\n`)
-	if (process.env.BLACKLIST_ALLOWED) {
-		res.write(`access blacklist: ${ipAllowBlacklist(ip)}\n`)
-	} else {
-		res.write('$BLACKLIST_ALLOWED is not defined\n')
-	}
-	if (process.env.RANGELIST_ALLOWED) {
-		res.write(`access rangelist: ${ipAllowRangelist(ip)}\n`)
-	} else {
-		res.write('$RANGELIST_ALLOWED is not defined\n')
-	}
-	res.write('\n\n')
-
-	const text = JSON.stringify(await si.osInfo())
-	res.write('\n\n\n' + text)
-
+	res.write('Webserver operational. v3.\n\n\n')
 	res.status(200).end()
+})
+
+app.get('/addresses.txt', ipAllowTxidsMiddleware, async (req, res) => {
+	try {
+		res.setHeader('Content-Type', 'text/plain')
+		await getAddresses(res)
+		res.status(200).end()
+	} catch (err: unknown) {
+		const e = err as Error
+		await slackLog('/addresses.txt', `❌ ERROR retrieving addresses! ${e.name}:${e.message}.`)
+		res.status(500).send('internal server error')
+	}
 })
 
 /** dynamically generate routes from ADDONS tablenames */
