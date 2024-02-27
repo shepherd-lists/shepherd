@@ -9,13 +9,8 @@ console.info('AWS_REGION', process.env.AWS_REGION)
 const s3client = new S3Client()
 
 
-export const s3Exists = async (Bucket: string, Key: string) => {
-	try {
-		const head = await s3client.send(new HeadObjectCommand({ Bucket, Key }))
-		return head.$metadata.httpStatusCode === 200
-	} catch (err: unknown) {
-		return (err as Error).name
-	}
+export const s3HeadObject = async (Bucket: string, Key: string) => {
+	return s3client.send(new HeadObjectCommand({ Bucket, Key }))
 }
 
 export const s3DeleteObject = async (Bucket: string, Key: string) => {

@@ -1,9 +1,9 @@
 import 'dotenv/config'
-import { s3DeleteObject, s3Exists, s3GetObject, s3GetObjectStream, s3PutObject, s3UploadStream } from '../src/services/s3-services'
+import { s3DeleteObject, s3HeadObject, s3GetObject, s3GetObjectStream, s3PutObject, s3UploadStream } from '../utils/s3-services'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
-import { readlineWeb } from 'libs/utils/webstream-utils'
+import { readlineWeb } from '../utils/webstream-utils'
 
 console.debug(`process.env.LISTS_BUCKET = "${process.env.LISTS_BUCKET}"`)
 const bucketName = process.env.LISTS_BUCKET as string
@@ -17,8 +17,8 @@ describe('s3 services', () => {
 	})
 
 	it('should be able to read a file head from s3', async () => {
-		const exists = await s3Exists(bucketName, 'test.txt')
-		assert.equal(exists, true)
+		const exists = await s3HeadObject(bucketName, 'test.txt')
+		assert.equal(exists.$metadata.httpStatusCode, 200, 'file exists')
 	})
 
 	it('should be able to get an object from s3', async () => {
@@ -46,8 +46,8 @@ describe('s3 services', () => {
 			await s3UploadStream(bucketName, 'test2.txt', stream)
 		})
 		//if no error, upload should be successful
-		const exists = await s3Exists(bucketName, 'test2.txt')
-		assert.equal(exists, true)
+		const exists = await s3HeadObject(bucketName, 'test2.txt')
+		assert.equal(exists.$metadata.httpStatusCode, 200, 'file exists')
 		await s3DeleteObject(bucketName, 'test2.txt')
 	})
 })
