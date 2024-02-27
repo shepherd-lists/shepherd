@@ -1,5 +1,5 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
-import { slackLogger } from '../../common/utils/slackLogger'
+import { slackLog } from 'libs/utils/slackLog'
 
 const ssmClient = new SSMClient()
 
@@ -18,22 +18,21 @@ let _region: string
 let enabled: boolean
 
 const setup = async () => {
-	try{
+	try {
 		_region = await ssmClient.config.region()
 		console.log(`pagerdutyAlerts region: ${_region}`)
-	}catch(err: unknown){
+	} catch (err: unknown) {
 		const e = err as Error
 		console.error(`Error fetching region. ${e.name}:${e.message}`)
 	}
-	if(_region === 'eu-west-2'){
-		try{
+	if (_region === 'eu-west-2') {
+		try {
 			_PAGERDUTY_KEY = await readPagerdutyKey()
 			console.log('pagerdutyAlerts: key was retrieved.')
 			return true
-		}catch(err: unknown){
+		} catch (err: unknown) {
 			const e = err as Error
-			console.error(`Error fetching PAGERDUTY_KEY. ${e.message}`)
-			await slackLogger(`Error fetching PAGERDUTY_KEY. ${e.message}`)
+			await slackLog(`Error fetching PAGERDUTY_KEY. ${e.message}`)
 		}
 	}
 	return false
@@ -44,17 +43,17 @@ setup().then(res => enabled = res)
 export const pagerdutyAlert = async (alertString: string, serverName: string) => {
 
 	/** check pagerduty setup and enabled in this region */
-	if(enabled === false){
+	if (enabled === false) {
 		return
-	}else if(enabled === undefined){
+	} else if (enabled === undefined) {
 		enabled = await setup()
-		if(enabled === false){
+		if (enabled === false) {
 			return
 		}
 	}
 
 	/** don't get rate-limited by PagerDuty */
-	if(callArgs[serverName] && (Date.now() - callArgs[serverName].lastCall) < rateLimit){
+	if (callArgs[serverName] && (Date.now() - callArgs[serverName].lastCall) < rateLimit) {
 		return
 	}
 	callArgs[serverName] = { lastCall: Date.now() }
@@ -80,11 +79,10 @@ export const pagerdutyAlert = async (alertString: string, serverName: string) =>
 			},
 		}),
 	})
-	if(res.ok){
+	if (res.ok) {
 		console.log(`PagerDuty alert sent. ${await res.text()}`)
-	}else{
+	} else {
 		const errMsg = `PagerDuty alert failed. ${res.status}, a${res.statusText}, ${await res.text()}`
-		console.error(errMsg)
-		await slackLogger(errMsg)
+		await slackLog(errMsg)
 	}
 }

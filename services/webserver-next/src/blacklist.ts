@@ -1,8 +1,8 @@
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import createKnex from './utils/knexCreate'
-import { byteRangesUpdateDb } from '../byte-ranges/byteRanges'
+import createKnex from 'libs/utils/knexCreate'
+import { byteRangesUpdateDb } from 'libs/byte-ranges/byteRanges'
 import { Writable } from 'stream'
-import { slackLog } from './utils/slackLog'
+import { slackLog } from 'libs/utils/slackLog'
 
 const knex = createKnex()
 

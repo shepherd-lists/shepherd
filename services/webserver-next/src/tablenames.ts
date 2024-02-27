@@ -1,4 +1,4 @@
-import knexCreate from '../common/utils/db-connection'
+import knexCreate from 'libs/utils/knexCreate'
 
 const knex = knexCreate()
 

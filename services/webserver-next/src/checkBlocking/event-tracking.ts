@@ -1,6 +1,5 @@
 /** -= Unresponsive Servers =- */
 
-import { logger } from '../../common/utils/logger'
 import { RangelistAllowedItem } from '../webserver-types'
 import { pagerdutyAlert } from './pagerduty-alert'
 
@@ -22,14 +21,14 @@ export const deleteUnreachable = (server: string) => {
 }
 
 export const unreachableTimedout = (server: string) => {
-	if(!_unreachable.has(server)) return true //if called on reachable server
+	if (!_unreachable.has(server)) return true //if called on reachable server
 
 	const now = Date.now()
 	const stored = _unreachable.get(server)!
 	const last = stored.since
 
-	if((now - last) > timeout){
-		_unreachable.set(server, {...stored, since: now})
+	if ((now - last) > timeout) {
+		_unreachable.set(server, { ...stored, since: now })
 		return true
 	}
 	return false
@@ -55,7 +54,7 @@ interface NotBlockEventDetails {
 export interface NotBlockEvent {
 	server: RangelistAllowedItem
 	item: string
-	status: ('alarm'|'ok')
+	status: ('alarm' | 'ok')
 	details?: NotBlockEventDetails
 }
 interface NotBlockState extends NotBlockEvent {
@@ -75,8 +74,8 @@ export const alarmsInAlert = () => {
 
 export const setAlertState = (event: NotBlockEvent) => {
 	const key = `${event.server.server},${event.item}`
-	if(!_alarmsInAlert.has(key)){
-		if(event.status === 'ok') return //only add new alarm events
+	if (!_alarmsInAlert.has(key)) {
+		if (event.status === 'ok') return //only add new alarm events
 		_alarmsInAlert.set(key, {
 			...event,
 			start: Date.now(),
@@ -85,7 +84,7 @@ export const setAlertState = (event: NotBlockEvent) => {
 		_changed = true
 	}
 	const state = _alarmsInAlert.get(key)!
-	if(state.status !== event.status){
+	if (state.status !== event.status) {
 		_alarmsInAlert.set(key, {
 			...state,
 			status: event.status,
@@ -99,16 +98,16 @@ export const setAlertState = (event: NotBlockEvent) => {
 
 /** cronjob function to report alert changes */
 export const alertStateCronjob = () => {
-	if(process.env.NODE_ENV !== 'test'){
-		logger(alertStateCronjob.name, 'running cronjob...', {_changed, 'alarmsInAlert': _alarmsInAlert.size})
+	if (process.env.NODE_ENV !== 'test') {
+		console.debug(alertStateCronjob.name, 'running cronjob...', { _changed, 'alarmsInAlert': _alarmsInAlert.size })
 	}
 
-	if(!_changed) return
+	if (!_changed) return
 	_changed = false
 
 	let msg = ''
 
-	for(const [key, state] of _alarmsInAlert){
+	for (const [key, state] of _alarmsInAlert) {
 		const { server, status, notified, start, end, details } = state
 
 		const msgOk = `🟢 OK, was not blocked for ${((end! - start) / 60_000).toFixed(1)} minutes, ${server.name} \`${server.server}\`, `
@@ -118,19 +117,19 @@ export const alertStateCronjob = () => {
 			+ `\`${details?.endpointType}\` started:"${new Date(start).toUTCString()}". `
 			+ `x-trace:${details?.xtrace}, age:${details?.age}, http-status:${details?.httpStatus}, content-length:${details?.contentLength}\n`
 
-		if(!notified){
-			if(status === 'alarm'){
+		if (!notified) {
+			if (status === 'alarm') {
 				msg += msgAlarm
 			}
-			if(state.status === 'ok'){
+			if (state.status === 'ok') {
 				msg += msgOk
 
 				_alarmsInAlert.delete(key)
-			}else{
-				_alarmsInAlert.set(key, {...state, notified: true})
+			} else {
+				_alarmsInAlert.set(key, { ...state, notified: true })
 			}
 		}
-		if(status === 'alarm' && (Date.now() - start) > 300_000){
+		if (status === 'alarm' && (Date.now() - start) > 300_000) {
 			pagerdutyAlert(msgAlarm, server.name)
 		}
 	}//for-of _alarmsInAlert
@@ -139,10 +138,10 @@ export const alertStateCronjob = () => {
 }
 /** exported for test only */
 export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
-	if(hook){
-		fetch(hook, { method: 'POST', body: JSON.stringify({ text })})
-			.then(res => res.text()).then(t => console.log(_slackLoggerNoFormatting.name,`response: ${t}`)) //use up stream to close connection
-	}else{
+	if (hook) {
+		fetch(hook, { method: 'POST', body: JSON.stringify({ text }) })
+			.then(res => res.text()).then(t => console.log(_slackLoggerNoFormatting.name, `response: ${t}`)) //use up stream to close connection
+	} else {
 		console.log(_slackLoggerNoFormatting.name, '\n', text)
 	}
 }
