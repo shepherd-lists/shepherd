@@ -1,7 +1,7 @@
-import { slackLog } from './utils/slackLog'
+import { slackLog } from 'libs/utils/slackLog'
 import { createInfractionsTable } from './utils/owner-table-utils'
 import { blockOwnerHistory } from './owner-blocking'
-import knexCreate from './utils/knexCreate'
+import knexCreate from 'libs/utils/knexCreate'
 import { checkForManuallyAddedOwners } from './services/check-manually-added-owners'
 import { updateAddresses } from './services/update-addresses'
 

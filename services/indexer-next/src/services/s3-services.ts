@@ -1,6 +1,6 @@
 import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
-import { slackLog } from '../utils/slackLog'
+import { slackLog } from 'libs/utils/slackLog'
 
 
 console.info('AWS_DEFAULT_REGION', process.env.AWS_DEFAULT_REGION)
