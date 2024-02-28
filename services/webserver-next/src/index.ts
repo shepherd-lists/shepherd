@@ -5,12 +5,12 @@ console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 import express from 'express'
 import { slackLog } from 'libs/utils/slackLog'
 import { ipAllowBlacklist, ipAllowRangelist, ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
-import { getBlacklist, getRangelist, getRecords } from './blacklist'
 import './checkBlocking/checkBlocking-timer' //starts automatically
 import { network_EXXX_codes } from 'libs/constants'
 import { Socket } from 'net'
 import { txsTableNames } from './tablenames'
-import { getAddresses } from './addresses'
+import { getList } from './lists'
+import { getRecords } from './blacklist' //legacy
 
 
 const prefix = 'webserver'
@@ -30,16 +30,16 @@ app.get('/', async (req, res) => {
 app.get('/addresses.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	try {
 		res.setHeader('Content-Type', 'text/plain')
-		await getAddresses(res)
+		await getList(res, '/addresses.txt')
 		res.status(200).end()
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog('/addresses.txt', `❌ ERROR retrieving addresses! ${e.name}:${e.message}.`)
+		await slackLog('/addresses.txt', `❌ ERROR retrieving! ${e.name}:${e.message}.`)
 		res.status(500).send('internal server error\n')
 	}
 })
 
-/** dynamically generate routes from ADDONS tablenames */
+/** [legacy remove] dynamically generate routes from ADDONS tablenames */
 txsTableNames().then((tablenames) => {
 	tablenames.forEach((tablename) => {
 		const routepath = tablename.replace('_txs', '')
@@ -62,24 +62,24 @@ txsTableNames().then((tablenames) => {
 app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
 	try {
-		await getBlacklist(res)
+		await getList(res, '/blacklist.txt')
 		res.status(200).end()
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog('/blacklist.txt', `❌ FATAL ERROR retrieving rangelist! ${e.name}:${e.message}. DEVICE WILL REBOOT`)
-		res.status(500).send('internal server error')
+		await slackLog('/blacklist.txt', `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+		res.status(500).send('internal server error\n')
 	}
 })
 
 app.get('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
 	try {
-		await getRangelist(res)
+		await getList(res, '/rangelist.txt')
 		res.status(200).end()
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog('/rangelist.txt', `❌ FATAL ERROR retrieving rangelist! ${e.name}:${e.message}. DEVICE WILL REBOOT`)
-		res.status(500).send('internal server error')
+		await slackLog('/rangelist.txt', `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+		res.status(500).send('internal server error\n')
 	}
 })
 
