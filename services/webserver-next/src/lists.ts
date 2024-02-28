@@ -1,0 +1,67 @@
+import { Writable } from 'stream'
+import { s3GetObjectStream, s3HeadObject } from 'libs/utils/s3-services'
+import { readlineWeb } from 'libs/utils/webstream-utils'
+
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+interface Cached {
+	eTag: string;
+	text: string;
+	inProgress: boolean;
+}
+const _cache: Record<string, Cached> = {}
+
+export const getList = async (res: Writable, path: ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt')) => {
+
+	const key = path.replace('/', '')
+
+	/** init cache if necessary */
+	if (!_cache[path]) {
+		_cache[path] = {
+			eTag: '',
+			text: '',
+			inProgress: false,
+		}
+	}
+
+	const returnCache = () => {
+		console.info(`${getList.name}(${path})`, `serving cache, ${_cache[path].text.length} bytes.`)
+		res.write(_cache[path].text)
+	}
+
+	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
+	console.debug(`${getList.name}(${path})`, 'eTag', eTag)
+	if (eTag === _cache[path].eTag) {
+		return returnCache()
+	}
+
+	/** just one fetch is needed, others can wait while a new fetch is occurring */
+	if (_cache[path].inProgress) {
+		while (true) {
+			await sleep(500) //wait for new cache
+			if (!_cache[path].inProgress) {
+				return returnCache()
+			}
+		}
+	}
+
+
+	console.info(`${getList.name}(${path})`, 'fetching new...')
+	_cache[path].inProgress = true
+
+	const stream = await s3GetObjectStream(process.env.LISTS_BUCKET!, key)
+	let text = ''
+	for await (const line of readlineWeb(stream)) {
+		const l = `${line}\n`
+		console.debug(l)
+		text += l
+		res.write(l)
+	}
+	console.info(`${getList.name}(${path})`, `fetched ${text.length} bytes.`)
+	_cache[path] = {
+		eTag,
+		text,
+		inProgress: false,
+	}
+}

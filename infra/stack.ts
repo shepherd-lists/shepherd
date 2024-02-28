@@ -1,8 +1,11 @@
-import { App, Duration, Stack, aws_ec2, aws_ecs, aws_iam, aws_lambda, aws_lambda_nodejs, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
+import { App, Stack, aws_ec2, aws_ecs, aws_elasticloadbalancingv2, aws_elasticloadbalancingv2_targets, aws_iam, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
 import { Config } from '../../../Config'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { createAddonService } from './createService'
 import { createFn } from './createFn'
+import { buildListsBucket } from './listsBucket'
+
+
 
 /** import params */
 const readParamSdk = async (name: string) => {
@@ -13,6 +16,7 @@ const readParamSdk = async (name: string) => {
 	}))).Parameter!.Value as string // throw when undefined
 }
 const vpcName = await readParamSdk('VpcName')
+const loadBalancerArn = await readParamSdk('AlbArn')
 
 
 export const createStack = async (app: App, config: Config) => {
@@ -37,6 +41,8 @@ export const createStack = async (app: App, config: Config) => {
 	const cluster = aws_ecs.Cluster.fromClusterAttributes(stack, 'shepherd-cluster', { vpc, clusterName: readParamCfn('ClusterName') })
 	const namespaceArn = readParamCfn('NamespaceArn')
 	const namespaceId = readParamCfn('NamespaceId')
+	const alb = aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn })
+	// const listener80 = aws_elasticloadbalancingv2.ApplicationListener.fromLookup(stack, 'listener80', { listenerArn: await readParamSdk('Listener80') })
 
 
 	const cloudMapNamespace = aws_servicediscovery.PrivateDnsNamespace.fromPrivateDnsNamespaceAttributes(stack, 'shepherd.local', {
@@ -46,14 +52,15 @@ export const createStack = async (app: App, config: Config) => {
 	})
 
 	/** create lambda to flag and process an owners txids into byte-ranged */
-	const fnOwnerBlocking = await createFn('fnOwnerBlocking', stack, {
+	const fnOwnerBlocking = createFn('fnOwnerBlocking', stack, {
 		vpc,
 		securityGroups: [sgPgdb],
 		logGroup: logGroupServices,
 		memorySize: 256,
-	}, {
-		DB_HOST: rdsEndpoint,
-		SLACK_WEBHOOK: config.slack_webhook!
+		environment: {
+			DB_HOST: rdsEndpoint,
+			SLACK_WEBHOOK: config.slack_webhook!
+		},
 	})
 
 	/** create indexer-next service */
@@ -61,12 +68,18 @@ export const createStack = async (app: App, config: Config) => {
 		cluster,
 		logGroup: logGroupServices,
 		cloudMapNamespace,
-	}, {
-		DB_HOST: rdsEndpoint,
-		SLACK_WEBHOOK: config.slack_webhook!,
-		GQL_URL: config.gql_url || 'https://arweave.net/graphql',
-		GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
-		FN_OWNER_BLOCKING: fnOwnerBlocking.functionName
+		resources: {
+			cpu: 256,
+			memoryLimitMiB: 512
+		},
+		environment: {
+			DB_HOST: rdsEndpoint,
+			SLACK_WEBHOOK: config.slack_webhook!,
+			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
+			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
+			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
+			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+		}
 	})
 	/* allow service to invoke lambda fnOwnerTable */
 	service.taskDefinition.taskRole?.addToPrincipalPolicy(new aws_iam.PolicyStatement({
@@ -74,5 +87,60 @@ export const createStack = async (app: App, config: Config) => {
 		resources: [fnOwnerBlocking.functionArn],
 	}))
 
+	/** create s3 for lists */
+	const listsBucket = buildListsBucket(stack, {
+		config,
+		//this following below is not used
+		vpc,
+		listener: null as any,
+		logGroupServices,
+		environment: {
+			RANGES_WHITELIST_JSON: JSON.stringify(config.ranges_whitelist),
+			TXIDS_WHITELIST_JSON: JSON.stringify(config.txids_whitelist),
+		},
+	})
+
+	const webserver = createAddonService(stack, 'webserver-next', {
+		cluster,
+		logGroup: logGroupServices,
+		cloudMapNamespace,
+		resources: {
+			cpu: 256,
+			memoryLimitMiB: 512
+		},
+		environment: {
+			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+			DB_HOST: rdsEndpoint,
+			SLACK_WEBHOOK: config.slack_webhook!,
+			SLACK_POSITIVE: config.slack_positive!,
+			SLACK_PROBE: config.slack_probe!,
+			HOST_URL: config.host_url || 'https://arweave.net',
+			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
+			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
+			BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
+			RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
+			GW_URLS: JSON.stringify(config.gw_urls) || '',
+		}
+	})
+	webserver.taskDefinition.defaultContainer!.addPortMappings({ containerPort: 80 })
+	const listener80 = alb.addListener('listener80', { port: 80 })
+	listener80.addTargets('web-next-target', {
+		port: 80,
+		protocol: aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
+		targets: [webserver],
+	})
+	const taskRole = webserver.taskDefinition.taskRole!
+	taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['s3:*'],
+		resources: [listsBucket.bucketArn + '/*'],
+	}))
+	taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['ssm:GetParameter'],
+		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
+	}))
+
+	/** give both services listsBucket access */
+	listsBucket.grantReadWrite(webserver.taskDefinition.taskRole)
+	listsBucket.grantReadWrite(service.taskDefinition.taskRole)
 
 }

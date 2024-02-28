@@ -1,10 +1,10 @@
 import pg, { batchInsert, ownerToTablename } from './utils/pgClient'
 import { slackLog } from './utils/slackLog'
 import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
-import { OwnerTableRecord } from './types'
+import { OwnerTableRecord } from '../../types'
 import { getByteRange } from './byte-ranges/byteRanges'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { gqlTx } from './utils/gqlTx'
+import { gqlTx } from './byte-ranges/gqlTx'
 
 const gql = arGql(GQLUrls.goldsky, 3)
 const gqlBackup = arGql(GQLUrls.arweave, 3)

@@ -3,7 +3,7 @@ console.log('SLACK_WEBHOOK', hookUrl)
 
 export const slackLog = async (...args: any) => {
 
-	const text = '[indexer-next]: ' + args.join(' ')
+	const text = args.join(' ')
 
 	/** log message either way */
 	console.log(slackLog.name, text)

@@ -74,4 +74,5 @@ export const blockOwnerHistory = async (owner: string) => {
 
 	console.info(blockOwnerHistory.name, `completed processing ${JSON.stringify(counts)} for owner: ${owner}`)
 
+	return counts.inserts
 }

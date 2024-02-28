@@ -1,16 +1,19 @@
-import { slackLog } from './utils/slackLog'
+import { slackLog } from 'libs/utils/slackLog'
 import { createInfractionsTable } from './utils/owner-table-utils'
 import { blockOwnerHistory } from './owner-blocking'
-import knexCreate from './utils/knexCreate'
+import knexCreate from 'libs/utils/knexCreate'
 import { checkForManuallyAddedOwners } from './services/check-manually-added-owners'
+import { updateAddresses } from './services/update-addresses'
 
 
-const knex = knexCreate()
 
+/** check this stuff right at the entrypoint */
 if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var, FN_OWNER_BLOCKING')
+if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+const knex = knexCreate()
 
 
 /** restart on errors */
@@ -48,7 +51,16 @@ while (true) {
 			runonce = false
 		}
 
-		await checkForManuallyAddedOwners()
+		const manualInserts = await checkForManuallyAddedOwners()
+
+		/** check if lists need to be updated */
+		if (manualInserts > 0) {
+			console.info('new items blocked. recreating lists')
+			const ownersAdded = await updateAddresses()
+			// const rangesAdded = await updateRanges()
+		}
+
+
 
 		console.info('nothing to do. sleeping for 50 seconds...')
 		await new Promise(resolve => setTimeout(resolve, 50_000))

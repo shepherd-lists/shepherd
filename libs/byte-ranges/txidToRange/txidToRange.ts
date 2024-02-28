@@ -1,5 +1,5 @@
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, } from './constants-byteRange'
-import { HOST_URL } from '../../utils/constants'
+import { HOST_URL } from '../../constants'
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
 import moize from 'moize'
