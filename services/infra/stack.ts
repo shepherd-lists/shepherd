@@ -54,10 +54,7 @@ export class ServicesStack extends cdk.Stack {
 
 		/** create a listener for the alb.
 		 * (this should be in /infra, but feat may be removed later anyhow) */
-		const listener80 = alb.addListener('port80Listener', {
-			protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
-			port: 80,
-		})
+
 
 		/** create fargate services required for shepherd */
 
@@ -161,6 +158,10 @@ export class ServicesStack extends cdk.Stack {
 			webserver.taskDefinition.defaultContainer?.addPortMappings({
 				containerPort: 80,
 			})
+			const listener80 = alb.addListener('port80Listener', {
+				protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
+				port: 80,
+			})
 			listener80.addTargets('port80Target', {
 				protocol: cdk.aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
 				port: 80,
@@ -182,7 +183,7 @@ export class ServicesStack extends cdk.Stack {
 		writeParam('ClusterName', cluster.clusterName)
 		writeParam('NamespaceArn', cluster.defaultCloudMapNamespace!.namespaceArn)
 		writeParam('NamespaceId', cluster.defaultCloudMapNamespace!.namespaceId)
-		writeParam('Listener80', listener80.listenerArn)
+		// writeParam('Listener80', listener80.listenerArn)
 	}
 }
 
