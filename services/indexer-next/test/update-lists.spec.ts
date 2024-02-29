@@ -1,8 +1,10 @@
 import 'dotenv/config'
-import { updateAddresses } from '../src/services/update-addresses'
+import { updateAddresses } from '../src/update-lists'
 import pg from 'libs/utils/pgClient'
 import { after, describe, it } from 'node:test'
 import assert from 'assert/strict'
+import QueryStream from 'pg-query-stream'
+import { Readable } from 'stream'
 
 
 
@@ -13,6 +15,18 @@ describe('update addresses', () => {
 			await updateAddresses()
 		})
 	})
+
+	it('should stream sql results', async () => {
+		const stream = new QueryStream('SELECT txid FROM txs WHERE flagged = true', [])
+		const client = await pg.connect()
+		client.query(stream)
+		for await (const row of stream) {
+			console.log('row', row)
+		}
+		client.release()
+
+	})
+
 
 	after(async () => {
 		await pg.end()
