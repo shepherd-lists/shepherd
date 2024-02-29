@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { slackLog } from './slackLog'
+import { PassThrough, Readable } from 'stream'
 
 
 console.info('AWS_DEFAULT_REGION', process.env.AWS_DEFAULT_REGION)
@@ -17,7 +18,8 @@ export const s3DeleteObject = async (Bucket: string, Key: string) => {
 	return s3client.send(new DeleteObjectCommand({ Bucket, Key }))
 }
 
-export const s3UploadStream = async (Bucket: string, Key: string, Body: ReadableStream) => {
+/** N.B. this will accept either a Readable or ReadableStream (nodejs or web stream)  */
+export const s3UploadStream = async (Bucket: string, Key: string, Body: ReadableStream | Readable) => {
 
 	try {
 		const upload = new Upload({
@@ -38,6 +40,11 @@ export const s3UploadStream = async (Bucket: string, Key: string, Body: Readable
 		slackLog(s3UploadStream.name, Key, `UNHANDLED s3 upload error ${e.name}:${e.message}.`, e)
 		throw e
 	}
+}
+export const s3UploadReadable = (Bucket: string, Key: string) => {
+	const readable = new PassThrough({ autoDestroy: true, emitClose: true })
+	s3UploadStream(Bucket, Key, readable)
+	return readable;
 }
 
 export const s3PutObject = async (Bucket: string, Key: string, text: string) => {
