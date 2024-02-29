@@ -3,7 +3,7 @@ import { createInfractionsTable } from './utils/owner-table-utils'
 import { blockOwnerHistory } from './owner-blocking'
 import knexCreate from 'libs/utils/knexCreate'
 import { checkForManuallyAddedOwners } from './services/check-manually-added-owners'
-import { updateAddresses } from './services/update-addresses'
+import { assertLists, updateFullTxidsRanges, updateAddresses } from './update-lists'
 
 
 
@@ -48,6 +48,10 @@ while (true) {
 			// console.info('run block owner history.')
 			// await blockOwnerHistory(owner)
 
+
+			/** initialise lists if necessary */
+			await assertLists()
+
 			runonce = false
 		}
 
@@ -57,7 +61,8 @@ while (true) {
 		if (manualInserts > 0) {
 			console.info('new items blocked. recreating lists')
 			const ownersAdded = await updateAddresses()
-			// const rangesAdded = await updateRanges()
+			const updateLists = await updateFullTxidsRanges()
+
 		}
 
 
