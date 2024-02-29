@@ -54,7 +54,7 @@ export const getList = async (res: Writable, path: ('/addresses.txt' | '/blackli
 	let text = ''
 	for await (const line of readlineWeb(stream)) {
 		const l = `${line}\n`
-		console.debug(l)
+		// console.debug(l)
 		text += l
 		res.write(l)
 	}
