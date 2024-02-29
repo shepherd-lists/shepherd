@@ -36,3 +36,12 @@ export async function* readlineWeb(stream: ReadableStream<ArrayBuffer>) {
 		yield lastString;
 	}
 }
+
+/** returns stream chunks, one stream after another */
+export async function* concatReadableStreams(readables: ReadableStream[]) {
+	for (let readable of readables) {
+		for await (const chunk of iteratorWeb(readable)) {
+			yield chunk;
+		}
+	}
+}
