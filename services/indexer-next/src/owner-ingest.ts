@@ -2,6 +2,7 @@ import { arGql, GQLUrls } from 'ar-gql'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 import pool from 'libs/utils/pgClient'
 import { s3GetObject, s3HeadObject } from 'libs/utils/s3-services'
+import { performance } from 'perf_hooks'
 
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
 const LISTS_BUCKET = process.env.LISTS_BUCKET!
@@ -76,7 +77,7 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 	}
 
 	const interval = 30 // seconds
-	const sleepMs = 10_000
+	const sleepMs = 1_000
 
 	const maxAt = lastMax + interval
 	const minAt = lastMax + 1
@@ -87,6 +88,7 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 		maxAt,
 	}
 	do {
+
 		/** update vars before next run */
 		const { owners } = await latestAddreses()
 		let minAt = vars.maxAt + 1
@@ -102,10 +104,13 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 		const ingestedOwners: { [owner: string]: number } = {}
 
 		/** wait until next interval to run */
+
+		const t0 = performance.now()
 		while (Date.now() < maxAt * 1000) {
-			console.info(`waiting ${sleepMs}ms for next interval ${new Date(maxAt * 1000).toUTCString()}`)
 			await sleep(sleepMs)
 		}
+		const t1 = performance.now()
+		console.info(blockOwnerIngest.name, `begin query after waiting ${(t1 - t0).toFixed(0)}ms`)
 
 		await gql.all(ingestQuery, vars, async (page) => {
 			const pageNumber = ++counts.page
