@@ -89,15 +89,9 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 	}
 	do {
 
-		/** update vars before next run */
-		const { owners } = await latestAddreses()
+		/** update ingest boundaries before next run */
 		let minAt = vars.maxAt + 1
 		let maxAt = minAt + interval
-		vars = {
-			owners,
-			minAt,
-			maxAt,
-		}
 
 		/** init stat outputs */
 		const counts = { page: 0, items: 0, inserts: 0 }
@@ -111,6 +105,14 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 		}
 		const t1 = performance.now()
 		console.info(blockOwnerIngest.name, `begin query after waiting ${(t1 - t0).toFixed(0)}ms`)
+
+		/** get the very latest owners */
+		const { owners } = await latestAddreses()
+		vars = {
+			owners,
+			minAt,
+			maxAt,
+		}
 
 		await gql.all(ingestQuery, vars, async (page) => {
 			const pageNumber = ++counts.page
