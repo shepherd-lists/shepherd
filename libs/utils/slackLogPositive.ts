@@ -7,13 +7,13 @@ console.info('SLACK_POSITIVE', SLACK_POSITIVE)
 let _last = { text: 'dummy', time: 0 }
 const timeout = 60 * 60 * 1000 //1 hour
 
-export const slackLogPositive = async (level: ('matched' | 'warning' | 'test'), text: string) => {
+export const slackLogPositive = async (level: ('flagged' | 'warning' | 'test'), text: string) => {
 
 	/** create the string */
 
 	let prefix = os.hostname() + ' 🐐 '
 
-	prefix += (level === 'matched') ? '⛔ *MATCHED FILE FOUND* ⛔' : (
+	prefix += (level === 'flagged') ? '⛔ *FLAGGED FILE FOUND* ⛔' : (
 		(level === 'warning') ? '⭐️ *WARNING* ⭐️' : '✅ *Test Message* ✅'
 	)
 
