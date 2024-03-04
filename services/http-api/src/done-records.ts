@@ -19,7 +19,7 @@ export const doneInit = async () => {
 		.select('txid', 'height')
 		.whereNotNull('flagged')
 
-	logger(doneInit.name, `found ${archived.length} records in inbox. pass2.height: ${pass2height}`)
+	console.info(doneInit.name, `found ${archived.length} records in inbox. pass2.height: ${pass2height}`)
 
 	//return for test
 	return done = archived
@@ -34,21 +34,21 @@ export const pass2Height = moize(
 export const doneAdd = async (txid: string, height: number) => {
 	/** dont add dupes */
 	if (done.map(r => r.txid).includes(txid)) {
-		logger(txid, doneAdd.name, 'warning: not adding duplicate!')
+		console.warn(txid, doneAdd.name, 'warning: not adding duplicate!')
 		return done.length
 	}
 
-	logger(txid, doneAdd.name, `adding to done. moving: ${moving}, done.length: ${done.length}`)
+	console.info(txid, doneAdd.name, `adding to done. moving: ${moving}, done.length: ${done.length}`)
 	done.push({ txid, height })
 
 	const now = Date.now()
 	const timeDiff = now - last
 	if (done.length >= 100 || timeDiff > 60_000) {
-		logger(txid, doneAdd.name, `calling moveDone. done.length: ${done.length}, now - last: ${timeDiff}`)
+		console.info(txid, doneAdd.name, `calling moveDone. done.length: ${done.length}, now - last: ${timeDiff}`)
 		await moveDone()
 		if (timeDiff > 60_000) last = now
 	} else {
-		logger(txid, doneAdd.name, `not moving yet. done.length: ${done.length}, now - last: ${timeDiff}`)
+		console.info(txid, doneAdd.name, `not moving yet. done.length: ${done.length}, now - last: ${timeDiff}`)
 	}
 
 	return done.length
@@ -62,7 +62,7 @@ export const moveDone = async () => {
 		const pass2height = await pass2Height()
 		const movable = done.filter(r => r.height < pass2height)
 
-		logger(moveDone.name, `moving movable ${movable.length}/${done.length} records to txs. pass2.height: ${pass2height}`)
+		console.info(moveDone.name, `moving movable ${movable.length}/${done.length} records to txs. pass2.height: ${pass2height}`)
 		let count = 0
 		while (movable.length > 0) {
 			const moving = movable.splice(0, Math.min(100, movable.length)).map(r => r.txid)
@@ -73,7 +73,7 @@ export const moveDone = async () => {
 		moving = false
 		return count
 	} else {
-		logger(moveDone.name, 'already moving')
+		console.info(moveDone.name, 'already moving')
 		return
 	}
 }

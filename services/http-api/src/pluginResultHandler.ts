@@ -16,10 +16,10 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 	const result = body.filterResult
 
 	const c = ++count
-	logger(txid, `handler begins. count ${c}`)
+	console.info(txid, `handler begins. count ${c}`)
 
 	if ((typeof txid !== 'string') || txid.length !== 43) {
-		logger('Fatal error', `txid is not defined correctly: ${body?.txid}`)
+		console.error('Fatal error', `txid is not defined correctly: ${body?.txid}`)
 		throw new TypeError('txid is not defined correctly')
 	}
 
@@ -27,11 +27,10 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 
 		if (result.flagged !== undefined) {
 			if (result.flagged === true) {
-				logger(txid, JSON.stringify(body))
-				slackLoggerPositive('flagged', JSON.stringify(body))
+				slackLogPositive('flagged', JSON.stringify(body))
 			}
 			if (result.flag_type === 'test') {
-				slackLogger('✅ *Test Message* ✅', JSON.stringify(body))
+				slackLog('✅ *Test Message* ✅', JSON.stringify(body))
 			}
 
 			let byteStart, byteEnd, record
@@ -45,7 +44,7 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 
 					/** sqs messages can be read more than once */
 					if (!record) {
-						logger(txid, pluginResultHandler.name, 'record not found in inbox. assuming multi read of sqs mesg', JSON.stringify(result))
+						console.info(txid, pluginResultHandler.name, 'record not found in inbox. assuming multi read of sqs mesg', JSON.stringify(result))
 						return
 					}
 
@@ -57,8 +56,7 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 					console.log(txid, `calculated byte-range ${byteStart} to ${byteEnd}`)
 				} catch (err: unknown) {
 					const e = err as Error
-					logger(txid, `Error calculating byte-range: ${e.name}:${e.message}`, JSON.stringify(e))
-					slackLogger(txid, pluginResultHandler.name, `Error calculating byte-range: ${e.name}:${e.message}`, JSON.stringify(e))
+					slackLog(txid, pluginResultHandler.name, `Error calculating byte-range: ${e.name}:${e.message}`, JSON.stringify(e))
 					// keey going. byte-ranges remain null => gets retried elsewhere in a fallback
 				}
 			}
@@ -82,8 +80,7 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 
 				/** this check should either occur here or in the updateDb function, not both */
 				if (res !== txid) {
-					logger('Fatal error', `Could not update database. "${res} !== ${txid}"`)
-					slackLogger('Fatal error', `Could not update database. "${res} !== ${txid}"`)
+					slackLog('Fatal error', `Could not update database. "${res} !== ${txid}"`)
 					throw new Error('Could not update database')
 				}
 
@@ -91,7 +88,7 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 			}
 
 		} else if (result.data_reason === undefined) {
-			logger(txid, 'data_reason and flagged cannot both be undefined. deleting from inflights.')
+			console.error(txid, 'data_reason and flagged cannot both be undefined. deleting from inflights.')
 			await dbInflightDel(txid)
 			throw new TypeError('data_reason and flagged cannot both be undefined')
 		} else {
@@ -119,15 +116,14 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 					return
 
 				default:
-					logger(pluginResultHandler.name, 'UNHANDLED plugin result in http-api', txid)
-					slackLogger(pluginResultHandler.name, 'UNHANDLED plugin result in http-api', txid)
+					slackLog(pluginResultHandler.name, 'UNHANDLED plugin result in http-api', txid)
 					throw new Error('UNHANDLED plugin result in http-api:\n' + JSON.stringify(result))
 			}
 			await doneAddTested(txid)
 		}
 	} finally {
 		// await dbInflightDel(txid)
-		logger(txid, `handler finished. count ${c}`)
+		console.info(txid, `handler finished. count ${c}`)
 	}
 }
 
@@ -135,10 +131,10 @@ const doneAddTested = async (txid: string) => {
 	const record = await getTxFromInbox(txid)
 	if (record) {
 		if (record.flagged !== undefined || record.valid_data !== undefined) {
-			logger(txid, 'flagged or valid_data set. calling doneAdd')
+			console.info(txid, 'flagged or valid_data set. calling doneAdd')
 			await doneAdd(txid, record.height)
 		} else {
-			logger(txid, 'flagged or valid_data not set.')
+			console.info(txid, 'flagged or valid_data not set.')
 		}
 	}
 }

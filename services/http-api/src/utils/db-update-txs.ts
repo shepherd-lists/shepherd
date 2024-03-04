@@ -12,16 +12,14 @@ export const updateTxsDb = async (txid: string, updates: Partial<TxRecord>, tabl
 		const checkId = await knex<TxRecord>(tablename).where({ txid }).update(updates, 'txid').returning('txid')
 		const retTxid = checkId[0]?.txid
 		if (retTxid !== txid) {
-			logger(txid, `ERROR UPDATING ${tablename} DATABASE!`, `(${JSON.stringify(updates)}) => ${checkId}`)
-			slackLogger(txid, `ERROR UPDATING ${tablename} DATABASE!`, `(${JSON.stringify(updates)}) => ${checkId}`)
+			slackLog(txid, `ERROR UPDATING ${tablename} DATABASE!`, `(${JSON.stringify(updates)}) => ${checkId}`)
 		}
 		return retTxid
 
 	} catch (err: unknown) {
 		const e = err as Error
-		logger(txid, `ERROR UPDATING ${tablename} DATABASE!`, e.name, ':', e.message)
-		slackLogger(txid, `ERROR UPDATING ${tablename} DATABASE!`, e.name, ':', e.message, JSON.stringify(updates))
-		logger(txid, e) // `throw e` does nothing, use the return
+		slackLog(txid, `ERROR UPDATING ${tablename} DATABASE!`, e.name, ':', e.message, JSON.stringify(updates))
+		// `throw e` does nothing, use the return
 	}
 }
 /** master update 'inbox' function */
@@ -33,23 +31,21 @@ export const updateInboxDb = async (txid: string, updates: Partial<TxRecord>) =>
 			const existingTxs = await knex<TxRecord>('txs').where({ txid })
 			if (existingTxs.length === 1) {
 				const checkId2 = await knex<TxRecord>('txs').where({ txid }).update(updates).returning('txid')
-				logger(txid, 'Info: Could not update inbox, but txs table was updated', `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
+				console.warn(txid, 'Info: Could not update inbox, but txs table was updated', `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
 				// slackLogger(txid, `Info: Could not update inbox, but txs table was updated`, `(${JSON.stringify(updates)}) => checkId:${JSON.stringify(checkId)} checkId2:${JSON.stringify(checkId2)}`)
 				/* clean up `inbox` just in case there was some other problem */
 				await knex<TxRecord>('inbox').where({ txid }).del('txid')
 				return checkId2[0]?.txid
 			} else {
-				logger(txid, 'ERROR UPDATING inbox DATABASE!', `(${JSON.stringify(updates)}) => ${checkId}`)
-				slackLogger(txid, 'ERROR UPDATING inbox DATABASE!', `(${JSON.stringify(updates)}) => "${checkId}"`)
+				slackLog(txid, 'ERROR UPDATING inbox DATABASE!', `(${JSON.stringify(updates)}) => "${checkId}"`)
 			}
 		}
 		return retTxid
 
 	} catch (err: unknown) {
 		const e = err as Error
-		logger(txid, 'ERROR UPDATING inbox DATABASE!', e.name, ':', e.message)
-		slackLogger(txid, 'ERROR UPDATING inbox DATABASE!', e.name, ':', e.message, JSON.stringify(updates))
-		logger(txid, e) // `throw e` does nothing, use the return
+		slackLog(txid, 'ERROR UPDATING inbox DATABASE!', e.name, ':', e.message, JSON.stringify(updates))
+		console.error(txid, e) // `throw e` does nothing, use the return
 	}
 }
 
@@ -57,14 +53,14 @@ export const dbInflightDel = async (txid: string) => {
 	try {
 		const ret = await knex<InflightsRecord>('inflights').where({ txid, }).del('txid')
 		if (ret[0]?.txid !== txid) {
-			logger(txid, 'record not found while deleting from inflights')
+			console.error(txid, 'record not found while deleting from inflights')
 			return
 		}
 		return ret[0].txid
 	} catch (err: unknown) {
 		const e = err as Error
-		logger(txid, 'DB_ERROR DELETING FROM INFLIGHTS', e.name, ':', e.message)
-		logger(txid, e) // `throw e` does nothing, use the return
+		console.error(txid, 'DB_ERROR DELETING FROM INFLIGHTS', e.name, ':', e.message)
+		console.error(txid, e) // `throw e` does nothing, use the return
 	}
 }
 
@@ -73,14 +69,13 @@ export const dbInflightAdd = async (txid: string) => {
 		const ret = await knex<InflightsRecord>('inflights').insert({ txid }, 'txid')
 
 		if (ret[0].txid !== txid) {
-			logger(txid, 'DB_ERROR ADDING TO INFLIGHTS', ret)
+			console.error(txid, 'DB_ERROR ADDING TO INFLIGHTS', ret)
 		}
 		return ret[0].txid
 	} catch (err: unknown) {
 		const e = err as Error
-		logger(txid, 'DB_ERROR ADDING TO INFLIGHTS', e.name, ':', e.message)
-		slackLogger(txid, 'DB_ERROR ADDING TO INFLIGHTS', e.name, ':', e.message)
-		logger(txid, e) // `throw e` does nothing, use the return
+		slackLog(txid, 'DB_ERROR ADDING TO INFLIGHTS', e.name, ':', e.message)
+		console.error(txid, e) // `throw e` does nothing, use the return
 	}
 }
 
@@ -147,7 +142,7 @@ export const dbPartialImageFound = async (txid: string) => {
 }
 
 export const dbPartialVideoFound = async (txid: string) => {
-	slackLogger(txid, 'info: `partial-seed` video found, gets retried until done?') //check if these actually happen
+	slackLog(txid, 'info: `partial-seed` video found, gets retried until done?') //check if these actually happen
 	return updateInboxDb(txid, {
 		// flagged: undefined,  // this gets set in the normal way in another call
 		// valid_data: undefined,
@@ -201,20 +196,17 @@ export const getTxFromInbox = async (txid: string) => {
 			const res = (await knex('txs').where({ txid }))
 
 			if (res.length > 0) {
-				logger(txid, 'Not found in inbox, already moved to txs table.')
+				console.info(txid, 'Not found in inbox, already moved to txs table.')
 				// slackLogger(txid, 'Not found in inbox, already moved to txs table.')
 				return
 			} else {
-				logger(txid, 'Not found in inbox. Not moved to txs table.')
-				slackLogger(txid, 'Not found in inbox. Not moved to txs table.')
-				throw new Error('No inbox_tx record found.')
+				throw new Error('Not found in inbox. Not moved to txs table.')
 			}
 		}
 		return ret[0]
 	} catch (err: unknown) {
 		const e = err as Error
-		logger(txid, 'Error getting inbox tx record', e.name, ':', e.message, JSON.stringify(e))
-		slackLogger(txid, 'Error getting inbox tx record', e.name, ':', e.message, JSON.stringify(e))
+		slackLog(txid, '❌ Error getting inbox tx record', e.name, ':', e.message, JSON.stringify(e))
 		throw e
 	}
 }

@@ -60,12 +60,11 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		await trx.delete().from('inbox').whereIn('txid', insertedIds)
 		await trx.commit()
 
-		logger(moveInboxToTxs.name, `moved ${res.length} records from inbox to txs`, JSON.stringify(insertedIds))
+		console.info(moveInboxToTxs.name, `moved ${res.length} records from inbox to txs`, JSON.stringify(insertedIds))
 
 		return res.length
 	} catch (e) {
-		logger(moveInboxToTxs.name, `error moving record ${txids} from inbox to txs`, e)
-		slackLogger(moveInboxToTxs.name, `error moving record ${txids} from inbox to txs`, JSON.stringify(e))
+		slackLog(moveInboxToTxs.name, `error moving record ${txids} from inbox to txs`, JSON.stringify(e))
 		await trx!.rollback()
 		throw e
 	}
