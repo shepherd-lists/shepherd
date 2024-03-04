@@ -4,6 +4,7 @@ import { blockOwnerHistory } from './owner-blocking'
 import knexCreate from 'libs/utils/knexCreate'
 import { checkForManuallyAddedOwners } from './services/check-manually-added-owners'
 import { assertLists, updateFullTxidsRanges, updateAddresses } from './update-lists'
+import { blockOwnerIngest } from './owner-ingest'
 
 
 
@@ -51,6 +52,9 @@ while (true) {
 
 			/** initialise lists if necessary */
 			await assertLists()
+
+			/** start block-owner-ingest loop */
+			blockOwnerIngest() //this async never returns!
 
 			runonce = false
 		}
