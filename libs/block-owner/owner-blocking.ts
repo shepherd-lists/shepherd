@@ -50,7 +50,7 @@ export const blockOwnerHistory = async (owner: string) => {
 
 	/** create owner table */
 	const tablename = await createOwnerTable(owner)
-	console.info(blockOwnerHistory.name, `created table: ${tablename} for owner: ${owner}`)
+	console.info(blockOwnerHistory.name, `created/exists table: ${tablename} for owner: ${owner}`)
 
 	/** gql all txids for the wallet */
 	const variables = {

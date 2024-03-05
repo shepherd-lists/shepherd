@@ -15,7 +15,7 @@ export const tablenameToOwner = (tablename: string) => {
 
 export const createInfractionsTable = async (owner: string) => {
 	const tablename = ownerToInfractionsTablename(owner)
-	await knex.schema.createTable(tablename, table => {
+	await knex.schema.createTableIfNotExists(tablename, table => {
 		table.specificType('txid', 'char(43)').primary()
 		table.dateTime('last_update').defaultTo(knex.fn.now())
 	})
@@ -30,7 +30,7 @@ export const dropOwnerTables = async (owner: string) => {
 
 export const createOwnerTable = async (owner: string) => {
 	const tablename = ownerToOwnerTablename(owner)
-	await knex.schema.createTable(tablename, table => {
+	await knex.schema.createTableIfNotExists(tablename, table => {
 		table.specificType('txid', 'char(43)').primary()
 		table.specificType('parent', 'char(43)')
 		table.specificType('parents', 'char(43) ARRAY')
