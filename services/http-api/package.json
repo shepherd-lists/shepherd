@@ -11,6 +11,8 @@
     "moize": "^6.1.6",
     "pg": "^8.11.3",
     "pg-query-stream": "^4.5.3",
-    "shepherd-plugin-interfaces": "^0.3.2"
+    "shepherd-plugin-interfaces": "^0.3.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
   }
 }
