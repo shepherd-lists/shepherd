@@ -64,7 +64,7 @@ export const createStack = async (app: App, config: Config) => {
 	})
 
 	/** create indexer-next service */
-	const service = createAddonService(stack, 'indexer-next', {
+	const indexerNext = createAddonService(stack, 'indexer-next', {
 		cluster,
 		logGroup: logGroupServices,
 		cloudMapNamespace,
@@ -82,7 +82,7 @@ export const createStack = async (app: App, config: Config) => {
 		}
 	})
 	/* allow service to invoke lambda fnOwnerTable */
-	service.taskDefinition.taskRole?.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+	indexerNext.taskDefinition.taskRole?.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['lambda:InvokeFunction'],
 		resources: [fnOwnerBlocking.functionArn],
 	}))
@@ -139,8 +139,31 @@ export const createStack = async (app: App, config: Config) => {
 		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
 	}))
 
+	const httpApi = createAddonService(stack, 'http-api', {
+		cluster,
+		logGroup: logGroupServices,
+		cloudMapNamespace,
+		resources: {
+			cpu: 1024,
+			memoryLimitMiB: 2048,
+		},
+		environment: {
+			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+			DB_HOST: rdsEndpoint,
+			SLACK_WEBHOOK: config.slack_webhook!,
+			SLACK_POSITIVE: config.slack_positive!,
+			HOST_URL: config.host_url || 'https://arweave.net',
+		}
+	})
+	httpApi.connections.securityGroups[0].addEgressRule(
+		aws_ec2.Peer.ipv4(vpc.vpcCidrBlock),
+		aws_ec2.Port.tcp(84),
+		'allow traffic within vpc to port 84',
+	)
+
 	/** give both services listsBucket access */
+	listsBucket.grantReadWrite(indexerNext.taskDefinition.taskRole)
 	listsBucket.grantReadWrite(webserver.taskDefinition.taskRole)
-	listsBucket.grantReadWrite(service.taskDefinition.taskRole)
+	listsBucket.grantReadWrite(httpApi.taskDefinition.taskRole)
 
 }
