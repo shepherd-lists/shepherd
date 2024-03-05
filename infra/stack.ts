@@ -129,12 +129,12 @@ export const createStack = async (app: App, config: Config) => {
 		protocol: aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
 		targets: [webserver],
 	})
-	const taskRole = webserver.taskDefinition.taskRole!
-	taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+	const taskRoleWeb = webserver.taskDefinition.taskRole!
+	taskRoleWeb.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['s3:*'],
 		resources: [listsBucket.bucketArn + '/*'],
 	}))
-	taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+	taskRoleWeb.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['ssm:GetParameter'],
 		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
 	}))
@@ -153,6 +153,7 @@ export const createStack = async (app: App, config: Config) => {
 			SLACK_WEBHOOK: config.slack_webhook!,
 			SLACK_POSITIVE: config.slack_positive!,
 			HOST_URL: config.host_url || 'https://arweave.net',
+			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
 		}
 	})
 	httpApi.connections.securityGroups[0].addEgressRule(
@@ -160,6 +161,13 @@ export const createStack = async (app: App, config: Config) => {
 		aws_ec2.Port.tcp(84),
 		'allow traffic within vpc to port 84',
 	)
+	const taskRoleHttpApi = httpApi.taskDefinition.taskRole!
+	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['s3:*'],
+		resources: [listsBucket.bucketArn + '/*'],
+	}))
+
+
 
 	/** give both services listsBucket access */
 	listsBucket.grantReadWrite(indexerNext.taskDefinition.taskRole)
