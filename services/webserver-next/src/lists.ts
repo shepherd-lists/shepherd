@@ -1,6 +1,6 @@
 import { Writable } from 'stream'
-import { s3GetObjectStream, s3HeadObject } from 'libs/utils/s3-services'
-import { readlineWeb } from 'libs/utils/webstream-utils'
+import { s3GetObjectStream, s3HeadObject } from '../../../libs/utils/s3-services'
+import { readlineWeb } from '../../../libs/utils/webstream-utils'
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

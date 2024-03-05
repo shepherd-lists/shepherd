@@ -1,7 +1,7 @@
 import { arGql, GQLUrls } from 'ar-gql'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
-import pool from 'libs/utils/pgClient'
-import { s3GetObject, s3HeadObject } from 'libs/utils/s3-services'
+import pool from '../../../libs/utils/pgClient'
+import { s3GetObject, s3HeadObject } from '../../../libs/utils/s3-services'
 import { performance } from 'perf_hooks'
 
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')

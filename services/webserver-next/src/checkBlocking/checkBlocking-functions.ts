@@ -6,8 +6,8 @@
  */
 import { PassThrough } from 'stream'
 import readline from 'readline'
-import { slackLog } from 'libs/utils/slackLog'
-import { slackLogPositive } from 'libs/utils/slackLogPositive'
+import { slackLog } from '../../../../libs/utils/slackLog'
+import { slackLogPositive } from '../../../../libs/utils/slackLogPositive'
 import { getBlacklist, getRangelist } from '../blacklist'
 import { fetch_checkBlocking } from './fetch-checkBlocking'
 import { alarmsInAlert, deleteUnreachable, isUnreachable, setAlertState, setUnreachable, unreachableServers, unreachableTimedout } from './event-tracking'

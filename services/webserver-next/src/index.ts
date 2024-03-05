@@ -3,10 +3,10 @@ console.log(`process.env.SLACK_POSITIVE ${process.env.SLACK_POSITIVE}`)
 console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
 import express from 'express'
-import { slackLog } from 'libs/utils/slackLog'
+import { slackLog } from '../../../libs/utils/slackLog'
 import { ipAllowBlacklist, ipAllowRangelist, ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
 import './checkBlocking/checkBlocking-timer' //starts automatically
-import { network_EXXX_codes } from 'libs/constants'
+import { network_EXXX_codes } from '../../../libs/constants'
 import { Socket } from 'net'
 import { txsTableNames } from './tablenames'
 import { getList } from './lists'

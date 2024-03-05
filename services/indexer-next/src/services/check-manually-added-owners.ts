@@ -1,5 +1,5 @@
 import { blockOwnerHistory } from '../../../../libs/block-owner/owner-blocking'
-import pg from 'libs/utils/pgClient'
+import pg from '../../../../libs/utils/pgClient'
 
 
 export const checkForManuallyAddedOwners = async () => {
