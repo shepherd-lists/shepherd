@@ -1,4 +1,4 @@
-import { blockOwnerHistory } from '../owner-blocking'
+import { blockOwnerHistory } from '../../../../libs/block-owner/owner-blocking'
 import pg from 'libs/utils/pgClient'
 
 

@@ -1,4 +1,4 @@
-import knexCreate from 'libs/utils/knexCreate'
+import knexCreate from '../utils/knexCreate'
 
 const knex = knexCreate()
 
