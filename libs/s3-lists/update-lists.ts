@@ -1,9 +1,8 @@
-import { s3HeadObject, s3PutObject, s3UploadReadable, s3UploadStream } from "../../../libs/utils/s3-services"
-import { slackLog } from "../../../libs/utils/slackLog"
-import pool from '../../../libs/utils/pgClient'
-import { infraction_limit } from "../../../libs/constants"
+import { s3HeadObject, s3PutObject, s3UploadReadable, s3UploadStream } from "../utils/s3-services"
+import { slackLog } from "../utils/slackLog"
+import pool from '../utils/pgClient'
+import { infraction_limit } from "../constants"
 import QueryStream from "pg-query-stream"
-import { concatReadableStreams } from "../../../libs/utils/webstream-utils"
 import { finished } from "stream/promises"
 
 
@@ -25,7 +24,7 @@ const keyExists = async (key: string) => {
 	}
 }
 
-export const assertLists = async (/* update only certain lists? */) => {
+export const assertLists = async () => {
 
 	/** check if lists need to be created */
 

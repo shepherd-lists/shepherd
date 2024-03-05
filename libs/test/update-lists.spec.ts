@@ -1,6 +1,6 @@
 import 'dotenv/config'
-import { updateAddresses } from '../src/update-lists'
-import pg from '../../../libs/utils/pgClient'
+import { updateAddresses } from '../s3-lists/update-lists'
+import pg from '../utils/pgClient'
 import { after, describe, it } from 'node:test'
 import assert from 'assert/strict'
 import QueryStream from 'pg-query-stream'
