@@ -156,7 +156,7 @@ export const createStack = async (app: App, config: Config) => {
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
 		}
 	})
-	httpApi.connections.securityGroups[0].addEgressRule(
+	httpApi.connections.securityGroups[0].addIngressRule(
 		aws_ec2.Peer.ipv4(vpc.vpcCidrBlock),
 		aws_ec2.Port.tcp(84),
 		'allow traffic within vpc to port 84',
