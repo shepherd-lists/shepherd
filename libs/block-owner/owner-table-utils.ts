@@ -3,13 +3,13 @@ import knexCreate from '../utils/knexCreate'
 const knex = knexCreate()
 
 /** we can't use `-` in postgres table names, and usual starting character rules + 63 char limit */
-export const ownerToOwnerTablename = (owner: string) => `owner_${owner.replace(/-/g, '·')}` // ref fnOwnerTable
+export const ownerToOwnerTablename = (owner: string) => `owner_${owner.replace(/-/g, '~')}` // ref fnOwnerTable
 
-export const ownerToInfractionsTablename = (owner: string) => `infractions_${owner.replace(/-/g, '·')}`
+export const ownerToInfractionsTablename = (owner: string) => `infractions_${owner.replace(/-/g, '~')}`
 
 export const tablenameToOwner = (tablename: string) => {
-	if (tablename.startsWith('owner_')) return tablename.slice('owner_'.length).replace(/·/g, '-')
-	if (tablename.startsWith('infractions_')) return tablename.slice('infractions_'.length).replace(/·/g, '-')
+	if (tablename.startsWith('owner_')) return tablename.slice('owner_'.length).replace(/~/g, '-')
+	if (tablename.startsWith('infractions_')) return tablename.slice('infractions_'.length).replace(/~/g, '-')
 	throw new Error('invalid tablename')
 }
 
