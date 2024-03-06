@@ -27,6 +27,8 @@ export const processFlagged = async (
 	 * 3. update s3
 	*/
 
+	let infractions = 0
+	const owner = record.owner!
 	const trx = await knex.transaction()
 	try {
 		/** 1. item specific */
@@ -53,21 +55,19 @@ export const processFlagged = async (
 
 		/** 2. owner update */
 		/** update owners_list */
-		const owner = record.owner!
 		const tablename = ownerToOwnerTablename(owner)
 		const infractionsTablename = ownerToInfractionsTablename(owner)
 		const ownerRecord = await trx('owners_list').where('owner', owner).first()
 
-		let infractions = 0
 		if (ownerRecord) {
 			infractions = ownerRecord.infractions
 		} else {
-			await createInfractionsTable(owner)
+			await createInfractionsTable(owner, trx)
 		}
-		const alreadyExists = await knex(infractionsTablename).where('txid', txid).first()
+		const alreadyExists = await trx(infractionsTablename).where('txid', txid).first()
 		if (!alreadyExists) {
 			infractions++
-			await knex(infractionsTablename).insert({ txid })
+			await trx(infractionsTablename).insert({ txid })
 		} else {
 			await slackLog(txid, 'ERROR ❌ already exists in infractions', `(${JSON.stringify(updates)}) => ${resInsert}`)
 			throw new Error(`Already exists in infractions`) //cause a rollback
@@ -79,23 +79,21 @@ export const processFlagged = async (
 			await trx('owners_list').insert({ owner, infractions, add_method: 'auto' })
 		}
 
-		/** schedule blocking if necessary */
-		if (infractions > infraction_limit) {
-			blockOwnerHistory(owner) // cannot rollback!
-
-			/** update s3://addresses.txt */
-			await updateAddresses()
-		}
-
-		/** update s3-lists. this causes a full re-write. use sparingly */
-		await updateFullTxidsRanges()
-
-
-
 		await trx.commit()
 	} catch (e) {
 		trx.rollback()
 		throw e // will this cause client to retry?
 	}
+
+	/** schedule blocking if necessary */
+	if (infractions > infraction_limit) {
+		await blockOwnerHistory(owner) // cannot rollback!
+
+		/** update s3://addresses.txt */
+		await updateAddresses() //needs to be commited 
+	}
+
+	/** update s3-lists. this causes a full re-write. use sparingly */
+	await updateFullTxidsRanges()
 
 }
