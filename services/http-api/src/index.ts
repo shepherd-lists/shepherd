@@ -15,7 +15,7 @@ const port = 84
 app.use(express.json())
 
 app.get('/', (req, res) => {
-	res.status(200).send('API listener operational.')
+	res.status(200).send('API listener operational.\n')
 })
 
 
@@ -60,9 +60,9 @@ export const server = app.listen(port, () => {
 			requestTimeout: server.requestTimeout,
 			headersTimeout: server.headersTimeout,
 			keepAliveTimeout: server.keepAliveTimeout,
-			//@ts-expect-error the following are not support to exist on Server
+			//@ts-expect-error the following are not supposed to exist on Server
 			connectionsCheckingInterval: server.connectionsCheckingInterval, allowHalfOpen: server.allowHalfOpen, pauseOnConnect: server.pauseOnConnect,
-			//@ts-expect-error the following are not support to exist on Server
+			//@ts-expect-error the following are not supposed to exist on Server
 			keepAlive: server.keepAlive, keepAliveInitialDelay: server.keepAliveInitialDelay, httpAllowHalfOpen: server.httpAllowHalfOpen,
 			maxHeadersCount: server.maxHeadersCount, maxRequestsPerSocket: server.maxRequestsPerSocket,
 		}
