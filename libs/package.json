@@ -4,18 +4,17 @@
   "scripts": {
     "test": "tsx --test **/*.spec.ts"
   },
-  "dependencies": {
+  "devDependencies": {
+    "@aws-sdk/client-lambda": "^3.525.0",
     "@aws-sdk/client-s3": "^3.521.0",
     "@aws-sdk/lib-storage": "^3.521.0",
     "@types/pg": "^8.11.2",
     "ar-gql": "^1.2.8",
     "arweave": "^1.14.4",
+    "dotenv": "^16.4.5",
     "knex": "^3.1.0",
     "moize": "^6.1.6",
     "pg": "^8.11.3",
     "pg-query-stream": "^4.5.3"
-  },
-  "devDependencies": {
-    "dotenv": "^16.4.5"
   }
 }

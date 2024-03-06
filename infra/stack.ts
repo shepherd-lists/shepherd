@@ -64,7 +64,7 @@ export const createStack = async (app: App, config: Config) => {
 	})
 
 	/** create indexer-next service */
-	const service = createAddonService(stack, 'indexer-next', {
+	const indexerNext = createAddonService(stack, 'indexer-next', {
 		cluster,
 		logGroup: logGroupServices,
 		cloudMapNamespace,
@@ -82,7 +82,7 @@ export const createStack = async (app: App, config: Config) => {
 		}
 	})
 	/* allow service to invoke lambda fnOwnerTable */
-	service.taskDefinition.taskRole?.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+	indexerNext.taskDefinition.taskRole?.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['lambda:InvokeFunction'],
 		resources: [fnOwnerBlocking.functionArn],
 	}))
@@ -129,18 +129,49 @@ export const createStack = async (app: App, config: Config) => {
 		protocol: aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
 		targets: [webserver],
 	})
-	const taskRole = webserver.taskDefinition.taskRole!
-	taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+	const taskRoleWeb = webserver.taskDefinition.taskRole!
+	taskRoleWeb.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['s3:*'],
 		resources: [listsBucket.bucketArn + '/*'],
 	}))
-	taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+	taskRoleWeb.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['ssm:GetParameter'],
 		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
 	}))
 
+	const httpApi = createAddonService(stack, 'http-api', {
+		cluster,
+		logGroup: logGroupServices,
+		cloudMapNamespace,
+		resources: {
+			cpu: 1024,
+			memoryLimitMiB: 2048,
+		},
+		environment: {
+			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+			DB_HOST: rdsEndpoint,
+			SLACK_WEBHOOK: config.slack_webhook!,
+			SLACK_POSITIVE: config.slack_positive!,
+			HOST_URL: config.host_url || 'https://arweave.net',
+			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
+		}
+	})
+	httpApi.connections.securityGroups[0].addIngressRule(
+		aws_ec2.Peer.ipv4(vpc.vpcCidrBlock),
+		aws_ec2.Port.tcp(84),
+		'allow traffic within vpc to port 84',
+	)
+	const taskRoleHttpApi = httpApi.taskDefinition.taskRole!
+	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['s3:*'],
+		resources: [listsBucket.bucketArn + '/*'],
+	}))
+
+
+
 	/** give both services listsBucket access */
+	listsBucket.grantReadWrite(indexerNext.taskDefinition.taskRole)
 	listsBucket.grantReadWrite(webserver.taskDefinition.taskRole)
-	listsBucket.grantReadWrite(service.taskDefinition.taskRole)
+	listsBucket.grantReadWrite(httpApi.taskDefinition.taskRole)
 
 }

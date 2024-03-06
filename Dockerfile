@@ -29,3 +29,11 @@ RUN npm ci --omit=dev
 COPY ./services/${targetArg}/src ./src
 RUN npx tsc --noEmit
 ENTRYPOINT npx tsx ./src/index.ts
+
+FROM base as http-api
+ARG targetArg 
+COPY services/${targetArg}/package*.json ./
+RUN npm ci --omit=dev
+COPY ./services/${targetArg}/src ./src
+RUN npx tsc --noEmit
+ENTRYPOINT npx tsx ./src/index.ts

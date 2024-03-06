@@ -1,8 +1,9 @@
-import { createOwnerTable } from './utils/owner-table-utils'
+import { createOwnerTable } from './owner-table-utils'
 import { arGql, GQLUrls } from 'ar-gql'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 
 
+if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var: FN_OWNER_BLOCKING')
 
 const lambdaClient = new LambdaClient({})
 
@@ -49,7 +50,7 @@ export const blockOwnerHistory = async (owner: string) => {
 
 	/** create owner table */
 	const tablename = await createOwnerTable(owner)
-	console.info(blockOwnerHistory.name, `created table: ${tablename} for owner: ${owner}`)
+	console.info(blockOwnerHistory.name, `created/exists table: ${tablename} for owner: ${owner}`)
 
 	/** gql all txids for the wallet */
 	const variables = {

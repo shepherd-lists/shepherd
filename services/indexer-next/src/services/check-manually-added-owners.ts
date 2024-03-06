@@ -1,5 +1,5 @@
-import { blockOwnerHistory } from '../owner-blocking'
-import pg from 'libs/utils/pgClient'
+import { blockOwnerHistory } from '../../../../libs/block-owner/owner-blocking'
+import pg from '../../../../libs/utils/pgClient'
 
 
 export const checkForManuallyAddedOwners = async () => {
@@ -10,7 +10,7 @@ export const checkForManuallyAddedOwners = async () => {
 		SELECT ol.owner
 		FROM owners_list ol
 		LEFT JOIN information_schema.tables it 
-			ON it.table_name = 'owner_' || REPLACE(ol.owner, '-', '·')
+			ON it.table_name = 'owner_' || REPLACE(ol.owner, '-', '~')
 			AND it.table_schema = 'public'
 		WHERE ol.add_method = 'manual'
 			AND it.table_name IS NULL;	

@@ -1,9 +1,9 @@
-import { slackLog } from 'libs/utils/slackLog'
-import { createInfractionsTable } from './utils/owner-table-utils'
-import { blockOwnerHistory } from './owner-blocking'
-import knexCreate from 'libs/utils/knexCreate'
+import { slackLog } from '../../../libs/utils/slackLog'
+import { createInfractionsTable } from '../../../libs/block-owner/owner-table-utils'
+import { blockOwnerHistory } from '../../../libs/block-owner/owner-blocking'
+import knexCreate from '../../../libs/utils/knexCreate'
 import { checkForManuallyAddedOwners } from './services/check-manually-added-owners'
-import { assertLists, updateFullTxidsRanges, updateAddresses } from './update-lists'
+import { assertLists, updateFullTxidsRanges, updateAddresses } from '../../../libs/s3-lists/update-lists'
 import { blockOwnerIngest } from './owner-ingest'
 
 
