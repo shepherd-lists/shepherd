@@ -40,25 +40,16 @@ while (true) {
 				console.info('migrate >>', 'Database upgrade not required', batchNo, logs)
 			}
 
-			// const owner = 'v2XXwq_FvVqH2KR4p_x8H-SQ7rDwZBbykSv-59__Avc'
-
-			// console.info('create infractions table.')
-			// const infractionsTable = await createInfractionsTable(owner)
-			// console.info('infractions table created.')
-
-			// console.info('run block owner history.')
-			// await blockOwnerHistory(owner)
-
-
 			/** initialise lists if necessary */
 			await assertLists()
 
-			/** start block-owner-ingest loop */
+			/** start block-owner-ingest loop (needs try-catch) */
 			blockOwnerIngest() //this async never returns!
 
 			runonce = false
 		}
 
+		/** this should be in a setInterval with it's own try-catch */
 		const manualInserts = await checkForManuallyAddedOwners()
 
 		/** check if lists need to be updated */

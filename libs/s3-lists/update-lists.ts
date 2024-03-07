@@ -47,13 +47,16 @@ export const assertLists = async () => {
 	console.info('done assertLists')
 }
 
-/** not really certain if /addresses.txt is going to be a feature */
+/** not really certain if /addresses.txt is going to be a feature, but we use it interally now. */
 export const updateAddresses = async () => {
 	try {
 
 		/** addresses should be pretty small, otherwise we might use streams */
 		let { rows } = await pool.query(
-			`SELECT owner FROM owners_list WHERE add_method = 'manual' OR infractions > $1;`,
+			`SELECT owners_list.owner FROM owners_list
+			LEFT JOIN owners_whitelist ON owners_list.owner = owners_whitelist.owner
+			WHERE owners_whitelist IS NULL
+			AND (add_method = 'manual' OR infractions > $1);`,
 			[infraction_limit]
 		)
 		const owners = rows.map((row: { owner: string }) => row.owner)
@@ -73,7 +76,7 @@ export const updateAddresses = async () => {
 }
 
 /** updateFullTxidsRanges. 
- * - if the /addresses.txt feature is introduced  we can omit owner_* from /blacklists.txt */
+ * - N.B. if the /addresses.txt feature is introduced  we can omit owner_* from /blacklists.txt */
 let _inProgess_updateFullTxidsRanges = false
 export const updateFullTxidsRanges = async () => {
 
@@ -155,8 +158,21 @@ export const updateFullTxidsRanges = async () => {
 	return count; //something to indicate success
 }
 
+/** get a list of all the tables with blocked owners items.
+ * - N.B. omit whitelisted owners
+ */
 const getOwnersTablenames = async () => {
-	const { rows } = await pool.query(`SELECT tablename FROM pg_catalog.pg_tables WHERE tablename LIKE 'owner\\_%';`)
-	return rows.map((row: { tablename: string }) => row.tablename)
+
+	const { rows } = await pool.query<{ tablename: string }>(`
+		SELECT tablename FROM pg_catalog.pg_tables
+		WHERE tablename LIKE 'owner\\_%'
+		AND NOT EXISTS (
+				SELECT 1 FROM owners_whitelist
+				WHERE pg_catalog.pg_tables.tablename = 'owner_' || REPLACE(owners_whitelist.owner, '-', '~')
+		);
+	`)
+
+	return rows.map(row => row.tablename)
 }
+
 

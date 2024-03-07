@@ -55,7 +55,6 @@ export const processFlagged = async (
 
 		/** 2. owner update */
 		/** update owners_list */
-		const tablename = ownerToOwnerTablename(owner)
 		const infractionsTablename = ownerToInfractionsTablename(owner)
 		const ownerRecord = await trx('owners_list').where('owner', owner).first()
 

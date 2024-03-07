@@ -13,7 +13,11 @@ export const checkForManuallyAddedOwners = async () => {
 			ON it.table_name = 'owner_' || REPLACE(ol.owner, '-', '~')
 			AND it.table_schema = 'public'
 		WHERE ol.add_method = 'manual'
-			AND it.table_name IS NULL;	
+			AND it.table_name IS NULL
+			AND NOT EXISTS (
+				SELECT 1 FROM owners_whitelist
+				WHERE owners_whitelist.owner = ol.owner
+			)	
 	`
 	const res = await pg.query<{ owner: string }>(query)
 
