@@ -229,7 +229,8 @@ const axiosRetryUnmemoized = async (url: string, id: string) => {
 		}
 	}
 }
-const axiosRetry = moize(axiosRetryUnmemoized, { maxSize: 1000, isPromise: true })
+const axiosRetry = moize(axiosRetryUnmemoized, { maxSize: 1000, isPromise: true, maxArgs: 1})
+
 const gqlTxRetryUnmemoized = async (id: string, gql: ArGqlInterface) => {
 	while(true){
 		try{
@@ -252,4 +253,4 @@ const gqlTxRetryUnmemoized = async (id: string, gql: ArGqlInterface) => {
 		}
 	}
 }
-const gqlTxRetry = moize(gqlTxRetryUnmemoized, { maxSize: 1000, isPromise: true })
+const gqlTxRetry = moize(gqlTxRetryUnmemoized, { maxSize: 1000, isPromise: true, maxArgs: 1 })
