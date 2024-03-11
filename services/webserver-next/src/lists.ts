@@ -38,12 +38,10 @@ export const getList = async (res: Writable, path: ('/addresses.txt' | '/blackli
 
 	/** just one fetch is needed, others can wait while a new fetch is occurring */
 	if (_cache[path].inProgress) {
-		while (true) {
+		while (_cache[path].inProgress) {
 			await sleep(500) //wait for new cache
-			if (!_cache[path].inProgress) {
-				return returnCache()
-			}
 		}
+		return returnCache()
 	}
 
 
