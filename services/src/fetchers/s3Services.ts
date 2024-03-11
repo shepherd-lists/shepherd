@@ -80,7 +80,7 @@ export const s3UploadStream = async(readable: Readable, mimetype: string, txid: 
 				await dbCorruptDataConfirmed(txid)
 				return 'Invalid-Content-Type'
 			}
-			//@ts-ignore
+			//@ts-expect-error `code` is not defined on type Error
 			const code = e.code
 			logger(prefix, txid, 'UNHANDLED S3 ERROR', `${e.name}(${code}):${e.message}`, e)
 			if(

@@ -104,7 +104,7 @@ export const indexer = async(gql: ArGqlInterface, gqlBackup: ArGqlInterface, CON
 					const tResets = performance.now()
 
 					const resetInbox = await knex<TxRecord>('inbox')
-						//@ts-expect-error
+						//@ts-expect-error flagged is not nullable according to type
 						.update({ flagged: null, valid_data: null })
 						.whereBetween('height', [minBlock, maxBlock])
 						.whereIn('data_reason', ['404', 'nodata', 'partial'])

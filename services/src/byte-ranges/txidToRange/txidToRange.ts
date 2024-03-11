@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios'
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, } from './constants-byteRange'
-import { HOST_URL } from '../../common/constants'
+import { HOST_URL, GQL_URL, GQL_URL_SECONDARY } from '../../common/constants'
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
 import moize from 'moize'
@@ -9,8 +9,6 @@ import { slackLogger } from '../../common/utils/slackLogger'
 
 
 if(!HOST_URL) throw new Error(`Missing env var, HOST_URL:${HOST_URL}`)
-const gqlUrlArweave = 'https://arweave.net/graphql'
-const gqlUrlGoldsky = 'https://arweave-search.goldsky.com/graphql'
 
 /**
  *
@@ -46,19 +44,19 @@ export const txidToRange = async (id: string, parent: string|null, parents: stri
 	}
 	//handle L2 ans104 (arbundles)
 
-	const gqlGold = arGql(gqlUrlGoldsky)
+	const gqlGold = arGql(GQL_URL_SECONDARY) //defaults to goldsky
 
 	let txParent = await gqlTxRetry(parent, gqlGold)
 	/** handle bugs in the gql indexing services */
 	if(!txParent){
 		/** notify on missing parents */
-		console.error(txidToRange.name, `Parent ${parent} not found using ${gqlUrlGoldsky}. Trying ${gqlUrlArweave} next. id: ${id}`)
-		const gqlArweave = arGql(gqlUrlArweave)
+		console.error(txidToRange.name, `Parent ${parent} not found using ${GQL_URL_SECONDARY}. Trying ${GQL_URL} next. id: ${id}`)
+		const gqlArweave = arGql(GQL_URL) //defaults to arweave
 		txParent = await gqlTxRetry(parent, gqlArweave)
 		//fail fast
 		if(!txParent){
-			slackLogger(`Parent ${parent} not found using ${gqlUrlArweave} or ${gqlUrlGoldsky}. id ${id}`) //overzealous? important not to miss this
-			throw new Error(`Parent ${parent} not found using ${gqlUrlArweave} or ${gqlUrlGoldsky}. id ${id}`)
+			slackLogger(`Parent ${parent} not found using ${GQL_URL} or ${GQL_URL_SECONDARY}. id ${id}`) //overzealous? important not to miss this
+			throw new Error(`Parent ${parent} not found using ${GQL_URL} or ${GQL_URL_SECONDARY}. id ${id}`)
 		}
 	}
 
