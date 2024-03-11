@@ -199,6 +199,7 @@ const getParent = moize(
 	{
 		isPromise: true,
 		maxSize: 10_000, //allow for caching of maxSize number of bundles per query (1 block).
+		maxArgs: 1,
 		// onCacheHit: ()=>console.log(`getParent cache hit`),
 		// onCacheAdd: async(cache, options)=> console.log(cache.keys, cache.values),
 	},
