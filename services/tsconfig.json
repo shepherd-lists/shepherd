@@ -10,9 +10,9 @@
     "esModuleInterop": true,
 
     "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "exclude": ["node_modules", "dist"],
   "ts-node": {
     "transpileOnly": true,
   }

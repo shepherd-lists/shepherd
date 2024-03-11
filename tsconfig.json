@@ -4,5 +4,6 @@
 		"moduleResolution": "Node",
 		"module": "ES2022",
 		"allowSyntheticDefaultImports": true,
-	}
+	},
+	"exclude": [ "cdk.out*" ]
 }
