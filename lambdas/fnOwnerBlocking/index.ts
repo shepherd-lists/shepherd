@@ -6,8 +6,8 @@ import { getByteRange } from './byte-ranges/byteRanges'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { gqlTx } from './byte-ranges/gqlTx'
 
-const gql = arGql(GQLUrls.goldsky, 3)
-const gqlBackup = arGql(GQLUrls.arweave, 3)
+const gql = arGql(process.env.GQL_URL_SECONDARY, 3) //defaults to goldsky
+const gqlBackup = arGql(process.env.GQL_URL, 3) //defaults to arweave
 
 
 /** the handler will receive 1 page of blocked wallet results. 
