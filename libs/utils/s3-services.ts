@@ -57,13 +57,19 @@ export const s3PutObject = async (Bucket: string, Key: string, text: string) => 
 	return res.$metadata.httpStatusCode
 }
 
-export const s3GetObjectStream = async (Bucket: string, Key: string) => {
+export const s3GetObjectWebStream = async (Bucket: string, Key: string) => {
 	try {
 		const { Body } = (await s3client.send(new GetObjectCommand({ Bucket, Key, })))
+
+		//DEBUG
+		console.debug('s3GetObjectWebStream typeof Body', typeof Body)
+		if (Body instanceof ReadableStream) console.debug('s3GetObjectWebStream Body is a ReadableStream')
+		if (Body instanceof Readable) console.debug('s3GetObjectWebStream Body is a Readable')
+
 		return Body!.transformToWebStream()
 	} catch (err: unknown) {
 		const e = err as Error
-		slackLog(s3GetObjectStream.name, Key, `UNHANDLED error ${e.name}:${e.message}.`, JSON.stringify(e))
+		slackLog(s3GetObjectWebStream.name, Key, `UNHANDLED error ${e.name}:${e.message}.`, JSON.stringify(e))
 		throw e
 	}
 }

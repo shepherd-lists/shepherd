@@ -1,5 +1,5 @@
 import { Writable } from 'stream'
-import { s3GetObjectStream, s3HeadObject } from '../../../libs/utils/s3-services'
+import { s3GetObjectWebStream, s3HeadObject } from '../../../libs/utils/s3-services'
 import { readlineWeb } from '../../../libs/utils/webstream-utils'
 
 
@@ -48,7 +48,7 @@ export const getList = async (res: Writable, path: ('/addresses.txt' | '/blackli
 	console.info(`${getList.name}(${path})`, 'fetching new...')
 	_cache[path].inProgress = true
 
-	const stream = await s3GetObjectStream(process.env.LISTS_BUCKET!, key)
+	const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, key)
 	let text = ''
 	for await (const line of readlineWeb(stream)) {
 		const l = `${line}\n`
