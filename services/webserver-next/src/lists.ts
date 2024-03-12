@@ -2,6 +2,8 @@ import { Writable } from 'stream'
 import { s3GetObjectWebStream, s3HeadObject } from '../../../libs/utils/s3-services'
 import { readlineWeb } from '../../../libs/utils/webstream-utils'
 
+if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
+console.debug('LISTS_BUCKET', process.env.LISTS_BUCKET)
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -12,7 +14,7 @@ interface Cached {
 }
 const _cache: Record<string, Cached> = {}
 
-export const getList = async (res: Writable, path: ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt')) => {
+export const getList = async (res: Writable, path: ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt' | '/testing.txt')) => {
 
 	const key = path.replace('/', '')
 
