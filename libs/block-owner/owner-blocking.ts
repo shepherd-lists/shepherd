@@ -1,14 +1,16 @@
 import { createOwnerTable } from './owner-table-utils'
-import { arGql, GQLUrls } from 'ar-gql'
+import { arGql } from 'ar-gql'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 
 
 if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var: FN_OWNER_BLOCKING')
+if (!process.env.GQL_URL_SECONDARY) throw new Error('missing env var: GQL_URL_SECONDARY')
+if (!process.env.GQL_URL) throw new Error('missing env var: GQL_URL')
 
 const lambdaClient = new LambdaClient({})
 
-const gql = arGql(GQLUrls.goldsky, 3)
-const gqlBackup = arGql(GQLUrls.arweave, 3)
+const gql = arGql(process.env.GQL_URL_SECONDARY, 3) //defaults to goldsky
+const gqlBackup = arGql(process.env.GQL_URL, 3) //defaults to arweave
 const query = `
 query($cursor: String, $owners: [String!]) {
   transactions(

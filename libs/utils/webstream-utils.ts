@@ -15,7 +15,7 @@ export async function* iteratorWeb<T>(stream: ReadableStream<T>) {
 }
 
 /**
- * returns non-empty lines from a stream. 
+ * returns lines from a web stream. 
  */
 export async function* readlineWeb(stream: ReadableStream<ArrayBuffer>) {
 	const textStream = stream.pipeThrough(new TextDecoderStream)
@@ -23,14 +23,21 @@ export async function* readlineWeb(stream: ReadableStream<ArrayBuffer>) {
 	let lastString = ''
 	for await (const chunk of iteratorWeb(textStream)) {
 		const strings = (lastString + chunk).split('\n')
+
+		// console.debug(readlineWeb.name, 'strings', strings)
+
 		lastString = strings.pop() || ''
-		if (strings.length === 0) continue;
-		if (strings.length === 1) continue;
+
+		// console.debug(readlineWeb.name, 'strings', strings)
+		// console.debug('lastString', lastString)
+
 		for (const s of strings) {
+			// console.debug('s', s)
 			//return lines
 			yield s;
 		}
 	}
+	// console.debug('lastString', lastString)
 	if (lastString.length > 0) {
 		//return the last line 
 		yield lastString;

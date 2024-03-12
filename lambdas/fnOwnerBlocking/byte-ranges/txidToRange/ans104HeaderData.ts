@@ -6,7 +6,7 @@
  */
 import Arweave from 'arweave'
 import { fetchRetryConnection } from './fetch-retry'
-import { HOST_URL } from '../../utils/constants'
+import { HOST_URL } from './constants-byteRange'
 import moize from 'moize'
 
 

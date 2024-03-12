@@ -1,4 +1,4 @@
-import { arGql, GQLUrls } from 'ar-gql'
+import { arGql } from 'ar-gql'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 import pool from '../../../libs/utils/pgClient'
 import { s3GetObject, s3HeadObject } from '../../../libs/utils/s3-services'
@@ -6,9 +6,11 @@ import { performance } from 'perf_hooks'
 
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
 const LISTS_BUCKET = process.env.LISTS_BUCKET!
+if (!process.env.GQL_URL_SECONDARY) throw new Error('missing env var: GQL_URL_SECONDARY')
+const GQL_URL_SECONDARY = process.env.GQL_URL_SECONDARY!
 
 const lambdaClient = new LambdaClient({})
-const gql = arGql(GQLUrls.goldsky, 3)
+const gql = arGql(GQL_URL_SECONDARY, 3) //defaults to goldsky
 
 const ingestQuery = `
 query($cursor: String, $owners: [String!], $minAt: Int, $maxAt: Int) {

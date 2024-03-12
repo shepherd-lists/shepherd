@@ -1,7 +1,9 @@
 import { Writable } from 'stream'
-import { s3GetObjectStream, s3HeadObject } from '../../../libs/utils/s3-services'
+import { s3GetObjectWebStream, s3HeadObject } from '../../../libs/utils/s3-services'
 import { readlineWeb } from '../../../libs/utils/webstream-utils'
 
+if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
+console.debug('LISTS_BUCKET', process.env.LISTS_BUCKET)
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -12,7 +14,7 @@ interface Cached {
 }
 const _cache: Record<string, Cached> = {}
 
-export const getList = async (res: Writable, path: ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt')) => {
+export const getList = async (res: Writable, path: ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt' | '/testing.txt')) => {
 
 	const key = path.replace('/', '')
 
@@ -38,19 +40,17 @@ export const getList = async (res: Writable, path: ('/addresses.txt' | '/blackli
 
 	/** just one fetch is needed, others can wait while a new fetch is occurring */
 	if (_cache[path].inProgress) {
-		while (true) {
+		while (_cache[path].inProgress) {
 			await sleep(500) //wait for new cache
-			if (!_cache[path].inProgress) {
-				return returnCache()
-			}
 		}
+		return returnCache()
 	}
 
 
 	console.info(`${getList.name}(${path})`, 'fetching new...')
 	_cache[path].inProgress = true
 
-	const stream = await s3GetObjectStream(process.env.LISTS_BUCKET!, key)
+	const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, key)
 	let text = ''
 	for await (const line of readlineWeb(stream)) {
 		const l = `${line}\n`

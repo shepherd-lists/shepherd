@@ -5,7 +5,7 @@
  * `unbundleData` filters dataItems that don't validate, so this will interefere with our size calculations.
  */
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from './constants-byteRange'
-import { HOST_URL } from '../../constants'
+import { HOST_URL } from './constants-byteRange'
 import { fetchFullRetried } from './fetch-retry'
 import moize from 'moize'
 

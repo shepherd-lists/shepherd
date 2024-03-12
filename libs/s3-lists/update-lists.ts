@@ -60,7 +60,7 @@ export const updateAddresses = async () => {
 			[infraction_limit]
 		)
 		const owners = rows.map((row: { owner: string }) => row.owner)
-		console.debug('owners.length', owners.length)
+		console.debug('owners.length', owners.length, owners)
 
 		console.info('updating addresses.txt...')
 		await s3PutObject(process.env.LISTS_BUCKET!, 'addresses.txt', owners.join('\n') + '\n')
@@ -110,7 +110,7 @@ export const updateFullTxidsRanges = async () => {
 	ownerStreams.map((stream) => client.query(stream))
 
 	/** prepare output streams to s3 */
-	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'blacklist.txt') //not sure if this is going to work correctly
+	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'blacklist.txt')
 	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
 
 	let count = 0

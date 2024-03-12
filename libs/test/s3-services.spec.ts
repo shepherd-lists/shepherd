@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { s3DeleteObject, s3HeadObject, s3GetObject, s3GetObjectStream, s3PutObject, s3UploadStream } from '../utils/s3-services'
+import { s3DeleteObject, s3HeadObject, s3GetObject, s3GetObjectWebStream, s3PutObject, s3UploadStream } from '../utils/s3-services'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
@@ -27,7 +27,7 @@ describe('s3 services', () => {
 	})
 
 	it('should be able to get a file from s3 as a stream', async () => {
-		const stream = await s3GetObjectStream(bucketName, 'test.txt')
+		const stream = await s3GetObjectWebStream(bucketName, 'test.txt')
 		// console.debug('stream', stream)
 		assert.ok(stream, 'stream defined')
 

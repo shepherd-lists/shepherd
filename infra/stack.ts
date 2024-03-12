@@ -59,7 +59,10 @@ export const createStack = async (app: App, config: Config) => {
 		memorySize: 256,
 		environment: {
 			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: config.slack_webhook!
+			SLACK_WEBHOOK: config.slack_webhook!,
+			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
+			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
+			HOST_URL: config.host_url || 'https://arweave.net',
 		},
 	})
 
@@ -75,6 +78,7 @@ export const createStack = async (app: App, config: Config) => {
 		environment: {
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: config.slack_webhook!,
+			HOST_URL: config.host_url || 'https://arweave.net',
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
@@ -153,6 +157,8 @@ export const createStack = async (app: App, config: Config) => {
 			SLACK_WEBHOOK: config.slack_webhook!,
 			SLACK_POSITIVE: config.slack_positive!,
 			HOST_URL: config.host_url || 'https://arweave.net',
+			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
+			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
 		}
 	})

@@ -2,7 +2,7 @@ import { slackLog } from '../../../libs/utils/slackLog'
 import { createInfractionsTable } from '../../../libs/block-owner/owner-table-utils'
 import { blockOwnerHistory } from '../../../libs/block-owner/owner-blocking'
 import knexCreate from '../../../libs/utils/knexCreate'
-import { checkForManuallyAddedOwners } from './services/check-manually-added-owners'
+import { checkForManuallyModifiedOwners } from './services/check-manually-added-owners'
 import { assertLists, updateFullTxidsRanges, updateAddresses } from '../../../libs/s3-lists/update-lists'
 import { blockOwnerIngest } from './owner-ingest'
 
@@ -50,11 +50,11 @@ while (true) {
 		}
 
 		/** this should be in a setInterval with it's own try-catch */
-		const manualInserts = await checkForManuallyAddedOwners()
+		const modified = await checkForManuallyModifiedOwners()
 
 		/** check if lists need to be updated */
-		if (manualInserts > 0) {
-			console.info('new items blocked. recreating lists')
+		if (modified) {
+			console.info('owners manually modified. recreating lists')
 			const ownersAdded = await updateAddresses()
 			const updateLists = await updateFullTxidsRanges()
 
