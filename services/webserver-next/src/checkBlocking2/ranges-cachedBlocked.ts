@@ -26,12 +26,13 @@ export const getBlockedRanges = async () => {
 		return _rangeCache.ranges
 	}
 
-	/** overload check: just one update is allowed/required */
+	/** just one running update is allowed/required */
 	if (_rangeCache.inProgress) {
-		slackLog(getBlockedRanges.name, 'WARNING! waiting for cache update as inProgress. indicates server overloaded!')
+		console.info(getBlockedRanges.name, 'waiting for cache update as inProgress')
 		while (_rangeCache.inProgress) {
 			await sleep(500) //wait for new cache
 		}
+		console.info(getBlockedRanges.name, 'returning cache')
 		return _rangeCache.ranges
 	}
 	_rangeCache.inProgress = true
