@@ -28,7 +28,7 @@ async function* singleKeyJsonStream(body: ReadableStream<Uint8Array>) {
 				const jsonString = objectString.replace(/^\[|\]$/g, '')
 				if (jsonString) {
 					const object = JSON.parse(jsonString)
-					yield object
+					yield object as { [end: string]: string }
 				}
 			} catch (e) {
 				console.error('Error parsing JSON object:', e)
@@ -41,7 +41,7 @@ async function* singleKeyJsonStream(body: ReadableStream<Uint8Array>) {
 	// dont forget the last object
 	buffer = buffer.replace(/^\[|\]$/g, '')
 	if (buffer.length > 0) {
-		yield JSON.parse(buffer)
+		yield JSON.parse(buffer) as { [end: string]: string }
 	}
 }
 
