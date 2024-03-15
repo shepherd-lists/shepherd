@@ -20,6 +20,7 @@ async function* singleKeyJsonStream(body: ReadableStream<Uint8Array>) {
 		buffer += new TextDecoder().decode(chunk)
 		let start = 0
 		let end
+		// Split the buffer into JSON objects using ',' as the delimiter. incredibly specific case!
 		while ((end = buffer.indexOf(',', start)) !== -1) {
 			const objectString = buffer.substring(start, end).trim()
 			try {
@@ -37,12 +38,12 @@ async function* singleKeyJsonStream(body: ReadableStream<Uint8Array>) {
 		}
 		buffer = buffer.substring(start)
 	}
+	// dont forget the last object
+	buffer = buffer.replace(/^\[|\]$/g, '')
 	if (buffer.length > 0) {
-		const s = buffer.replace(/^\[|\]$/g, '')
-		yield JSON.parse(s)
+		yield JSON.parse(buffer)
 	}
 }
-
 
 
 export const dataSyncObjectStream = async (domain: string, port: number) => {
