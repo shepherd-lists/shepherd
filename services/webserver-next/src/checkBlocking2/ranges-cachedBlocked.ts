@@ -30,7 +30,7 @@ export const getBlockedRanges = async () => {
 	if (_rangeCache.inProgress) {
 		console.info(getBlockedRanges.name, 'waiting for cache update as inProgress')
 		while (_rangeCache.inProgress) {
-			await sleep(500) //wait for new cache
+			await sleep(100) //wait for new cache
 		}
 		console.info(getBlockedRanges.name, 'returning cache')
 		return _rangeCache.ranges

@@ -13,7 +13,7 @@ const rangesOverlap = (rangeA: [number, number], rangeB: [number, number]) => {
 	return (rangeA[0] <= rangeB[1] && rangeB[0] <= rangeA[1])
 }
 
-export const checkServerBlocking = async (domain: string, port: number) => {
+export const checkServerBlockingChunks = async (domain: string, port: number) => {
 	// get data_sync_records from server
 	const dsrStream = await dataSyncObjectStream(domain, port)
 
@@ -48,6 +48,7 @@ export const checkServerBlocking = async (domain: string, port: number) => {
 				console.debug('end <= blockedRange[0]', end <= blockedRange[0])
 				//TODO: raise an alert here
 			}
+			//TODO: short-circuit if range if dsr start > blockedRange.end 
 			return notblocked
 		})
 		if (notblocked) console.info('range not-blocked', { notblocked, start, end })
