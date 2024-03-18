@@ -11,11 +11,11 @@ const readPagerdutyKey = async () => (await ssmClient.send(new GetParameterComma
 
 /** rate-limit our calls to pagerduty */
 const rateLimit = 60_000
-const callArgs: { [serverName: string]: { lastCall: number } } = {}
+const _callArgs: { [serverName: string]: { lastCall: number } } = {}
 
 let _PAGERDUTY_KEY: string
 let _region: string
-let enabled: boolean
+let _enabled: boolean
 
 const setup = async () => {
 	try {
@@ -38,25 +38,25 @@ const setup = async () => {
 	return false
 }
 /** setup these values early in case there is a problem */
-setup().then(res => enabled = res)
+setup().then(res => _enabled = res)
 
 export const pagerdutyAlert = async (alertString: string, serverName: string) => {
 
 	/** check pagerduty setup and enabled in this region */
-	if (enabled === false) {
+	if (_enabled === false) {
 		return
-	} else if (enabled === undefined) {
-		enabled = await setup()
-		if (enabled === false) {
+	} else if (_enabled === undefined) {
+		_enabled = await setup()
+		if (_enabled === false) {
 			return
 		}
 	}
 
 	/** don't get rate-limited by PagerDuty */
-	if (callArgs[serverName] && (Date.now() - callArgs[serverName].lastCall) < rateLimit) {
+	if (_callArgs[serverName] && (Date.now() - _callArgs[serverName].lastCall) < rateLimit) {
 		return
 	}
-	callArgs[serverName] = { lastCall: Date.now() }
+	_callArgs[serverName] = { lastCall: Date.now() }
 
 
 	/** trigger a pagerduty alert */
