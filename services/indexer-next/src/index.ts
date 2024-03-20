@@ -4,7 +4,7 @@ import { blockOwnerHistory } from '../../../libs/block-owner/owner-blocking'
 import knexCreate from '../../../libs/utils/knexCreate'
 import { checkForManuallyModifiedOwners } from './services/check-manually-added-owners'
 import { assertLists, updateFullTxidsRanges, updateAddresses } from '../../../libs/s3-lists/update-lists'
-import { blockOwnerIngest } from './owner-ingest'
+import { ownerIngestCatchLoop } from './owner-ingest'
 
 
 
@@ -43,21 +43,19 @@ while (true) {
 			/** initialise lists if necessary */
 			await assertLists()
 
-			/** start block-owner-ingest loop (needs try-catch) */
-			blockOwnerIngest() //this async never returns!
+			/** start block-owner-ingest loop */
+			ownerIngestCatchLoop() //this async never returns, has own catch-loop
 
 			runonce = false
 		}
 
-		/** this should be in a setInterval with it's own try-catch */
-		const modified = await checkForManuallyModifiedOwners()
 
 		/** check if lists need to be updated */
-		if (modified) {
+		//this should be in a setInterval with it's own try-catch?
+		if (await checkForManuallyModifiedOwners()) {
 			console.info('owners manually modified. recreating lists')
 			const ownersAdded = await updateAddresses()
 			const updateLists = await updateFullTxidsRanges()
-
 		}
 
 
@@ -68,8 +66,8 @@ while (true) {
 
 	} catch (err: unknown) {
 		const e = err as Error
-		slackLog(
-			`Fatal error occurred: ${e.name}:${e.message}\n`,
+		await slackLog(
+			`Fatal error ❌ ${e.name}:${e.message}\n`,
 			JSON.stringify(e, null, 2),
 			'\nrestarting in 30 seconds...'
 		)
