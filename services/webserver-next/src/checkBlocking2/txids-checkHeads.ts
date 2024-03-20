@@ -2,6 +2,7 @@ import { getBlockedTxids } from "./txids-cached"
 import https from 'https'
 
 
+
 const agent = new https.Agent({
 	keepAlive: true, //default false
 	// maxSockets: Infinity, //default Infinity
@@ -9,7 +10,7 @@ const agent = new https.Agent({
 	// keepAliveMsecs: 1000, //default 1000
 })
 
-export const headRequest = async (url: string) => {
+const headRequest = async (url: string) => {
 	return new Promise((resolve, reject) => {
 		const req = https.request(url, {
 			method: 'HEAD',
@@ -47,10 +48,10 @@ export const checkServerBlockingTxids = async (domain: string) => {
 
 	//DEBUG
 	// assume this server is reachable?
-	for (const txid of blockedTxids) {
+	for (const { subdomain, txid } of blockedTxids) {
 		if (txid.length !== 43) throw new Error(`txid ${txid} length !== 43`) //sanity
 
-		const status = await headRequest(`https://${domain}/${txid}`)
+		const status = await headRequest(`https://${subdomain}.${domain}/${txid}`)
 		console.info('txid status', { txid, status })
 	}
 }
