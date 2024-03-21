@@ -215,7 +215,7 @@ const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 		const height = item.node.block.height // missing height should not happen and cause `TypeError : Cannot read properties of null (reading 'height')`
 		const parent = item.node.parent?.id || null // the direct parent, if exists
 		const parents: string[] = []
-		const owner = item.node.owner?.address || null
+		const owner = item.node.owner!.address
 
 		// loop to find all nested parents
 		if(parent){
