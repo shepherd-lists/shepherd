@@ -4,6 +4,7 @@ import { logger } from '../common/utils/logger'
 import { SQS } from 'aws-sdk'
 import { performance } from 'perf_hooks'
 import { slackLogger } from '../common/utils/slackLogger'
+import { legacyRecordOwnerFix } from './legacyFix-RecordOwner'
 
 
 const prefix = 'feeder'
@@ -40,7 +41,15 @@ const getTxRecords =async (limit: number) => {
 			const duration = performance.now() - t0
 			logger(prefix, length, 'records selected. limit', limit, ` - in ${duration.toFixed(2)}ms`)
 
-			return records
+			/** quick n dirty fix for older records without owners */
+			// return records
+			return await Promise.all(records.map(async rec => {
+				if(!rec.owner){
+					rec.owner = await legacyRecordOwnerFix(rec.txid)
+				}
+				return rec
+			}))
+
 		}catch(e){
 			if(e instanceof Error && e.name === 'KnexTimeoutError'){
 				logger(getTxRecords.name, e.name, ':', e.message, 'retrying in 5s...')
