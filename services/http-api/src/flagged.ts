@@ -32,13 +32,13 @@ export const processFlagged = async (
 	const trx = await knex.transaction()
 	try {
 		/** 1. item specific */
-		/** update tx in db */
-		await trx<TxRecord>('inbox')
+		/** remove from inbox/inflights */
+		await trx('inflights')
 			.delete()
 			.where('txid', txid)
 
-		/** remove from inbox/inflights */
-		await trx('inflights')
+		/** update tx in db */
+		await trx<TxRecord>('inbox')
 			.delete()
 			.where('txid', txid)
 
