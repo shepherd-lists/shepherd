@@ -44,6 +44,8 @@ if(program.args.length > 0){
 	if(program.args[0] === 'deploy'){
 		cdkCommand += ' --require-approval never '
 		// --hotswap-fallback
+	}else if(program.args[0] === 'destroy'){
+		cdkCommand += ' --force '
 	}
 	if(['synth', 'deploy', 'diff'].includes(program.args[0])){
 		cdkCommand += ` --output='./cdk.out.${config.region}' --change-set-name 'change-name-${config.region}' `
