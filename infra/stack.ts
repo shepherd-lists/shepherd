@@ -85,7 +85,7 @@ export const createStack = async (app: App, config: Config) => {
 			LISTS_BUCKET: `shepherd-lists-${config.region}`,
 		}
 	})
-	/* allow service to invoke lambda fnOwnerTable */
+	/* allow indexerNext to invoke lambda fnOwnerTable */
 	indexerNext.taskDefinition.taskRole?.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['lambda:InvokeFunction'],
 		resources: [fnOwnerBlocking.functionArn],
@@ -171,6 +171,10 @@ export const createStack = async (app: App, config: Config) => {
 	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['s3:*'],
 		resources: [listsBucket.bucketArn + '/*'],
+	}))
+	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['lambda:InvokeFunction'],
+		resources: [fnOwnerBlocking.functionArn],
 	}))
 
 
