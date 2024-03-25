@@ -1,4 +1,4 @@
-import pg, { batchInsert, ownerToTablename } from './utils/pgClient'
+import pg, { batchInsertFnOwner, ownerToTablename } from './utils/pgClient'
 import { slackLog } from './utils/slackLog'
 import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
 import { OwnerTableRecord } from '../../types'
@@ -88,7 +88,7 @@ export const handler = async (event: any) => {
 		/** batch insert this pages results */
 		const counts: { [owner: string]: number; total: number } = { total: 0 }
 		for (const key of Object.keys(records)) {
-			const inserted = await batchInsert(records[key], ownerToTablename(key))
+			const inserted = await batchInsertFnOwner(records[key], ownerToTablename(key))
 
 			if (!counts[key]) counts[key] = 0
 			counts[key] += inserted!
