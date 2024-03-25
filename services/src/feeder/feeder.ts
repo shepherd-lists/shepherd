@@ -47,6 +47,7 @@ const getTxRecords =async (limit: number) => {
 				if(!rec.owner){
 					rec.owner = await legacyRecordOwnerFix(rec.txid)
 				}
+				rec.owner = (rec.owner as string).padEnd(43, ' ') //pad non-arweave addresses to 43 chars
 				return rec
 			}))
 
