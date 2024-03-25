@@ -68,7 +68,10 @@ export const blockOwnerHistory = async (owner: string) => {
 			Payload: JSON.stringify({ page, pageNumber }),
 			InvocationType: 'RequestResponse',
 		}))
-		//TODO: handle errors in lambda
+		if (res.FunctionError) {
+			//slackLogs already happen in the lambda
+			throw new Error(`Lambda error for ${owner}: ${res.FunctionError}`)
+		}
 
 		const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
 		counts.items += page.length
