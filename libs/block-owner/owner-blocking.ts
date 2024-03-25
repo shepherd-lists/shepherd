@@ -1,6 +1,8 @@
 import { createOwnerTable } from './owner-table-utils'
 import { arGql } from 'ar-gql'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
+import pool from '../utils/pgClient'
+import { slackLog } from '../utils/slackLog'
 
 
 if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var: FN_OWNER_BLOCKING')
@@ -50,6 +52,13 @@ export const blockOwnerHistory = async (owner: string) => {
 	 * 4. send pages to lambdas (getParents, calc ranges, build records, insert to owner table)
 	 */
 
+	/** check owner blocking not currently in progess or done */
+	const status = await pool.query('UPDATE owners_list SET add_method = $1 WHERE owner = $2 AND add_method = $3 RETURNING *', ['updating', owner, 'auto'])
+	if (status.rowCount === 0) {
+		await slackLog(`owner ${owner} is already being blocked`)
+		return 0
+	}
+
 	/** create owner table */
 	const tablename = await createOwnerTable(owner)
 	console.info(blockOwnerHistory.name, `created/exists table: ${tablename} for owner: ${owner}`)
@@ -69,7 +78,7 @@ export const blockOwnerHistory = async (owner: string) => {
 			InvocationType: 'RequestResponse',
 		}))
 		if (res.FunctionError) {
-			//slackLogs already happen in the lambda
+			//slackLogs already happen in the lambda, just throw here so not marked as completed
 			throw new Error(`Lambda error for ${owner}: ${res.FunctionError}`)
 		}
 
@@ -77,6 +86,11 @@ export const blockOwnerHistory = async (owner: string) => {
 		counts.items += page.length
 		counts.inserts += lambdaCounts.total
 	})
+
+	/** update owner_list status, if no error thrown above */
+	const check = await pool.query('UPDATE owners_list SET add_method = $1 WHERE owner = $2 RETURNING *', ['blocked', owner])
+	console.debug(`owner ${owner} add_method finialized`, check.rowCount === 1, check.rows[0]?.add_method)
+
 
 	console.info(blockOwnerHistory.name, `completed processing ${JSON.stringify(counts)} for owner: ${owner}`)
 
