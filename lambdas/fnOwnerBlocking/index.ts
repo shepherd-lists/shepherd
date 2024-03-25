@@ -43,7 +43,7 @@ export const handler = async (event: any) => {
 			const txid = node.id
 			const parent = node.parent?.id || null
 			let parents: string[] | undefined = []
-			const owner = node.owner.address
+			const owner = node.owner.address.padEnd(43, ' ') //pad non-arweave addresses to 43
 
 			// loop to find all nested parents
 			if (parent) {

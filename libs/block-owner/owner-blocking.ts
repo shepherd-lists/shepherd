@@ -65,7 +65,7 @@ export const blockOwnerHistory = async (owner: string) => {
 
 	/** gql all txids for the wallet */
 	const variables = {
-		owners: [owner],
+		owners: [owner.trim()],
 	}
 	const counts = { page: 0, items: 0, inserts: 0 }
 	await gql.all(query, variables, async (page) => {
