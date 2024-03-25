@@ -70,7 +70,7 @@ export const blockOwnerHistory = async (owner: string) => {
 	const counts = { page: 0, items: 0, inserts: 0 }
 	await gql.all(query, variables, async (page) => {
 		const pageNumber = ++counts.page
-		console.info(blockOwnerHistory.name, 'processing page', pageNumber)
+		console.info(blockOwnerHistory.name, owner, 'processing page', pageNumber)
 
 		const res = await lambdaClient.send(new InvokeCommand({
 			FunctionName: process.env.FN_OWNER_BLOCKING as string,
@@ -92,7 +92,7 @@ export const blockOwnerHistory = async (owner: string) => {
 	console.debug(`owner ${owner} add_method finialized`, check.rowCount === 1, check.rows[0]?.add_method)
 
 
-	console.info(blockOwnerHistory.name, `completed processing ${JSON.stringify(counts)} for owner: ${owner}`)
+	console.info(blockOwnerHistory.name, owner, `completed processing ${JSON.stringify(counts)}`)
 
 	return counts.inserts
 }
