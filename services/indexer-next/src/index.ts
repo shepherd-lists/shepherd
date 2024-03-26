@@ -65,6 +65,7 @@ while (true) {
 	} catch (err: unknown) {
 		const e = err as Error
 		await slackLog(
+			'indexer-next.main',
 			`Fatal error ❌ ${e.name}:${e.message}\n`,
 			JSON.stringify(e, null, 2),
 			'\nrestarting in 30 seconds...'

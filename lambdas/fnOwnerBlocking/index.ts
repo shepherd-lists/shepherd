@@ -100,7 +100,7 @@ export const handler = async (event: any) => {
 		return counts
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog(`Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
+		await slackLog('fnOwner.handler', `Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
 		throw e
 	}
 }

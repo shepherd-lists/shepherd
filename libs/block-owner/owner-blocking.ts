@@ -66,6 +66,7 @@ export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual'
 			return 0
 		}
 	}
+	slackLog(blockOwnerHistory.name, `owner ${owner} will be blocked`)
 
 	/** create owner table */
 	const tablename = await createOwnerTable(owner)
@@ -96,11 +97,17 @@ export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual'
 	})
 
 	/** update owner_list status, if no error thrown above */
-	const check = await pool.query('UPDATE owners_list SET add_method = $1 WHERE owner = $2 RETURNING *', ['blocked', owner])
+	const check = await pool.query(`
+		UPDATE owners_list 
+		SET add_method = 'blocked' 
+		WHERE owner = $1 RETURNING *`,
+		[owner]
+	)
 	console.debug(`owner ${owner} add_method finialized`, check.rowCount === 1, check.rows[0]?.add_method)
 
 
-	console.info(blockOwnerHistory.name, owner, `completed processing ${JSON.stringify(counts)}`)
+	await slackLog(blockOwnerHistory.name, owner, `✅ completed blocking ${JSON.stringify(counts)}`)
+
 
 	return counts.inserts
 }
