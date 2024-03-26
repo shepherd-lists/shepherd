@@ -1,4 +1,4 @@
-import pg, { batchInsert, ownerToTablename } from './utils/pgClient'
+import pg, { batchInsertFnOwner, ownerToTablename } from './utils/pgClient'
 import { slackLog } from './utils/slackLog'
 import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
 import { OwnerTableRecord } from '../../types'
@@ -43,7 +43,7 @@ export const handler = async (event: any) => {
 			const txid = node.id
 			const parent = node.parent?.id || null
 			let parents: string[] | undefined = []
-			const owner = node.owner.address
+			const owner = node.owner.address.padEnd(43, ' ') //pad non-arweave addresses to 43
 
 			// loop to find all nested parents
 			if (parent) {
@@ -88,7 +88,7 @@ export const handler = async (event: any) => {
 		/** batch insert this pages results */
 		const counts: { [owner: string]: number; total: number } = { total: 0 }
 		for (const key of Object.keys(records)) {
-			const inserted = await batchInsert(records[key], ownerToTablename(key))
+			const inserted = await batchInsertFnOwner(records[key], ownerToTablename(key))
 
 			if (!counts[key]) counts[key] = 0
 			counts[key] += inserted!
@@ -100,7 +100,7 @@ export const handler = async (event: any) => {
 		return counts
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog(`Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
+		await slackLog('fnOwner.handler', `Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
 		throw e
 	}
 }

@@ -29,7 +29,7 @@ export async function checkForManuallyModifiedOwners() {
 
 	let inserts = 0
 	for (const owner of newOwners) {
-		inserts += await blockOwnerHistory(owner)
+		inserts += await blockOwnerHistory(owner, 'manual')
 	}
 
 	/** toggle modified if necessary */

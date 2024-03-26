@@ -53,7 +53,7 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 					byteStart = start.toString()
 					byteEnd = end.toString()
 
-					console.log(txid, `calculated byte-range ${byteStart} to ${byteEnd}`)
+					console.log(txid, `calculated byte-range ${byteStart} to ${byteEnd}`, `owner: ${record.owner}`)
 				} catch (err: unknown) {
 					const e = err as Error
 					slackLog(txid, pluginResultHandler.name, `Error calculating byte-range: ${e.name}:${e.message}`, JSON.stringify(e))

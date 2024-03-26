@@ -86,7 +86,12 @@ export const processFlagged = async (
 
 	/** schedule blocking if necessary */
 	if (infractions > infraction_limit) {
-		await blockOwnerHistory(owner) // cannot rollback!
+		// don't run blockOwnerHistory more than once!
+		if (infractions === infraction_limit + 1) {
+			await slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. (NEED TO SEE FINISHED NOTIFICATION!)`)
+			const numBlocked = await blockOwnerHistory(owner, 'auto') // cannot rollback!
+			await slackLog(processFlagged.name, `✅ finished blocking owner: blocked ${numBlocked} items from ${owner}`)
+		}
 
 		/** update s3://addresses.txt */
 		await updateAddresses() //needs to be commited 

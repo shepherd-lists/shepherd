@@ -1,6 +1,8 @@
 import { createOwnerTable } from './owner-table-utils'
 import { arGql } from 'ar-gql'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
+import pool from '../utils/pgClient'
+import { slackLog } from '../utils/slackLog'
 
 
 if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var: FN_OWNER_BLOCKING')
@@ -42,7 +44,7 @@ query($cursor: String, $owners: [String!]) {
 `
 
 
-export const blockOwnerHistory = async (owner: string) => {
+export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 	/** steps:
 	 * 1. infractions table should already exist
 	 * 2. create owner table
@@ -50,32 +52,62 @@ export const blockOwnerHistory = async (owner: string) => {
 	 * 4. send pages to lambdas (getParents, calc ranges, build records, insert to owner table)
 	 */
 
+	/** check owner blocking not currently in progess or done */
+	if (method === 'auto') {
+		const status = await pool.query(`
+			UPDATE owners_list 
+			SET add_method = 'updating' 
+			WHERE owner = $1 AND add_method = 'auto' 
+			RETURNING *`,
+			[owner]
+		)
+		if (status.rowCount === 0) {
+			await slackLog(blockOwnerHistory.name, `owner ${owner} is already being blocked`)
+			return 0
+		}
+	}
+	slackLog(blockOwnerHistory.name, `owner ${owner} will be blocked`)
+
 	/** create owner table */
 	const tablename = await createOwnerTable(owner)
 	console.info(blockOwnerHistory.name, `created/exists table: ${tablename} for owner: ${owner}`)
 
 	/** gql all txids for the wallet */
 	const variables = {
-		owners: [owner],
+		owners: [owner.trim()],
 	}
 	const counts = { page: 0, items: 0, inserts: 0 }
 	await gql.all(query, variables, async (page) => {
 		const pageNumber = ++counts.page
-		console.info(blockOwnerHistory.name, 'processing page', pageNumber)
+		console.info(blockOwnerHistory.name, owner, 'processing page', pageNumber)
 
 		const res = await lambdaClient.send(new InvokeCommand({
 			FunctionName: process.env.FN_OWNER_BLOCKING as string,
 			Payload: JSON.stringify({ page, pageNumber }),
 			InvocationType: 'RequestResponse',
 		}))
-		//TODO: handle errors in lambda
+		if (res.FunctionError) {
+			//slackLogs already happen in the lambda, just throw here so not marked as completed
+			throw new Error(`Lambda error for ${owner}: ${res.FunctionError}`)
+		}
 
 		const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
 		counts.items += page.length
 		counts.inserts += lambdaCounts.total
 	})
 
-	console.info(blockOwnerHistory.name, `completed processing ${JSON.stringify(counts)} for owner: ${owner}`)
+	/** update owner_list status, if no error thrown above */
+	const check = await pool.query(`
+		UPDATE owners_list 
+		SET add_method = 'blocked' 
+		WHERE owner = $1 RETURNING *`,
+		[owner]
+	)
+	console.debug(`owner ${owner} add_method finialized`, check.rowCount === 1, check.rows[0]?.add_method)
+
+
+	await slackLog(blockOwnerHistory.name, owner, `✅ completed blocking ${JSON.stringify(counts)}`)
+
 
 	return counts.inserts
 }
