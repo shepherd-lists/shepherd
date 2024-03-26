@@ -44,7 +44,7 @@ query($cursor: String, $owners: [String!]) {
 `
 
 
-export const blockOwnerHistory = async (owner: string) => {
+export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 	/** steps:
 	 * 1. infractions table should already exist
 	 * 2. create owner table
@@ -53,10 +53,18 @@ export const blockOwnerHistory = async (owner: string) => {
 	 */
 
 	/** check owner blocking not currently in progess or done */
-	const status = await pool.query('UPDATE owners_list SET add_method = $1 WHERE owner = $2 AND add_method = $3 RETURNING *', ['updating', owner, 'auto'])
-	if (status.rowCount === 0) {
-		await slackLog(`owner ${owner} is already being blocked`)
-		return 0
+	if (method === 'auto') {
+		const status = await pool.query(`
+			UPDATE owners_list 
+			SET add_method = 'updating' 
+			WHERE owner = $1 AND add_method = 'auto' 
+			RETURNING *`,
+			[owner]
+		)
+		if (status.rowCount === 0) {
+			await slackLog(blockOwnerHistory.name, `owner ${owner} is already being blocked`)
+			return 0
+		}
 	}
 
 	/** create owner table */
