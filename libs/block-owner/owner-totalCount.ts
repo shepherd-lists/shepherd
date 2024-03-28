@@ -8,18 +8,28 @@ if (!GQL_URL_SECONDARY?.includes('goldsky')) throw new Error(`GQL_URL_SECONDARY:
 
 const gql = arGql(GQL_URL_SECONDARY, 1) //defaults to goldsky
 
-export const ownerTotalCount = async (owner: string) => {
-	const query = `
-		query ($owner: String!){
-			transactions(owners:[$owner]){count}
+export const ownerTotalCount = moize(
+	async (owner: string) => {
+		const query = `
+			query ($owner: String!){ 
+				transactions( owners:[ $owner ] ){ count } 
+			}
+		`
+		const variables = {
+			owner
 		}
-	`
-	const variables = {
-		owner
-	}
-	const { data } = await gql.run(query, variables)
+		const { data } = await gql.run(query, variables)
 
-	//@ts-expect-error ar-gql doesn't have goldsky specific types
-	return data.transactions.count
-}
+		//@ts-expect-error ar-gql doesn't have goldsky specific types
+		const count = data.transactions.count
+		console.info(`ownerTotalCount( ${owner} ) = ${count}`)
+
+		return count;
+	},
+	{
+		maxSize: 1_000, //is this enough?
+		isPromise: true,
+		maxAge: 86_400_000 //1000 * 60 * 60 * 24 = 1 day
+	}
+)
 
