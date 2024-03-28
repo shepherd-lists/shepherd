@@ -3,6 +3,7 @@ import { arGql } from 'ar-gql'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 import pool from '../utils/pgClient'
 import { slackLog } from '../utils/slackLog'
+import { ownerTotalCount } from './owner-totalCount'
 
 
 if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var: FN_OWNER_BLOCKING')
@@ -63,6 +64,12 @@ export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual'
 		)
 		if (status.rowCount === 0) {
 			await slackLog(blockOwnerHistory.name, `owner ${owner} is already being blocked`)
+			return 0
+		}
+		/** don't automatically block giant wallets! */
+		const totalItems = await ownerTotalCount(owner)
+		await slackLog(blockOwnerHistory.name, `owner ${owner} has ${totalItems} items.`, totalItems > 1000 ? '🚫:warning: not blocking' : '✅ blocking automatically')
+		if (totalItems > 1000) {
 			return 0
 		}
 	}
