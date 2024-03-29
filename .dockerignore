@@ -1,0 +1,9 @@
+# Exclude node_modules folder from the Docker context
+**/node_modules
+infra
+lambdas
+tests
+.env
+.DS_Store
+**/.DS_Store
+.git

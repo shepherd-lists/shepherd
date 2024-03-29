@@ -10,7 +10,9 @@ ENV NODE_ENV=production
 COPY tsconfig.json tsconfig.json
 # this is for shared code installed as relative package
 COPY ./libs ./libs
-WORKDIR /app/service/app
+WORKDIR /app/libs
+RUN npm ci --omit=dev
+WORKDIR /app/services/service
 
 FROM base as indexer-next
 ARG targetArg # same value as target
