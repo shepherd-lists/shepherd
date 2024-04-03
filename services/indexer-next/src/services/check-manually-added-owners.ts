@@ -1,13 +1,16 @@
-import { blockOwnerHistory } from '../../../../libs/block-owner/owner-blocking'
+import { blockOwnerHistory, queueBlockOwner } from '../../../../libs/block-owner/owner-blocking'
+import { updateAddresses } from '../../../../libs/s3-lists/update-lists'
 import pool from '../../../../libs/utils/pgClient'
 
 
 let _lastWhitelist = -1
 export async function checkForManuallyModifiedOwners() {
-	let modified = false
+	let txidsModified = false
+	let addressesModified = false
 
 	/** Manually added owners will not have their own block history table
-	 * so we need to check for add_method = 'manual' owners in "owners_list" without their `owner_${owner}` table.
+	 * so we need to check "owners_list" for owners with add_method = 'manual' && no `owner_${owner}` table.
+	 * ..and dont forget to exclude owners in the whitelist
 	 */
 	const query = `
 		SELECT ol.owner
@@ -25,27 +28,36 @@ export async function checkForManuallyModifiedOwners() {
 	const res = await pool.query<{ owner: string }>(query)
 
 	const newOwners = res.rows.map((row) => row.owner)
-	console.info('new owners found', newOwners)
-
-	let inserts = 0
-	for (const owner of newOwners) {
-		inserts += await blockOwnerHistory(owner, 'manual')
-	}
-
-	/** toggle modified if necessary */
-	modified = newOwners.length > 0
+	addressesModified = newOwners.length > 0
 
 	/** now check if whitelist was updated */
 	const whitelist = await pool.query<{ owner: string, last_update: Date }>('SELECT owner, last_update FROM owners_whitelist')
 	const lastUpdate = whitelist.rows.reduce((max, row) => row.last_update.valueOf() > max.last_update.valueOf() ? row : max, { owner: 'null', last_update: new Date(0) })
 
-	console.debug('lastUpdate', JSON.stringify(lastUpdate))
+	console.debug(checkForManuallyModifiedOwners.name, 'whitelist lastUpdate', JSON.stringify(lastUpdate))
 
 	if (lastUpdate.last_update.valueOf() !== _lastWhitelist) {
 		_lastWhitelist = lastUpdate.last_update.valueOf()
-		modified = true
+		addressesModified = true
+		txidsModified = true //as might need to remove some txids from the lists
 	}
 
-	return modified
+	if (addressesModified) {
+		console.info(checkForManuallyModifiedOwners.name, 'blocked owners modified', newOwners, 'updating /addresses.txt')
+		await updateAddresses()
+	} else {
+		console.info(checkForManuallyModifiedOwners.name, 'no new owners found')
+	}
+
+	/** queue any new owners */
+	let inserts = 0
+	for (const owner of newOwners) {
+		inserts += await queueBlockOwner(owner, 'manual')
+	}
+
+	/** toggle modified if necessary */
+	txidsModified ||= inserts > 0
+
+	return txidsModified // this is used to trigger a full update of the lists
 }
 
