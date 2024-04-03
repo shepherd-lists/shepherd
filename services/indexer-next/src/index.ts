@@ -3,6 +3,7 @@ import knexCreate from '../../../libs/utils/knexCreate'
 import { checkForManuallyModifiedOwners } from './services/check-manually-added-owners'
 import { assertLists, updateFullTxidsRanges, updateAddresses } from '../../../libs/s3-lists/update-lists'
 import { ownerIngestCatchLoop } from './owner-ingest'
+import { processBlockedOwnersQueue } from '../../../libs/block-owner/owner-blocking'
 
 
 
@@ -52,9 +53,10 @@ while (true) {
 		//this should be in a setInterval with it's own try-catch?
 		if (await checkForManuallyModifiedOwners()) {
 			console.info('owners manually modified. recreating lists')
-			const ownersAdded = await updateAddresses()
 			const updateLists = await updateFullTxidsRanges()
 		}
+
+		await processBlockedOwnersQueue()
 
 
 
