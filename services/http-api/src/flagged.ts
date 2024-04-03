@@ -3,7 +3,7 @@ import dbConnection from '../../../libs/utils/knexCreate'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { createInfractionsTable, ownerToInfractionsTablename, ownerToOwnerTablename } from '../../../libs/block-owner/owner-table-utils'
 import { infraction_limit } from '../../../libs/constants'
-import { blockOwnerHistory } from '../../../libs/block-owner/owner-blocking'
+import { queueBlockOwner } from '../../../libs/block-owner/owner-blocking'
 import { updateAddresses, updateFullTxidsRanges } from '../../../libs/s3-lists/update-lists'
 
 const knex = dbConnection()
@@ -85,13 +85,11 @@ export const processFlagged = async (
 	}
 
 	/** schedule blocking if necessary */
-	if (infractions > infraction_limit) {
-		// don't run blockOwnerHistory more than once!
-		if (infractions === infraction_limit + 1) {
-			await slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. (NEED TO SEE FINISHED NOTIFICATION!)`)
-			const numBlocked = await blockOwnerHistory(owner, 'auto') // cannot rollback!
-			await slackLog(processFlagged.name, `✅ finished blocking owner: blocked ${numBlocked} items from ${owner}`)
-		}
+	if (infractions === infraction_limit + 1) {	// don't run block-owner-history more than once?
+
+		slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. (KEEP AN EYE ON NOTIFICATIONS!)`)
+		const numBlocked = await queueBlockOwner(owner, 'auto') // cannot rollback. most likely will not queue and run immediately.
+		slackLog(processFlagged.name, `:warning: finished ${queueBlockOwner.name}: blocked ${numBlocked} items from ${owner}`)
 
 		/** update s3://addresses.txt */
 		await updateAddresses() //needs to be commited 
