@@ -3,7 +3,9 @@ import { arGql } from 'ar-gql'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 import pool from '../utils/pgClient'
 import { slackLog } from '../utils/slackLog'
+import { readParamLive, writeParamLive } from '../utils/ssmParameters'
 import { ownerTotalCount } from './owner-totalCount'
+import { OwnersListRecord } from '../../types'
 
 
 if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var: FN_OWNER_BLOCKING')
@@ -44,6 +46,69 @@ query($cursor: String, $owners: [String!]) {
 }
 `
 
+export interface BlockOwnerQueueItem {
+	owner: string,
+	method: 'auto' | 'manual' //| 'blocking',
+}
+/** init store if necessary */
+export const blockOwnerQueueParamName = 'BlockOwnerQueue'
+try {
+	await readParamLive(blockOwnerQueueParamName)
+} catch (e) {
+	if (e instanceof Error && e.name === 'ParameterNotFound') {
+		await slackLog(blockOwnerQueueParamName, 'creating queue state in param store')
+		await writeParamLive(blockOwnerQueueParamName, [])
+	}
+}
+
+/** add owner to queue */
+export const queueBlockOwner = async (owner: string, method: 'auto' | 'manual') => {
+	const currentQueue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
+	if (currentQueue.length === 0) {
+		return blockOwnerHistory(owner, method)
+	}
+	if (currentQueue.find(item => item.owner === owner)) {
+		await slackLog(queueBlockOwner.name, `owner ${owner} already in queue`)
+	} else {
+		const newQueue = [...currentQueue, { owner, method }]
+		await writeParamLive(blockOwnerQueueParamName, newQueue)
+		await slackLog(queueBlockOwner.name, `${owner} added to queue`)
+	}
+	return 0
+}
+
+export const processBlockedOwnersQueue = async () => {
+	const queue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
+
+	/** short-circuits */
+
+	if (queue.length === 0) return
+
+	/** attempt one owner per cycle, it's already too fast */
+	//TODO: can we do this all in the param store rather than polling the db?
+	const running = await pool.query<OwnersListRecord[]>(`SELECT * FROM owners_list WHERE status = 'updating'`)
+	if (running.rows.length > 0) {
+		console.info(processBlockedOwnersQueue.name, 'blocking already in progress')
+		return
+	}
+
+	/** get the first owner */
+	const item = queue.pop()!
+
+	console.info(processBlockedOwnersQueue.name, 'processing', item)
+
+	/** mark as updating */
+	await pool.query(`UPDATE owners_list SET add_method = 'updating', last_update = now() WHERE owner = ${item.owner}`)
+
+	/** actually update */
+	const inserts = await blockOwnerHistory(item.owner, item.method)
+
+	/** update the queue */
+	if (inserts > 0) {
+		await writeParamLive(blockOwnerQueueParamName, queue)
+	}
+
+}
 
 export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 	/** steps:
@@ -54,6 +119,7 @@ export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual'
 	 */
 
 	/** check owner blocking not currently in progess or done */
+	//TODO: use the param store for state instead of the db
 	if (method === 'auto') {
 		const status = await pool.query(`
 			UPDATE owners_list 
@@ -73,7 +139,7 @@ export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual'
 			return 0
 		}
 	}
-	slackLog(blockOwnerHistory.name, `owner ${owner} will be blocked`)
+	slackLog(blockOwnerHistory.name, `:warning: ${owner} will be blocked`)
 
 	/** create owner table */
 	const tablename = await createOwnerTable(owner)
@@ -113,7 +179,7 @@ export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual'
 	console.debug(`owner ${owner} add_method finialized`, check.rowCount === 1, check.rows[0]?.add_method)
 
 
-	await slackLog(blockOwnerHistory.name, owner, `✅ completed blocking ${JSON.stringify(counts)}`)
+	await slackLog(blockOwnerHistory.name, `✅ ${owner} blocking completed ${JSON.stringify(counts)}`)
 
 
 	return counts.inserts
