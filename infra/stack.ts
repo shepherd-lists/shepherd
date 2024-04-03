@@ -194,8 +194,8 @@ export const createStack = async (app: App, config: Config) => {
 
 
 	/** give both services listsBucket access */
-	listsBucket.grantReadWrite(indexerNext.taskDefinition.taskRole)
-	listsBucket.grantReadWrite(webserver.taskDefinition.taskRole)
-	listsBucket.grantReadWrite(httpApi.taskDefinition.taskRole)
+	listsBucket.grantReadWrite(taskroleIndex)
+	listsBucket.grantReadWrite(taskRoleWeb)
+	listsBucket.grantReadWrite(taskRoleHttpApi)
 
 }

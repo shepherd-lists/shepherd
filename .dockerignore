@@ -1,9 +1,10 @@
-# Exclude node_modules folder from the Docker context
-**/node_modules
-infra
-lambdas
-tests
-.env
-.DS_Store
+## ignore everything
+*
+## only allow required items
+!libs
+!services
+!tsconfig.json
+!types.d.ts
+## reblock nested items
 **/.DS_Store
-.git
+**/node_modules

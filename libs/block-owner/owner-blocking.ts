@@ -119,6 +119,8 @@ export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual'
 	 * 4. send pages to lambdas (getParents, calc ranges, build records, insert to owner table)
 	 */
 
+	const totalItems = await ownerTotalCount(owner)
+
 	/** check owner blocking not currently in progess or done */
 	//TODO: use the param store for state instead of the db
 	if (method === 'auto') {
@@ -134,13 +136,13 @@ export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual'
 			return 0
 		}
 		/** don't automatically block giant wallets! */
-		const totalItems = await ownerTotalCount(owner)
+
 		await slackLog(blockOwnerHistory.name, `owner ${owner} has ${totalItems} items.`, totalItems > 1000 ? '🚫:warning: not blocking' : '✅ blocking automatically')
 		if (totalItems > 1000) {
 			return 0
 		}
 	}
-	slackLog(blockOwnerHistory.name, `:warning: ${owner} will be blocked`)
+	slackLog(blockOwnerHistory.name, `:warning: ${owner} will be blocked, with ${totalItems.toLocaleString()} potential items`)
 
 	/** create owner table */
 	const tablename = await createOwnerTable(owner)

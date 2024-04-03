@@ -24,7 +24,7 @@ export const ownerTotalCount = moize(
 		const count = data.transactions.count
 		console.info(`ownerTotalCount( ${owner} ) = ${count}`)
 
-		return count;
+		return count as number;
 	},
 	{
 		maxSize: 1_000, //is this enough?
