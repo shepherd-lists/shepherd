@@ -8,6 +8,7 @@ RUN npm config set update-notifier false
 WORKDIR /app
 ENV NODE_ENV=production
 COPY tsconfig.json tsconfig.json
+COPY types.d.ts types.d.ts
 # this is for shared code installed as relative package
 COPY ./libs ./libs
 WORKDIR /app/libs
