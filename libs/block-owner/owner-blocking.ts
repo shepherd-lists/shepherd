@@ -108,6 +108,7 @@ export const processBlockedOwnersQueue = async () => {
 		await writeParamLive(blockOwnerQueueParamName, queue)
 	}
 
+	return inserts;
 }
 
 export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {

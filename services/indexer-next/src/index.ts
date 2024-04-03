@@ -51,13 +51,13 @@ while (true) {
 
 		/** check if lists need to be updated */
 		//this should be in a setInterval with it's own try-catch?
-		if (await checkForManuallyModifiedOwners()) {
-			console.info('owners manually modified. recreating lists')
+		if (
+			await checkForManuallyModifiedOwners()
+			|| await processBlockedOwnersQueue()
+		) {
+			console.info('owner modified. recreating lists')
 			const updateLists = await updateFullTxidsRanges()
 		}
-
-		await processBlockedOwnersQueue()
-
 
 
 		console.info('nothing to do. sleeping for 50 seconds...')
