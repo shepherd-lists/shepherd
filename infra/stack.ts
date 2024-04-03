@@ -108,8 +108,10 @@ export const createStack = async (app: App, config: Config) => {
 		actions: ['s3:*'],
 		resources: [listsBucket.bucketArn + '/*'],
 	}))
-
-
+	taskroleIndex.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['ssm:GetParameter', 'ssm:PutParameter'],
+		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
+	}))
 
 
 	const webserver = createAddonService(stack, 'webserver-next', {
@@ -183,6 +185,10 @@ export const createStack = async (app: App, config: Config) => {
 	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['lambda:InvokeFunction'],
 		resources: [fnOwnerBlocking.functionArn],
+	}))
+	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['ssm:GetParameter', 'ssm:PutParameter'],
+		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
 	}))
 
 
