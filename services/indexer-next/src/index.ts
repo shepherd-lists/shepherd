@@ -69,7 +69,7 @@ while (true) {
 		await slackLog(
 			'indexer-next.main',
 			`Fatal error ❌ ${e.name}:${e.message}\n`,
-			JSON.stringify(e, null, 2),
+			e,
 			'\nrestarting in 30 seconds...'
 		)
 		await sleep(30_000)

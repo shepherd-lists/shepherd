@@ -60,9 +60,8 @@ export const updateAddresses = async () => {
 			[infraction_limit]
 		)
 		const owners = rows.map((row: { owner: string }) => row.owner)
-		console.debug('owners.length', owners.length, owners)
+		console.info(updateAddresses.name, 'updating addresses.txt... length', owners.length, JSON.stringify(owners))
 
-		console.info('updating addresses.txt...')
 		await s3PutObject(process.env.LISTS_BUCKET!, 'addresses.txt', owners.join('\n') + '\n')
 
 
