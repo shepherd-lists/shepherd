@@ -114,7 +114,7 @@ export const processBlockedOwnersQueue = async () => {
 	return inserts;
 }
 
-export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
+const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 	/** steps:
 	 * 1. infractions table should already exist
 	 * 2. create owner table
@@ -138,10 +138,10 @@ export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual'
 			await slackLog(blockOwnerHistory.name, `owner ${owner} is already being blocked`)
 			return 0
 		}
-		/** don't automatically block giant wallets! */
 
-		await slackLog(blockOwnerHistory.name, `owner ${owner} has ${totalItems} items.`, totalItems > 1000 ? '🚫:warning: not blocking' : '✅ blocking automatically')
-		if (totalItems > 1000) {
+		/** don't automatically block giant wallets! */
+		if (totalItems > 100_000) {
+			await slackLog(blockOwnerHistory.name, `🚫:warning: ${owner} has ${totalItems.toLocaleString()} items. 🚫:warning: NOT BLOCKING :warning:🚫`)
 			return 0
 		}
 	}
