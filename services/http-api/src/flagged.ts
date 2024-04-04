@@ -23,6 +23,7 @@ export const processFlagged = async (
 	 * -- insert to txs
 	 * 2. owner update
 	 * - update owners_list
+	 * - ignore whitelisted owners
 	 * - schedule blocking if necessary
 	 * 3. update s3
 	*/
@@ -87,12 +88,20 @@ export const processFlagged = async (
 	/** schedule blocking if necessary */
 	if (infractions === infraction_limit + 1) {	// don't run block-owner-history more than once?
 
-		slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. (KEEP AN EYE ON NOTIFICATIONS!)`)
-		const numBlocked = await queueBlockOwner(owner, 'auto') // cannot rollback. most likely will not queue and run immediately.
-		slackLog(processFlagged.name, `:warning: finished ${queueBlockOwner.name}: blocked ${numBlocked} items from ${owner}`)
+		/** check if whitelisted */
+		const whitelisted = await knex('owners_whitelist').where({ owner }).first()
 
-		/** update s3://addresses.txt */
-		await updateAddresses() //needs to be commited 
+		if (whitelisted) {
+			slackLog(processFlagged.name, `:warning: owner ${owner} is whitelisted, not blocking`)
+		} else {
+			slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. (KEEP AN EYE ON NOTIFICATIONS!)`)
+			const numBlocked = await queueBlockOwner(owner, 'auto') // cannot rollback. most likely will not queue and run immediately.
+			slackLog(processFlagged.name, `:warning: finished ${queueBlockOwner.name}: blocked ${numBlocked} items from ${owner}`)
+
+			/** update s3://addresses.txt */
+			await updateAddresses() //needs to be commited 
+		}
+
 	}
 
 	/** update s3-lists. this causes a full re-write. use sparingly */
