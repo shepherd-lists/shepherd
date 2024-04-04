@@ -1,5 +1,6 @@
 import { createOwnerTable } from './owner-table-utils'
 import { arGql } from 'ar-gql'
+import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 import pool from '../utils/pgClient'
 import { slackLog } from '../utils/slackLog'
@@ -7,6 +8,8 @@ import { readParamLive, writeParamLive } from '../utils/ssmParameters'
 import { ownerTotalCount } from './owner-totalCount'
 import { OwnersListRecord } from '../../types'
 
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var: FN_OWNER_BLOCKING')
 if (!process.env.GQL_URL_SECONDARY) throw new Error('missing env var: GQL_URL_SECONDARY')
@@ -148,29 +151,62 @@ export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual'
 	const tablename = await createOwnerTable(owner)
 	console.info(blockOwnerHistory.name, `created/exists table: ${tablename} for owner: ${owner}`)
 
-	/** gql all txids for the wallet */
+	/** gql paginate thru all wallet txids */
+	let hasNextPage = true
+	let cursor = ''
 	const variables = {
 		owners: [owner.trim()],
 	}
 	const counts = { page: 0, items: 0, inserts: 0 }
-	await gql.all(query, variables, async (page) => {
-		const pageNumber = ++counts.page
-		console.info(blockOwnerHistory.name, owner, 'processing page', pageNumber)
 
-		const res = await lambdaClient.send(new InvokeCommand({
-			FunctionName: process.env.FN_OWNER_BLOCKING as string,
-			Payload: JSON.stringify({ page, pageNumber }),
-			InvocationType: 'RequestResponse',
-		}))
-		if (res.FunctionError) {
-			//slackLogs already happen in the lambda, just throw here so not marked as completed
-			throw new Error(`Lambda error for ${owner}: ${res.FunctionError}`)
+	while (hasNextPage) {
+		let nextPage = { hasNextPage: false }
+		let page: GQLEdgeInterface[] = []
+		try {
+			const { edges, pageInfo } = (await gql.run(
+				query,
+				{ ...variables, cursor }
+			)).data.transactions
+			page = edges
+			nextPage = pageInfo
+
+
+			if (page && page.length) {
+				cursor = page[page.length - 1]!.cursor
+
+				const res = await lambdaClient.send(new InvokeCommand({
+					FunctionName: process.env.FN_OWNER_BLOCKING as string,
+					Payload: JSON.stringify({ page, pageNumber: counts.page }),
+					InvocationType: 'RequestResponse',
+				}))
+				if (res.FunctionError) {
+					//TODO: retry on any errors
+					//slackLogs already happen in the lambda, throw here so not marked as completed
+					throw new Error(`Lambda error for ${owner}: ${res.FunctionError}`, { cause: res })
+				}
+
+				const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
+				counts.inserts += lambdaCounts.total
+			}
+		} catch (err: unknown) {
+			console.debug(blockOwnerHistory.name, err)
+			const e = err as Error
+			if (typeof e.cause === 'number' && e.cause >= 500) {
+				console.warn(blockOwnerHistory.name, 'retrying after 10 seconds', e)
+				await sleep(10_000)
+				continue
+			}
+
+			throw e
 		}
 
-		const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
+		/** put counters at end to avoid double counts on errors */
+		const pageNumber = ++counts.page
+		console.info(blockOwnerHistory.name, owner, 'processed page', pageNumber)
+		hasNextPage = nextPage.hasNextPage
 		counts.items += page.length
-		counts.inserts += lambdaCounts.total
-	})
+	}//EO paging-loop
+
 
 	/** update owner_list status, if no error thrown above */
 	const check = await pool.query(`
