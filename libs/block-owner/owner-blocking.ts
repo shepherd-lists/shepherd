@@ -201,8 +201,7 @@ export const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual'
 		}
 
 		/** put counters at end to avoid double counts on errors */
-		const pageNumber = ++counts.page
-		console.info(blockOwnerHistory.name, owner, 'processed page', pageNumber)
+		console.info(blockOwnerHistory.name, owner, 'processed page', counts.page++)
 		hasNextPage = nextPage.hasNextPage
 		counts.items += page.length
 	}//EO paging-loop

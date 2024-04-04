@@ -81,7 +81,7 @@ export const updateFullTxidsRanges = async () => {
 
 	/** this is a big operation, avoid parallel runs */
 	if (_inProgess_updateFullTxidsRanges) {
-		console.info('updateFullTxidsRanges is already in progress.')
+		console.info(`${updateFullTxidsRanges.name} is already in progress.`)
 		return 'inProgess';
 	}
 	_inProgess_updateFullTxidsRanges = true
@@ -96,7 +96,7 @@ export const updateFullTxidsRanges = async () => {
 	const flaggedStream = new QueryStream('SELECT txid, "byteStart", "byteEnd" FROM txs WHERE flagged = true', [])
 
 	const ownerTablenames = await getOwnersTablenames()
-	console.debug('ownersTablenames', ownerTablenames)
+	console.debug(updateFullTxidsRanges.name, `DEBUG ownersTablenames ${JSON.stringify(ownerTablenames)}`)
 
 	const ownerStreams: QueryStream[] = []
 	ownerTablenames.map((tablename) => ownerStreams.push(
@@ -123,11 +123,11 @@ export const updateFullTxidsRanges = async () => {
 		}
 		s3Ranges.write(`${row.byteStart},${row.byteEnd}\n`)
 	}
-	console.debug('flaggedStream', count)
-	console.debug('ownerStreams.length', ownerStreams.length)
+	console.debug(updateFullTxidsRanges.name, 'DEBUG flaggedStream', count)
+	console.debug(updateFullTxidsRanges.name, 'DEBUG ownerStreams.length', ownerStreams.length)
 	let i = 0
 	for (const stream of ownerStreams) {
-		console.debug('ownerStreams', ownerTablenames[i++])
+		console.debug(updateFullTxidsRanges.name, 'DEBUG ownerStreams', ownerTablenames[i++])
 		for await (const row of stream) {
 			// console.debug('row', row)
 			count++
