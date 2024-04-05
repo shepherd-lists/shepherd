@@ -56,7 +56,7 @@ export const updateAddresses = async () => {
 			`SELECT owners_list.owner FROM owners_list
 			LEFT JOIN owners_whitelist ON owners_list.owner = owners_whitelist.owner
 			WHERE owners_whitelist IS NULL
-			AND (add_method = 'manual' OR infractions > $1);`,
+			AND (add_method = 'manual' OR (add_method = 'blocked' AND infractions > $1));`,
 			[infraction_limit]
 		)
 		const owners = rows.map((row: { owner: string }) => row.owner)

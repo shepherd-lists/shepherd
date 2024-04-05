@@ -141,7 +141,10 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 
 		/** don't automatically block giant wallets! */
 		if (totalItems > 100_000) {
-			await slackLog(blockOwnerHistory.name, `🚫:warning: ${owner} has ${totalItems.toLocaleString()} items. 🚫:warning: NOT BLOCKING :warning:🚫`)
+			await slackLog(blockOwnerHistory.name, `🚫:warning: ${owner} has ${totalItems.toLocaleString()} items. NOT BLOCKING :warning:🚫`)
+			/** update owner_list status, 
+			 * so that owners are not added to addresses.txt and blockIngest doesn't break */
+			await pool.query(`UPDATE owners_list SET add_method = $1 WHERE owner = $2`, [totalItems.toString(), owner])
 			return 0
 		}
 	}
@@ -192,7 +195,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 			console.debug(blockOwnerHistory.name, err)
 			const e = err as Error
 			if (typeof e.cause === 'number' && e.cause >= 500) {
-				console.warn(blockOwnerHistory.name, 'retrying after 10 seconds', e)
+				await slackLog(blockOwnerHistory.name, `${e.name}:${e.message} (http ${e.cause}) retrying after 10 seconds`, e)
 				await sleep(10_000)
 				continue
 			}

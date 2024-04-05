@@ -1,4 +1,4 @@
-import { blockOwnerHistory, queueBlockOwner } from '../../../../libs/block-owner/owner-blocking'
+import { queueBlockOwner } from '../../../../libs/block-owner/owner-blocking'
 import { updateAddresses } from '../../../../libs/s3-lists/update-lists'
 import pool from '../../../../libs/utils/pgClient'
 

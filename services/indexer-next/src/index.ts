@@ -1,7 +1,7 @@
 import { slackLog } from '../../../libs/utils/slackLog'
 import knexCreate from '../../../libs/utils/knexCreate'
 import { checkForManuallyModifiedOwners } from './services/check-manually-added-owners'
-import { assertLists, updateFullTxidsRanges, updateAddresses } from '../../../libs/s3-lists/update-lists'
+import { assertLists, updateFullTxidsRanges } from '../../../libs/s3-lists/update-lists'
 import { ownerIngestCatchLoop } from './owner-ingest'
 import { processBlockedOwnersQueue } from '../../../libs/block-owner/owner-blocking'
 
