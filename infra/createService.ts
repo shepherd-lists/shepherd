@@ -44,20 +44,19 @@ export const createAddonService = (
 	const { cluster, logGroup, cloudMapNamespace, resources: { cpu, memoryLimitMiB }, environment } = init
 	const Name = name.charAt(0).toUpperCase() + name.slice(1)
 
-	let serviceDirs = readdirSync(new URL(`../services/`, import.meta.url).pathname)
-	serviceDirs = serviceDirs.filter((dir) => dir !== name)
-
-	console.debug({ name, serviceDirs }, ['cdk.out*', 'node_modules', 'tests', 'infra', ...serviceDirs])
-
 	const dockerImage = new aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
 		directory: new URL(`../`, import.meta.url).pathname,
-		exclude: ['cdk.out*', 'node_modules', 'tests', 'infra', ...serviceDirs],
+		exclude: [
+			'*',
+			'!libs', '!tsconfig.json', '!types.d.ts',
+			'!services', 'services/*', `!services/${name}`,
+			'**/node_modules', '**/.DS_Store'
+		],
 		ignoreMode: IgnoreMode.DOCKER,
 		target: name,
 		buildArgs: { targetArg: name },
 		assetName: `${name}-image`,
 		platform: aws_ecr_assets.Platform.LINUX_AMD64,
-		// cacheDisabled: true,
 	})
 	const tdef = new aws_ecs.FargateTaskDefinition(stack, `tdef${Name}`, {
 		cpu,
