@@ -91,7 +91,7 @@ export const processBlockedOwnersQueue = async () => {
 
 	/** attempt one owner per cycle, it's already too fast */
 	//TODO: can we do this all in the param store rather than polling the db?
-	const running = await pool.query<OwnersListRecord[]>(`SELECT * FROM owners_list WHERE status = 'updating'`)
+	const running = await pool.query<OwnersListRecord[]>(`SELECT * FROM owners_list WHERE add_method = 'updating'`)
 	if (running.rows.length > 0) {
 		console.info(processBlockedOwnersQueue.name, 'blocking already in progress')
 		return
@@ -103,7 +103,7 @@ export const processBlockedOwnersQueue = async () => {
 	console.info(processBlockedOwnersQueue.name, 'processing', item)
 
 	/** mark as updating */
-	await pool.query(`UPDATE owners_list SET add_method = 'updating', last_update = now() WHERE owner = ${item.owner}`)
+	await pool.query(`UPDATE owners_list SET add_method = 'updating', last_update = now() WHERE owner = $1`, [item.owner])
 
 	/** actually update */
 	const inserts = await blockOwnerHistory(item.owner, item.method)
@@ -149,6 +149,9 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 			/** update owner_list status, 
 			 * so that owners are not added to addresses.txt and blockIngest doesn't break */
 			await pool.query(`UPDATE owners_list SET add_method = $1 WHERE owner = $2`, [totalItems.toLocaleString(), owner])
+
+			await removeFromQueue(owner)
+
 			return 0
 		}
 	}
@@ -224,12 +227,16 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 	console.debug(`owner ${owner} add_method finialized`, check.rowCount === 1, check.rows[0]?.add_method)
 
 	/** remove from queue */
-	const queue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
-	await writeParamLive(blockOwnerQueueParamName, queue.filter(i => i.owner !== owner))
+	await removeFromQueue(owner)
 
 
 	await slackLog(blockOwnerHistory.name, `✅ ${owner} blocking completed ${JSON.stringify(counts)}`)
 
 
 	return counts.inserts
+}
+
+const removeFromQueue = async (owner: string) => {
+	const queue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
+	await writeParamLive(blockOwnerQueueParamName, queue.filter(i => i.owner !== owner))
 }
