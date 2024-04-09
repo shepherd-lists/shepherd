@@ -83,9 +83,14 @@ export const processFlagged = async (
 		}
 
 		await trx.commit()
-	} catch (e) {
+	} catch (err: unknown) {
 		trx.rollback()
-		throw e // will this cause client to retry?
+		const e = err as Error & { code?: string }
+		if (e.code && +e.code === 23505) {
+			await slackLog(txid, 'verify this! =>  duplicate entry in infractions table due to sqs dupe.')
+			return;
+		}
+		throw e // this will cause service to fatally crash!
 	}
 
 	/** schedule blocking if necessary */
