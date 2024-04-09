@@ -30,6 +30,10 @@ export const processFlagged = async (
 
 	let infractions = 0
 	const owner = record.owner!
+
+	/** ensure table is created before we start the trx (race conditions) */
+	await createInfractionsTable(owner)
+
 	const trx = await knex.transaction()
 	try {
 		/** 1. item specific */
@@ -61,9 +65,8 @@ export const processFlagged = async (
 
 		if (ownerRecord) {
 			infractions = ownerRecord.infractions
-		} else {
-			await createInfractionsTable(owner, trx)
 		}
+
 		const alreadyExists = await trx(infractionsTablename).where('txid', txid).first()
 		if (!alreadyExists) {
 			infractions++
@@ -92,7 +95,7 @@ export const processFlagged = async (
 		const whitelisted = await knex('owners_whitelist').where({ owner }).first()
 
 		if (whitelisted) {
-			slackLog(processFlagged.name, `:warning: owner ${owner} is whitelisted, not blocking`)
+			slackLog(processFlagged.name, `${owner} is whitelisted, not blocking`)
 		} else {
 			slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. (KEEP AN EYE ON NOTIFICATIONS!)`)
 			const numBlocked = await queueBlockOwner(owner, 'auto') // cannot rollback. most likely will not queue and run immediately.
