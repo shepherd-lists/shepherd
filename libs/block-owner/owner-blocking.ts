@@ -68,6 +68,8 @@ try {
 export const queueBlockOwner = async (owner: string, method: 'auto' | 'manual') => {
 	const currentQueue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
 	if (currentQueue.length === 0) {
+		currentQueue.push({ method, owner })
+		await writeParamLive(blockOwnerQueueParamName, currentQueue)
 		return blockOwnerHistory(owner, method)
 	}
 	if (currentQueue.find(item => item.owner === owner)) {
@@ -96,7 +98,7 @@ export const processBlockedOwnersQueue = async () => {
 	}
 
 	/** get the first owner */
-	const item = queue.pop()!
+	const item = queue[queue.length - 1]
 
 	console.info(processBlockedOwnersQueue.name, 'processing', item)
 
@@ -108,7 +110,9 @@ export const processBlockedOwnersQueue = async () => {
 
 	/** update the queue */
 	if (inserts > 0) {
-		await writeParamLive(blockOwnerQueueParamName, queue)
+		await writeParamLive(blockOwnerQueueParamName, queue.filter(i => i.owner !== item.owner))
+	} else {
+		await slackLog(processBlockedOwnersQueue.name, `DEBUG no inserts for ${item.owner} ${item.method}`)
 	}
 
 	return inserts;
@@ -144,7 +148,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 			await slackLog(blockOwnerHistory.name, `🚫:warning: ${owner} has ${totalItems.toLocaleString()} items. NOT BLOCKING :warning:🚫`)
 			/** update owner_list status, 
 			 * so that owners are not added to addresses.txt and blockIngest doesn't break */
-			await pool.query(`UPDATE owners_list SET add_method = $1 WHERE owner = $2`, [totalItems.toString(), owner])
+			await pool.query(`UPDATE owners_list SET add_method = $1 WHERE owner = $2`, [totalItems.toLocaleString(), owner])
 			return 0
 		}
 	}
@@ -218,6 +222,10 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 		[owner]
 	)
 	console.debug(`owner ${owner} add_method finialized`, check.rowCount === 1, check.rows[0]?.add_method)
+
+	/** remove from queue */
+	const queue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
+	await writeParamLive(blockOwnerQueueParamName, queue.filter(i => i.owner !== owner))
 
 
 	await slackLog(blockOwnerHistory.name, `✅ ${owner} blocking completed ${JSON.stringify(counts)}`)
