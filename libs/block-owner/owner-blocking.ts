@@ -56,8 +56,12 @@ export const queueBlockOwner = async (owner: string, method: 'auto' | 'manual') 
 
 	const q = await updateBlockOwnerQueue({ owner, method }, 'add')
 
+	if (q.length === 0) {
+		return 0 //already in queue (race conditions etc)
+	}
+
 	if (q.length === 1) {
-		return blockOwnerHistory
+		return blockOwnerHistory(owner, method)
 	}
 
 	await slackLog(queueBlockOwner.name, `${owner} added to queue`)

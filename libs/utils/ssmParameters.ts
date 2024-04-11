@@ -61,23 +61,31 @@ export const updateBlockOwnerQueue = async (value: BlockOwnerQueueItem, op: 'add
 	}
 	_writeLock = true
 	let updated;
+	try {
 
-	while (true) {
-		try {
-			const queue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
-			updated = op === 'remove' ? queue.filter(i => i.owner !== value.owner) : [...queue, value]
-			await writeParamLive(blockOwnerQueueParamName, updated)
-			break;
-		} catch (e) {
-			if (e instanceof Error && e.name === 'TooManyUpdates') {
-				await sleep(100)
-				continue;
+		while (true) {
+			try {
+				const queue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
+				if (op === 'add' && queue.find(i => i.owner === value.owner)) {
+					await slackLog(blockOwnerQueueParamName, `DEBUG ${value.owner} already in queue`)
+					return []
+				}
+
+				updated = op === 'remove' ? queue.filter(i => i.owner !== value.owner) : [...queue, value]
+				await writeParamLive(blockOwnerQueueParamName, updated)
+				break;
+			} catch (e) {
+				if (e instanceof Error && e.name === 'TooManyUpdates') {
+					await sleep(100)
+					continue;
+				}
+				throw e;
 			}
-			throw e;
 		}
-	}
 
-	_writeLock = false
+	} finally {
+		_writeLock = false
+	}
 	return updated;
 }
 
