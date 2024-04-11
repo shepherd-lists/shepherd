@@ -1,14 +1,33 @@
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import dbConnection from '../../../libs/utils/knexCreate'
 import { slackLog } from '../../../libs/utils/slackLog'
-import { createInfractionsTable, ownerToInfractionsTablename, ownerToOwnerTablename } from '../../../libs/block-owner/owner-table-utils'
+import { ownerToInfractionsTablename, ownerToOwnerTablename } from '../../../libs/block-owner/owner-table-utils'
 import { infraction_limit } from '../../../libs/constants'
 import { queueBlockOwner } from '../../../libs/block-owner/owner-blocking'
 import { updateAddresses, updateFullTxidsRanges } from '../../../libs/s3-lists/update-lists'
+import moize from 'moize'
+
 
 const knex = dbConnection()
 
+/** slightly unconventional use of moize. we're using it to ensure any table is only created once.
+ * - we just need to mitigate any race conditions between calls to `hasTable(owner_X)` and `createTable(owner_X)`.
+ */
+const createInfractionsTable = moize(
+	async (owner: string) => {
+		const tablename = ownerToInfractionsTablename(owner)
 
+		if (await knex.schema.hasTable(tablename)) return tablename
+
+		await knex.schema.createTable(tablename, table => {
+			table.specificType('txid', 'char(43)').primary()
+			table.dateTime('last_update').defaultTo(knex.fn.now())
+		})
+		return tablename
+	}, {
+	isPromise: true,
+	maxSize: 50, // should be plenty
+})
 
 export const processFlagged = async (
 	txid: string,
