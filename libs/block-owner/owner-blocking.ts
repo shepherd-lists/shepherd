@@ -4,7 +4,7 @@ import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 import pool from '../utils/pgClient'
 import { slackLog } from '../utils/slackLog'
-import { readParamLive, writeParamLive } from '../utils/ssmParameters'
+import { readBlockOwnerQueue, updateBlockOwnerQueue } from '../utils/ssmParameters'
 import { ownerTotalCount } from './owner-totalCount'
 import { OwnersListRecord } from '../../types'
 
@@ -49,45 +49,28 @@ query($cursor: String, $owners: [String!]) {
 }
 `
 
-export interface BlockOwnerQueueItem {
-	owner: string,
-	method: 'auto' | 'manual' //| 'blocking',
-}
-/** init store if necessary */
-export const blockOwnerQueueParamName = 'BlockOwnerQueue'
-try {
-	await readParamLive(blockOwnerQueueParamName)
-} catch (e) {
-	if (e instanceof Error && e.name === 'ParameterNotFound') {
-		await slackLog(blockOwnerQueueParamName, 'creating queue state in param store')
-		await writeParamLive(blockOwnerQueueParamName, [])
-	}
-}
+
 
 /** add owner to queue */
 export const queueBlockOwner = async (owner: string, method: 'auto' | 'manual') => {
-	const currentQueue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
-	if (currentQueue.length === 0) {
-		currentQueue.push({ method, owner })
-		await writeParamLive(blockOwnerQueueParamName, currentQueue)
-		return blockOwnerHistory(owner, method)
+
+	const q = await updateBlockOwnerQueue({ owner, method }, 'add')
+
+	if (q.length === 1) {
+		return blockOwnerHistory
 	}
-	if (currentQueue.find(item => item.owner === owner)) {
-		await slackLog(queueBlockOwner.name, `owner ${owner} already in queue`)
-	} else {
-		const newQueue = [...currentQueue, { owner, method }]
-		await writeParamLive(blockOwnerQueueParamName, newQueue)
-		await slackLog(queueBlockOwner.name, `${owner} added to queue`)
-	}
+
+	await slackLog(queueBlockOwner.name, `${owner} added to queue`)
+
 	return 0
 }
 
 export const processBlockedOwnersQueue = async () => {
-	const queue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
+	const q = await readBlockOwnerQueue()
 
 	/** short-circuits */
 
-	if (queue.length === 0) return
+	if (q.length === 0) return
 
 	/** attempt one owner per cycle, it's already too fast */
 	//TODO: can we do this all in the param store rather than polling the db?
@@ -98,9 +81,9 @@ export const processBlockedOwnersQueue = async () => {
 	}
 
 	/** get the first owner */
-	const item = queue[queue.length - 1]
+	const item = q.shift()!
 
-	console.info(processBlockedOwnersQueue.name, 'processing', item)
+	console.info(processBlockedOwnersQueue.name, 'processing', item.owner)
 
 	/** mark as updating */
 	await pool.query(`UPDATE owners_list SET add_method = 'updating', last_update = now() WHERE owner = $1`, [item.owner])
@@ -108,12 +91,8 @@ export const processBlockedOwnersQueue = async () => {
 	/** actually update */
 	const inserts = await blockOwnerHistory(item.owner, item.method)
 
-	/** update the queue */
-	if (inserts > 0) {
-		await writeParamLive(blockOwnerQueueParamName, queue.filter(i => i.owner !== item.owner))
-	} else {
-		await slackLog(processBlockedOwnersQueue.name, `DEBUG no inserts for ${item.owner} ${item.method}`)
-	}
+	/** remove from queue */
+	await updateBlockOwnerQueue(item, 'remove')
 
 	return inserts;
 }
@@ -150,7 +129,8 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 			 * so that owners are not added to addresses.txt and blockIngest doesn't break */
 			await pool.query(`UPDATE owners_list SET add_method = $1 WHERE owner = $2`, [totalItems.toLocaleString(), owner])
 
-			await removeFromQueue(owner)
+			/** remove from queue */
+			await updateBlockOwnerQueue({ owner, method }, 'remove')
 
 			return 0
 		}
@@ -227,7 +207,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 	console.debug(`owner ${owner} add_method finialized`, check.rowCount === 1, check.rows[0]?.add_method)
 
 	/** remove from queue */
-	await removeFromQueue(owner)
+	await updateBlockOwnerQueue({ owner, method }, 'remove')
 
 
 	await slackLog(blockOwnerHistory.name, `✅ ${owner} blocking completed ${JSON.stringify(counts)}`)
@@ -236,7 +216,3 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 	return counts.inserts
 }
 
-const removeFromQueue = async (owner: string) => {
-	const queue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
-	await writeParamLive(blockOwnerQueueParamName, queue.filter(i => i.owner !== owner))
-}
