@@ -66,7 +66,7 @@ export const queueBlockOwner = async (owner: string, method: 'auto' | 'manual') 
 
 	await slackLog(queueBlockOwner.name, `${owner} added to queue`)
 
-	return 0
+	return 0 //no items blocked at this time
 }
 
 export const processBlockedOwnersQueue = async () => {
@@ -89,14 +89,8 @@ export const processBlockedOwnersQueue = async () => {
 
 	console.info(processBlockedOwnersQueue.name, 'processing', item.owner)
 
-	/** mark as updating */
-	await pool.query(`UPDATE owners_list SET add_method = 'updating', last_update = now() WHERE owner = $1`, [item.owner])
-
-	/** actually update */
+	/** actually update. n.b. mark 'updating' and remove from queue are handled internally */
 	const inserts = await blockOwnerHistory(item.owner, item.method)
-
-	/** remove from queue */
-	await updateBlockOwnerQueue(item, 'remove')
 
 	return inserts;
 }
@@ -115,12 +109,15 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 	//TODO: use the param store for state instead of the db
 	if (method === 'auto') {
 		const status = await pool.query(`
-			UPDATE owners_list 
+			UPDATE owners_list
 			SET add_method = 'updating' 
 			WHERE owner = $1 AND add_method = 'auto' 
 			RETURNING *`,
 			[owner]
 		)
+
+		await slackLog(blockOwnerHistory.name, `DEBUG status ${status.rowCount}, ${status.rows}`, JSON.stringify(status))
+
 		if (status.rowCount === 0) {
 			await slackLog(blockOwnerHistory.name, `owner ${owner} is already being blocked`)
 			return 0
@@ -138,6 +135,8 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 
 			return 0
 		}
+	} else { //method === 'manual'
+		await pool.query(`UPDATE owners_list SET add_method = 'updating', last_update = now() WHERE owner = $1`, [owner])
 	}
 	slackLog(blockOwnerHistory.name, `:warning: ${owner} will be blocked, with ${totalItems.toLocaleString()} potential items`)
 
