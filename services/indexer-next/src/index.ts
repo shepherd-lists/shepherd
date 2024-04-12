@@ -1,8 +1,9 @@
 import { slackLog } from '../../../libs/utils/slackLog'
 import knexCreate from '../../../libs/utils/knexCreate'
 import { checkForManuallyModifiedOwners } from './services/check-manually-added-owners'
-import { assertLists, updateFullTxidsRanges, updateAddresses } from '../../../libs/s3-lists/update-lists'
+import { assertLists, updateFullTxidsRanges } from '../../../libs/s3-lists/update-lists'
 import { ownerIngestCatchLoop } from './owner-ingest'
+import { processBlockedOwnersQueue } from '../../../libs/block-owner/owner-blocking'
 
 
 
@@ -50,12 +51,13 @@ while (true) {
 
 		/** check if lists need to be updated */
 		//this should be in a setInterval with it's own try-catch?
-		if (await checkForManuallyModifiedOwners()) {
-			console.info('owners manually modified. recreating lists')
-			const ownersAdded = await updateAddresses()
+		if (
+			await checkForManuallyModifiedOwners()
+			|| await processBlockedOwnersQueue()
+		) {
+			console.info('owner modified. recreating lists')
 			const updateLists = await updateFullTxidsRanges()
 		}
-
 
 
 		console.info('nothing to do. sleeping for 50 seconds...')
@@ -67,7 +69,7 @@ while (true) {
 		await slackLog(
 			'indexer-next.main',
 			`Fatal error ❌ ${e.name}:${e.message}\n`,
-			JSON.stringify(e, null, 2),
+			e,
 			'\nrestarting in 30 seconds...'
 		)
 		await sleep(30_000)

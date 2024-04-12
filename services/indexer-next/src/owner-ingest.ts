@@ -74,7 +74,7 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 				owners,
 				eTag,
 			}
-			console.info(blockOwnerIngest.name, 'addresses cache updated', addresses)
+			console.info(blockOwnerIngest.name, 'addresses cache updated', JSON.stringify(addresses))
 		}
 		return addresses
 	}

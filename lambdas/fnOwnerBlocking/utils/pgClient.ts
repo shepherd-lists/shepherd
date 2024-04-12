@@ -44,6 +44,7 @@ export const batchInsertFnOwner = async <T extends object>(records: T[], tableNa
 		const query = `INSERT INTO "${tableName}" (${columns}) `
 			+ `VALUES `
 			+ records.map(r => `(${Object.keys(r).map(() => '$' + ++index).join(', ')})`).join(', ')
+			+ 'ON CONFLICT DO NOTHING'
 			+ ' RETURNING *'
 
 		console.debug('query', query)

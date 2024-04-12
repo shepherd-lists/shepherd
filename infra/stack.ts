@@ -66,6 +66,19 @@ export const createStack = async (app: App, config: Config) => {
 		},
 	})
 
+	/** create s3 for lists */
+	const listsBucket = buildListsBucket(stack, {
+		config,
+		//this following below is not used
+		vpc,
+		listener: null as any,
+		logGroupServices,
+		environment: {
+			RANGES_WHITELIST_JSON: JSON.stringify(config.ranges_whitelist),
+			TXIDS_WHITELIST_JSON: JSON.stringify(config.txids_whitelist),
+		},
+	})
+
 	/** create indexer-next service */
 	const indexerNext = createAddonService(stack, 'indexer-next', {
 		cluster,
@@ -86,23 +99,20 @@ export const createStack = async (app: App, config: Config) => {
 		}
 	})
 	/* allow indexerNext to invoke lambda fnOwnerTable */
-	indexerNext.taskDefinition.taskRole?.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+	const taskroleIndex = indexerNext.taskDefinition.taskRole
+	taskroleIndex.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['lambda:InvokeFunction'],
 		resources: [fnOwnerBlocking.functionArn],
 	}))
+	taskroleIndex.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['s3:*'],
+		resources: [listsBucket.bucketArn + '/*'],
+	}))
+	taskroleIndex.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['ssm:GetParameter', 'ssm:PutParameter'],
+		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
+	}))
 
-	/** create s3 for lists */
-	const listsBucket = buildListsBucket(stack, {
-		config,
-		//this following below is not used
-		vpc,
-		listener: null as any,
-		logGroupServices,
-		environment: {
-			RANGES_WHITELIST_JSON: JSON.stringify(config.ranges_whitelist),
-			TXIDS_WHITELIST_JSON: JSON.stringify(config.txids_whitelist),
-		},
-	})
 
 	const webserver = createAddonService(stack, 'webserver-next', {
 		cluster,
@@ -176,12 +186,16 @@ export const createStack = async (app: App, config: Config) => {
 		actions: ['lambda:InvokeFunction'],
 		resources: [fnOwnerBlocking.functionArn],
 	}))
+	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['ssm:GetParameter', 'ssm:PutParameter'],
+		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
+	}))
 
 
 
 	/** give both services listsBucket access */
-	listsBucket.grantReadWrite(indexerNext.taskDefinition.taskRole)
-	listsBucket.grantReadWrite(webserver.taskDefinition.taskRole)
-	listsBucket.grantReadWrite(httpApi.taskDefinition.taskRole)
+	listsBucket.grantReadWrite(taskroleIndex)
+	listsBucket.grantReadWrite(taskRoleWeb)
+	listsBucket.grantReadWrite(taskRoleHttpApi)
 
 }
