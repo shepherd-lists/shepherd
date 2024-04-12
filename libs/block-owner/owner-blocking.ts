@@ -78,9 +78,9 @@ export const processBlockedOwnersQueue = async () => {
 
 	/** attempt one owner per cycle, it's already too fast */
 	//TODO: can we do this all in the param store rather than polling the db?
-	const running = await pool.query<OwnersListRecord[]>(`SELECT * FROM owners_list WHERE add_method = 'updating'`)
+	const running = await pool.query<OwnersListRecord>(`SELECT * FROM owners_list WHERE add_method = 'updating'`)
 	if (running.rows.length > 0) {
-		console.info(processBlockedOwnersQueue.name, 'blocking already in progress')
+		console.info(processBlockedOwnersQueue.name, running.rows[0].owner, 'blocking already in progress')
 		return
 	}
 
@@ -116,7 +116,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 			[owner]
 		)
 
-		await slackLog(blockOwnerHistory.name, `DEBUG status ${status.rowCount}, ${status.rows}`, JSON.stringify(status))
+		await slackLog(blockOwnerHistory.name, `DEBUG ${owner} status count: ${status.rowCount}, rows:`, JSON.stringify(status.rows))
 
 		if (status.rowCount === 0) {
 			await slackLog(blockOwnerHistory.name, `owner ${owner} is already being blocked`)
