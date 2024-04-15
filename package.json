@@ -1,12 +1,11 @@
 {
-  "name": "indexer-next",
-  "version": "0.0.0",
-  "description": " ingested_at based indexer",
+  "name": "shepherd-next",
+  "version": "0.0.1",
+  "description": " ingested_at based indexer, amongst other things",
   "type": "module",
   "scripts": {
     "postinstall": "(source $NVM_DIR/nvm.sh && nvm use) || echo 'nvm not found. please use nodejs v20+'",
-    "prepare": "husky",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepare": "husky"
   },
   "author": "Ros McMahon <rosmcmahon@gmail.com",
   "license": "GPL-3.0",
