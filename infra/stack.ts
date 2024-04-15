@@ -20,13 +20,13 @@ const loadBalancerArn = await readParamSdk('AlbArn')
 
 
 export const createStack = async (app: App, config: Config) => {
-	const stack = new Stack(app, 'IndexerNext', {
+	const stack = new Stack(app, 'ShepherdNext', {
 		env: {
 			account: process.env.CDK_DEFAULT_ACCOUNT,
 			region: config.region,
 		},
-		stackName: 'indexer-next',
-		description: 'indexer run as a private addon'
+		stackName: 'shepherd-next',
+		description: 'shepherd run as a private addon'
 	})
 
 	/** import shepherd infra */
