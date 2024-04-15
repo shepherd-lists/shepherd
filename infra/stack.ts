@@ -20,7 +20,7 @@ const loadBalancerArn = await readParamSdk('AlbArn')
 
 
 export const createStack = async (app: App, config: Config) => {
-	const stack = new Stack(app, 'ShepherdNext', {
+	const stack = new Stack(app, 'Next', {
 		env: {
 			account: process.env.CDK_DEFAULT_ACCOUNT,
 			region: config.region,
