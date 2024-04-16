@@ -9,25 +9,22 @@ import moize from 'moize'
 
 
 const knex = dbConnection()
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-/** slightly unconventional use of moize. we're using it to ensure any table is only created once.
- * - we just need to mitigate any race conditions between calls to `hasTable(owner_X)` and `createTable(owner_X)`.
- */
-const createInfractionsTable = moize(
-	async (owner: string) => {
-		const tablename = ownerToInfractionsTablename(owner)
 
-		if (await knex.schema.hasTable(tablename)) return tablename
+/** utility function. beware of potential race-condition between hasTable & createTable */
+const createInfractionsTable = async (owner: string) => {
+	const tablename = ownerToInfractionsTablename(owner)
 
-		await knex.schema.createTable(tablename, table => {
-			table.specificType('txid', 'char(43)').primary()
-			table.dateTime('last_update').defaultTo(knex.fn.now())
-		})
-		return tablename
-	}, {
-	isPromise: true,
-	maxSize: 50, // should be plenty
-})
+	if (await knex.schema.hasTable(tablename)) return tablename
+
+	await knex.schema.createTable(tablename, table => {
+		table.specificType('txid', 'char(43)').primary()
+		table.dateTime('last_update').defaultTo(knex.fn.now())
+	})
+	return tablename
+}
+
 
 export const processFlagged = async (
 	txid: string,
@@ -47,11 +44,8 @@ export const processFlagged = async (
 	 * 3. update s3
 	*/
 
-	let infractions = 0
 	const owner = record.owner!
 
-	/** ensure table is created before we start the trx (race conditions) */
-	await createInfractionsTable(owner)
 
 	const trx = await knex.transaction()
 	try {
@@ -76,9 +70,51 @@ export const processFlagged = async (
 			await slackLog(txid, 'ERROR ❌ cannot insert flagged to txs', `(${JSON.stringify(updates)}) => ${resInsert}`)
 			throw new Error(`Could not insert ${txid} into txs`) //cause a rollback
 		}
+		await trx.commit()
+	} catch (err: unknown) {
+		await trx.rollback()
+		await slackLog(`FATAL ERROR ❌ in ${processFlagged.name} => ${txid}`)
+		throw err // this will cause service to fatally crash!
+	}
 
-		/** 2. owner update */
-		/** update owners_list */
+	/** 2. owner update */
+	try {
+
+		await ownerUpdate(owner, txid)
+
+	} catch (err: unknown) {
+		const e = err as Error & { code?: string }
+		if (e.code && +e.code === 23505) {
+			await slackLog(txid, 'verify this! =>  duplicate entry in infractions table due to sqs dupe.')
+			return;
+		}
+		throw e // this will cause service to fatally crash!
+	}
+
+
+	/** update s3-lists. this causes a full re-write. use sparingly */
+	await updateFullTxidsRanges()
+
+}
+
+/** can only have one txid from same owner perform infraction processing etc at same time.
+ * we'll delete the k,v to release lock. ensures no memory leak.
+ */
+const _writeLock: { [owner: string]: boolean } = {}
+const ownerUpdate = async (owner: string, txid: string) => {
+	/** attain write-lock */
+	while (_writeLock[owner])
+		await sleep(100)
+	_writeLock[owner] = true
+
+
+	/** update owners_list */
+	let infractions = 0
+	let trx = await knex.transaction()
+
+	try {
+		await createInfractionsTable(owner)
+
 		const infractionsTablename = ownerToInfractionsTablename(owner)
 		const ownerRecord = await trx('owners_list').where('owner', owner).first()
 
@@ -91,7 +127,7 @@ export const processFlagged = async (
 			infractions++
 			await trx(infractionsTablename).insert({ txid })
 		} else {
-			await slackLog(txid, 'ERROR ❌ already exists in infractions', `(${JSON.stringify(updates)}) => ${resInsert}`)
+			await slackLog(txid, 'ERROR ❌ already exists in infractions. should be SQS dupe, CHECK!',) //`(${JSON.stringify(updates)}) => ${resInsert}`)
 			throw new Error(`Already exists in infractions`) //cause a rollback
 		}
 
@@ -101,37 +137,33 @@ export const processFlagged = async (
 			await trx('owners_list').insert({ owner, infractions, add_method: 'auto' })
 		}
 
+		/* needs to be commited before calling lambdas which use created tables and entries */
 		await trx.commit()
+
+		/** schedule blocking if necessary */
+		if (infractions === infraction_limit + 1) {	// don't run block-owner-history more than once?
+
+			/** check if whitelisted */
+			const whitelisted = await knex('owners_whitelist').where({ owner }).first()
+
+			if (whitelisted) {
+				slackLog(processFlagged.name, `${owner} is whitelisted, not blocking`)
+			} else {
+				slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. (KEEP AN EYE ON NOTIFICATIONS!) ${txid}`)
+				const numBlocked = await queueBlockOwner(owner, 'auto') // cannot rollback. most likely will not queue and run immediately.
+				slackLog(processFlagged.name, `:white_check_mark: finished ${queueBlockOwner.name}: blocked ${numBlocked} items from ${owner}`)
+
+				/** update s3://addresses.txt */
+				await updateAddresses() //needs to be commited 
+			}
+		}
+
 	} catch (err: unknown) {
 		trx.rollback()
-		const e = err as Error & { code?: string }
-		if (e.code && +e.code === 23505) {
-			await slackLog(txid, 'verify this! =>  duplicate entry in infractions table due to sqs dupe.')
-			return;
-		}
-		throw e // this will cause service to fatally crash!
+		if (err instanceof Error && err.message === `Already exists in infractions`) return;
+		throw err // bubble up
+
+	} finally {
+		delete _writeLock[owner] // release write-lock
 	}
-
-	/** schedule blocking if necessary */
-	if (infractions === infraction_limit + 1) {	// don't run block-owner-history more than once?
-
-		/** check if whitelisted */
-		const whitelisted = await knex('owners_whitelist').where({ owner }).first()
-
-		if (whitelisted) {
-			slackLog(processFlagged.name, `${owner} is whitelisted, not blocking`)
-		} else {
-			slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. (KEEP AN EYE ON NOTIFICATIONS!) ${txid}`)
-			const numBlocked = await queueBlockOwner(owner, 'auto') // cannot rollback. most likely will not queue and run immediately.
-			slackLog(processFlagged.name, `:white_check_mark: finished ${queueBlockOwner.name}: blocked ${numBlocked} items from ${owner}`)
-
-			/** update s3://addresses.txt */
-			await updateAddresses() //needs to be commited 
-		}
-
-	}
-
-	/** update s3-lists. this causes a full re-write. use sparingly */
-	await updateFullTxidsRanges()
-
 }

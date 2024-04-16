@@ -4,8 +4,9 @@
   "description": " ingested_at based indexer, amongst other things",
   "type": "module",
   "scripts": {
-    "postinstall": "(source $NVM_DIR/nvm.sh && nvm use) || echo 'nvm not found. please use nodejs v20+'",
-    "prepare": "husky"
+    "init": "lockfiles=$(find . -name 'package-lock.json' -not -path './package-lock.json') && for lockfile in $lockfiles; do (cd $(dirname \"$lockfile\") && npm ci); done",
+    "preinstall": "(source $NVM_DIR/nvm.sh && nvm use) || echo 'nvm not found. please use nodejs v20+'",
+    "prepare": "husky && npm run init"
   },
   "author": "Ros McMahon <rosmcmahon@gmail.com",
   "license": "GPL-3.0",
