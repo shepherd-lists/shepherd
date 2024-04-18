@@ -23,7 +23,7 @@ query($ids: [ID!]) {
 
 const main = async()=>{
 	/** get inbox txids */
-	const txids = await knex('inbox').select('txid')
+	const txids = await knex('inbox').select('txid').whereNull('owner')
 	console.info(`${txids.length} inbox txids`)
 
 	while(txids.length > 0){
