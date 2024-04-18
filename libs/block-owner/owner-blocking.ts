@@ -173,9 +173,10 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 					InvocationType: 'RequestResponse',
 				}))
 				if (res.FunctionError) {
-					//TODO: retry on any errors
-					//slackLogs already happen in the lambda, throw here so not marked as completed
-					throw new Error(`Lambda error for ${owner}: ${res.FunctionError}`, { cause: res })
+					let payloadMsg = ''
+					try { payloadMsg = new TextDecoder().decode(res.Payload) }
+					catch (e) { payloadMsg = 'error decoding Payload with res.FunctionError' }
+					throw new Error(`Lambda error for ${owner}: ${res.FunctionError}, payload: ${payloadMsg}`, { cause: res })
 				}
 
 				const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
@@ -184,13 +185,12 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 		} catch (err: unknown) {
 			console.debug(blockOwnerHistory.name, err)
 			const e = err as Error
-			if (typeof e.cause === 'number' && e.cause >= 500) {
-				await slackLog(blockOwnerHistory.name, `${e.name}:${e.message} (http ${e.cause}) retrying after 10 seconds`, e)
-				await sleep(10_000)
-				continue
-			}
-
-			throw e
+			if (typeof e.cause === 'number' && e.cause >= 500)
+				await slackLog(blockOwnerHistory.name, `GQL ERROR ${e.name}:${e.message} (http ${e.cause}) retrying after 10 seconds`, e)
+			else
+				await slackLog(blockOwnerHistory.name, `LAMBDA ERROR (MAYBE) ${e.name}:${e.message} (http? ${e.cause}) retrying after 10 seconds`, JSON.stringify(e))
+			await sleep(10_000)
+			continue;
 		}
 
 		/** put counters at end to avoid double counts on errors */

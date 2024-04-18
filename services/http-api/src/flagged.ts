@@ -6,6 +6,7 @@ import { infraction_limit } from '../../../libs/constants'
 import { queueBlockOwner } from '../../../libs/block-owner/owner-blocking'
 import { updateAddresses, updateFullTxidsRanges } from '../../../libs/s3-lists/update-lists'
 import moize from 'moize'
+import { OwnersListRecord } from '../../../types'
 
 
 const knex = dbConnection()
@@ -116,7 +117,7 @@ const ownerUpdate = async (owner: string, txid: string) => {
 		await createInfractionsTable(owner)
 
 		const infractionsTablename = ownerToInfractionsTablename(owner)
-		const ownerRecord = await trx('owners_list').where('owner', owner).first()
+		let ownerRecord = await trx<OwnersListRecord>('owners_list').where('owner', owner).first()
 
 		if (ownerRecord) {
 			infractions = ownerRecord.infractions
@@ -134,14 +135,15 @@ const ownerUpdate = async (owner: string, txid: string) => {
 		if (ownerRecord) {
 			await trx('owners_list').where('owner', owner).update({ infractions })
 		} else {
-			await trx('owners_list').insert({ owner, infractions, add_method: 'auto' })
+			const inserted = await trx<OwnersListRecord>('owners_list').insert({ owner, infractions, add_method: 'auto' }).returning('*')
+			ownerRecord = inserted[0]
 		}
 
 		/* needs to be commited before calling lambdas which use created tables and entries */
 		await trx.commit()
 
 		/** schedule blocking if necessary */
-		if (infractions === infraction_limit + 1) {	// don't run block-owner-history more than once?
+		if (infractions >= infraction_limit && ownerRecord.add_method === 'auto') {	// don't run block-owner-history more than once?
 
 			/** check if whitelisted */
 			const whitelisted = await knex('owners_whitelist').where({ owner }).first()
