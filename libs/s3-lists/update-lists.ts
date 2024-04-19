@@ -115,8 +115,11 @@ export const updateFullTxidsRanges = async () => {
 		// console.debug('row', row)
 		count++
 		s3Txids.write(`${row.txid}\n`)
-		if (!row.byteStart || row.byteStart === '-1') {
+		if (!row.byteStart) {
 			slackLog(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
+			continue;
+		} else if (row.byteStart === '-1') {
+			console.info(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 			continue;
 		}
 		s3Ranges.write(`${row.byteStart},${row.byteEnd}\n`)
@@ -130,8 +133,11 @@ export const updateFullTxidsRanges = async () => {
 			// console.debug('row', row)
 			count++
 			s3Txids.write(`${row.txid}\n`)
-			if (!row.byte_start || row.byte_start === '-1') {
+			if (!row.byte_start) {
 				slackLog(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
+				continue;
+			} else if (row.byte_start === '-1') {
+				console.info(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 				continue;
 			}
 			s3Ranges.write(`${row.byte_start},${row.byte_end}\n`)
