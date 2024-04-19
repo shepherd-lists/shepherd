@@ -9,7 +9,7 @@ import { ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
 import { network_EXXX_codes } from '../../../libs/constants'
 import { Socket } from 'net'
 import { txsTableNames } from './tablenames'
-import { getList } from './lists'
+import { getList, prefetchLists } from './lists'
 import { getRecords } from './blacklist' //legacy
 
 
@@ -19,7 +19,7 @@ const port = 80
 
 // app.use(cors())
 
-
+prefetchLists()
 
 app.get('/', async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')

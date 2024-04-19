@@ -1,4 +1,4 @@
-import { Writable } from 'stream'
+import { PassThrough, Writable } from 'stream'
 import { s3GetObjectWebStream, s3HeadObject } from '../../../libs/utils/s3-services'
 import { readlineWeb } from '../../../libs/utils/webstream-utils'
 
@@ -64,4 +64,12 @@ export const getList = async (res: Writable, path: ('/addresses.txt' | '/blackli
 		text,
 		inProgress: false,
 	}
+}
+
+export const prefetchLists = async () => {
+	await Promise.all(['/addresses.txt', '/blacklist.txt', '/rangelist.txt'].map(async path => {
+		const dummy = new PassThrough()
+		await getList(dummy, path as ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt'))
+		dummy.destroy()
+	}))
 }
