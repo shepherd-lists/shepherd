@@ -8,5 +8,13 @@
 		"source.fixAll.eslint": "always"
 	},
 	"eslint.enable": true,
-	"typescript.format.enable": false
+	"typescript.format.enable": false,
+	"files.watcherExclude": {
+		"**/.git/objects/**": true,
+		"**/.git/subtree-cache/**": true,
+		"**/node_modules/*/**": true,
+		"**/.hg/store/**": true,
+		"**/cdk.out*/*/**": true,
+		"node_modules/*/**": true
+	}
 }

@@ -5,5 +5,5 @@
 		"module": "ES2022",
 		"allowSyntheticDefaultImports": true,
 	},
-	"exclude": [ "cdk.out*" ]
+	"exclude": [ "cdk.out*", "**/node_modules", "node_modules" ]
 }
