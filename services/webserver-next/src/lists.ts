@@ -14,7 +14,9 @@ interface Cached {
 }
 const _cache: Record<string, Cached> = {}
 
-export const getList = async (res: Writable, path: ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt' | '/testing.txt')) => {
+type List = ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt' | '/rangeflagged.txt' | '/rangeowners.txt' | '/testing.txt')
+
+export const getList = async (res: Writable, path: List) => {
 
 	const key = path.replace('/', '')
 
@@ -67,9 +69,9 @@ export const getList = async (res: Writable, path: ('/addresses.txt' | '/blackli
 }
 
 export const prefetchLists = async () => {
-	await Promise.all(['/addresses.txt', '/blacklist.txt', '/rangelist.txt'].map(async path => {
+	await Promise.all(['/addresses.txt', '/blacklist.txt', '/rangelist.txt', '/rangeflagged.txt', '/rangeowners.txt'].map(async path => {
 		const dummy = new PassThrough()
-		await getList(dummy, path as ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt'))
+		await getList(dummy, path as List)
 		dummy.destroy()
 	}))
 }
