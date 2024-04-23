@@ -35,8 +35,13 @@ export const assertLists = async () => {
 		)
 	}
 
-	if (!(await keyExists('blacklist.txt')) || !(await keyExists('rangelist.txt'))) {
-		console.info(`list 'blacklist.txt' or 'rangelist.txt' does not exist. creating both...`)
+	if (
+		!(await keyExists('blacklist.txt'))
+		|| !(await keyExists('rangelist.txt'))
+		|| !(await keyExists('rangeflagged.txt'))
+		|| !(await keyExists('rangeowners.txt'))
+	) {
+		console.info(`list 'blacklist.txt', 'rangelist.txt', rangeflagged.txt, or rangeowners.txt does not exist. recreating all...`)
 		console.info(
 			'blacklist.txt|rangelist.txt count',
 			await updateFullTxidsRanges()
@@ -109,6 +114,8 @@ export const updateFullTxidsRanges = async () => {
 	/** prepare output streams to s3 */
 	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'blacklist.txt')
 	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
+	const s3FlaggedRanges = s3UploadReadable(LISTS_BUCKET, 'rangeflagged.txt')
+	const s3OwnerRanges = s3UploadReadable(LISTS_BUCKET, 'rangeowners.txt')
 
 	let count = 0
 	for await (const row of flaggedStream) {
@@ -123,7 +130,9 @@ export const updateFullTxidsRanges = async () => {
 			continue;
 		}
 		s3Ranges.write(`${row.byteStart},${row.byteEnd}\n`)
+		s3FlaggedRanges.write(`${row.byteStart},${row.byteEnd}\n`)
 	}
+	s3FlaggedRanges.end()
 	console.debug(updateFullTxidsRanges.name, 'DEBUG flaggedStream', count)
 	console.debug(updateFullTxidsRanges.name, 'DEBUG ownerStreams.length', ownerStreams.length)
 	let i = 0
@@ -141,6 +150,7 @@ export const updateFullTxidsRanges = async () => {
 				continue;
 			}
 			s3Ranges.write(`${row.byte_start},${row.byte_end}\n`)
+			s3OwnerRanges.write(`${row.byte_start},${row.byte_end}\n`)
 		}
 	}
 
@@ -151,9 +161,12 @@ export const updateFullTxidsRanges = async () => {
 	/** close the output streams */
 	s3Txids.end()
 	s3Ranges.end()
+	s3OwnerRanges.end()
 	await Promise.all([
 		finished(s3Txids),
 		finished(s3Ranges),
+		finished(s3FlaggedRanges),
+		finished(s3OwnerRanges),
 	])
 
 	_inProgess_updateFullTxidsRanges = false
