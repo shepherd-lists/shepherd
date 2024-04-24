@@ -54,7 +54,7 @@ query($cursor: String, $owners: [String!]) {
 /** add owner to queue */
 export const queueBlockOwner = async (owner: string, method: 'auto' | 'manual') => {
 
-	const q = await updateBlockOwnerQueue({ owner, method }, 'add')
+	const q = await updateBlockOwnerQueue({ owner, method }, 'add') //returns [] if already in queue
 
 	if (q.length === 0) {
 		return 0 //already in queue (race conditions etc)
