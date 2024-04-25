@@ -9,7 +9,7 @@ import { ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
 import { network_EXXX_codes } from '../../../libs/constants'
 import { Socket } from 'net'
 import { txsTableNames } from './tablenames'
-import { GetListPath, getList, prefetchLists } from './lists'
+import { GetListPath, getETag, getList, prefetchLists } from './lists'
 import { getRecords } from './blacklist' //legacy
 
 
@@ -69,6 +69,11 @@ app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
 		await slackLog('/blacklist.txt', `❌ ERROR retrieving! ${e.name}:${e.message}.`)
 		res.status(500).send('internal server error\n')
 	}
+})
+
+app.head(/^\/range(list|flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
+	res.setHeader('eTag', getETag(req.path as GetListPath))
+	res.sendStatus(200)
 })
 
 app.get(/^\/range(list|flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
