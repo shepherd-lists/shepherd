@@ -16,6 +16,8 @@ const _cache: Record<string, Cached> = {}
 
 export type GetListPath = ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt' | '/rangeflagged.txt' | '/rangeowners.txt' | '/testing.txt')
 
+export const getETag = (path: GetListPath) => _cache[path].eTag
+
 export const getList = async (res: Writable, path: GetListPath) => {
 
 	const key = path.replace('/', '')

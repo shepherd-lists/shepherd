@@ -9,7 +9,7 @@ import { ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
 import { network_EXXX_codes } from '../../../libs/constants'
 import { Socket } from 'net'
 import { txsTableNames } from './tablenames'
-import { GetListPath, getList, prefetchLists } from './lists'
+import { GetListPath, getETag, getList, prefetchLists } from './lists'
 import { getRecords } from './blacklist' //legacy
 
 
@@ -71,11 +71,17 @@ app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	}
 })
 
+app.head(/^\/range(list|flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
+	res.setHeader('eTag', getETag(req.path as GetListPath))
+	res.sendStatus(200)
+})
+
 app.get(/^\/range(list|flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
 	const path = req.path as GetListPath
 	res.setHeader('Content-Type', 'text/plain')
 	try {
 		await getList(res, path)
+		res.setHeader('eTag', getETag(req.path as GetListPath))
 		res.status(200).end()
 	} catch (err: unknown) {
 		const e = err as Error
