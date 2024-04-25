@@ -81,7 +81,6 @@ app.get(/^\/range(list|flagged|owners).txt$/, ipAllowRangesMiddleware, async (re
 	res.setHeader('Content-Type', 'text/plain')
 	try {
 		await getList(res, path)
-		res.setHeader('eTag', getETag(req.path as GetListPath))
 		res.status(200).end()
 	} catch (err: unknown) {
 		const e = err as Error

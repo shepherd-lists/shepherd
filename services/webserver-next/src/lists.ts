@@ -18,7 +18,8 @@ export type GetListPath = ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt
 
 export const getETag = (path: GetListPath) => _cache[path].eTag
 
-export const getList = async (res: Writable, path: GetListPath) => {
+export const getList = async (response: Writable, path: GetListPath) => {
+	const res = response as Writable & { setHeader?: (k: string, v: string) => void }
 
 	const key = path.replace('/', '')
 
@@ -33,6 +34,7 @@ export const getList = async (res: Writable, path: GetListPath) => {
 
 	const returnCache = () => {
 		console.info(`${getList.name}(${path})`, `serving cache, ${_cache[path].text.length} bytes.`)
+		if (typeof res.setHeader === 'function') res.setHeader('eTag', _cache[path].eTag)
 		res.write(_cache[path].text)
 	}
 
@@ -53,6 +55,7 @@ export const getList = async (res: Writable, path: GetListPath) => {
 
 	console.info(`${getList.name}(${path})`, 'fetching new...')
 	_cache[path].inProgress = true
+	if (typeof res.setHeader === 'function') res.setHeader('eTag', _cache[path].eTag)
 
 	const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, key)
 	let text = ''
