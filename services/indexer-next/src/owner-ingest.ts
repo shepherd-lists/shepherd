@@ -74,7 +74,7 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 				owners,
 				eTag,
 			}
-			console.info(blockOwnerIngest.name, 'addresses cache updated', addresses)
+			console.info(blockOwnerIngest.name, 'addresses cache updated', JSON.stringify(addresses))
 		}
 		return addresses
 	}
@@ -112,7 +112,7 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 		/** get the very latest owners */
 		const { owners } = await latestAddreses()
 		vars = {
-			owners,
+			owners: owners.map(o => o.trim()), // some addresses have trailing spaces, e.g. eth signers
 			minAt,
 			maxAt,
 		}

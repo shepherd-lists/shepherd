@@ -27,8 +27,8 @@ const pool = new pg.Pool({
 
 export default pool
 
-export const batchInsert = async <T extends object>(records: T[], tableName: string) => {
-	console.info(`batchInsert inserting  ${records.length} records.`)
+export const batchInsertFnOwner = async <T extends object>(records: T[], tableName: string) => {
+	console.info(batchInsertFnOwner.name, `inserting  ${records.length} records.`)
 	if (records.length === 0) return
 
 	/** we'll be using the placeholder method where data is sent separately AKA parameterized query.
@@ -44,6 +44,7 @@ export const batchInsert = async <T extends object>(records: T[], tableName: str
 		const query = `INSERT INTO "${tableName}" (${columns}) `
 			+ `VALUES `
 			+ records.map(r => `(${Object.keys(r).map(() => '$' + ++index).join(', ')})`).join(', ')
+			+ 'ON CONFLICT DO NOTHING'
 			+ ' RETURNING *'
 
 		console.debug('query', query)

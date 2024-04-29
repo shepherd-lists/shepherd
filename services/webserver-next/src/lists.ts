@@ -1,4 +1,4 @@
-import { Writable } from 'stream'
+import { PassThrough, Writable } from 'stream'
 import { s3GetObjectWebStream, s3HeadObject } from '../../../libs/utils/s3-services'
 import { readlineWeb } from '../../../libs/utils/webstream-utils'
 
@@ -14,7 +14,12 @@ interface Cached {
 }
 const _cache: Record<string, Cached> = {}
 
-export const getList = async (res: Writable, path: ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt' | '/testing.txt')) => {
+export type GetListPath = ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt' | '/rangeflagged.txt' | '/rangeowners.txt' | '/testing.txt')
+
+export const getETag = (path: GetListPath) => _cache[path].eTag
+
+export const getList = async (response: Writable, path: GetListPath) => {
+	const res = response as Writable & { setHeader?: (k: string, v: string) => void }
 
 	const key = path.replace('/', '')
 
@@ -29,6 +34,7 @@ export const getList = async (res: Writable, path: ('/addresses.txt' | '/blackli
 
 	const returnCache = () => {
 		console.info(`${getList.name}(${path})`, `serving cache, ${_cache[path].text.length} bytes.`)
+		if (typeof res.setHeader === 'function') res.setHeader('eTag', _cache[path].eTag)
 		res.write(_cache[path].text)
 	}
 
@@ -49,6 +55,7 @@ export const getList = async (res: Writable, path: ('/addresses.txt' | '/blackli
 
 	console.info(`${getList.name}(${path})`, 'fetching new...')
 	_cache[path].inProgress = true
+	if (typeof res.setHeader === 'function') res.setHeader('eTag', _cache[path].eTag)
 
 	const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, key)
 	let text = ''
@@ -64,4 +71,13 @@ export const getList = async (res: Writable, path: ('/addresses.txt' | '/blackli
 		text,
 		inProgress: false,
 	}
+}
+
+
+export const prefetchLists = async () => {
+	await Promise.all(['/addresses.txt', '/blacklist.txt', '/rangelist.txt', '/rangeflagged.txt', '/rangeowners.txt'].map(async path => {
+		const dummy = new PassThrough()
+		await getList(dummy, path as GetListPath)
+		dummy.destroy()
+	}))
 }

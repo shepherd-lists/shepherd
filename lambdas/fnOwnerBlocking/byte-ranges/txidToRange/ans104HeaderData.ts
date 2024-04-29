@@ -83,7 +83,7 @@ const fetchHeader = async (parent: string) => {
 
 			/* close the stream & return results */
 			aborter!.abort()
-			reader.releaseLock()
+			reader?.releaseLock()
 			stream?.cancel() //thrice to be sure?
 
 			return {
@@ -94,7 +94,7 @@ const fetchHeader = async (parent: string) => {
 			}
 
 		} catch (e) {
-			reader!.releaseLock()
+			if (reader!) reader.releaseLock() //non-null assertion testing for null :shrug: keeps ts happy
 			//can we just retry everything?
 			const retryMs = 10_000
 			console.log(fetchHeader.name, `Error for '${parent}'. Retrying in ${retryMs} ms...`)

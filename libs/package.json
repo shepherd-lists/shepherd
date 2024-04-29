@@ -5,13 +5,16 @@
     "test": "tsx --test **/*.spec.ts"
   },
   "devDependencies": {
-    "@aws-sdk/client-lambda": "^3.525.0",
+    "dotenv": "^16.4.5"
+  },
+  "dependencies": {
+    "@aws-sdk/client-lambda": "^3.540.0",
     "@aws-sdk/client-s3": "^3.521.0",
+    "@aws-sdk/client-ssm": "^3.540.0",
     "@aws-sdk/lib-storage": "^3.521.0",
     "@types/pg": "^8.11.2",
     "ar-gql": "^1.2.9",
     "arweave": "^1.14.4",
-    "dotenv": "^16.4.5",
     "knex": "^3.1.0",
     "moize": "^6.1.6",
     "pg": "^8.11.3",

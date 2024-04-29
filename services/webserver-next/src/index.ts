@@ -4,12 +4,12 @@ console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
 import express from 'express'
 import { slackLog } from '../../../libs/utils/slackLog'
-import { ipAllowBlacklist, ipAllowRangelist, ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
-import './checkBlocking/checkBlocking-timer' //starts automatically
+import { ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
+// import './checkBlocking/checkBlocking-timer' //starts automatically
 import { network_EXXX_codes } from '../../../libs/constants'
 import { Socket } from 'net'
 import { txsTableNames } from './tablenames'
-import { getList } from './lists'
+import { GetListPath, getETag, getList, prefetchLists } from './lists'
 import { getRecords } from './blacklist' //legacy
 
 
@@ -19,7 +19,7 @@ const port = 80
 
 // app.use(cors())
 
-
+prefetchLists()
 
 app.get('/', async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
@@ -71,14 +71,20 @@ app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	}
 })
 
-app.get('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
+app.head(/^\/range(list|flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
+	res.setHeader('eTag', getETag(req.path as GetListPath))
+	res.sendStatus(200)
+})
+
+app.get(/^\/range(list|flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
+	const path = req.path as GetListPath
 	res.setHeader('Content-Type', 'text/plain')
 	try {
-		await getList(res, '/rangelist.txt')
+		await getList(res, path)
 		res.status(200).end()
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog('/rangelist.txt', `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+		await slackLog(path, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
 		res.status(500).send('internal server error\n')
 	}
 })

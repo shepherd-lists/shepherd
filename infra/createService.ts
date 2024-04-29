@@ -1,4 +1,5 @@
-import { Stack, aws_ecr_assets, aws_ecs, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
+import { IgnoreMode, Stack, aws_ecr_assets, aws_ecs, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
+import { readdirSync } from 'fs'
 
 
 /** from template for a standard addon service (w/o cloudmap) */
@@ -45,7 +46,13 @@ export const createAddonService = (
 
 	const dockerImage = new aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
 		directory: new URL(`../`, import.meta.url).pathname,
-		exclude: ['cdk.out*', 'node_modules', 'test', 'infra'],
+		exclude: [
+			'*',
+			'!libs', '!tsconfig.json', '!types.d.ts',
+			'!services', 'services/*', `!services/${name}`,
+			'**/node_modules', '**/.DS_Store'
+		],
+		ignoreMode: IgnoreMode.DOCKER,
 		target: name,
 		buildArgs: { targetArg: name },
 		assetName: `${name}-image`,
