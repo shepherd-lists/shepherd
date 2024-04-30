@@ -104,9 +104,11 @@ export const getList = async (response: Writable, path: GetListPath) => {
 }
 
 export const prefetchLists = async () => {
+	console.info('prefetching lists...')
 	await Promise.all(['/addresses.txt', '/blacklist.txt', '/rangelist.txt'].map(async path => {
 		const dummy = new PassThrough()
 		await getList(dummy, path as GetListPath)
 		dummy.destroy()
 	}))
+	console.info('prefetching lists done.')
 }
