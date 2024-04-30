@@ -37,6 +37,8 @@ export const assertLists = async () => {
 
 	if (
 		!(await keyExists('blacklist.txt'))
+		|| !(await keyExists('txidflagged.txt'))
+		|| !(await keyExists('txidowners.txt'))
 		|| !(await keyExists('rangelist.txt'))
 		|| !(await keyExists('rangeflagged.txt'))
 		|| !(await keyExists('rangeowners.txt'))
@@ -113,6 +115,8 @@ export const updateFullTxidsRanges = async () => {
 
 	/** prepare output streams to s3 */
 	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'blacklist.txt')
+	const s3FlaggedTxids = s3UploadReadable(LISTS_BUCKET, 'txidflagged.txt')
+	const s3OwnerTxids = s3UploadReadable(LISTS_BUCKET, 'txidowners.txt')
 	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
 	const s3FlaggedRanges = s3UploadReadable(LISTS_BUCKET, 'rangeflagged.txt')
 	const s3OwnerRanges = s3UploadReadable(LISTS_BUCKET, 'rangeowners.txt')
@@ -122,6 +126,7 @@ export const updateFullTxidsRanges = async () => {
 		// console.debug('row', row)
 		count++
 		s3Txids.write(`${row.txid}\n`)
+		s3FlaggedTxids.write(`${row.txid}\n`)
 		if (!row.byteStart) {
 			slackLog(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 			continue;
@@ -132,7 +137,7 @@ export const updateFullTxidsRanges = async () => {
 		s3Ranges.write(`${row.byteStart},${row.byteEnd}\n`)
 		s3FlaggedRanges.write(`${row.byteStart},${row.byteEnd}\n`)
 	}
-	s3FlaggedRanges.end()
+
 	console.debug(updateFullTxidsRanges.name, 'DEBUG flaggedStream', count)
 	console.debug(updateFullTxidsRanges.name, 'DEBUG ownerStreams.length', ownerStreams.length)
 	let i = 0
@@ -142,6 +147,7 @@ export const updateFullTxidsRanges = async () => {
 			// console.debug('row', row)
 			count++
 			s3Txids.write(`${row.txid}\n`)
+			s3OwnerTxids.write(`${row.txid}\n`)
 			if (!row.byte_start) {
 				slackLog(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 				continue;
@@ -160,10 +166,15 @@ export const updateFullTxidsRanges = async () => {
 
 	/** close the output streams */
 	s3Txids.end()
+	s3FlaggedTxids.end()
+	s3OwnerTxids.end()
 	s3Ranges.end()
+	s3FlaggedRanges.end()
 	s3OwnerRanges.end()
 	await Promise.all([
 		finished(s3Txids),
+		finished(s3FlaggedTxids),
+		finished(s3OwnerTxids),
 		finished(s3Ranges),
 		finished(s3FlaggedRanges),
 		finished(s3OwnerRanges),
