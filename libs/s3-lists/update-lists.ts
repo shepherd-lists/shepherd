@@ -137,7 +137,7 @@ export const updateFullTxidsRanges = async () => {
 		s3Ranges.write(`${row.byteStart},${row.byteEnd}\n`)
 		s3FlaggedRanges.write(`${row.byteStart},${row.byteEnd}\n`)
 	}
-	s3FlaggedRanges.end()
+
 	console.debug(updateFullTxidsRanges.name, 'DEBUG flaggedStream', count)
 	console.debug(updateFullTxidsRanges.name, 'DEBUG ownerStreams.length', ownerStreams.length)
 	let i = 0
@@ -166,10 +166,15 @@ export const updateFullTxidsRanges = async () => {
 
 	/** close the output streams */
 	s3Txids.end()
+	s3FlaggedTxids.end()
+	s3OwnerTxids.end()
 	s3Ranges.end()
+	s3FlaggedRanges.end()
 	s3OwnerRanges.end()
 	await Promise.all([
 		finished(s3Txids),
+		finished(s3FlaggedTxids),
+		finished(s3OwnerTxids),
 		finished(s3Ranges),
 		finished(s3FlaggedRanges),
 		finished(s3OwnerRanges),
