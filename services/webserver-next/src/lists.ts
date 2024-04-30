@@ -15,10 +15,10 @@ interface Cached {
 const _cache: Record<string, Cached> = {}
 
 export type GetListPath = ('/addresses.txt'
-	| '/blacklist.txt'
+	| '/blacklist.txt'	//concat txidflagged + txidowners
 	| '/txidflagged.txt'
 	| '/txidowners.txt'
-	| '/rangelist.txt'
+	| '/rangelist.txt'	//concat rangeflagged + rangeowners
 	| '/rangeflagged.txt'
 	| '/rangeowners.txt'
 	| '/testing.txt')
@@ -40,10 +40,18 @@ export const getList = async (response: Writable, path: GetListPath) => {
 	}
 
 	const returnCache = () => {
-		console.info(`${getList.name}(${path})`, `serving cache, ${_cache[path].text.length} bytes.`)
+		let txt = ''
+		if (path === '/blacklist.txt') {
+			txt = _cache['/txidflagged.txt'].text + _cache['/txidowners.txt']
+		} else if (path === '/rangelist.txt') {
+			txt = _cache['/rangeflagged.txt'].text + _cache['/rangeowners.txt'].text
+		} else {
+			txt = _cache[path].text
+		}
+		console.info(`${getList.name}(${path})`, `serving cache, ${txt.length} bytes.`)
 		if (typeof res.setHeader === 'function') res.setHeader('eTag', _cache[path].eTag)
-		res.write(_cache[path].text)
-		return _cache[path].text
+		res.write(txt)
+		return txt
 	}
 
 	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
@@ -71,6 +79,11 @@ export const getList = async (response: Writable, path: GetListPath) => {
 		const ownersPath = path === '/blacklist.txt' ? '/txidowners.txt' : '/rangeowners.txt'
 		text = await getList(res, flaggedPath)
 		text += await getList(res, ownersPath)
+		_cache[path] = {
+			eTag,
+			text: '',
+			inProgress: false,
+		}
 	} else {
 		const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, key)
 		for await (const line of readlineWeb(stream)) {
@@ -79,14 +92,14 @@ export const getList = async (response: Writable, path: GetListPath) => {
 			text += l
 			res.write(l)
 		}
+		_cache[path] = {
+			eTag,
+			text,
+			inProgress: false,
+		}
 	}
-	console.info(`${getList.name}(${path})`, `fetched ${text.length} bytes.`)
 
-	_cache[path] = {
-		eTag,
-		text,
-		inProgress: false,
-	}
+	console.info(`${getList.name}(${path})`, `fetched ${text.length} bytes.`)
 	return text
 }
 
