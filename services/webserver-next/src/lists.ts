@@ -14,7 +14,14 @@ interface Cached {
 }
 const _cache: Record<string, Cached> = {}
 
-export type GetListPath = ('/addresses.txt' | '/blacklist.txt' | '/rangelist.txt' | '/rangeflagged.txt' | '/rangeowners.txt' | '/testing.txt')
+export type GetListPath = ('/addresses.txt'
+	| '/blacklist.txt'
+	| '/txidflagged.txt'
+	| '/txidowners.txt'
+	| '/rangelist.txt'
+	| '/rangeflagged.txt'
+	| '/rangeowners.txt'
+	| '/testing.txt')
 
 export const getETag = (path: GetListPath) => _cache[path].eTag
 
@@ -36,6 +43,7 @@ export const getList = async (response: Writable, path: GetListPath) => {
 		console.info(`${getList.name}(${path})`, `serving cache, ${_cache[path].text.length} bytes.`)
 		if (typeof res.setHeader === 'function') res.setHeader('eTag', _cache[path].eTag)
 		res.write(_cache[path].text)
+		return _cache[path].text
 	}
 
 	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
@@ -55,26 +63,35 @@ export const getList = async (response: Writable, path: GetListPath) => {
 
 	console.info(`${getList.name}(${path})`, 'fetching new...')
 	_cache[path].inProgress = true
-	if (typeof res.setHeader === 'function') res.setHeader('eTag', _cache[path].eTag)
+	if (typeof res.setHeader === 'function') res.setHeader('eTag', _cache[path].eTag) //needs to be set before content is written
 
-	const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, key)
 	let text = ''
-	for await (const line of readlineWeb(stream)) {
-		const l = `${line}\n`
-		// console.debug(l)
-		text += l
-		res.write(l)
+	if (['/blacklist.txt', '/rangelist.txt'].includes(path)) {
+		const flaggedPath = path === '/blacklist.txt' ? '/txidflagged.txt' : '/rangeflagged.txt'
+		const ownersPath = path === '/blacklist.txt' ? '/txidowners.txt' : '/rangeowners.txt'
+		text = await getList(res, flaggedPath)
+		text += await getList(res, ownersPath)
+	} else {
+		const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, key)
+		for await (const line of readlineWeb(stream)) {
+			const l = `${line}\n`
+			// console.debug(l)
+			text += l
+			res.write(l)
+		}
 	}
 	console.info(`${getList.name}(${path})`, `fetched ${text.length} bytes.`)
+
 	_cache[path] = {
 		eTag,
 		text,
 		inProgress: false,
 	}
+	return text
 }
 
 export const prefetchLists = async () => {
-	await Promise.all(['/addresses.txt', '/blacklist.txt', '/rangelist.txt', '/rangeflagged.txt', '/rangeowners.txt'].map(async path => {
+	await Promise.all(['/addresses.txt', '/blacklist.txt', '/rangelist.txt'].map(async path => {
 		const dummy = new PassThrough()
 		await getList(dummy, path as GetListPath)
 		dummy.destroy()
