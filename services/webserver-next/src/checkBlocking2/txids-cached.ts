@@ -1,131 +1,73 @@
 import { s3GetObjectWebStream, s3HeadObject } from "../../../../libs/utils/s3-services"
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { readlineWeb } from "../../../../libs/utils/webstream-utils"
-import http2 from 'http2'
-import { Semaphore } from 'await-semaphore'
-import { filterPendingOnly } from "./pending-promises"
+
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const HOST_URL = process.env.HOST_URL; console.info('HOST_URL', HOST_URL)
-if (!HOST_URL) throw new Error('HOST_URL not set')
 
-/** create some odd interfaces for smaller cache */
-export interface IdSub {
-	txid: string;
-	subdomain: string
-}
 interface TxidCache {
 	eTag: string
-	idSubs: Array<IdSub>
+	ids: Array<string>
 	inProgress: boolean
 }
-const _txidCache: TxidCache = { eTag: '', idSubs: [], inProgress: false }
+const _txidCaches: { [key: string]: TxidCache } = {}
 
 
 
-/** need to get and cache the redirect subdomains for these txids */
+export const getBlockedTxids = async (key: ('txidflagged.txt' | 'txidowners.txt')) => {
+	/** create an empty entry */
+	if (!_txidCaches[key]) {
+		_txidCaches[key] = { eTag: '', ids: [], inProgress: false }
+	}
 
-const session = http2.connect(`https://${HOST_URL}`)
-const maxConcurrentRequests = 100 //adjust this
-const semaphore = new Semaphore(maxConcurrentRequests)
-
-const preRequestRedirectSub = async (txid: string) => {
-	const release = await semaphore.acquire()
-
-	return new Promise<IdSub>((resolve, reject) => {
-		const req = session.request({
-			':path': `/${txid}`,
-			':method': 'HEAD',
-		})
-
-		const reqTimeout = setTimeout(() => {
-			req.destroy(new Error(`${preRequestRedirectSub.name} ${txid} 'request timeout'`)) //causes error event
-		}, 2000)
-
-		req.on('response', (headers, flags) => {
-			clearTimeout(reqTimeout)
-			if (headers[':status'] === 302 && headers['location']) {
-				console.debug('redirect', headers['location'])
-				const subdomain = headers['location'].split('.')[0].split('//')[1]
-				resolve({ txid, subdomain })
-			} else {
-				reject(headers[':status'])
-			}
-			req.destroy()
-		})
-
-		req.on('error', (err: Error & { code: string }) => reject(err))
-		req.end()
-	}).finally(() => release())
-	//TODO: retry connection errors
-}
-// console.debug(await preRequestRedirectSub('aJ2AI_gNvKc_s9hrkIcoGEPHPP3oUQD48BGHp41TH3w'))
-// console.debug(await preRequestRedirectSub('B4z-wUXRPMetJg9AfCtNcFRpv1lQ4VPpIvU-njhCt44'))
-
-
-export const getBlockedTxids = async () => {
-	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, 'blacklist.txt')).ETag!
-	console.debug(getBlockedTxids.name, 'eTag', eTag)
+	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
+	console.debug(getBlockedTxids.name, key, 'eTag', eTag)
 
 	/** short-circuit */
-	if (eTag === _txidCache.eTag) {
-		console.info(getBlockedTxids.name, 'returning cache')
-		return _txidCache.idSubs
+	if (eTag === _txidCaches[key].eTag) {
+		console.info(getBlockedTxids.name, key, 'returning cache')
+		return _txidCaches[key].ids
 	}
 
 	/** just one running update is allowed/required */
-	if (_txidCache.inProgress) {
-		console.info(getBlockedTxids.name, 'waiting for cache update as inProgress')
-		while (_txidCache.inProgress) {
+	if (_txidCaches[key].inProgress) {
+		console.info(getBlockedTxids.name, key, 'waiting for cache update as inProgress')
+		while (_txidCaches[key].inProgress) {
 			await sleep(100) //wait for new cache
 		}
-		console.info(getBlockedTxids.name, 'returning cache')
-		return _txidCache.idSubs
+		console.info(getBlockedTxids.name, key, 'returning cache')
+		return _txidCaches[key].ids
 	}
-	_txidCache.inProgress = true
+	_txidCaches[key].inProgress = true
 
 	/** fetch blacklist.txt */
 
-	console.info(getBlockedTxids.name, 'fetching & processing new cache...')
+	console.info(getBlockedTxids.name, `fetching & processing new ${key} cache...`)
 	const t0 = performance.now()
 
-	const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, 'blacklist.txt')
-	const idSubs: Array<IdSub> = []
-	let promises: Promise<IdSub>[] = []
+	const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, key)
+	const ids: string[] = []
 
-	for await (const line of readlineWeb(stream)) {
-		//debug/sanity check
-		if (line.length === 0) {
-			slackLog(getBlockedTxids.name, 'WARNING! empty line retrieving blacklist.txt')
+	for await (const txid of readlineWeb(stream)) {
+		//debug/sanity check (older code suggested possible empty lines?)
+		if (txid.length !== 43) {
+			slackLog(getBlockedTxids.name, key, `WARNING! skipping invalid txid '${txid}'`)
 			continue;
 		}
 
-		const promise = preRequestRedirectSub(line)
-		promise.then(idSub => idSubs.push(idSub))
-
-		promises.push(promise)
-
-		if (promises.length >= maxConcurrentRequests) {
-			await Promise.race(promises) //let at least one resolve
-			//remove settled promises
-			promises = await filterPendingOnly(promises) //TODO: retry rejected promises
-		}
+		ids.push(txid)
 	}
-	await Promise.all(promises)
 
 	const t1 = performance.now()
-	console.info(getBlockedTxids.name, `fetched ${idSubs.length} txids in ${(t1 - t0).toFixed(0)}ms`)
+	console.info(getBlockedTxids.name, `fetched ${ids.length} txids in ${(t1 - t0).toFixed(0)}ms. returning new cache`)
 
-	_txidCache.idSubs = idSubs
-	_txidCache.eTag = eTag
-	_txidCache.inProgress = false
-	console.info(getBlockedTxids.name, 'returning new cache')
-	return idSubs
+	_txidCaches[key].ids = ids
+	_txidCaches[key].eTag = eTag
+	_txidCaches[key].inProgress = false
+	return ids
 }
 
-// getBlockedTxids()
-// 	.then(() => console.info('done'))
-// 	.catch(console.error)
-// 	.finally(() => session.close())
+// getBlockedTxids('txidflagged.txt')
+// getBlockedTxids('txidowners.txt')
