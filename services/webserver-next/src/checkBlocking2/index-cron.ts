@@ -2,20 +2,15 @@
  * objectives:
  * - check that servers in access lists are correctly blocking data after it is flagged.
  *
- * this file contains only the timer
+ * this file contains only the timers
  */
-const INTERVAL = 30_000 // 30 secs 
+const FLAGGED_INTERVAL = 30_000 // 30 secs 
+const OWNERS_INTERVAL = 300_000 // 5 mins
+const DNSR_INTERVAL = 600_000 // 10 mins
 
 
-// import { checkBlockedCronjob } from './checkBlocking-functions'
-// /** main entrypoint */
-// setInterval(checkBlockedCronjob, INTERVAL)
-// /** run once at load also */
-// checkBlockedCronjob()
+import { checkFlaggedTxids } from './index-entry'
+/** main entrypoint */
+setInterval(checkFlaggedTxids, FLAGGED_INTERVAL)
 
-// import { alertStateCronjob } from './event-tracking'
 
-// const NOT_FOUND_CRONJOB_INTERVAL = 60_000 // 1 minute
-
-// setInterval(alertStateCronjob, NOT_FOUND_CRONJOB_INTERVAL)
-// alertStateCronjob() // run once at load also

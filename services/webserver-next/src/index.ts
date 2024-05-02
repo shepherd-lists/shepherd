@@ -2,6 +2,7 @@ console.log(`process.env.SLACK_WEBHOOK ${process.env.SLACK_WEBHOOK}`)
 console.log(`process.env.SLACK_POSITIVE ${process.env.SLACK_POSITIVE}`)
 console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
+import './checkBlocking2/index-cron'
 import express from 'express'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
