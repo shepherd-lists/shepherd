@@ -61,7 +61,7 @@ export const getBlockedTxids = async (key: ('txidflagged.txt' | 'txidowners.txt'
 	}
 
 	const t1 = performance.now()
-	console.info(getBlockedTxids.name, `fetched ${ids.length} txids in ${(t1 - t0).toFixed(0)}ms. returning new cache`)
+	console.info(getBlockedTxids.name, key, `fetched ${ids.length} txids in ${(t1 - t0).toFixed(0)}ms. returning new cache`)
 
 	_txidCaches[key].ids = ids
 	_txidCaches[key].eTag = eTag

@@ -53,6 +53,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 
 	const t0 = performance.now()
 	let promises: Promise<void>[] = []
+	let count = 0
 	for (const txid of blockedTxids) {
 		promises.push(handler(session, txid))
 
@@ -64,6 +65,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 
 			//TODO: retry rejected
 		}
+		if (++count % 1_000 === 0) console.log(checkServerBlockingTxids.name, key, `${count} items dispatched in ${(performance.now() - t0).toFixed(0)}ms`)
 	}
 	await Promise.all(promises)
 
