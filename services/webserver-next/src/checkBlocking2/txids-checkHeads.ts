@@ -1,58 +1,74 @@
 import { getBlockedTxids } from "./txids-cached"
-import https from 'https'
+import http2, { ClientHttp2Session } from 'http2'
+import { Semaphore } from 'await-semaphore'
+import { filterPendingOnly } from "./pending-promises"
+import { performance } from 'perf_hooks'
 
 
+const maxConcurrentRequests = 200 //adjust this
+const requestTimeout = 60_000 //ms. this too
+const semaphore = new Semaphore(maxConcurrentRequests)
 
-const agent = new https.Agent({
-	keepAlive: true, //default false
-	// maxSockets: Infinity, //default Infinity
-	// maxFreeSockets: 256, //default 256
-	// keepAliveMsecs: 1000, //default 1000
-})
+const headRequest = async (session: ClientHttp2Session, txid: string) => {
+	const release = await semaphore.acquire()
 
-const headRequest = async (url: string) => {
-	return new Promise((resolve, reject) => {
-		const req = https.request(url, {
-			method: 'HEAD',
-			agent,
-			timeout: 0,
-		}, async res => {
-			if (res.statusCode === 302 && res.headers.location) {
-				console.info('redirect', res.headers.location)
-				try {
-					const redirectStatus = await headRequest(res.headers.location)
-					resolve(redirectStatus)
-				} catch (err) {
-					reject(err)
-				}
-			} else {
-				resolve(res.statusCode)
-			}
+	return new Promise<number>((resolve, reject) => {
+		const req = session.request({
+			':path': `/raw/${txid}`,
+			':method': 'HEAD',
 		})
-		req.on('error', (err: Error & { code: string }) => {
-			console.error(`${url}, ${err.message}, ${err.code}`)
-			reject(err)
+
+		const reqTimeout = setTimeout(() => {
+			req.destroy(new Error(`${headRequest.name} ${txid} 'request timeout'`)) //causes error event
+		}, requestTimeout)
+
+		req.on('response', (headers, flags) => {
+			clearTimeout(reqTimeout)
+			resolve(+headers[':status']!)
+			req.destroy()
 		})
-		req.on('timeout', () => {
-			console.error(`${url}, timeout, aborting...`)
-			req.destroy() //also causes error event
-		})
+
+		req.on('error', (err: Error & { code: string }) => reject(err))
+
 		req.end()
-	})
+	}).finally(() => release())
+	//TODO: retry connection errors
 }
 
+const handler = async (session: ClientHttp2Session, txid: string) => {
+	const status = await headRequest(session, txid)
+	// console.info({ txid, status })
 
+	//TODO: set alarms etc. this is a placeholder function
+}
 
-export const checkServerBlockingTxids = async (domain: string) => {
-	const blockedTxids = await getBlockedTxids()
+export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt')) => {
+	//sanity
+	if (!gw_url.startsWith('https://')) throw new Error(`invalid format. gw_url must start with https:// => ${gw_url}`)
 
-	//DEBUG
-	// assume this server is reachable?
-	for (const { subdomain, txid } of blockedTxids) {
-		if (txid.length !== 43) throw new Error(`txid ${txid} length !== 43`) //sanity
+	const blockedTxids = await getBlockedTxids(key)
+	const session = http2.connect(gw_url) //gw specific session
 
-		const status = await headRequest(`https://${subdomain}.${domain}/${txid}`)
-		console.info('txid status', { txid, status })
+	// don't assume gateways are reachable
+
+	const t0 = performance.now()
+	let promises: Promise<void>[] = []
+	for (const txid of blockedTxids) {
+		promises.push(handler(session, txid))
+
+		if (promises.length > maxConcurrentRequests) {
+			//let at least one resolve
+			await Promise.race(promises)
+			//remove resolved
+			promises = await filterPendingOnly(promises)
+
+			//TODO: retry rejected
+		}
 	}
+	await Promise.all(promises)
+
+	console.info(checkServerBlockingTxids.name, key, `completed checks in ${(performance.now() - t0).toFixed(0)}ms`)
+	session.close()
 }
-checkServerBlockingTxids('arweave.net')
+
+// checkServerBlockingTxids('https://arweave.net', 'txidowners.txt')
