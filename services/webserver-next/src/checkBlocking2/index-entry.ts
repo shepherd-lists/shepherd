@@ -8,28 +8,31 @@ const rangeItems: RangelistAllowedItem[] = JSON.parse(process.env.RANGELIST_ALLO
 const gwUrls: string[] = JSON.parse(process.env.GW_URLS || '[]')
 console.info({ rangeItems, gwUrls })
 
-let _running = false
-export const checkFlaggedTxids = async () => {
+let _running: { [key: string]: boolean } = {} //semaphore to prevent overlapping runs
 
+const checkTxids = async (key: 'txidflagged.txt' | 'txidowners.txt') => {
 	/** short-circuit */
 	if (gwUrls.length === 0) {
-		console.info(checkFlaggedTxids.name, 'no gw urls configured, exiting.', gwUrls)
+		console.info(checkTxids.name, key, 'no gw urls configured, exiting.', gwUrls)
 		return
 	}
 	/** no overlapping runs */
-	if (_running) {
-		console.info(checkFlaggedTxids.name, `already running. exiting.`)
+	if (_running[key]) {
+		console.info(checkTxids.name, key, `already running. exiting.`)
 		return
 	}
-	console.info(checkFlaggedTxids.name, `starting cronjob...`, { rangeItems, gwUrls, _running })
-	_running = true
+	_running[key] = true
+	console.info(checkTxids.name, key, `starting cronjob...`, { rangeItems, gwUrls, _running })
 	try {
 
-		await Promise.all(gwUrls.map(async (gwUrl) => checkServerBlockingTxids(gwUrl, 'txidflagged.txt')))
+		await Promise.all(gwUrls.map(async (gwUrl) => checkServerBlockingTxids(gwUrl, key)))
 
 		//TODO: might be timeouts to catch here?
 
 	} finally {
-		_running = false
+		delete _running[key]
 	}
 }
+
+export const checkFlaggedTxids = () => checkTxids('txidflagged.txt')
+export const checkOwnersTxids = () => checkTxids('txidowners.txt')

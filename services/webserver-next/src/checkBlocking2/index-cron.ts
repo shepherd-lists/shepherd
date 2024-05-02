@@ -9,8 +9,8 @@ const OWNERS_INTERVAL = 300_000 // 5 mins
 const DNSR_INTERVAL = 600_000 // 10 mins
 
 
-import { checkFlaggedTxids } from './index-entry'
-/** main entrypoint */
+import { checkFlaggedTxids, checkOwnersTxids } from './index-entry'
+/** main entrypoints */
 setInterval(checkFlaggedTxids, FLAGGED_INTERVAL)
-
+setInterval(checkOwnersTxids, OWNERS_INTERVAL)
 
