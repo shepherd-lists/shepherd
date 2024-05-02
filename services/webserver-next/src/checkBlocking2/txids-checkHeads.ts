@@ -3,6 +3,7 @@ import http2, { ClientHttp2Session } from 'http2'
 import { Semaphore } from 'await-semaphore'
 import { filterPendingOnly } from "./pending-promises"
 import { performance } from 'perf_hooks'
+import { slackLog } from "../../../../lambdas/fnOwnerBlocking/utils/slackLog"
 
 
 const maxConcurrentRequests = 200 //adjust this
@@ -28,7 +29,15 @@ const headRequest = async (session: ClientHttp2Session, txid: string) => {
 			req.destroy()
 		})
 
-		req.on('error', (err: Error & { code: string }) => reject(err))
+		req.on('error', async (err: Error & { code: string }) => {
+			slackLog(headRequest.name, txid, err)
+			if (err.code === 'NGHTTP2_REFUSED_STREAM') {
+				const retry = await headRequest(session, txid) //possible "infinite" retry loop
+				resolve(retry)
+			} else {
+				reject(err)
+			}
+		})
 
 		req.end()
 	}).finally(() => release())
