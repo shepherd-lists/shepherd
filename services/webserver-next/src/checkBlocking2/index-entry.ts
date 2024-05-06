@@ -22,7 +22,7 @@ const checkTxids = async (key: 'txidflagged.txt' | 'txidowners.txt') => {
 		return
 	}
 	_running[key] = true
-	console.info(checkTxids.name, key, `starting cronjob...`, { rangeItems, gwUrls, _running })
+	console.info(checkTxids.name, key, `starting cronjob...`, JSON.stringify({ rangeItems, gwUrls, _running }))
 	try {
 
 		await Promise.all(gwUrls.map(async (gwUrl) => checkServerBlockingTxids(gwUrl, key)))
