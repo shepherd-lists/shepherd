@@ -5,7 +5,8 @@ import { filterPendingOnly } from "./pending-promises"
 import { performance } from 'perf_hooks'
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { checkReachable } from "./txids-checkReachable"
-import { setUnreachable, unreachableTimedout } from "../checkBlocking/event-tracking"
+import { setAlertState, setUnreachable, unreachableTimedout } from "../checkBlocking/event-tracking"
+import { slackLogPositive } from "../../../../libs/utils/slackLogPositive"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -16,8 +17,9 @@ const semaphore = new Semaphore(maxConcurrentRequests)
 
 interface HeadRequestReturn {
 	status: number
-	'x-trace': string
+	xtrace: string
 	age?: string
+	contentLength?: string
 }
 const headRequest = async (session: ClientHttp2Session, txid: string, reqId: number) => {
 	const release = await semaphore.acquire()
@@ -40,8 +42,9 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 		req.on('response', (headers, flags) => {
 			resolve({
 				status: +headers[':status']!,
-				'x-trace': headers['x-trace'] as string,
+				xtrace: headers['x-trace'] as string,
 				age: headers['age'],
+				contentLength: headers['content-length'],
 			})
 			// req.destroy() unnecessary and possibly harmful in a head req.
 		})
@@ -65,13 +68,35 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 
 const handler = async (session: ClientHttp2Session, gw_url: string, txid: string, reqId: number) => {
 	try {
-		const status = await headRequest(session, txid, reqId)
-		if (status.status !== 404) {
-			//TODO: set alarm
+		const { status, age, xtrace, contentLength } = await headRequest(session, txid, reqId)
+
+		if (status >= 500)
+			return console.error(headRequest.name, `${gw_url} returned ${status} for ${txid}. ignoring..`)
+
+		if (status !== 404) {
+			setAlertState({
+				server: { name: gw_url, server: gw_url },
+				item: txid,
+				status: 'alarm',
+				details: {
+					xtrace,
+					age: age!,
+					contentLength: contentLength!,
+					httpStatus: status,
+					endpointType: '/TXID',
+				},
+			})
+
+			/* make sure Slack doesn't display link contents! */
+			slackLogPositive('warning', `[${checkServerBlockingTxids.name}] ${txid} not blocked on ${gw_url} (status: ${status}), xtrace: '${xtrace}', age: '${age}', content-length: '${contentLength}'`)
+
 		} else {
-			//TODO: unset alarm
+			setAlertState({
+				server: { name: gw_url, server: gw_url },
+				item: txid,
+				status: 'ok',
+			})
 		}
-		//TODO: unset unreachable
 	} catch (e) {
 		const { message, code } = e as NodeJS.ErrnoException
 		console.error('caught error in handler', gw_url, txid, reqId, `code: ${code}, message: ${message}`)
