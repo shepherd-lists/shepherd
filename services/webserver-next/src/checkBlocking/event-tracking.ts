@@ -28,7 +28,7 @@ export const unreachableTimedout = (server: string) => {
 	const last = stored.since
 
 	if ((now - last) > timeout) {
-		_unreachable.set(server, { ...stored, since: now })
+		_unreachable.delete(server)
 		return true
 	}
 	return false
