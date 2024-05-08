@@ -23,14 +23,17 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 	const release = await semaphore.acquire()
 
 	return new Promise<HeadRequestReturn>((resolve, reject) => {
-		if (session.destroyed) reject(new Error('session already destroyed'))
+		if (session.destroyed) reject(Error('session already destroyed'))
 
 		const req = session.request({
 			':path': `/raw/${txid}`,
 			':method': 'HEAD',
 		})
 		req.setTimeout(requestTimeout, () => {
-			req.close(http2.constants.HTTP_STATUS_REQUEST_TIMEOUT)
+			/** fail quickly */
+			req.destroy(Error('timeout'))
+			session.destroy(Error('timeout'))
+			reject(Error('timedout'))
 		})
 
 
@@ -44,13 +47,13 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 		})
 
 
-		req.on('error', (e: Error & { code: string }) => {
+		req.on('error', (e: NodeJS.ErrnoException) => {
 			const { name, code, message, cause } = e
 			/** N.B. slackLog does not work here! trust me. */
 			console.error(headRequest.name, JSON.stringify({ name, code, message, reqId, txid, cause, causeCode: (cause as { code: string })?.code }))
 
-			const causeCode = (e.cause as { code: string })?.code
-			if (['ECONNRESET'].includes(causeCode)) {
+			const causeCode = (e.cause as NodeJS.ErrnoException)?.code || ''
+			if (['ECONNRESET', 'ETIMEDOUT'].includes(causeCode)) {
 				session.destroy(new Error(causeCode)) //fail quickly, assume unreachable, will be retried anyhow
 			}
 			reject(e)
@@ -58,7 +61,6 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 
 		req.end()
 	}).finally(() => release())
-	//TODO: retry connection errors
 }
 
 const handler = async (session: ClientHttp2Session, gw_url: string, txid: string, reqId: number) => {
@@ -71,8 +73,8 @@ const handler = async (session: ClientHttp2Session, gw_url: string, txid: string
 		}
 		//TODO: unset unreachable
 	} catch (e) {
-		//TODO: set unreachable
-		console.error('caught the error', gw_url, txid, reqId, `message: ${(e as Error).message}`)
+		const { message, code } = e as NodeJS.ErrnoException
+		console.error('caught error in handler', gw_url, txid, reqId, `code: ${code}, message: ${message}`)
 		throw e
 	}
 }
@@ -121,7 +123,11 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 
 		console.info(checkServerBlockingTxids.name, gw_url, key, `completed ${count} checks in ${(performance.now() - t0).toFixed(0)}ms`)
 	} catch (err: unknown) {
-		console.error('mark unreachable?', err)
+		const { message, code, cause } = err as NodeJS.ErrnoException
+		console.error('outer catch', JSON.stringify({ message, code, cause }))
+		if (message === 'timedout') {
+			setUnreachable({ name: gw_url, server: gw_url })
+		}
 	} finally {
 		session.close()
 	}
@@ -129,9 +135,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 
 // checkServerBlockingTxids('https://arweave.net', 'txidowners.txt')
 // checkServerBlockingTxids('https://arweave.dev', 'txidowners.txt')
-// checkServerBlockingTxids('https://18.133.224.136', 'txidowners.txt')
+// checkServerBlockingTxids('https://18.133.224.136', 'txidflagged.txt')
 // checkServerBlockingTxids('https://arweave.net', 'txidowners.txt')
 // checkServerBlockingTxids('https://localhost', 'txidowners.txt')
 
-
-// checkServerBlockingTxids('https://<unreachable-server>', 'txidflagged.txt') // code: 'ERR_HTTP2_STREAM_CANCEL', cause.code: 'ECONNRESET' {"name":"Error","code":"ERR_HTTP2_STREAM_CANCEL","message":"The pending stream has been canceled (caused by: read ECONNRESET)"}
