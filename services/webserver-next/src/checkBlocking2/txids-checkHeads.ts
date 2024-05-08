@@ -8,8 +8,8 @@ import { slackLog } from "../../../../libs/utils/slackLog"
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
-const maxConcurrentRequests = 200 //adjust this
-const requestTimeout = 60_000 //ms. this too
+const maxConcurrentRequests = 150 //adjust this
+const requestTimeout = 10_000 //ms. this too
 const semaphore = new Semaphore(maxConcurrentRequests)
 
 interface HeadRequestReturn {
@@ -21,19 +21,18 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 	const release = await semaphore.acquire()
 
 	return new Promise<HeadRequestReturn>((resolve, reject) => {
+		if (session.destroyed) reject(new Error('session already destroyed'))
+
 		const req = session.request({
 			':path': `/raw/${txid}`,
 			':method': 'HEAD',
 		})
-
-		const reqTimeout = setTimeout(() => {
-			req.destroy(new Error(`${headRequest.name} ${txid} 'request timeout'`)) //causes error event
-		}, requestTimeout)
-
+		req.setTimeout(requestTimeout, () => {
+			req.close(http2.constants.HTTP_STATUS_REQUEST_TIMEOUT)
+		})
 
 
 		req.on('response', (headers, flags) => {
-			clearTimeout(reqTimeout)
 			resolve({
 				status: +headers[':status']!,
 				'x-trace': headers['x-trace'] as string,
@@ -44,10 +43,14 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 
 
 		req.on('error', (e: Error & { code: string }) => {
-			const { name, code, message } = e
+			const { name, code, message, cause } = e
 			/** N.B. slackLog does not work here! trust me. */
-			console.error(headRequest.name, JSON.stringify({ name, code, message, reqId, txid }), e)
-			// if (e.code === 'ERR_HTTP2_STREAM_ERROR' || e.message === 'Stream closed with error code NGHTTP2_REFUSED_STREAM') {
+			console.error(headRequest.name, JSON.stringify({ name, code, message, reqId, txid, cause, causeCode: (cause as { code: string })?.code }))
+
+			const causeCode = (e.cause as { code: string })?.code
+			if (['ECONNRESET'].includes(causeCode)) {
+				session.destroy(new Error(causeCode)) //fail quickly, assume unreachable, will be retried anyhow
+			}
 			reject(e)
 		})
 
@@ -56,11 +59,20 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 	//TODO: retry connection errors
 }
 
-const handler = async (session: ClientHttp2Session, txid: string, reqId: number) => {
-	const status = await headRequest(session, txid, reqId)
-	// console.info({ txid, status })
-
-	//TODO: set alarms etc. this is a placeholder function
+const handler = async (session: ClientHttp2Session, gw_url: string, txid: string, reqId: number) => {
+	try {
+		const status = await headRequest(session, txid, reqId)
+		if (status.status !== 404) {
+			//TODO: set alarm
+		} else {
+			//TODO: unset alarm
+		}
+		//TODO: unset unreachable
+	} catch (e) {
+		//TODO: set unreachable
+		console.error('caught the error', gw_url, txid, reqId, `message: ${(e as Error).message}`)
+		throw e
+	}
 }
 
 export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt')) => {
@@ -68,37 +80,50 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 	if (!gw_url.startsWith('https://')) throw new Error(`invalid format. gw_url must start with https:// => ${gw_url}`)
 
 	const blockedTxids = await getBlockedTxids(key)
-	const session = http2.connect(gw_url) //gw specific session
-	session.setTimeout(90_000, () => session.close())
+	const session = http2.connect(gw_url, {
+		rejectUnauthorized: false,
+	}) //gw specific session
 
-	// don't assume gateways are reachable
+	/** debug */
+	session.on('error', () => console.error(gw_url, 'session error'))
+	session.on('close', () => console.info(gw_url, 'session close'))
+	session.on('timeout', () => console.info(gw_url, 'session timeout'))
 
-	const t0 = performance.now()
+	const t0 = performance.now() // strang behaviour: t0 initialized on all sessions, and all await error on any single other session
 	let promises: Promise<void>[] = []
 	let count = 0
-	for (const txid of blockedTxids) {
-		promises.push(handler(session, txid, count))
+	try {
+		for (const txid of blockedTxids) {
+			promises.push(handler(session, gw_url, txid, count))
 
-		if (promises.length > maxConcurrentRequests) {
-			//let at least one resolve
-			await Promise.race(promises)
-			//remove resolved
-			promises = await filterPendingOnly(promises)
+			if (promises.length > maxConcurrentRequests) {
+				//let at least one resolve
+				await Promise.race(promises)
+				//remove resolved
+				promises = await filterPendingOnly(promises)
 
-			//TODO: retry rejected
+				//TODO: retry rejected
+			}
+			if (++count % 1_000 === 0) console.log(
+				checkServerBlockingTxids.name, gw_url, key, `${count} items dispatched in ${(performance.now() - t0).toFixed(0)}ms`,
+				'outboundQueueSize', session.state.outboundQueueSize
+			)
 		}
-		if (++count % 1_000 === 0) console.log(
-			checkServerBlockingTxids.name, key, `${count} items dispatched in ${(performance.now() - t0).toFixed(0)}ms`,
-			'outboundQueueSize', session.state.outboundQueueSize
-		)
-	}
-	await Promise.all(promises)
+		await Promise.all(promises)
 
-	console.info(checkServerBlockingTxids.name, key, `completed checks in ${(performance.now() - t0).toFixed(0)}ms`)
-	session.close()
+		console.info(checkServerBlockingTxids.name, gw_url, key, `completed ${count} checks in ${(performance.now() - t0).toFixed(0)}ms`)
+	} catch (err: unknown) {
+		console.error('mark unreachable?', err)
+	} finally {
+		session.close()
+	}
 }
 
-// checkServerBlockingTxids('https://arweave.net', 'txidflagged.txt')
 // checkServerBlockingTxids('https://arweave.net', 'txidowners.txt')
+// checkServerBlockingTxids('https://arweave.dev', 'txidowners.txt')
+// checkServerBlockingTxids('https://18.133.224.136', 'txidowners.txt')
+// checkServerBlockingTxids('https://arweave.net', 'txidowners.txt')
+// checkServerBlockingTxids('https://localhost', 'txidowners.txt')
+
 
 // checkServerBlockingTxids('https://<unreachable-server>', 'txidflagged.txt') // code: 'ERR_HTTP2_STREAM_CANCEL', cause.code: 'ECONNRESET' {"name":"Error","code":"ERR_HTTP2_STREAM_CANCEL","message":"The pending stream has been canceled (caused by: read ECONNRESET)"}
