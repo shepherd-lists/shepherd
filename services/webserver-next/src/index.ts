@@ -91,7 +91,7 @@ app.get(/^\/range(list|flagged|owners).txt$/, ipAllowRangesMiddleware, async (re
 })
 
 
-const server = app.listen(port, () => slackLog(`webserver started on http://localhost:${port}`))
+const server = app.listen(port, () => console.info(`webserver started on http://localhost:${port}`))
 
 /**
  * catch malformed client requests.
