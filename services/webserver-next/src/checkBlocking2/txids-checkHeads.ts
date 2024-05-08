@@ -4,6 +4,8 @@ import { Semaphore } from 'await-semaphore'
 import { filterPendingOnly } from "./pending-promises"
 import { performance } from 'perf_hooks'
 import { slackLog } from "../../../../libs/utils/slackLog"
+import { checkReachable } from "./txids-checkReachable"
+import { setUnreachable } from "../checkBlocking/event-tracking"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -78,6 +80,12 @@ const handler = async (session: ClientHttp2Session, gw_url: string, txid: string
 export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt')) => {
 	//sanity
 	if (!gw_url.startsWith('https://')) throw new Error(`invalid format. gw_url must start with https:// => ${gw_url}`)
+
+	if (!await checkReachable(gw_url)) {
+		setUnreachable({ name: gw_url, server: gw_url })
+		console.info(checkServerBlockingTxids.name, gw_url, 'unreachable')
+		return;
+	}
 
 	const blockedTxids = await getBlockedTxids(key)
 	const session = http2.connect(gw_url, {

@@ -22,7 +22,7 @@ export const checkReachable = async (url: string) => new Promise<boolean>(resolv
 })
 
 
-// checkReachable('https://arweave.net').then(console.info)
-// checkReachable('https://arweave.dev').then(console.info)
+// checkReachable('https://arweave.net/info').then(console.info)
+// checkReachable('https://arweave.dev/info').then(console.info)
 // checkReachable('http://1.1.1.1').then(console.info) //returns 30x, so false
 
