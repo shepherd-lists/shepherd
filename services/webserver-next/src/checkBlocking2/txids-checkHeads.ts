@@ -5,7 +5,7 @@ import { filterPendingOnly } from "./pending-promises"
 import { performance } from 'perf_hooks'
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { checkReachable } from "./txids-checkReachable"
-import { setUnreachable } from "../checkBlocking/event-tracking"
+import { setUnreachable, unreachableTimedout } from "../checkBlocking/event-tracking"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -83,11 +83,20 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 	//sanity
 	if (!gw_url.startsWith('https://')) throw new Error(`invalid format. gw_url must start with https:// => ${gw_url}`)
 
-	if (!await checkReachable(gw_url)) {
-		setUnreachable({ name: gw_url, server: gw_url })
-		console.info(checkServerBlockingTxids.name, gw_url, 'unreachable')
+	/** short-circuits */
+
+	if (!unreachableTimedout(gw_url)) {
+		console.info(checkServerBlockingTxids.name, gw_url, 'currently in unreachable timeout')
 		return;
 	}
+
+	if (!await checkReachable(gw_url)) {
+		setUnreachable({ name: gw_url, server: gw_url })
+		console.info(checkServerBlockingTxids.name, gw_url, 'set unreachable')
+		return;
+	}
+
+	/** fetch list and check thru it */
 
 	const blockedTxids = await getBlockedTxids(key)
 	const session = http2.connect(gw_url, {
@@ -126,6 +135,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 		const { message, code, cause } = err as NodeJS.ErrnoException
 		console.error('outer catch', JSON.stringify({ message, code, cause }))
 		if (message === 'timedout') {
+			console.info(checkServerBlockingTxids.name, gw_url, 'set unreachable mid-session')
 			setUnreachable({ name: gw_url, server: gw_url })
 		}
 	} finally {
