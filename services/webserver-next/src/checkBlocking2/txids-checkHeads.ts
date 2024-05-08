@@ -12,7 +12,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
 const maxConcurrentRequests = 150 //adjust this
-const requestTimeout = 10_000 //ms. this too
+const requestTimeout = 30_000 //ms. this too
 const semaphore = new Semaphore(maxConcurrentRequests)
 
 interface HeadRequestReturn {
@@ -87,8 +87,8 @@ const handler = async (session: ClientHttp2Session, gw_url: string, txid: string
 				},
 			})
 
-			/* make sure Slack doesn't display link contents! */
-			slackLogPositive('warning', `[${checkServerBlockingTxids.name}] ${txid} not blocked on ${gw_url} (status: ${status}), xtrace: '${xtrace}', age: '${age}', content-length: '${contentLength}'`)
+			// /* make sure Slack doesn't display link contents! */
+			// slackLogPositive('warning', `[${checkServerBlockingTxids.name}] ${txid} not blocked on ${gw_url} (status: ${status}), xtrace: '${xtrace}', age: '${age}', content-length: '${contentLength}'`)
 
 		} else {
 			setAlertState({
