@@ -5,7 +5,7 @@
 * this file contains only the timers
 */
 import { alertStateCronjob } from '../checkBlocking/event-tracking'
-import { checkFlaggedTxids, checkOwnersTxids } from './index-entry'
+import { checkFlaggedTxids, checkOwnersTxids } from './index-entrypoints'
 
 
 const FLAGGED_INTERVAL = 30_000 // 30 secs 
