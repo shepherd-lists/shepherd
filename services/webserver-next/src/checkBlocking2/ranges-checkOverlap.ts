@@ -1,8 +1,9 @@
-import { alertStateCronjob, setAlertState } from '../checkBlocking/event-tracking'
+import { alertStateCronjob, setAlertState, setUnreachable, unreachableTimedout } from '../checkBlocking/event-tracking'
 import { RangelistAllowedItem } from '../webserver-types'
 import { getBlockedRanges } from './ranges-cachedBlocked'
 import { dataSyncObjectStream } from './ranges-dataSyncRecord'
 import { performance } from 'perf_hooks'
+import { checkReachable } from './txids-checkReachable'
 
 
 
@@ -17,6 +18,17 @@ const rangesOverlap = (rangeA: [number, number], rangeB: [number, number]) => {
 }
 
 export const checkServerBlockingChunks = async (item: RangelistAllowedItem) => {
+	/** check if server reachable */
+	if (!unreachableTimedout(item.name)) {
+		console.info(`${item.name} is in unreachable timeout`)
+		return;
+	}
+	if (!await checkReachable(`http://${item.server}:1984/info`)) {
+		setUnreachable(item)
+		console.info(checkServerBlockingChunks.name, item.name, 'set unreachable')
+		return;
+	}
+
 	// get data_sync_records from server
 	const dsrStream = await dataSyncObjectStream(item.server, 1984)
 
