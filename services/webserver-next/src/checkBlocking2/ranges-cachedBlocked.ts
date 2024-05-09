@@ -84,7 +84,7 @@ export const getBlockedRanges = async () => {
 		})
 	}
 	const t2 = performance.now()
-	console.info(getBlockedRanges.name, `merged ${mergedRanges.length} ranges in ${(t2 - t1).toFixed(0)}ms.`)
+	console.info(getBlockedRanges.name, `sorted & merged to ${mergedRanges.length} ranges in ${(t2 - t1).toFixed(0)}ms.`)
 
 	/** finish up */
 
