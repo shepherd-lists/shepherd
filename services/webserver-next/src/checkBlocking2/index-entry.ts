@@ -1,4 +1,5 @@
 import { RangelistAllowedItem } from "../webserver-types"
+import { checkServerBlockingChunks } from "./ranges-checkOverlap"
 import { checkServerBlockingTxids } from "./txids-checkHeads"
 
 
@@ -8,7 +9,12 @@ const rangeItems: RangelistAllowedItem[] = JSON.parse(process.env.RANGELIST_ALLO
 const gwUrls: string[] = JSON.parse(process.env.GW_URLS || '[]')
 console.info({ rangeItems, gwUrls })
 
-let _running: { [key: string]: boolean } = {} //semaphore to prevent overlapping runs
+/* semaphore to prevent overlapping runs */
+let _running: { [key: string]: boolean } = {}
+
+/** 
+ * txid checks 
+ */
 
 const checkTxids = async (key: 'txidflagged.txt' | 'txidowners.txt') => {
 	/** short-circuit */
@@ -36,3 +42,31 @@ const checkTxids = async (key: 'txidflagged.txt' | 'txidowners.txt') => {
 
 export const checkFlaggedTxids = () => checkTxids('txidflagged.txt')
 export const checkOwnersTxids = () => checkTxids('txidowners.txt')
+
+/**
+ * range checks
+ */
+
+export const checkRanges = async () => {
+	/** short-circuit */
+	if (rangeItems.length === 0) {
+		console.info(checkRanges.name, 'no range check items configured, exiting.')
+		return
+	}
+
+	if (_running['rangechecks']) {
+		console.info(checkRanges.name, `already running. exiting.`)
+		return
+	}
+	_running['rangechecks'] = true
+	try {
+
+		await Promise.all(rangeItems.map(async item => checkServerBlockingChunks(item)))
+
+		//TODO: might be errors to catch here?
+
+	} finally {
+		delete _running['rangechecks']
+	}
+}
+
