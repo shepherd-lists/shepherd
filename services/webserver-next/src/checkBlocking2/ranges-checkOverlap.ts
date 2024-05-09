@@ -35,7 +35,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem) => {
 		const start = +dsr[end]
 		//sanity
 		if (start > end) {
-			throw new Error('start > end')
+			throw new Error(`${item.name} start > end`)
 		}
 		// //check current is less than last (backwards erlang ordering)
 		// if (start > last.start || end > last.start) {
@@ -52,7 +52,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem) => {
 			if (notblocked) {
 				// console.debug('start <= blockedRange[1]', start <= blockedRange[1])
 				// console.debug('end <= blockedRange[0]', end <= blockedRange[0])
-				console.info(`range not blocked. aborting remaining checks on ${item.name}`, JSON.stringify({ blockedRange, start, end }))
+				console.info(`${item.name} range not blocked. aborting remaining checks on ${item.name}`, JSON.stringify({ blockedRange, start, end }))
 				dsrStream.return() //exit checking the rest of the stream
 				/* raise an alarm */
 				setAlertState({
@@ -68,6 +68,6 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem) => {
 		// else console.info('range clear', start, end)
 		tMatch += performance.now() - m0
 	}
-	console.info(`checked ${count} dataSyncRecords for overlap in ${(performance.now() - t0).toFixed(0)}ms. matching time ${tMatch.toFixed(0)}ms`)
+	console.info(item.name, `checked ${count} dataSyncRecords for overlap in ${(performance.now() - t0).toFixed(0)}ms. matching time ${tMatch.toFixed(0)}ms`)
 }
 
