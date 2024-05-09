@@ -1,5 +1,8 @@
+import { alertStateCronjob, setAlertState } from '../checkBlocking/event-tracking'
+import { RangelistAllowedItem } from '../webserver-types'
 import { getBlockedRanges } from './ranges-cachedBlocked'
 import { dataSyncObjectStream } from './ranges-dataSyncRecord'
+import { performance } from 'perf_hooks'
 
 
 
@@ -13,9 +16,9 @@ const rangesOverlap = (rangeA: [number, number], rangeB: [number, number]) => {
 	return (rangeA[0] <= rangeB[1] && rangeB[0] <= rangeA[1])
 }
 
-export const checkServerBlockingChunks = async (domain: string, port: number) => {
+export const checkServerBlockingChunks = async (item: RangelistAllowedItem) => {
 	// get data_sync_records from server
-	const dsrStream = await dataSyncObjectStream(domain, port)
+	const dsrStream = await dataSyncObjectStream(item.server, 1984)
 
 	// ensure blocked ranges are up to date and loaded
 	const blockedRanges = await getBlockedRanges()
@@ -23,6 +26,8 @@ export const checkServerBlockingChunks = async (domain: string, port: number) =>
 	/** N.B. the data from Erlang is all backwards. arrays start at end, end at start+1, etc. fix this on the fly. */
 	// let last = { start: Infinity, end: Infinity }
 	let count = 0
+	const t0 = performance.now()
+	let tMatch = 0
 	for await (const dsr of dsrStream) {
 		count++
 		//extract start and end from the single key-value pair
@@ -38,27 +43,31 @@ export const checkServerBlockingChunks = async (domain: string, port: number) =>
 		// }
 		// last = { start, end }
 
+		const m0 = performance.now()
+
 		//check if part of this data_sync_record should be blocked
-		const notblocked = blockedRanges.some(blockedRange => {
+		blockedRanges.find(blockedRange => {
 			//allow for some Erlang weirdness by adding 1 to the starts
 			const notblocked = rangesOverlap([start + 1, end], [blockedRange[0] + 1, blockedRange[1]])
 			if (notblocked) {
-				console.info('range not blocked', { blockedRange, start, end })
-				console.debug('start <= blockedRange[1]', start <= blockedRange[1])
-				console.debug('end <= blockedRange[0]', end <= blockedRange[0])
-				//TODO: raise an alert here
+				// console.debug('start <= blockedRange[1]', start <= blockedRange[1])
+				// console.debug('end <= blockedRange[0]', end <= blockedRange[0])
+				console.info(`range not blocked. aborting remaining checks on ${item.name}`, JSON.stringify({ blockedRange, start, end }))
+				dsrStream.return() //exit checking the rest of the stream
+				/* raise an alarm */
+				setAlertState({
+					server: item,
+					item: start.toString(),
+					status: 'alarm',
+				})
+				return true;
 			}
-			//TODO: short-circuit if range if dsr start > blockedRange.end 
-			return notblocked
+			setAlertState({ server: item, item: start.toString(), status: 'ok' })
 		})
-		if (notblocked) console.info('range not-blocked', { notblocked, start, end })
+		// if (notblocked) console.info('range not-blocked', { notblocked, start, end })
 		// else console.info('range clear', start, end)
-
+		tMatch += performance.now() - m0
 	}
-	console.info('total dataSyncRecords checked for overlap', count)
-
-	//TODO: switch on and off alerts
-	//TODO: switch on and off alerts
-	//TODO: switch on and off alerts
+	console.info(`checked ${count} dataSyncRecords for overlap in ${(performance.now() - t0).toFixed(0)}ms. matching time ${tMatch.toFixed(0)}ms`)
 }
 
