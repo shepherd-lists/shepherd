@@ -4,7 +4,7 @@ import { Config } from './Config'
 import { program } from 'commander'
 import { basename, dirname } from 'path'
 import col from 'ansi-colors'
-import { execSync } from 'child_process'
+import { spawnSync } from 'child_process'
 
 
 
@@ -54,7 +54,8 @@ if(program.args.length > 0){
 
 console.debug(`executing: ${cdkCommand}`)
 
-execSync(cdkCommand, {
-	encoding: 'utf8',
+spawnSync(cdkCommand, {
+	// encoding: 'utf8',
 	stdio: 'inherit',
+	shell: true,
 })
