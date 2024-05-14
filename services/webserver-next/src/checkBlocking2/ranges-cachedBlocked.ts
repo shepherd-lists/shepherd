@@ -7,7 +7,7 @@ import { readlineWeb } from "../../../../libs/utils/webstream-utils"
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
-type ByteRange = [number, number]
+export type ByteRange = [number, number]
 
 export type RangeKey = 'rangelist.txt' | 'rangeflagged.txt' | 'rangeowners.txt'
 

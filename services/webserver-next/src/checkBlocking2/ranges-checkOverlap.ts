@@ -1,6 +1,6 @@
 import { alertStateCronjob, setAlertState, setUnreachable, unreachableTimedout } from '../checkBlocking/event-tracking'
 import { RangelistAllowedItem } from '../webserver-types'
-import { RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
+import { ByteRange, RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
 import { dataSyncObjectStream } from './ranges-dataSyncRecord'
 import { performance } from 'perf_hooks'
 import { checkReachable } from './txids-checkReachable'
@@ -40,6 +40,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 	let count = 0
 	const t0 = performance.now()
 	let tMatch = 0
+	let numNotBlocked = 0
 	for await (const dsr of dsrStream) {
 		count++
 		//extract start and end from the single key-value pair
@@ -62,10 +63,14 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 			//allow for some Erlang weirdness by adding 1 to the starts
 			const notblocked = rangesOverlap([start + 1, end], [blockedRange[0] + 1, blockedRange[1]])
 			if (notblocked) {
-				// console.debug('start <= blockedRange[1]', start <= blockedRange[1])
-				// console.debug('end <= blockedRange[0]', end <= blockedRange[0])
-				console.info(`${item.name} range not blocked. aborting remaining checks on ${item.name}`, JSON.stringify({ blockedRange, start, end }))
+
+				process.nextTick(() => doubleCheck(blockedRange, item))
+				console.info(`${item.name} range not blocked.`, JSON.stringify({ blockedRange, start, end }))
+
+				numNotBlocked++
+				console.info(`aborting remaining checks on ${item.name}`)
 				dsrStream.return() //exit checking the rest of the stream
+
 				/* raise an alarm */
 				setAlertState({
 					server: item,
@@ -76,10 +81,23 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 			}
 			setAlertState({ server: item, item: start.toString(), status: 'ok' })
 		})
-		// if (notblocked) console.info('range not-blocked', { notblocked, start, end })
-		// else console.info('range clear', start, end)
 		tMatch += performance.now() - m0
 	}
-	console.info(item.name, `checked ${count} dataSyncRecords for overlap in ${(performance.now() - t0).toFixed(0)}ms. matching time ${tMatch.toFixed(0)}ms`)
+	console.info(item.name, `checked ${count} dataSyncRecords (${numNotBlocked} not blocked) for overlap in ${(performance.now() - t0).toFixed(0)}ms. matching time ${tMatch.toFixed(0)}ms`)
 }
 
+const doubleCheck = async (range: ByteRange, item: RangelistAllowedItem) => {
+
+	const startChunk = (range[0] + 1).toString()
+	const endChunk = range[1].toString()
+
+	await new Promise(resolve => setTimeout(resolve, 1)) // issue with connection failing after long wait
+
+	const getStatus = async (url: string) => fetch(url).then(res => console.info(item.name, url, res.status))
+
+	const startUrl = `http://${item.server}:1984/chunk/${startChunk}`
+	const endUrl = `http://${item.server}:1984/chunk/${endChunk}`
+
+	await Promise.all([getStatus(startUrl), getStatus(endUrl)])
+
+}
