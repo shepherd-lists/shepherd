@@ -16,8 +16,8 @@ interface RangeCache {
 }
 const _rangeCache: RangeCache = { eTag: '', ranges: [], inProgress: false }
 
-export const getBlockedRanges = async () => {
-	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, 'rangelist.txt')).ETag!
+export const getBlockedRanges = async (key: string = 'rangelist.txt') => {
+	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
 	console.debug(getBlockedRanges.name, 'eTag', eTag)
 
 	/** short-circuit */
@@ -42,12 +42,12 @@ export const getBlockedRanges = async () => {
 	console.info(getBlockedRanges.name, 'fetching & processing new cache...')
 	const t0 = performance.now()
 
-	const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, 'rangelist.txt')
+	const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, key)
 	let ranges: Array<ByteRange> = []
 	for await (const line of readlineWeb(stream)) {
 		//DEBUG
 		if (line.length === 0) {
-			slackLog(getBlockedRanges.name, 'WARNING! empty line retrieving rangelist.txt')
+			slackLog(getBlockedRanges.name, `WARNING! empty line retrieving ${key}`)
 			continue;
 		}
 		const [start, end] = line.split(',').map(Number) as ByteRange
@@ -86,9 +86,10 @@ export const getBlockedRanges = async () => {
 	const t2 = performance.now()
 	console.info(getBlockedRanges.name, `sorted & merged to ${mergedRanges.length} ranges in ${(t2 - t1).toFixed(0)}ms.`)
 
+	// const mergedRangesPlusOne = mergedRanges.map(([start, end]) => [start + 1, end] as ByteRange)
 	/** finish up */
 
 	console.info(getBlockedRanges.name, `Total time: ${(t2 - t0).toFixed(0)}ms`)
 	_rangeCache.inProgress = false
-	return _rangeCache.ranges = mergedRanges
+	return _rangeCache.ranges = mergedRanges //PlusOne
 }
