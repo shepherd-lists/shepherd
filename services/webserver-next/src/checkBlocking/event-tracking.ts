@@ -130,7 +130,7 @@ export const alertStateCronjob = () => {
 			}
 		}
 		if (status === 'alarm' && (Date.now() - start) > 300_000) {
-			pagerdutyAlert(msgAlarm, server.name)
+			// pagerdutyAlert(msgAlarm, server.name)
 		}
 	}//for-of _alarmsInAlert
 
