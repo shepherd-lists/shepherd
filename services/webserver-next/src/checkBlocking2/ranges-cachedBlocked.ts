@@ -24,7 +24,7 @@ export const getBlockedRanges = async (key: RangeKey): Promise<ByteRange[]> => {
 	if (!_rangeCache[key]) _rangeCache[key] = { eTag: '', ranges: [], inProgress: false }
 
 	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
-	console.debug(getBlockedRanges.name, key, 'eTag', eTag)
+	// console.debug(getBlockedRanges.name, key, 'eTag', eTag)
 
 	/** handle concatenating lists for `rangelist.txt` request */
 	if (key === 'rangelist.txt') {
@@ -98,10 +98,14 @@ export const getBlockedRanges = async (key: RangeKey): Promise<ByteRange[]> => {
 	const t2 = performance.now()
 	console.info(getBlockedRanges.name, key, `sorted & merged to ${mergedRanges.length} ranges in ${(t2 - t1).toFixed(0)}ms.`)
 
+	/** additional processing */
 	// const mergedRangesPlusOne = mergedRanges.map(([start, end]) => [start + 1, end] as ByteRange)
+	const t3 = performance.now()
+	console.info(getBlockedRanges.name, key, `addtional processing done in ${(t3 - t2).toFixed(0)}ms`)
+
 	/** finish up */
 
-	console.info(getBlockedRanges.name, key, `Total time: ${(t2 - t0).toFixed(0)}ms`)
+	console.info(getBlockedRanges.name, key, `Total caching time: ${(t2 - t0).toFixed(0)}ms`)
 	_rangeCache[key].inProgress = false
 	return _rangeCache[key].ranges = mergedRanges //PlusOne
 }
