@@ -9,37 +9,49 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 type ByteRange = [number, number]
 
+export type RangeKey = 'rangelist.txt' | 'rangeflagged.txt' | 'rangeowners.txt'
+
 interface RangeCache {
 	eTag: string
 	ranges: Array<ByteRange>
 	inProgress: boolean
 }
-const _rangeCache: RangeCache = { eTag: '', ranges: [], inProgress: false }
+const _rangeCache: { [key: string]: RangeCache } = {}
 
-export const getBlockedRanges = async (key: string = 'rangelist.txt') => {
+
+export const getBlockedRanges = async (key: RangeKey): Promise<ByteRange[]> => {
+	/** create entry */
+	if (!_rangeCache[key]) _rangeCache[key] = { eTag: '', ranges: [], inProgress: false }
+
 	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
-	console.debug(getBlockedRanges.name, 'eTag', eTag)
+	console.debug(getBlockedRanges.name, key, 'eTag', eTag)
+
+	/** handle concatenating lists for `rangelist.txt` request */
+	if (key === 'rangelist.txt') {
+		console.info(getBlockedRanges.name, key, 'concatenating lists...')
+		return [...(await getBlockedRanges('rangeflagged.txt')), ...(await getBlockedRanges('rangeowners.txt'))]
+	}
 
 	/** short-circuit */
-	if (eTag === _rangeCache.eTag) {
-		console.info(getBlockedRanges.name, 'returning cache')
-		return _rangeCache.ranges
+	if (eTag === _rangeCache[key].eTag) {
+		console.info(getBlockedRanges.name, `returning ${key} cache`)
+		return _rangeCache[key].ranges
 	}
 
 	/** just one running update is allowed/required */
-	if (_rangeCache.inProgress) {
-		console.info(getBlockedRanges.name, 'waiting for cache update as inProgress')
-		while (_rangeCache.inProgress) {
+	if (_rangeCache[key].inProgress) {
+		console.info(getBlockedRanges.name, key, 'waiting for cache update as inProgress')
+		while (_rangeCache[key].inProgress) {
 			await sleep(100) //wait for new cache
 		}
-		console.info(getBlockedRanges.name, 'returning cache')
-		return _rangeCache.ranges
+		console.info(getBlockedRanges.name, key, 'returning cache')
+		return _rangeCache[key].ranges
 	}
-	_rangeCache.inProgress = true
+	_rangeCache[key].inProgress = true
 
 	/** fetch rangelist.txt */
 
-	console.info(getBlockedRanges.name, 'fetching & processing new cache...')
+	console.info(getBlockedRanges.name, key, 'fetching & processing new cache...')
 	const t0 = performance.now()
 
 	const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, key)
@@ -54,7 +66,7 @@ export const getBlockedRanges = async (key: string = 'rangelist.txt') => {
 		ranges.push([start, end])
 	}
 	const t1 = performance.now()
-	console.info(getBlockedRanges.name, `fetched ${ranges.length} ranges in ${(t1 - t0).toFixed(0)}ms`)
+	console.info(getBlockedRanges.name, key, `fetched ${ranges.length} ranges in ${(t1 - t0).toFixed(0)}ms`)
 
 	/** merge contiguous ranges */
 
@@ -84,12 +96,12 @@ export const getBlockedRanges = async (key: string = 'rangelist.txt') => {
 		})
 	}
 	const t2 = performance.now()
-	console.info(getBlockedRanges.name, `sorted & merged to ${mergedRanges.length} ranges in ${(t2 - t1).toFixed(0)}ms.`)
+	console.info(getBlockedRanges.name, key, `sorted & merged to ${mergedRanges.length} ranges in ${(t2 - t1).toFixed(0)}ms.`)
 
 	// const mergedRangesPlusOne = mergedRanges.map(([start, end]) => [start + 1, end] as ByteRange)
 	/** finish up */
 
-	console.info(getBlockedRanges.name, `Total time: ${(t2 - t0).toFixed(0)}ms`)
-	_rangeCache.inProgress = false
-	return _rangeCache.ranges = mergedRanges //PlusOne
+	console.info(getBlockedRanges.name, key, `Total time: ${(t2 - t0).toFixed(0)}ms`)
+	_rangeCache[key].inProgress = false
+	return _rangeCache[key].ranges = mergedRanges //PlusOne
 }

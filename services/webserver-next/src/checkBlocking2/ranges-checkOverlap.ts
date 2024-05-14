@@ -1,6 +1,6 @@
 import { alertStateCronjob, setAlertState, setUnreachable, unreachableTimedout } from '../checkBlocking/event-tracking'
 import { RangelistAllowedItem } from '../webserver-types'
-import { getBlockedRanges } from './ranges-cachedBlocked'
+import { RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
 import { dataSyncObjectStream } from './ranges-dataSyncRecord'
 import { performance } from 'perf_hooks'
 import { checkReachable } from './txids-checkReachable'
@@ -17,7 +17,7 @@ const rangesOverlap = (rangeA: [number, number], rangeB: [number, number]) => {
 	return (rangeA[0] <= rangeB[1] && rangeB[0] <= rangeA[1])
 }
 
-export const checkServerBlockingChunks = async (item: RangelistAllowedItem) => {
+export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key: RangeKey = 'rangelist.txt') => {
 	/** check if server reachable */
 	if (!unreachableTimedout(item.name)) {
 		console.info(`${item.name} is in unreachable timeout`)
@@ -33,7 +33,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem) => {
 	const dsrStream = await dataSyncObjectStream(item.server, 1984)
 
 	// ensure blocked ranges are up to date and loaded
-	const blockedRanges = await getBlockedRanges()
+	const blockedRanges = await getBlockedRanges(key)
 
 	/** N.B. the data from Erlang is all backwards. arrays start at end, end at start+1, etc. fix this on the fly. */
 	// let last = { start: Infinity, end: Infinity }
