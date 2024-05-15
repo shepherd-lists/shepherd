@@ -45,7 +45,8 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 		count++
 		//extract start and end from the single key-value pair
 		const end = +Object.keys(dsr)[0]
-		const start = +dsr[end]
+		const startString = dsr[end]
+		const start = +startString
 		//sanity
 		if (start > end) {
 			throw new Error(`${item.name} start > end`)
@@ -74,12 +75,12 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 				/* raise an alarm */
 				setAlertState({
 					server: item,
-					item: start.toString(),
+					item: startString,
 					status: 'alarm',
 				})
 				return true;
 			}
-			setAlertState({ server: item, item: start.toString(), status: 'ok' })
+			setAlertState({ server: item, item: startString, status: 'ok' }) // 92% speed increase when this is removed!
 		})
 		tMatch += performance.now() - m0
 	}
