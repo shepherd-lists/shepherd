@@ -75,6 +75,9 @@ export const getBlockedRanges = async (key: RangeKey): Promise<ByteRange[]> => {
 		// Step 1: Sort the ranges by their start value
 		ranges.sort((a, b) => a[0] - b[0])
 
+		console.debug('lowest', ranges[0])
+		console.debug('highest', ranges[ranges.length - 1])
+
 		// Step 2: Initialize the first range as the current range to compare with others
 		let currentRange = ranges[0]
 		mergedRanges.push(currentRange)
@@ -99,7 +102,7 @@ export const getBlockedRanges = async (key: RangeKey): Promise<ByteRange[]> => {
 	console.info(getBlockedRanges.name, key, `sorted & merged to ${mergedRanges.length} ranges in ${(t2 - t1).toFixed(0)}ms.`)
 
 	/** additional processing */
-	// const mergedRangesPlusOne = mergedRanges.map(([start, end]) => [start + 1, end] as ByteRange)
+	const mergedRangesPlusOne = mergedRanges.map(([start, end]) => [start + 1, end] as ByteRange)
 	const t3 = performance.now()
 	console.info(getBlockedRanges.name, key, `addtional processing done in ${(t3 - t2).toFixed(0)}ms`)
 
@@ -107,5 +110,5 @@ export const getBlockedRanges = async (key: RangeKey): Promise<ByteRange[]> => {
 
 	console.info(getBlockedRanges.name, key, `Total caching time: ${(t2 - t0).toFixed(0)}ms`)
 	_rangeCache[key].inProgress = false
-	return _rangeCache[key].ranges = mergedRanges //PlusOne
+	return _rangeCache[key].ranges = mergedRangesPlusOne
 }
