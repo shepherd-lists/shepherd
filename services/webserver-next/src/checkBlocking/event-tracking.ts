@@ -73,9 +73,10 @@ export const alarmsInAlert = () => {
 }
 
 export const setAlertState = (event: NotBlockEvent) => {
-	const key = `${event.server.server},${event.item}`
+	const key = event.server.server + event.item
+	if (event.status === 'ok' && !_alarmsInAlert.has(key)) return;
+
 	if (!_alarmsInAlert.has(key)) {
-		if (event.status === 'ok') return //only add new alarm events
 		_alarmsInAlert.set(key, {
 			...event,
 			start: Date.now(),
