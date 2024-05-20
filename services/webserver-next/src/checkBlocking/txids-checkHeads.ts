@@ -174,7 +174,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 
 // checkServerBlockingTxids('https://arweave.net', 'txidowners.txt')
 // checkServerBlockingTxids('https://arweave.dev', 'txidowners.txt')
-// checkServerBlockingTxids('https://18.133.224.136', 'txidflagged.txt')
+// checkServerBlockingTxids('https://18.1.1.1', 'txidflagged.txt')
 // checkServerBlockingTxids('https://arweave.net', 'txidowners.txt')
 // checkServerBlockingTxids('https://localhost', 'txidowners.txt')
 
