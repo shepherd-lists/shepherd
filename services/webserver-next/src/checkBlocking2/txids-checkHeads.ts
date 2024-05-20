@@ -5,7 +5,7 @@ import { filterPendingOnly } from "./pending-promises"
 import { performance } from 'perf_hooks'
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { checkReachable } from "./txids-checkReachable"
-import { existAlertState, existAlertStateLine, setAlertState, setUnreachable, unreachableTimedout } from "../checkBlocking/event-tracking"
+import { existAlertState, existAlertStateLine, setAlertState, setUnreachable, unreachableTimedout } from "./event-tracking"
 import { slackLogPositive } from "../../../../libs/utils/slackLogPositive"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

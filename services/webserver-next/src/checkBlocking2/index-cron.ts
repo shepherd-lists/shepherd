@@ -4,7 +4,7 @@
 *
 * this file contains only the timers
 */
-import { alertStateCronjob } from '../checkBlocking/event-tracking'
+import { alertStateCronjob } from './event-tracking'
 import { checkFlaggedTxids, checkOwnersTxids, checkRanges } from './index-entrypoints'
 
 
