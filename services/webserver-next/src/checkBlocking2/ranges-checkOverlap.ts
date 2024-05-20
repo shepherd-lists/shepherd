@@ -1,4 +1,4 @@
-import { alertStateCronjob, setAlertState, setUnreachable, unreachableTimedout } from '../checkBlocking/event-tracking'
+import { existAlertState, setAlertState, setUnreachable, unreachableTimedout } from '../checkBlocking/event-tracking'
 import { RangelistAllowedItem } from '../webserver-types'
 import { ByteRange, RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
 import { dataSyncObjectStream } from './ranges-dataSyncRecord'
@@ -28,6 +28,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 		console.info(checkServerBlockingChunks.name, item.name, 'set unreachable')
 		return;
 	}
+	console.info(checkServerBlockingChunks.name, item.name || item.server, 'reachable')
 
 	// get data_sync_records from server
 	const dsrStream = await dataSyncObjectStream(item.server, 1984)
@@ -74,13 +75,28 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 
 				/* raise an alarm */
 				setAlertState({
-					server: item,
-					item: startString,
-					status: 'alarm',
+					serverName: item.name,
+					server: item.server,
+					details: {
+						status: 'alarm',
+						line: `${startString},${end}`,
+						endpointType: '/chunk',
+					}
 				})
 				return true;
 			}
-			setAlertState({ server: item, item: startString, status: 'ok' }) // 92% speed increase when this is removed!
+			// 92% speed increase when set "ok" is removed!
+			if (existAlertState(item.server)) { //it is this key here! you need to simplify event keys
+				setAlertState({
+					server: item.server,
+					serverName: item.name,
+					details: {
+						status: 'ok',
+						line: `${startString},${end}`,
+						endpointType: '/chunk',
+					}
+				})
+			}
 		})
 		tMatch += performance.now() - m0
 	}
