@@ -4,8 +4,9 @@ import { Semaphore } from 'await-semaphore'
 import { filterPendingOnly } from "./pending-promises"
 import { performance } from 'perf_hooks'
 import { slackLog } from "../../../../libs/utils/slackLog"
-import { checkReachable } from "./txids-checkReachable"
-import { existAlertState, existAlertStateLine, setAlertState, setUnreachable, unreachableTimedout } from "./event-tracking"
+import { checkReachable } from "./checkReachable"
+import { existAlertState, existAlertStateLine, setAlertState } from "./event-tracking"
+import { setUnreachable, unreachableTimedout } from './event-unreachable'
 import { slackLogPositive } from "../../../../libs/utils/slackLogPositive"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

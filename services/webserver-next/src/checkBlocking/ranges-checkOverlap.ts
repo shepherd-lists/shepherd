@@ -1,9 +1,10 @@
-import { existAlertState, setAlertState, setUnreachable, unreachableTimedout } from './event-tracking'
+import { existAlertState, setAlertState } from './event-tracking'
 import { RangelistAllowedItem } from '../webserver-types'
 import { ByteRange, RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
 import { dataSyncObjectStream } from './ranges-dataSyncRecord'
 import { performance } from 'perf_hooks'
-import { checkReachable } from './txids-checkReachable'
+import { checkReachable } from './checkReachable'
+import { unreachableTimedout, setUnreachable } from './event-unreachable'
 
 
 
