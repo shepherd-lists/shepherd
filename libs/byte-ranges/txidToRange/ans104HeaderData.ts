@@ -57,7 +57,7 @@ const fetchHeader = async (parent: string) => {
 
 			let header = new Uint8Array(0)
 
-			const { aborter, res: { status, body: stream } } = await fetchRetryConnection(`${HOST_URL}/${parent}`)
+			const { aborter, res: { status, body } } = await fetchRetryConnection(`${HOST_URL}/${parent}`)
 			//pass 404s up
 			if (status === 404) return {
 				status,
@@ -69,7 +69,7 @@ const fetchHeader = async (parent: string) => {
 			/* fetch the bytes we're interested in */
 
 			//read bytes for numDataItems and calculate header size
-			reader = stream!.getReader()
+			reader = body!.getReader()
 			header = await readEnoughBytes(reader, header, 32)
 			const numDataItems = byteArrayToNumber(header.slice(0, 32))
 			const totalHeaderLength = 64 * numDataItems + 32
@@ -82,9 +82,9 @@ const fetchHeader = async (parent: string) => {
 			if (process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`)
 
 			/* close the stream & return results */
-			aborter!.abort()
+			// aborter!.abort() this changed around nodejs v20.13.0, throws abort error event
 			reader?.releaseLock()
-			stream?.cancel() //thrice to be sure?
+			body?.cancel() //twice to be sure?
 
 			return {
 				status,
