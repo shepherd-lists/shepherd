@@ -192,11 +192,11 @@ export const alertStateCronjob = () => {
 
 		}//for alarms
 		_slackLoggerNoFormatting(serverMsg, process.env.SLACK_PROBE) //print per server
+		if (Date.now() - earliestStart > 600_000) {
+			// pagerdutyAlert(serverMsg, serverName || server)
+		}
 	}//for _alerts
 
-	if (Date.now() - earliestStart > 600_000) {
-		// pagerdutyAlert(msgAlarm, server.name)
-	}
 }
 /** exported for test only */
 export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
