@@ -59,6 +59,7 @@ export const checkRanges = async () => {
 		return
 	}
 	_running['rangechecks'] = true
+	const d0 = Date.now()
 	try {
 
 		await Promise.all(rangeItems.map(async item => checkServerBlockingChunks(item)))
@@ -68,5 +69,6 @@ export const checkRanges = async () => {
 	} finally {
 		delete _running['rangechecks']
 	}
+	console.info(checkRanges.name, `finished in ${(Date.now() - d0).toLocaleString()} ms`)
 }
 

@@ -5,12 +5,13 @@
 * this file contains only the timers
 */
 import { alertStateCronjob } from '../checkBlocking/event-tracking'
-import { checkFlaggedTxids, checkOwnersTxids } from './index-entrypoints'
+import { checkFlaggedTxids, checkOwnersTxids, checkRanges } from './index-entrypoints'
 
 
 const FLAGGED_INTERVAL = 30_000 // 30 secs 
 const OWNERS_INTERVAL = 300_000 // 5 mins N.B. owners will be large and take hours to complete
 const DNSR_INTERVAL = 600_000 // 10 mins
+const RANGES_INTERVAL = 60_000 // 1 min
 
 /** main entrypoints */
 
@@ -18,5 +19,8 @@ setInterval(checkFlaggedTxids, FLAGGED_INTERVAL)
 // setInterval(checkOwnersTxids, OWNERS_INTERVAL)
 // checkOwnersTxids()
 
-/** temporary cron for alarm state until this is fixed by using immediate set/unset */
+/** cron for alarm state */
 setInterval(alertStateCronjob, 30_000)
+
+setInterval(checkRanges, RANGES_INTERVAL)
+checkRanges()
