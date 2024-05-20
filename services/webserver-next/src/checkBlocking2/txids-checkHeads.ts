@@ -5,7 +5,7 @@ import { filterPendingOnly } from "./pending-promises"
 import { performance } from 'perf_hooks'
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { checkReachable } from "./txids-checkReachable"
-import { setAlertState, setUnreachable, unreachableTimedout } from "../checkBlocking/event-tracking"
+import { existAlertState, existAlertStateLine, setAlertState, setUnreachable, unreachableTimedout } from "../checkBlocking/event-tracking"
 import { slackLogPositive } from "../../../../libs/utils/slackLogPositive"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -75,15 +75,15 @@ const handler = async (session: ClientHttp2Session, gw_url: string, txid: string
 
 		if (status !== 404) {
 			setAlertState({
-				server: { name: gw_url, server: gw_url },
-				item: txid,
-				status: 'alarm',
+				server: gw_url,
 				details: {
-					xtrace,
-					age: age!,
-					contentLength: contentLength!,
-					httpStatus: status,
+					status: 'alarm',
+					line: txid,
 					endpointType: '/TXID',
+					xtrace,
+					age,
+					contentLength,
+					httpStatus: status,
 				},
 			})
 
@@ -91,11 +91,15 @@ const handler = async (session: ClientHttp2Session, gw_url: string, txid: string
 			// slackLogPositive('warning', `[${checkServerBlockingTxids.name}] ${txid} not blocked on ${gw_url} (status: ${status}), xtrace: '${xtrace}', age: '${age}', content-length: '${contentLength}'`)
 
 		} else {
-			setAlertState({
-				server: { name: gw_url, server: gw_url },
-				item: txid,
-				status: 'ok',
-			})
+			if (existAlertState(gw_url) && existAlertStateLine(gw_url, txid))
+				setAlertState({
+					server: gw_url,
+					details: {
+						status: 'ok',
+						line: txid,
+						endpointType: '/TXID',
+					}
+				})
 		}
 	} catch (e) {
 		const { message, code } = e as NodeJS.ErrnoException
