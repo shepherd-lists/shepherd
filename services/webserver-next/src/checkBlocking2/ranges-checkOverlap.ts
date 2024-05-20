@@ -66,7 +66,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 			const notblocked = rangesOverlap([start + 1, end], [blockedRange[0], blockedRange[1]])
 			if (notblocked) {
 
-				process.nextTick(() => doubleCheck(blockedRange, item))
+				// process.nextTick(() => doubleCheck(blockedRange, item))
 				console.info(`${item.name} range not blocked.`, JSON.stringify({ blockedRange, start, end }))
 
 				numNotBlocked++
@@ -103,6 +103,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 	console.info(item.name, `checked ${count} dataSyncRecords (${numNotBlocked} not blocked) for overlap in ${(performance.now() - t0).toFixed(0)}ms. matching time ${tMatch.toFixed(0)}ms`)
 }
 
+/** dont run these check outside of test */
 const doubleCheck = async (range: ByteRange, item: RangelistAllowedItem) => {
 
 	const startChunk = range[0].toString()
