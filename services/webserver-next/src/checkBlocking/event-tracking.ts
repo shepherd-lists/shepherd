@@ -1,4 +1,5 @@
 import { pagerdutyAlert } from './pagerduty-alert'
+import { performance } from 'perf_hooks'
 
 /** -= track start/end of not-block events =- */
 
@@ -88,23 +89,38 @@ export const setAlertState = (event: NotBlockEvent) => {
 }
 
 /** cronjob function to report alert changes */
+let _running = false
 export const alertStateCronjob = () => {
-	if (process.env.NODE_ENV !== 'test') {
-		console.debug(alertStateCronjob.name, 'running cronjob...', { _changed, 'alarmsInAlert': _alerts.size })
+	if (_running) {
+		console.info(alertStateCronjob.name, 'cronjob still running, exiting.')
+		return;
 	}
+	console.debug(alertStateCronjob.name, 'running cronjob...', { _changed, '_alerts.size': Object.keys(_alerts).length })
+	if (!_changed)
+		return;
 
-	if (!_changed) return
-	_changed = false
+	_running = true //lock
+	const t0 = performance.now()
+	_changed = false //reset
+
 
 	let earliestStart = Date.now().valueOf() //for pagerduty alert
 
+	console.debug(alertStateCronjob.name, 'DEBUG', 'servers', Object.keys(_alerts).length)
+
+	/** loop through servers in alerts */
 	for (const [server, state] of Object.entries(_alerts)) {
 		const { serverName, alarms } = state
 		/** server message head */
-		let serverMsg = `-= ${serverName ? serverName + ' ' : ''}\`${server}\` ${new Date().toUTCString()} =-\n`
+		const alarmEntries = Object.entries(alarms)
+		let serverMsg = `-= ${serverName ? serverName + ' ' : ''}\`${server}\` ${new Date().toUTCString()}. ${alarmEntries.length} entries. display limited to 10 =-\n`
 		const headerLength = serverMsg.length
+		let serverDisplayLimit = 10 //limit num of alarms to prevent notification spam
 
-		for (const [line, details] of Object.entries(alarms)) {
+		console.debug(alertStateCronjob.name, 'DEBUG', serverName || server, 'entries', alarmEntries.length)
+
+		/** loop thru this server's alarm states */
+		for (const [line, details] of alarmEntries) {
 			const { status, startStamp, endStamp, endpointType, notified } = details
 
 			if (status === 'alarm' && startStamp < earliestStart) earliestStart = startStamp //for pagerduty
@@ -130,14 +146,17 @@ export const alertStateCronjob = () => {
 			}
 
 			if (!notified) {
-				serverMsg += createServerLine()
 				if (status === 'ok') {
+					serverMsg += createServerLine()
 					delete alarms[line]
 					if (Object.keys(alarms).length === 0) {
-						delete _alerts[server] //N.B. NEED TO BE REALLY CAREFUL WITH THIS!
+						delete _alerts[server]
 					}
 				} else { /* status === 'alarm */
 					alarms[line].notified = true
+					if (serverDisplayLimit--) {
+						serverMsg += createServerLine()
+					}
 				}
 			}
 
@@ -150,6 +169,8 @@ export const alertStateCronjob = () => {
 		}
 	}//for _alerts
 
+	console.info(`${alertStateCronjob.name} running time ${(performance.now() - t0).toFixed(0).toLocaleString()} ms`)
+	_running = false
 }
 /** exported for test only */
 export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
