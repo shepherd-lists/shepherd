@@ -45,6 +45,7 @@ const ipAllowMiddlewareFunction = (listType: ('txids' | 'ranges')) => (req: Requ
 			next()
 		} else {
 			console.info(prefix, `access ${routepath} list: ${ip} DENIED`)
+			res.setHeader('eTag', 'denied')
 			res.status(403).send('403 Forbidden')
 		}
 	} else {
