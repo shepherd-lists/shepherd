@@ -34,9 +34,9 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 		})
 		req.setTimeout(requestTimeout, () => {
 			/** fail quickly */
-			req.destroy(Error('timeout'))
-			session.destroy(Error('timeout'))
-			reject(Error('timedout'))
+			req.destroy(Error(`timeout ${requestTimeout}ms`))
+			session.destroy(Error(`timeout ${requestTimeout}ms`))
+			reject(Error(`timed-out ${requestTimeout}ms`))
 		})
 
 
