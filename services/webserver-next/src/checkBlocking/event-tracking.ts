@@ -101,7 +101,8 @@ export const alertStateCronjob = () => {
 	for (const [server, state] of Object.entries(_alerts)) {
 		const { serverName, alarms } = state
 		/** server message head */
-		let serverMsg = `${serverName ? serverName + ' ' : ''}\`${server}\` ${new Date().toUTCString()}\n`
+		let serverMsg = `-= ${serverName ? serverName + ' ' : ''}\`${server}\` ${new Date().toUTCString()} =-\n`
+		const headerLength = serverMsg.length
 
 		for (const [line, details] of Object.entries(alarms)) {
 			const { status, startStamp, endStamp, endpointType, notified } = details
@@ -141,8 +142,10 @@ export const alertStateCronjob = () => {
 			}
 
 		}//for alarms
-		_slackLoggerNoFormatting(serverMsg, process.env.SLACK_PROBE) //print per server
+		if (serverMsg.length > headerLength)
+			_slackLoggerNoFormatting(serverMsg, process.env.SLACK_PROBE) //print per server
 		if (Date.now() - earliestStart > 600_000) {
+			console.debug('PAGER_ALERT:', serverMsg, serverName || server)
 			// pagerdutyAlert(serverMsg, serverName || server)
 		}
 	}//for _alerts
