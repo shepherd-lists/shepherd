@@ -1,4 +1,4 @@
-import { existAlertState, setAlertState } from './event-tracking'
+import { NotBlockEvent, existAlertState, existAlertStateLine, setAlertState } from './event-tracking'
 import { RangelistAllowedItem } from '../webserver-types'
 import { ByteRange, RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
 import { dataSyncObjectStream } from './ranges-dataSyncRecord'
@@ -87,7 +87,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 				return true;
 			}
 			// 92% speed increase when set "ok" is removed!
-			if (existAlertState(item.server)) { //it is this key here! you need to simplify event keys
+			if (existAlertState(item.server) && existAlertStateLine(item.server, `${startString},${end}`)) {
 				setAlertState({
 					server: item.server,
 					serverName: item.name,
