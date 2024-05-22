@@ -40,10 +40,8 @@ export const assertLists = async () => {
 		|| !(await keyExists('txidflagged.txt'))
 		|| !(await keyExists('txidowners.txt'))
 		|| !(await keyExists('rangelist.txt'))
-		|| !(await keyExists('rangeflagged.txt'))
-		|| !(await keyExists('rangeowners.txt'))
 	) {
-		console.info(`list 'blacklist.txt', 'rangelist.txt', rangeflagged.txt, or rangeowners.txt does not exist. recreating all...`)
+		console.info(`list 'blacklist.txt', 'rangelist.txt', txidflagged.txt, or txidowners.txt does not exist. recreating all...`)
 		console.info(
 			'blacklist.txt|rangelist.txt count',
 			await updateFullTxidsRanges()
@@ -118,8 +116,6 @@ export const updateFullTxidsRanges = async () => {
 	const s3FlaggedTxids = s3UploadReadable(LISTS_BUCKET, 'txidflagged.txt')
 	const s3OwnerTxids = s3UploadReadable(LISTS_BUCKET, 'txidowners.txt')
 	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
-	const s3FlaggedRanges = s3UploadReadable(LISTS_BUCKET, 'rangeflagged.txt')
-	const s3OwnerRanges = s3UploadReadable(LISTS_BUCKET, 'rangeowners.txt')
 
 	let count = 0
 	for await (const row of flaggedStream) {
@@ -135,7 +131,6 @@ export const updateFullTxidsRanges = async () => {
 			continue;
 		}
 		s3Ranges.write(`${row.byteStart},${row.byteEnd}\n`)
-		s3FlaggedRanges.write(`${row.byteStart},${row.byteEnd}\n`)
 	}
 
 	console.debug(updateFullTxidsRanges.name, 'DEBUG flaggedStream', count)
@@ -156,7 +151,6 @@ export const updateFullTxidsRanges = async () => {
 				continue;
 			}
 			s3Ranges.write(`${row.byte_start},${row.byte_end}\n`)
-			s3OwnerRanges.write(`${row.byte_start},${row.byte_end}\n`)
 		}
 	}
 
@@ -169,15 +163,11 @@ export const updateFullTxidsRanges = async () => {
 	s3FlaggedTxids.end()
 	s3OwnerTxids.end()
 	s3Ranges.end()
-	s3FlaggedRanges.end()
-	s3OwnerRanges.end()
 	await Promise.all([
 		finished(s3Txids),
 		finished(s3FlaggedTxids),
 		finished(s3OwnerTxids),
 		finished(s3Ranges),
-		finished(s3FlaggedRanges),
-		finished(s3OwnerRanges),
 	])
 
 	_inProgess_updateFullTxidsRanges = false
