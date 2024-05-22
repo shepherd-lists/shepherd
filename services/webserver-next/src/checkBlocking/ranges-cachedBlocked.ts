@@ -9,7 +9,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 export type ByteRange = [number, number]
 
-export type RangeKey = 'rangelist.txt' | 'rangeflagged.txt' | 'rangeowners.txt'
+export type RangeKey = 'rangelist.txt' | 'rangeflagged.txt' | 'rangeowners.txt' //not using these outside of test anymore
 
 interface RangeCache {
 	eTag: string
@@ -19,18 +19,12 @@ interface RangeCache {
 const _rangeCache: { [key: string]: RangeCache } = {}
 
 
-export const getBlockedRanges = async (key: RangeKey): Promise<ByteRange[]> => {
+export const getBlockedRanges = async (key: RangeKey = 'rangelist.txt'): Promise<ByteRange[]> => {
 	/** create entry */
 	if (!_rangeCache[key]) _rangeCache[key] = { eTag: '', ranges: [], inProgress: false }
 
 	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
 	// console.debug(getBlockedRanges.name, key, 'eTag', eTag)
-
-	/** handle concatenating lists for `rangelist.txt` request */
-	if (key === 'rangelist.txt') {
-		console.info(getBlockedRanges.name, key, 'concatenating lists...')
-		return [...(await getBlockedRanges('rangeflagged.txt')), ...(await getBlockedRanges('rangeowners.txt'))]
-	}
 
 	/** short-circuit */
 	if (eTag === _rangeCache[key].eTag) {
