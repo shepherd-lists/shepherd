@@ -113,9 +113,9 @@ export const alertStateCronjob = () => {
 		const { serverName, alarms } = state
 		/** server message head */
 		const alarmEntries = Object.entries(alarms)
-		let serverMsg = `-= ${serverName ? serverName + ' ' : ''}\`${server}\` ${new Date().toUTCString()}. ${alarmEntries.length} entries. display limited to 10 =-\n`
-		const headerLength = serverMsg.length
 		let serverDisplayLimit = 10 //limit num of alarms to prevent notification spam
+		let serverMsg = `-= ${serverName ? serverName + ' ' : ''}\`${server}\` ${new Date().toUTCString()}. ${alarmEntries.length} entries. (display limited to ${serverDisplayLimit} alarm starts)\n`
+		const headerLength = serverMsg.length
 
 		console.debug(alertStateCronjob.name, 'DEBUG', serverName || server, 'entries', alarmEntries.length)
 
@@ -146,6 +146,7 @@ export const alertStateCronjob = () => {
 			}
 
 			if (!notified) {
+				alarms[line].notified = true
 				if (status === 'ok') {
 					serverMsg += createServerLine()
 					delete alarms[line]
@@ -153,8 +154,7 @@ export const alertStateCronjob = () => {
 						delete _alerts[server]
 					}
 				} else { /* status === 'alarm */
-					alarms[line].notified = true
-					if (serverDisplayLimit--) {
+					if (serverDisplayLimit-- > 0) {
 						serverMsg += createServerLine()
 					}
 				}
