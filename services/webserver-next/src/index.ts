@@ -2,10 +2,10 @@ console.log(`process.env.SLACK_WEBHOOK ${process.env.SLACK_WEBHOOK}`)
 console.log(`process.env.SLACK_POSITIVE ${process.env.SLACK_POSITIVE}`)
 console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
+import './checkBlocking/index-cron'
 import express from 'express'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
-// import './checkBlocking/checkBlocking-timer' //starts automatically
 import { network_EXXX_codes } from '../../../libs/constants'
 import { Socket } from 'net'
 import { txsTableNames } from './tablenames'
@@ -90,7 +90,7 @@ app.get(/^\/range(list|flagged|owners).txt$/, ipAllowRangesMiddleware, async (re
 })
 
 
-const server = app.listen(port, () => console.info(`started on http://localhost:${port}`))
+const server = app.listen(port, () => console.info(`webserver started on http://localhost:${port}`))
 
 /**
  * catch malformed client requests.

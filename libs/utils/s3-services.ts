@@ -66,7 +66,7 @@ export const s3GetObjectWebStream = async (Bucket: string, Key: string) => {
 		// if (Body instanceof ReadableStream) console.debug('s3GetObjectWebStream Body is a ReadableStream')
 		// if (Body instanceof Readable) console.debug('s3GetObjectWebStream Body is a Readable')
 
-		return Body!.transformToWebStream()
+		return Body!.transformToWebStream() // this should be consistent for nodejs and browser
 	} catch (err: unknown) {
 		const e = err as Error
 		slackLog(s3GetObjectWebStream.name, Key, `UNHANDLED error ${e.name}:${e.message}.`, JSON.stringify(e))

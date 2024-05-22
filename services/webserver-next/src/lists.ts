@@ -103,6 +103,7 @@ export const getList = async (response: Writable, path: GetListPath) => {
 	return text
 }
 
+
 export const prefetchLists = async () => {
 	console.info('prefetching lists...')
 	await Promise.all(['/addresses.txt', '/blacklist.txt', '/rangelist.txt'].map(async path => {
