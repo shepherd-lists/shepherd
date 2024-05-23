@@ -18,10 +18,14 @@ export type GetListPath = ('/addresses.txt'
 	| '/blacklist.txt'	//concat txidflagged + txidowners
 	| '/txidflagged.txt'
 	| '/txidowners.txt'
-	| '/rangelist.txt'	//concat rangeflagged + rangeowners
+	| '/rangelist.txt'
 	| '/testing.txt')
 
-export const getETag = (path: GetListPath) => _cache[path].eTag
+export const getETag = async (path: GetListPath) => {
+	const key = path.replace('/', '')
+	const etag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
+	return etag
+}
 
 export const getList = async (response: Writable, path: GetListPath) => {
 	const res = response as Writable & { setHeader?: (k: string, v: string) => void }
