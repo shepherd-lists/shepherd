@@ -1,12 +1,17 @@
-import { s3HeadObject, s3PutObject, s3UploadReadable, s3UploadStream } from "../utils/s3-services"
+import { s3HeadObject, s3PutObject, s3UploadReadable } from "../utils/s3-services"
 import { slackLog } from "../utils/slackLog"
 import pool from '../utils/pgClient'
 import QueryStream from "pg-query-stream"
 import { finished } from "stream/promises"
+import { mergeRanges } from "./merge-ranges"
+import { performance } from 'perf_hooks'
 
 
 
 const LISTS_BUCKET = process.env.LISTS_BUCKET as string
+
+export type ByteRange = [number, number]
+
 
 const keyExists = async (key: string) => {
 	try {
@@ -96,6 +101,8 @@ export const updateFullTxidsRanges = async () => {
 
 	/** prepare input streams */
 
+	const t0 = performance.now()
+
 	const flaggedStream = new QueryStream('SELECT txid, "byteStart", "byteEnd" FROM txs WHERE flagged = true', [])
 
 	const ownerTablenames = await getOwnersTablenames()
@@ -115,7 +122,12 @@ export const updateFullTxidsRanges = async () => {
 	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'blacklist.txt')
 	const s3FlaggedTxids = s3UploadReadable(LISTS_BUCKET, 'txidflagged.txt')
 	const s3OwnerTxids = s3UploadReadable(LISTS_BUCKET, 'txidowners.txt')
-	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
+
+	/** rangelist needs sort & merge processing before upload */
+	const ranges: Array<ByteRange> = []
+
+	const t1 = performance.now()
+	console.info(`prepared streams in ${(t1 - t0).toFixed(0)} ms`)
 
 	let count = 0
 	for await (const row of flaggedStream) {
@@ -130,7 +142,7 @@ export const updateFullTxidsRanges = async () => {
 			console.info(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 			continue;
 		}
-		s3Ranges.write(`${row.byteStart},${row.byteEnd}\n`)
+		ranges.push([row.byteStart, row.byteEnd])
 	}
 
 	console.debug(updateFullTxidsRanges.name, 'DEBUG flaggedStream', count)
@@ -150,25 +162,34 @@ export const updateFullTxidsRanges = async () => {
 				console.info(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 				continue;
 			}
-			s3Ranges.write(`${row.byte_start},${row.byte_end}\n`)
+			ranges.push([row.byte_start, row.byte_end])
 		}
 	}
-
-	console.info('count', count)
-
+	console.info(updateFullTxidsRanges.name, 'count', count)
 	client.release() //release connection back to pool
 
 	/** close the output streams */
 	s3Txids.end()
 	s3FlaggedTxids.end()
 	s3OwnerTxids.end()
-	s3Ranges.end()
 	await Promise.all([
 		finished(s3Txids),
 		finished(s3FlaggedTxids),
 		finished(s3OwnerTxids),
-		finished(s3Ranges),
 	])
+
+	const t2 = performance.now()
+	console.info(updateFullTxidsRanges.name, `finished txids in ${(t2 - t1).toFixed(0)} ms`)
+
+	/** process ranges and write out */
+	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
+	for await (const range of mergeRanges(ranges)) {
+		s3Ranges.write(`${range[0]},${range[1]}\n`)
+	}
+	s3Ranges.end()
+	await finished(s3Ranges)
+
+	console.info(updateFullTxidsRanges.name, `total update time ${(performance.now() - t0).toFixed(0)} ms`)
 
 	_inProgess_updateFullTxidsRanges = false
 
@@ -191,5 +212,3 @@ const getOwnersTablenames = async () => {
 
 	return rows.map(row => row.tablename)
 }
-
-
