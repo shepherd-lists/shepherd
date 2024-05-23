@@ -19,8 +19,6 @@ export type GetListPath = ('/addresses.txt'
 	| '/txidflagged.txt'
 	| '/txidowners.txt'
 	| '/rangelist.txt'	//concat rangeflagged + rangeowners
-	| '/rangeflagged.txt'
-	| '/rangeowners.txt'
 	| '/testing.txt')
 
 export const getETag = (path: GetListPath) => _cache[path].eTag
@@ -43,8 +41,6 @@ export const getList = async (response: Writable, path: GetListPath) => {
 		let txt = ''
 		if (path === '/blacklist.txt') {
 			txt = _cache['/txidflagged.txt'].text + _cache['/txidowners.txt']
-		} else if (path === '/rangelist.txt') {
-			txt = _cache['/rangeflagged.txt'].text + _cache['/rangeowners.txt'].text
 		} else {
 			txt = _cache[path].text
 		}
@@ -74,11 +70,9 @@ export const getList = async (response: Writable, path: GetListPath) => {
 	if (typeof res.setHeader === 'function') res.setHeader('eTag', _cache[path].eTag) //needs to be set before content is written
 
 	let text = ''
-	if (['/blacklist.txt', '/rangelist.txt'].includes(path)) {
-		const flaggedPath = path === '/blacklist.txt' ? '/txidflagged.txt' : '/rangeflagged.txt'
-		const ownersPath = path === '/blacklist.txt' ? '/txidowners.txt' : '/rangeowners.txt'
-		text = await getList(res, flaggedPath)
-		text += await getList(res, ownersPath)
+	if (['/blacklist.txt'].includes(path)) {
+		text = await getList(res, '/txidflagged.txt')
+		text += await getList(res, '/txidowners.txt')
 		_cache[path] = {
 			eTag,
 			text: '',
