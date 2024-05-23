@@ -40,7 +40,7 @@ export const getList = async (response: Writable, path: GetListPath) => {
 	const returnCache = () => {
 		let txt = ''
 		if (path === '/blacklist.txt') {
-			txt = _cache['/txidflagged.txt'].text + _cache['/txidowners.txt']
+			txt = _cache['/txidflagged.txt'].text + _cache['/txidowners.txt'].text
 		} else {
 			txt = _cache[path].text
 		}
