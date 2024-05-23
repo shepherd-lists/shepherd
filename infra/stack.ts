@@ -86,7 +86,7 @@ export const createStack = async (app: App, config: Config) => {
 		cloudMapNamespace,
 		resources: {
 			cpu: 256,
-			memoryLimitMiB: 512
+			memoryLimitMiB: 2048,
 		},
 		environment: {
 			DB_HOST: rdsEndpoint,
