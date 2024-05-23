@@ -2,7 +2,7 @@ console.log(`process.env.SLACK_WEBHOOK ${process.env.SLACK_WEBHOOK}`)
 console.log(`process.env.SLACK_POSITIVE ${process.env.SLACK_POSITIVE}`)
 console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
-import './checkBlocking/index-cron'
+// import './checkBlocking/index-cron'
 import express from 'express'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
@@ -59,6 +59,11 @@ txsTableNames().then((tablenames) => {
 	})
 })
 
+app.head('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
+	res.setHeader('eTag', await getETag(req.path as GetListPath))
+	res.sendStatus(200)
+})
+
 app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
 	try {
@@ -71,12 +76,12 @@ app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	}
 })
 
-app.head(/^\/range(list|flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
-	res.setHeader('eTag', getETag(req.path as GetListPath))
+app.head('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
+	res.setHeader('eTag', await getETag(req.path as GetListPath))
 	res.sendStatus(200)
 })
 
-app.get(/^\/range(list|flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
+app.get('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
 	const path = req.path as GetListPath
 	res.setHeader('Content-Type', 'text/plain')
 	try {
