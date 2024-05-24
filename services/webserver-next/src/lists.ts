@@ -19,6 +19,8 @@ export type GetListPath = ('/addresses.txt'
 	| '/txidflagged.txt'
 	| '/txidowners.txt'
 	| '/rangelist.txt'
+	| '/rangeflagged.txt'	//needed for shep-v
+	| '/rangeowners.txt'	//needed for shep-v
 	| '/testing.txt')
 
 export const getETag = async (path: GetListPath) => {
@@ -71,15 +73,15 @@ export const getList = async (response: Writable, path: GetListPath) => {
 
 	console.info(`${getList.name}(${path})`, 'fetching new...')
 	_cache[path].inProgress = true
-	if (typeof res.setHeader === 'function') res.setHeader('eTag', _cache[path].eTag) //needs to be set before content is written
+	if (typeof res.setHeader === 'function') res.setHeader('eTag', eTag) //needs to be set before content is written
 
 	let text = ''
 	if (['/blacklist.txt'].includes(path)) {
 		text = await getList(res, '/txidflagged.txt')
 		text += await getList(res, '/txidowners.txt')
-		_cache[path] = {
+		_cache['/blacklist.txt'] = {
 			eTag,
-			text: '',
+			text: '',	//we're saving ram
 			inProgress: false,
 		}
 	} else {

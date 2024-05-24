@@ -94,6 +94,23 @@ app.get('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
 	}
 })
 
+/** used by shep-v */
+app.head(/^\/range(flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
+	res.setHeader('eTag', await getETag(req.path as GetListPath))
+	res.sendStatus(200)
+})
+app.get(/^\/range(flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
+	const path = req.path as GetListPath
+	res.setHeader('Content-Type', 'text/plain')
+	try {
+		await getList(res, path)
+		res.status(200).end()
+	} catch (err: unknown) {
+		const e = err as Error
+		await slackLog(path, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+		res.status(500).send('internal server error\n')
+	}
+})
 
 const server = app.listen(port, () => console.info(`webserver started on http://localhost:${port}`))
 
