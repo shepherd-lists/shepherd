@@ -45,8 +45,10 @@ export const assertLists = async () => {
 		|| !(await keyExists('txidflagged.txt'))
 		|| !(await keyExists('txidowners.txt'))
 		|| !(await keyExists('rangelist.txt'))
+		|| !(await keyExists('rangeflagged.txt'))	//shep-v
+		|| !(await keyExists('rangeowners.txt'))	//shep-v
 	) {
-		console.info(`list 'blacklist.txt', 'rangelist.txt', txidflagged.txt, or txidowners.txt does not exist. recreating all...`)
+		console.info(`list 'blacklist.txt', 'rangelist.txt', txidflagged.txt, txidowners.txt, rangeflagged.txt, etc. does not exist. recreating all...`)
 		console.info(
 			'blacklist.txt|rangelist.txt count',
 			await updateFullTxidsRanges()
@@ -120,8 +122,10 @@ export const updateFullTxidsRanges = async () => {
 
 	/** prepare output streams to s3 */
 	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'blacklist.txt')
-	const s3FlaggedTxids = s3UploadReadable(LISTS_BUCKET, 'txidflagged.txt')
-	const s3OwnerTxids = s3UploadReadable(LISTS_BUCKET, 'txidowners.txt')
+	const s3TxidFlagged = s3UploadReadable(LISTS_BUCKET, 'txidflagged.txt')
+	const s3TxidOwners = s3UploadReadable(LISTS_BUCKET, 'txidowners.txt')
+	const s3RangeFlagged = s3UploadReadable(LISTS_BUCKET, 'rangeflagged.txt')
+	const s3RangesOwners = s3UploadReadable(LISTS_BUCKET, 'rangeowners.txt')
 
 	/** rangelist needs sort & merge processing before upload */
 	const ranges: Array<ByteRange> = []
@@ -134,7 +138,7 @@ export const updateFullTxidsRanges = async () => {
 		// console.debug('row', row)
 		count++
 		s3Txids.write(`${row.txid}\n`)
-		s3FlaggedTxids.write(`${row.txid}\n`)
+		s3TxidFlagged.write(`${row.txid}\n`)
 		if (!row.byteStart) {
 			slackLog(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 			continue;
@@ -142,8 +146,10 @@ export const updateFullTxidsRanges = async () => {
 			console.info(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 			continue;
 		}
+		s3RangeFlagged.write(`${row.byteStart},${row.byteEnd}`)
 		ranges.push([row.byteStart, row.byteEnd])
 	}
+	s3RangeFlagged.end()
 
 	console.debug(updateFullTxidsRanges.name, 'DEBUG flaggedStream', count)
 	console.debug(updateFullTxidsRanges.name, 'DEBUG ownerStreams.length', ownerStreams.length)
@@ -154,7 +160,7 @@ export const updateFullTxidsRanges = async () => {
 			// console.debug('row', row)
 			count++
 			s3Txids.write(`${row.txid}\n`)
-			s3OwnerTxids.write(`${row.txid}\n`)
+			s3TxidOwners.write(`${row.txid}\n`)
 			if (!row.byte_start) {
 				slackLog(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 				continue;
@@ -162,6 +168,7 @@ export const updateFullTxidsRanges = async () => {
 				console.info(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 				continue;
 			}
+			s3RangesOwners.write(`${row.byte_start},${row.byte_end}`)
 			ranges.push([row.byte_start, row.byte_end])
 		}
 	}
@@ -170,12 +177,15 @@ export const updateFullTxidsRanges = async () => {
 
 	/** close the output streams */
 	s3Txids.end()
-	s3FlaggedTxids.end()
-	s3OwnerTxids.end()
+	s3TxidFlagged.end()
+	s3TxidOwners.end()
+	s3RangesOwners.end()
 	await Promise.all([
 		finished(s3Txids),
-		finished(s3FlaggedTxids),
-		finished(s3OwnerTxids),
+		finished(s3TxidFlagged),
+		finished(s3TxidOwners),
+		finished(s3RangeFlagged),
+		finished(s3RangesOwners),
 	])
 
 	const t2 = performance.now()
