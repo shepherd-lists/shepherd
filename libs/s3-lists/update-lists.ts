@@ -146,7 +146,7 @@ export const updateFullTxidsRanges = async () => {
 			console.info(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 			continue;
 		}
-		s3RangeFlagged.write(`${row.byteStart},${row.byteEnd}`)
+		s3RangeFlagged.write(`${row.byteStart},${row.byteEnd}\n`)
 		ranges.push([row.byteStart, row.byteEnd])
 	}
 	s3RangeFlagged.end()
@@ -168,7 +168,7 @@ export const updateFullTxidsRanges = async () => {
 				console.info(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
 				continue;
 			}
-			s3RangesOwners.write(`${row.byte_start},${row.byte_end}`)
+			s3RangesOwners.write(`${row.byte_start},${row.byte_end}\n`)
 			ranges.push([row.byte_start, row.byte_end])
 		}
 	}
