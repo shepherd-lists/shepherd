@@ -34,17 +34,17 @@ export const ipAllowTxidsMiddleware = (req: Request, res: Response, next: NextFu
 export const ipAllowRangesMiddleware = (req: Request, res: Response, next: NextFunction) => ipAllowMiddlewareFunction('ranges')(req, res, next)
 
 const ipAllowMiddlewareFunction = (listType: ('txids' | 'ranges')) => (req: Request, res: Response, next: NextFunction) => {
-	const routepath = req.route.path
+	const path = req.path
 	const ip = req.headers['x-forwarded-for'] as string || 'undefined'
 	if (
 		(listType === 'txids' && accessBlacklist.length > 0)
 		|| (listType === 'ranges' && accessRangelist.length > 0)
 	) {
 		if (ipAllowList(ip, listType)) {
-			console.info(prefix, `access ${routepath} list: ${ip} ALLOWED`)
+			console.info(prefix, `access ${path} list: ${ip} ALLOWED`)
 			next()
 		} else {
-			console.info(prefix, `access ${routepath} list: ${ip} DENIED`)
+			console.info(prefix, `access ${path} list: ${ip} DENIED`)
 			res.setHeader('eTag', 'denied')
 			res.status(403).send('403 Forbidden')
 		}
