@@ -1,8 +1,10 @@
-import { ByteRange } from "./update-lists";
 
 
+export type ByteRange = [number, number]
 
-export const mergeRanges = (ranges: Array<ByteRange>) => {
+
+/** this merges **erlang data format** ranges */
+export const mergeErlangRanges = (ranges: Array<ByteRange>) => {
 
 	const t0 = performance.now()
 
@@ -26,7 +28,7 @@ export const mergeRanges = (ranges: Array<ByteRange>) => {
 			const [nextStart, nextEnd] = range
 
 			// If the next range overlaps or is adjacent to the current range, merge them
-			if (nextStart <= currentEnd + 1) {
+			if (nextStart <= currentEnd) { // <= This is the crucial erlang difference here!
 				// Update the end of the current range in the mergedRanges array
 				currentRange[1] = Math.max(currentEnd, nextEnd)
 			} else {
@@ -36,8 +38,10 @@ export const mergeRanges = (ranges: Array<ByteRange>) => {
 			}
 		})
 	}
+	/** at this point `ranges` is totally messed up */
+	// ranges.length = 0 // clear it?
 
-	console.info(mergeRanges.name, `sorted & merged ${ranges.length} ranges to ${mergedRanges.length} ranges in ${(performance.now() - t0).toFixed(0)}ms.`)
+	console.info(mergeErlangRanges.name, `sorted & merged ${ranges.length} ranges to ${mergedRanges.length} ranges in ${(performance.now() - t0).toFixed(0)}ms.`)
 
 	return mergedRanges;
 }
