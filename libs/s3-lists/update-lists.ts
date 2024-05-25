@@ -3,14 +3,12 @@ import { slackLog } from "../utils/slackLog"
 import pool from '../utils/pgClient'
 import QueryStream from "pg-query-stream"
 import { finished } from "stream/promises"
-import { mergeRanges } from "./merge-ranges"
+import { ByteRange, mergeErlangRanges } from "./merge-ranges"
 import { performance } from 'perf_hooks'
 
 
 
 const LISTS_BUCKET = process.env.LISTS_BUCKET as string
-
-export type ByteRange = [number, number]
 
 
 const keyExists = async (key: string) => {
@@ -193,9 +191,10 @@ export const updateFullTxidsRanges = async () => {
 
 	/** process ranges and write out */
 	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
-	for await (const range of mergeRanges(ranges)) {
+	for await (const range of mergeErlangRanges(ranges)) {
 		s3Ranges.write(`${range[0]},${range[1]}\n`)
 	}
+	ranges.length = 0 //side-effects, dont use again
 	s3Ranges.end()
 	await finished(s3Ranges)
 

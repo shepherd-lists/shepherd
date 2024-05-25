@@ -5,7 +5,7 @@ import { filterPendingOnly } from "./pending-promises"
 import { performance } from 'perf_hooks'
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { checkReachable } from "./checkReachable"
-import { existAlertState, existAlertStateLine, setAlertState } from "./event-tracking"
+import { alertStateCronjob, existAlertState, existAlertStateLine, setAlertState } from "./event-tracking"
 import { setUnreachable, unreachableTimedout } from './event-unreachable'
 import { slackLogPositive } from "../../../../libs/utils/slackLogPositive"
 
@@ -173,9 +173,10 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 	}
 }
 
+// setInterval(alertStateCronjob, 10_000)
+// checkServerBlockingTxids('https://arweave.net', 'txidflagged.txt')
 // checkServerBlockingTxids('https://arweave.net', 'txidowners.txt')
 // checkServerBlockingTxids('https://arweave.dev', 'txidowners.txt')
 // checkServerBlockingTxids('https://18.1.1.1', 'txidflagged.txt')
-// checkServerBlockingTxids('https://arweave.net', 'txidowners.txt')
 // checkServerBlockingTxids('https://localhost', 'txidowners.txt')
 
