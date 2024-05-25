@@ -28,18 +28,18 @@ export const mergeErlangRanges = (ranges: Array<ByteRange>) => {
 			const [nextStart, nextEnd] = range
 
 			// If the next range overlaps or is adjacent to the current range, merge them
-			if (nextStart <= currentEnd) { // <= This is the crucial erlang difference here!
+			if (nextStart <= currentEnd) {
 				// Update the end of the current range in the mergedRanges array
 				currentRange[1] = Math.max(currentEnd, nextEnd)
 			} else {
 				// If not overlapping or adjacent, move to the next range
-				currentRange = range
+				currentRange = [...range] //copy avoids side-effect, but decreases func perf by ~35%
 				mergedRanges.push(currentRange)
 			}
 		})
 	}
-	/** at this point `ranges` is totally messed up */
-	// ranges.length = 0 // clear it?
+	/** w/o copy at this point `ranges` is totally messed up */
+	// ranges.length = 0 // clear it, so it throws error on accidental reuse?
 
 	console.info(mergeErlangRanges.name, `sorted & merged ${ranges.length} ranges to ${mergedRanges.length} ranges in ${(performance.now() - t0).toFixed(0)}ms.`)
 
