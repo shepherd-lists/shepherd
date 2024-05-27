@@ -30,7 +30,10 @@ export const getETag = async (path: GetListPath) => {
 }
 
 export const getList = async (response: Writable, path: GetListPath) => {
-	const res = response as Writable & { setHeader?: (k: string, v: string) => void }
+	const res = response as Writable & {
+		setHeader?: (k: string, v: string) => void
+		getHeader: (name: string) => string
+	}
 
 	const key = path.replace('/', '')
 
@@ -73,7 +76,8 @@ export const getList = async (response: Writable, path: GetListPath) => {
 
 	console.info(`${getList.name}(${path})`, 'fetching new...')
 	_cache[path].inProgress = true
-	if (typeof res.setHeader === 'function') res.setHeader('eTag', eTag) //needs to be set before content is written
+	/** etag needs to be set before content is written. also may be combining getList calls */
+	if (typeof res.setHeader === 'function' && !res.getHeader('eTag')) res.setHeader('eTag', eTag)
 
 	let text = ''
 	if (['/blacklist.txt'].includes(path)) {
