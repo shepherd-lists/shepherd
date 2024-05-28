@@ -39,7 +39,6 @@ app.get('/addresses.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	}
 })
 
-/** [legacy remove] dynamically generate routes from ADDONS tablenames */
 txsTableNames().then((tablenames) => {
 	tablenames.forEach((tablename) => {
 		const routepath = tablename.replace('_txs', '')

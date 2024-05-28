@@ -160,7 +160,7 @@ export const updateFullTxidsRanges = async () => {
 			s3Txids.write(`${row.txid}\n`)
 			s3TxidOwners.write(`${row.txid}\n`)
 			if (!row.byte_start) {
-				slackLog(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
+				slackLog(updateFullTxidsRanges.name, `missing byte-range`, JSON.stringify(row))
 				continue;
 			} else if (row.byte_start === '-1') {
 				console.info(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))

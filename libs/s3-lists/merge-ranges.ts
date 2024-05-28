@@ -6,6 +6,9 @@ export type ByteRange = [number, number]
 /** this merges **erlang data format** ranges */
 export const mergeErlangRanges = (ranges: Array<ByteRange>) => {
 
+	/** DEBUG / Sanity */
+	const originalSize = rangesSize(ranges, 'original')
+
 	const t0 = performance.now()
 
 	/** merge contiguous ranges */
@@ -41,7 +44,33 @@ export const mergeErlangRanges = (ranges: Array<ByteRange>) => {
 	/** w/o copy at this point `ranges` is totally messed up */
 	// ranges.length = 0 // clear it, so it throws error on accidental reuse?
 
-	console.info(mergeErlangRanges.name, `sorted & merged ${ranges.length} ranges to ${mergedRanges.length} ranges in ${(performance.now() - t0).toFixed(0)}ms.`)
+	console.info(mergeErlangRanges.name, `examined, sorted & merged ${ranges.length} ranges to ${mergedRanges.length} ranges in ${(performance.now() - t0).toFixed(0)}ms.`)
+
+	/** DEBUG / Sanity */
+	const mergedSize = rangesSize(mergedRanges, 'merged')
+	if (mergedSize > originalSize) throw new Error(`merged size cannot be bigger than original size, ${originalSize} > ${mergedSize}.`)
 
 	return mergedRanges;
+}
+
+/** 
+ * extra debugging checks and info 
+ */
+
+/** get length of ranges */
+const rangesSize = (ranges: Array<ByteRange>, id: string) => {
+	const t0 = performance.now()
+	let total = 0
+	let longest = 0
+	for (const range of ranges) {
+		const diff = range[1] - range[0]
+		if (diff > longest) longest = diff
+		total += diff
+	}
+	console.debug(id,
+		'total', total.toLocaleString(),
+		'longest', longest.toLocaleString(),
+		`in ${(performance.now() - t0).toFixed(0)} ms`
+	)
+	return total
 }
