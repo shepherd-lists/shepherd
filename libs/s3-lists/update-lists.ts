@@ -145,7 +145,7 @@ export const updateFullTxidsRanges = async () => {
 			continue;
 		}
 		s3RangeFlagged.write(`${row.byteStart},${row.byteEnd}\n`)
-		ranges.push([row.byteStart, row.byteEnd])
+		ranges.push([+row.byteStart, +row.byteEnd])
 	}
 	s3RangeFlagged.end()
 
@@ -167,7 +167,7 @@ export const updateFullTxidsRanges = async () => {
 				continue;
 			}
 			s3RangesOwners.write(`${row.byte_start},${row.byte_end}\n`)
-			ranges.push([row.byte_start, row.byte_end])
+			ranges.push([+row.byte_start, +row.byte_end])
 		}
 	}
 	console.info(updateFullTxidsRanges.name, 'count', count)
