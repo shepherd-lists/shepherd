@@ -1,2 +1,4 @@
 node_modules
 *.DS_Store
+libs/test/s3-rangelist.txt
+services/checks/src/quicktest-rangesOverlap.ts

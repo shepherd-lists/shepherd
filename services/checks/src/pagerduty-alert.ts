@@ -1,5 +1,5 @@
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
-import { slackLog } from '../../../../libs/utils/slackLog'
+import { slackLog } from '../../../libs/utils/slackLog'
 
 const ssmClient = new SSMClient()
 

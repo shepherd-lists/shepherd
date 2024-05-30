@@ -1,21 +1,19 @@
 import { NotBlockEvent, existAlertState, existAlertStateLine, setAlertState } from './event-tracking'
-import { RangelistAllowedItem } from '../webserver-types'
 import { ByteRange, RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
 import { dataSyncObjectStream } from './ranges-dataSyncRecord'
 import { performance } from 'perf_hooks'
 import { checkReachable } from './checkReachable'
 import { unreachableTimedout, setUnreachable } from './event-unreachable'
+import { RangelistAllowedItem } from './types'
 
 
 
 /**
- * function to test if 2 ranges overlap. note: erlang strangeness, add +1 to start
- * @param rangeA of form [start+1, end]
- * @param rangeB of form [start+1, end]
+ * function to test if 2 ranges overlap. note: erlang strangeness
  * @returns boolean indicating ranges overlap
  */
 const rangesOverlap = (rangeA: [number, number], rangeB: [number, number]) => {
-	return (rangeA[0] <= rangeB[1] && rangeB[0] <= rangeA[1])
+	return (rangeA[0] < rangeB[1] && rangeB[0] < rangeA[1])
 }
 
 export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key: RangeKey = 'rangelist.txt') => {
@@ -64,7 +62,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 		//check if part of this data_sync_record should be blocked
 		blockedRanges.find(blockedRange => {
 			//allow for some Erlang weirdness by adding 1 to the starts
-			const notblocked = rangesOverlap([start + 1, end], [blockedRange[0], blockedRange[1]])
+			const notblocked = rangesOverlap([start, end], [blockedRange[0], blockedRange[1]])
 			if (notblocked) {
 
 				// process.nextTick(() => doubleCheck(blockedRange, item))
@@ -107,7 +105,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 /** dont run these check outside of test */
 const doubleCheck = async (range: ByteRange, item: RangelistAllowedItem) => {
 
-	const startChunk = range[0].toString()
+	const startChunk = (range[0] + 1).toString()
 	const endChunk = range[1].toString()
 
 	await new Promise(resolve => setTimeout(resolve, 1)) // issue with connection failing after long wait
