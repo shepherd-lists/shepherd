@@ -1,7 +1,7 @@
 /** -= Unresponsive Servers =- */
 
 
-import { RangelistAllowedItem } from '../webserver-types'
+import { RangelistAllowedItem } from '../../webserver-next/src/webserver-types'
 
 
 interface Unreachable extends RangelistAllowedItem {

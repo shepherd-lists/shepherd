@@ -1,5 +1,4 @@
 import { NotBlockEvent, existAlertState, existAlertStateLine, setAlertState } from './event-tracking'
-import { RangelistAllowedItem } from '../webserver-types'
 import { ByteRange, RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
 import { dataSyncObjectStream } from './ranges-dataSyncRecord'
 import { performance } from 'perf_hooks'
@@ -9,14 +8,14 @@ import { unreachableTimedout, setUnreachable } from './event-unreachable'
 
 
 /**
- * function to test if 2 ranges overlap. note: erlang strangeness, add +1 to start
- * @param rangeA of form [start+1, end]
- * @param rangeB of form [start+1, end]
+ * function to test if 2 ranges overlap. note: erlang strangeness
  * @returns boolean indicating ranges overlap
  */
 const rangesOverlap = (rangeA: [number, number], rangeB: [number, number]) => {
 	return (rangeA[0] < rangeB[1] && rangeB[0] < rangeA[1])
 }
+
+export interface RangelistAllowedItem { name: string; server: string }
 
 export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key: RangeKey = 'rangelist.txt') => {
 	/** check if server reachable */

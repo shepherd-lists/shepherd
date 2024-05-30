@@ -1,4 +1,4 @@
-import { RangelistAllowedItem } from "../webserver-types"
+import { RangelistAllowedItem } from "../../webserver-next/src/webserver-types"
 import { checkServerBlockingChunks } from "./ranges-checkOverlap"
 import { checkServerBlockingTxids } from "./txids-checkHeads"
 

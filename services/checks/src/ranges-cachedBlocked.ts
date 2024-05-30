@@ -1,8 +1,8 @@
-import { s3GetObjectWebStream, s3HeadObject } from "../../../../libs/utils/s3-services"
-import { slackLog } from "../../../../libs/utils/slackLog"
+import { s3GetObjectWebStream, s3HeadObject } from "../../../libs/utils/s3-services"
+import { slackLog } from "../../../libs/utils/slackLog"
 import { performance } from 'perf_hooks'
-import { readlineWeb } from "../../../../libs/utils/webstream-utils"
-import { mergeErlangRanges } from "../../../../libs/s3-lists/merge-ranges"
+import { readlineWeb } from "../../../libs/utils/webstream-utils"
+import { mergeErlangRanges } from "../../../libs/s3-lists/merge-ranges"
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

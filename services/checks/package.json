@@ -1,0 +1,7 @@
+{
+	"name": "checks",
+	"type": "module",
+	"dependencies": {
+		"await-semaphore": "^0.1.3"
+	}
+}
