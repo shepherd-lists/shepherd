@@ -4,6 +4,7 @@ import { dataSyncObjectStream } from './ranges-dataSyncRecord'
 import { performance } from 'perf_hooks'
 import { checkReachable } from './checkReachable'
 import { unreachableTimedout, setUnreachable } from './event-unreachable'
+import { RangelistAllowedItem } from './types'
 
 
 
@@ -14,8 +15,6 @@ import { unreachableTimedout, setUnreachable } from './event-unreachable'
 const rangesOverlap = (rangeA: [number, number], rangeB: [number, number]) => {
 	return (rangeA[0] < rangeB[1] && rangeB[0] < rangeA[1])
 }
-
-export interface RangelistAllowedItem { name: string; server: string }
 
 export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key: RangeKey = 'rangelist.txt') => {
 	/** check if server reachable */
