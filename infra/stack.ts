@@ -153,6 +153,30 @@ export const createStack = async (app: App, config: Config) => {
 		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
 	}))
 
+	const checks = createAddonService(stack, 'checks', {
+		cluster,
+		logGroup: logGroupServices,
+		cloudMapNamespace,
+		resources: {
+			cpu: 1024,
+			memoryLimitMiB: 2048,
+		},
+		environment: {
+			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+			SLACK_WEBHOOK: config.slack_webhook!,
+			SLACK_POSITIVE: config.slack_positive!,
+			SLACK_PROBE: config.slack_probe!,
+			BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
+			RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
+			GW_URLS: JSON.stringify(config.gw_urls) || '',
+		}
+	})
+	const taskRoleChecks = checks.taskDefinition.taskRole!
+	taskRoleChecks.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['s3:*'],
+		resources: [listsBucket.bucketArn + '/*'],
+	}))
+
 	const httpApi = createAddonService(stack, 'http-api', {
 		cluster,
 		logGroup: logGroupServices,
