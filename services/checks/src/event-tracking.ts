@@ -1,6 +1,8 @@
 import { pagerdutyAlert } from './pagerduty-alert'
 import { performance } from 'perf_hooks'
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 /** -= track start/end of not-block events =- */
 
 interface NotBlockEventDetails {
@@ -185,11 +187,14 @@ export const alertStateCronjob = () => {
 }
 /** exported for test only */
 export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
+	console.log(_slackLoggerNoFormatting.name, '\n', text)
 	if (hook) {
 		fetch(hook, { method: 'POST', body: JSON.stringify({ text }) })
 			.then(res => res.text()).then(t => console.log(_slackLoggerNoFormatting.name, `response: ${t}`)) //use up stream to close connection
-	} else {
-		console.log(_slackLoggerNoFormatting.name, '\n', text)
+			.catch(e => {
+				console.log('ERROR! FAILED TO SEND SLACK NOTIFICATION!', e, 'retrying')
+				sleep(5_000).then(() => _slackLoggerNoFormatting(text, hook))
+			})
 	}
 }
 
