@@ -77,6 +77,7 @@ const handler = async (session: ClientHttp2Session, gw_url: string, txid: string
 		if (status !== 404) {
 			setAlertState({
 				server: gw_url,
+				serverType: 'gw',
 				details: {
 					status: 'alarm',
 					line: txid,
@@ -95,6 +96,7 @@ const handler = async (session: ClientHttp2Session, gw_url: string, txid: string
 			if (existAlertState(gw_url) && existAlertStateLine(gw_url, txid))
 				setAlertState({
 					server: gw_url,
+					serverType: 'gw',
 					details: {
 						status: 'ok',
 						line: txid,

@@ -16,6 +16,7 @@ interface NotBlockEventDetails {
 export interface NotBlockEvent {
 	server: string //key
 	serverName?: string //dont need this for gateways
+	serverType: 'gw' | 'node'
 	details: NotBlockEventDetails
 }
 interface NotBlockStateDetails extends NotBlockEventDetails {
@@ -26,6 +27,7 @@ interface NotBlockStateDetails extends NotBlockEventDetails {
 interface NotBlockState {
 	server: string //key
 	serverName?: string //dont need this for gateways
+	serverType: 'gw' | 'node'
 	alarms: { [line: string]: NotBlockStateDetails }
 }
 const _alerts: { [server: string]: NotBlockState } = {} // new Map<string, NotBlockState>()
@@ -50,6 +52,7 @@ export const setAlertState = (event: NotBlockEvent) => {
 		_alerts[server] = {
 			server,
 			serverName: event.serverName,
+			serverType: event.serverType,
 			alarms: {
 				[event.details.line]: {
 					...event.details,
@@ -110,7 +113,8 @@ export const alertStateCronjob = () => {
 
 	/** loop through servers in alerts */
 	for (const [server, state] of Object.entries(_alerts)) {
-		const { serverName, alarms } = state
+		const { serverName, serverType, alarms } = state
+
 		/** server message head */
 		const alarmEntries = Object.entries(alarms)
 		let serverDisplayLimit = 10 //limit num of alarms to prevent notification spam
@@ -118,6 +122,13 @@ export const alertStateCronjob = () => {
 		const headerLength = serverMsg.length
 
 		console.debug(alertStateCronjob.name, 'DEBUG', serverName || server, 'entries', alarmEntries.length)
+
+		/** for nodes, skip if they have already made an "alarm" notification */
+		if (serverType === 'node') {
+			const details = Object.values(alarms)
+			const inAlarm = details.some(({ status, notified }) => status === 'alarm' && notified === true)
+			if (inAlarm) continue;
+		}
 
 		/** loop thru this server's alarm states */
 		for (const [line, details] of alarmEntries) {

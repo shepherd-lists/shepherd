@@ -76,6 +76,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 				setAlertState({
 					serverName: item.name,
 					server: item.server,
+					serverType: 'node',
 					details: {
 						status: 'alarm',
 						line: `${startString},${end}`,
@@ -89,6 +90,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 				setAlertState({
 					server: item.server,
 					serverName: item.name,
+					serverType: 'node',
 					details: {
 						status: 'ok',
 						line: `${startString},${end}`,
