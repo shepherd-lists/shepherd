@@ -25,7 +25,7 @@ export const getBlockedRanges = async (key: RangeKey = 'rangelist.txt'): Promise
 	if (!_rangeCache[key]) _rangeCache[key] = { eTag: '', ranges: [], inProgress: false }
 
 	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
-	// console.debug(getBlockedRanges.name, key, 'eTag', eTag)
+	// console.debug(getBlockedRanges.name, key, 'eTag', eTag, 'cached', _rangeCache[key].eTag)
 
 	/** short-circuit */
 	if (eTag === _rangeCache[key].eTag) {
@@ -63,7 +63,7 @@ export const getBlockedRanges = async (key: RangeKey = 'rangelist.txt'): Promise
 	const t1 = performance.now()
 	console.info(getBlockedRanges.name, key, `fetched ${ranges.length} ranges in ${(t1 - t0).toFixed(0)}ms`)
 
-	/** merge contiguous ranges */
+	/** merge contiguous ranges (this is kind of obsolete, indexer-next already merges on creating the s3 list) */
 
 	const mergedRanges: ByteRange[] = mergeErlangRanges(ranges)
 
@@ -73,6 +73,7 @@ export const getBlockedRanges = async (key: RangeKey = 'rangelist.txt'): Promise
 	/** finish up */
 
 	console.info(getBlockedRanges.name, key, `Total caching time: ${(t2 - t0).toFixed(0)}ms`)
+	_rangeCache[key].eTag = eTag
 	_rangeCache[key].inProgress = false
 	return _rangeCache[key].ranges = mergedRanges
 }

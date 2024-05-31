@@ -15,6 +15,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const maxConcurrentRequests = 150 //adjust this
 const requestTimeout = 30_000 //ms. this too
 const semaphore = new Semaphore(maxConcurrentRequests)
+const rejectTimedoutMsg = `timed-out ${requestTimeout}ms`
 
 interface HeadRequestReturn {
 	status: number
@@ -36,7 +37,7 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 			/** fail quickly */
 			req.destroy(Error(`timeout ${requestTimeout}ms`))
 			session.destroy(Error(`timeout ${requestTimeout}ms`))
-			reject(Error(`timed-out ${requestTimeout}ms`))
+			reject(Error(rejectTimedoutMsg))
 		})
 
 
@@ -77,6 +78,7 @@ const handler = async (session: ClientHttp2Session, gw_url: string, txid: string
 		if (status !== 404) {
 			setAlertState({
 				server: gw_url,
+				serverType: 'gw',
 				details: {
 					status: 'alarm',
 					line: txid,
@@ -95,6 +97,7 @@ const handler = async (session: ClientHttp2Session, gw_url: string, txid: string
 			if (existAlertState(gw_url) && existAlertStateLine(gw_url, txid))
 				setAlertState({
 					server: gw_url,
+					serverType: 'gw',
 					details: {
 						status: 'ok',
 						line: txid,
@@ -164,7 +167,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 	} catch (err: unknown) {
 		const { message, code, cause } = err as NodeJS.ErrnoException
 		console.error('outer catch', JSON.stringify({ message, code, cause }))
-		if (message === 'timedout') {
+		if (message === rejectTimedoutMsg) {
 			console.info(checkServerBlockingTxids.name, gw_url, 'set unreachable mid-session')
 			setUnreachable({ name: gw_url, server: gw_url })
 		}

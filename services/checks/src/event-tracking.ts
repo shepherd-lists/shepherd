@@ -1,6 +1,8 @@
 import { pagerdutyAlert } from './pagerduty-alert'
 import { performance } from 'perf_hooks'
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 /** -= track start/end of not-block events =- */
 
 interface NotBlockEventDetails {
@@ -16,6 +18,7 @@ interface NotBlockEventDetails {
 export interface NotBlockEvent {
 	server: string //key
 	serverName?: string //dont need this for gateways
+	serverType: 'gw' | 'node'
 	details: NotBlockEventDetails
 }
 interface NotBlockStateDetails extends NotBlockEventDetails {
@@ -26,6 +29,7 @@ interface NotBlockStateDetails extends NotBlockEventDetails {
 interface NotBlockState {
 	server: string //key
 	serverName?: string //dont need this for gateways
+	serverType: 'gw' | 'node'
 	alarms: { [line: string]: NotBlockStateDetails }
 }
 const _alerts: { [server: string]: NotBlockState } = {} // new Map<string, NotBlockState>()
@@ -38,18 +42,20 @@ export const alarmsInAlert = () => {
 	}
 }
 export const existAlertState = (server: string) => !!_alerts[server]
-export const existAlertStateLine = (server: string, line: string) => !!_alerts[server]?.alarms[line] //fix this
+export const existAlertStateLine = (server: string, line: string) => !!_alerts[server]?.alarms[line] //&& with existAlertState above
 
 export const setAlertState = (event: NotBlockEvent) => {
 	const server = event.server
 	const line = event.details.line
-	if (event.details.status === 'ok' && (!_alerts[server] || !_alerts[server].alarms[line])) return; //should use existAlertState instead
+	const status = event.details.status
+	if (status === 'ok' && (!_alerts[server] || !_alerts[server].alarms[line])) return; //should use existAlertState instead
 
 	/** set first server alarm */
 	if (!_alerts[server]) {
 		_alerts[server] = {
 			server,
 			serverName: event.serverName,
+			serverType: event.serverType,
 			alarms: {
 				[event.details.line]: {
 					...event.details,
@@ -61,7 +67,7 @@ export const setAlertState = (event: NotBlockEvent) => {
 		_changed = true
 		return;
 	}
-	/** set subsequent alarms */
+	/** set subsequent new alarms */
 	if (!_alerts[server].alarms[line]) {
 		_alerts[server].alarms[line] = {
 			...event.details,
@@ -75,10 +81,10 @@ export const setAlertState = (event: NotBlockEvent) => {
 	/** check for changed state */
 	const alarms = _alerts[server].alarms;
 
-	if (alarms[line].status !== event.details.status) {
+	if (alarms[line].status !== status) {
 		_alerts[server].alarms[line] = {
 			...alarms[line],
-			status: event.details.status,
+			status,
 			notified: false,
 			endStamp: Date.now(),
 		}
@@ -110,7 +116,8 @@ export const alertStateCronjob = () => {
 
 	/** loop through servers in alerts */
 	for (const [server, state] of Object.entries(_alerts)) {
-		const { serverName, alarms } = state
+		const { serverName, serverType, alarms } = state
+
 		/** server message head */
 		const alarmEntries = Object.entries(alarms)
 		let serverDisplayLimit = 10 //limit num of alarms to prevent notification spam
@@ -118,6 +125,18 @@ export const alertStateCronjob = () => {
 		const headerLength = serverMsg.length
 
 		console.debug(alertStateCronjob.name, 'DEBUG', serverName || server, 'entries', alarmEntries.length)
+
+		/** for nodes, skip if they have already made an "alarm" notification */
+		if (serverType === 'node') {
+			const details = Object.values(alarms)
+			console.debug(JSON.stringify({ serverName, details }))
+			const inAlarm = details.some(({ status, notified }) => status === 'alarm' && notified === true)
+			if (inAlarm) {
+				console.debug(`detected ${serverName} inAlarm=${inAlarm}. skipping`)
+				continue;
+			}
+
+		}
 
 		/** loop thru this server's alarm states */
 		for (const [line, details] of alarmEntries) {
@@ -174,11 +193,14 @@ export const alertStateCronjob = () => {
 }
 /** exported for test only */
 export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
+	console.log(_slackLoggerNoFormatting.name, '\n', text)
 	if (hook) {
 		fetch(hook, { method: 'POST', body: JSON.stringify({ text }) })
 			.then(res => res.text()).then(t => console.log(_slackLoggerNoFormatting.name, `response: ${t}`)) //use up stream to close connection
-	} else {
-		console.log(_slackLoggerNoFormatting.name, '\n', text)
+			.catch(e => {
+				console.log('ERROR! FAILED TO SEND SLACK NOTIFICATION!', e, 'retrying')
+				sleep(5_000).then(() => _slackLoggerNoFormatting(text, hook))
+			})
 	}
 }
 
