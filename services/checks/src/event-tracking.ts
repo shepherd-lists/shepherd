@@ -42,12 +42,13 @@ export const alarmsInAlert = () => {
 	}
 }
 export const existAlertState = (server: string) => !!_alerts[server]
-export const existAlertStateLine = (server: string, line: string) => !!_alerts[server]?.alarms[line] //fix this
+export const existAlertStateLine = (server: string, line: string) => !!_alerts[server]?.alarms[line] //&& with existAlertState above
 
 export const setAlertState = (event: NotBlockEvent) => {
 	const server = event.server
 	const line = event.details.line
-	if (event.details.status === 'ok' && (!_alerts[server] || !_alerts[server].alarms[line])) return; //should use existAlertState instead
+	const status = event.details.status
+	if (status === 'ok' && (!_alerts[server] || !_alerts[server].alarms[line])) return; //should use existAlertState instead
 
 	/** set first server alarm */
 	if (!_alerts[server]) {
@@ -66,7 +67,7 @@ export const setAlertState = (event: NotBlockEvent) => {
 		_changed = true
 		return;
 	}
-	/** set subsequent alarms */
+	/** set subsequent new alarms */
 	if (!_alerts[server].alarms[line]) {
 		_alerts[server].alarms[line] = {
 			...event.details,
@@ -80,10 +81,10 @@ export const setAlertState = (event: NotBlockEvent) => {
 	/** check for changed state */
 	const alarms = _alerts[server].alarms;
 
-	if (alarms[line].status !== event.details.status) {
+	if (alarms[line].status !== status) {
 		_alerts[server].alarms[line] = {
 			...alarms[line],
-			status: event.details.status,
+			status,
 			notified: false,
 			endStamp: Date.now(),
 		}
@@ -128,8 +129,13 @@ export const alertStateCronjob = () => {
 		/** for nodes, skip if they have already made an "alarm" notification */
 		if (serverType === 'node') {
 			const details = Object.values(alarms)
+			console.debug(JSON.stringify({ serverName, details }))
 			const inAlarm = details.some(({ status, notified }) => status === 'alarm' && notified === true)
-			if (inAlarm) continue;
+			if (inAlarm) {
+				console.debug(`detected ${serverName} inAlarm=${inAlarm}. skipping`)
+				continue;
+			}
+
 		}
 
 		/** loop thru this server's alarm states */
