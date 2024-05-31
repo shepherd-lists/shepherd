@@ -6,7 +6,9 @@ export const checkReachable = async (url: string) => new Promise<boolean>(resolv
 	const protocol = url.startsWith('https') ? https : http
 	const req = protocol.request(url, { method: 'HEAD' },
 		res => {
-			resolve(res.statusCode === 200 ? true : false)
+			const { statusCode, statusMessage } = res
+			if (statusCode !== 200) console.info(`${url} ${statusCode} ${statusMessage}`)
+			resolve(statusCode === 200 ? true : false)
 			res.on('data', () => { }) //must use up empty stream
 		}
 	)
