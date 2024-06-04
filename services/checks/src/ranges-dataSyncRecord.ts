@@ -47,12 +47,16 @@ async function* singleKeyJsonStream(body: ReadableStream<Uint8Array>) {
 
 
 export const dataSyncObjectStream = async (domain: string, port: number) => {
-	const res = await fetch(`http://${domain}:${port}/data_sync_record`, {
-		headers: { 'content-type': 'application/json' },
-	})
-	if (!res.ok) throw new Error(`${dataSyncObjectStream.name} bad response: ${res.status} ${res.statusText}`)
+	try {
+		const res = await fetch(`http://${domain}:${port}/data_sync_record`, {
+			headers: { 'content-type': 'application/json' },
+		})
+		if (!res.ok) throw new Error(`${dataSyncObjectStream.name} bad response: ${res.status} ${res.statusText}`)
 
-	return singleKeyJsonStream(res.body!)
+		return singleKeyJsonStream(res.body!)
+	} catch (e) {
+		throw new Error(`${dataSyncObjectStream.name} UNHANDLED`, { cause: e })
+	}
 }
 
 // // Usage example
