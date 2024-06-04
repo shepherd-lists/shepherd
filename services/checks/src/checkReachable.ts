@@ -12,7 +12,8 @@ export const checkReachable = async (url: string) => new Promise<boolean>(resolv
 			res.on('data', () => { }) //must use up empty stream
 		}
 	)
-	req.on('error', () => {
+	req.on('error', (err) => {
+		console.error(checkReachable.name, 'error', `${url} ${err.name}:${err.message}`)
 		resolve(false)
 		req.destroy()
 	})
