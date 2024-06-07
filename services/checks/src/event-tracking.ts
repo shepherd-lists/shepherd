@@ -43,6 +43,7 @@ export const alarmsInAlert = () => {
 }
 export const existAlertState = (server: string) => !!_alerts[server]
 export const existAlertStateLine = (server: string, line: string) => !!_alerts[server]?.alarms[line] //&& with existAlertState above
+export const getServerAlarms = (server: string) => _alerts[server]?.alarms || {}
 
 export const setAlertState = (event: NotBlockEvent) => {
 	const server = event.server
