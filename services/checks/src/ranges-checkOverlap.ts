@@ -1,4 +1,4 @@
-import { NotBlockEvent, existAlertState, existAlertStateLine, setAlertState } from './event-tracking'
+import { existAlertState, existAlertStateLine, getServerAlarms, setAlertState } from './event-tracking'
 import { ByteRange, RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
 import { dataSyncObjectStream } from './ranges-dataSyncRecord'
 import { performance } from 'perf_hooks'
@@ -9,7 +9,7 @@ import { RangelistAllowedItem } from './types'
 
 
 /**
- * function to test if 2 ranges overlap. note: erlang strangeness
+ * function to test if 2 ranges overlap. note erlang strangeness: byte pointed to by start is not in the range
  * @returns boolean indicating ranges overlap
  */
 const rangesOverlap = (rangeA: [number, number], rangeB: [number, number]) => {
@@ -31,39 +31,79 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 
 	try {
 
-		// get data_sync_records from server
+		/* get data_sync_records from particular server */
 		const dsrStream = await dataSyncObjectStream(item.server, 1984)
+		/** This next bit sucks! check all the work i did creating a stream, 
+		 * but now we need these in memory to recheck all again after checking set alarms in a performant manner */
+		const serverRanges: ByteRange[] = []
+		for await (const dsr of dsrStream) {
+			/** extract start and end from the single key-value pair from the crazy erlang node data. form: { [endValue: string]: string } */
+			const end = +Object.keys(dsr)[0]
+			const start = +dsr[end]
+			serverRanges.push([start, end])
+		}
 
-		// ensure blocked ranges are up to date and loaded
+		/** get blocked ranges */
 		const blockedRanges = await getBlockedRanges(key)
 
-		/** N.B. the data from Erlang is all backwards. arrays start at end, end at start+1, etc. fix this on the fly. */
-		// let last = { start: Infinity, end: Infinity }
+		// get current alert state - there should only be 1 alarm for these nodes, but is another situation possible?
+		const alarms = getServerAlarms(item.server)
+
+		console.info(checkServerBlockingChunks.name, item.name, 'begin check existing alarms...')
+		let alarmFound = false
+		for (const line of Object.keys(alarms)) {
+			/** check if any alarms "ok" now */
+			const alarmRange = line.split(',').map(Number) as ByteRange
+
+			/** check if we have a matching alarm already, or clear any set alarms */
+			alarmFound ||= serverRanges.some(serverRange => {
+				const notblocked = rangesOverlap(alarmRange, serverRange)
+				if (notblocked) {
+					console.info(`${item.name} already in alarm. aborting remaining checks.`)
+					return true
+				}
+			})
+			if (!alarmFound) {
+				/** clear alarm */
+				console.debug(item.name, 'clearing alarm', line)
+				if (existAlertState(item.server) && existAlertStateLine(item.server, line)) {
+					setAlertState({
+						server: item.server,
+						serverName: item.name,
+						serverType: 'node',
+						details: {
+							status: 'ok',
+							line,
+							endpointType: '/chunk',
+						}
+					})
+				}
+			}
+		}//eo current alarms
+
+		if (alarmFound) { //skip checking for more
+			console.info(checkServerBlockingChunks.name, item.name, 'alarm already present. exiting.')
+			return;
+		}
+
+		console.info(checkServerBlockingChunks.name, item.name, 'check for new alarms...')
+
 		let count = 0
 		const t0 = performance.now()
 		let tMatch = 0
 		let numNotBlocked = 0
-		for await (const dsr of dsrStream) {
+		for await (const [start, end] of serverRanges) {
 			count++
-			//extract start and end from the single key-value pair
-			const end = +Object.keys(dsr)[0]
-			const startString = dsr[end]
-			const start = +startString
 			//sanity
 			if (start > end) {
-				throw new Error(`${item.name} start > end`)
+				throw new Error(`${item.name} start > end, ${start} > ${end}`)
 			}
-			// //check current is less than last (backwards erlang ordering)
-			// if (start > last.start || end > last.start) {
-			// 	throw new Error(`out of order/overlap, this=start:${start},end:${end}, last=${JSON.stringify(last)}`)
-			// }
-			// last = { start, end }
 
 			const m0 = performance.now()
 
-			//check if part of this data_sync_record should be blocked
-			blockedRanges.find(blockedRange => {
-				const notblocked = rangesOverlap([start, end], [blockedRange[0], blockedRange[1]])
+			/** check if part of this data_sync_record should be blocked */
+			const newAlarm = blockedRanges.some(blockedRange => {
+				const notblocked = rangesOverlap([start, end], blockedRange)
 				if (notblocked) {
 
 					// process.nextTick(() => doubleCheck(blockedRange, item))
@@ -71,7 +111,6 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 
 					numNotBlocked++
 					console.info(`aborting remaining checks on ${item.name}`)
-					dsrStream.return() //exit checking the rest of the stream
 
 					/* raise an alarm */
 					setAlertState({
@@ -80,28 +119,18 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 						serverType: 'node',
 						details: {
 							status: 'alarm',
-							line: `${startString},${end}`,
+							line: `${blockedRange[0]},${blockedRange[1]}`, //a string is easier as {txid} is just a string
 							endpointType: '/chunk',
 						}
 					})
 					return true;
 				}
-				// 92% speed increase when set "ok" is removed!
-				if (existAlertState(item.server) && existAlertStateLine(item.server, `${startString},${end}`)) {
-					setAlertState({
-						server: item.server,
-						serverName: item.name,
-						serverType: 'node',
-						details: {
-							status: 'ok',
-							line: `${startString},${end}`,
-							endpointType: '/chunk',
-						}
-					})
-				}
 			})
 			tMatch += performance.now() - m0
-			await new Promise(resolve => setTimeout(resolve, 0))
+			if (newAlarm) {
+				break;
+			}
+			await new Promise(resolve => setTimeout(resolve, 0)) //hack to break up the cpu hogging
 		}
 		console.info(item.name, `checked ${count} dataSyncRecords (${numNotBlocked} not blocked) for overlap in ${(performance.now() - t0).toFixed(0)}ms. matching time ${tMatch.toFixed(0)}ms`)
 
