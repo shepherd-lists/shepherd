@@ -48,6 +48,20 @@ async function* singleKeyJsonStream(body: ReadableStream<Uint8Array>) {
 	}
 }
 
+/** modifying `tls` options is required for compatibility across various test servers */
+const createConnection = (authority: URL, options: http2.SessionOptions) => {
+	console.debug({ authority, options })
+	const protocolHttps = authority.protocol === 'https:'
+	/* using host with http connnections makes the socket try to handshake & fail */
+	const host = protocolHttps ? authority.hostname : undefined
+	return tls.connect({
+		...options,
+		host,
+		servername: authority.hostname,
+		port: +authority.port || (protocolHttps ? 443 : 80),
+		ALPNProtocols: ['h2', 'http/1.1'],
+	})
+}
 /** cannot mix http2 and fetch/undici streams in the same process */
 export const http2ReadableStream = async (url: string, path: string) => {
 	interface RetType {
@@ -57,22 +71,10 @@ export const http2ReadableStream = async (url: string, path: string) => {
 		body?: ReadableStream
 	}
 	return new Promise<RetType>((resolve, reject) => {
+
 		const client = http2.connect(url, {
 			rejectUnauthorized: false,
-			/** modifying `tls` options is required for compatibility across various servers */
-			createConnection: (authority, options) => {
-				console.debug({ authority, options })
-				const protocolHttps = authority.protocol === 'https:'
-				/* using host with http connnections makes the socket try to handshake & fail */
-				const host = protocolHttps ? authority.hostname : undefined
-				return tls.connect({
-					...options,
-					host,
-					servername: authority.hostname,
-					port: +authority.port || (protocolHttps ? 443 : 80),
-					ALPNProtocols: ['h2', 'http/1.1'],
-				})
-			}
+			...(process.env.NODE_ENV === 'test' && { createConnection }),
 		})
 		const req = client.request({
 			':path': path,
@@ -139,8 +141,7 @@ export const dataSyncObjectStream = async (domain: string, port: number, protoco
 // const iter = await dataSyncObjectStream('arweave.net', 443, 'https')
 // let count = 0
 // for await (const obj of iter) {
-// 	console.debug('obj', obj)
+// 	// console.debug('obj', obj)
 // 	count++
 // }
 // console.info('total dataSyncRecords', count)
-
