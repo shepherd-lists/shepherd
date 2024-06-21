@@ -123,6 +123,7 @@ const alarmOkHandler = async (session: ClientHttp2Session, gw_url: string, txid:
 	}
 }
 
+let _sliceStart = 0 // just keep going around even after errors
 export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt')) => {
 	//sanity
 	if (!gw_url.startsWith('https://')) throw new Error(`invalid format. gw_url must start with https:// => ${gw_url}`)
@@ -158,7 +159,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 
 	const blockedTxids = await getBlockedTxids(key)
 	const t0 = performance.now() // strang behaviour: t0 initialized on all sessions, and all await error on any single other session
-	let blocked = blockedTxids.splice(0, checksPerPeriod)
+	let blocked = blockedTxids.slice(_sliceStart, checksPerPeriod)
 	let countChecks = 0
 	do {
 		/** new session for each round */
@@ -216,12 +217,15 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 		}
 
 		/* prepare for next run */
-		blocked = blockedTxids.splice(0, checksPerPeriod)
+		_sliceStart += checksPerPeriod
+		blocked = blockedTxids.slice(_sliceStart, checksPerPeriod)
 
 		if (blocked.length > 0) {
 			const waitTime = Math.floor(30_000 - (performance.now() - p0))
 			console.info(checkServerBlockingTxids.name, gw_url, `pausing for ${waitTime}ms to avoid rate-limiting`)
 			await sleep(waitTime)
+		} else {
+			_sliceStart = 0 //reset
 		}
 	} while (blocked.length > 0)
 
