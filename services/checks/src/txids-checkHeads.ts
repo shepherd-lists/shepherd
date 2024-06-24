@@ -5,7 +5,7 @@ import { filterPendingOnly } from "./pending-promises"
 import { performance } from 'perf_hooks'
 import { slackLog } from "../../../libs/utils/slackLog"
 import { checkReachable } from "./checkReachable"
-import { alertStateCronjob, existAlertState, existAlertStateLine, setAlertState } from "./event-tracking"
+import { alertStateCronjob, existAlertState, existAlertStateLine, getServerAlarms, setAlertState } from "./event-tracking"
 import { setUnreachable, unreachableTimedout } from './event-unreachable'
 import { slackLogPositive } from "../../../libs/utils/slackLogPositive"
 
@@ -13,6 +13,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
 const maxConcurrentRequests = 150 //adjust this
+const checksPerPeriod = 5_000 //adjust according to rate-limiting perceived
 const requestTimeout = 30_000 //ms. this too
 const semaphore = new Semaphore(maxConcurrentRequests)
 const rejectTimedoutMsg = `timed-out ${requestTimeout}ms`
@@ -40,7 +41,6 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 			reject(Error(rejectTimedoutMsg))
 		})
 
-
 		req.on('response', (headers, flags) => {
 			resolve({
 				status: +headers[':status']!,
@@ -50,7 +50,6 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 			})
 			// req.destroy() unnecessary and possibly harmful in a head req.
 		})
-
 
 		req.on('error', (e: NodeJS.ErrnoException) => {
 			const { name, code, message, cause } = e
@@ -68,12 +67,12 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 	}).finally(() => release())
 }
 
-const handler = async (session: ClientHttp2Session, gw_url: string, txid: string, reqId: number) => {
+const newAlarmHandler = async (session: ClientHttp2Session, gw_url: string, txid: string, reqId: number) => {
 	try {
 		const { status, age, xtrace, contentLength } = await headRequest(session, txid, reqId)
 
 		if (status >= 500)
-			return console.error(headRequest.name, `${gw_url} returned ${status} for ${txid}. ignoring..`)
+			throw new Error(`${headRequest.name}, ${gw_url} returned ${status} for ${txid}. ignoring..`, { cause: { status } })
 
 		if (status !== 404) {
 			setAlertState({
@@ -92,89 +91,151 @@ const handler = async (session: ClientHttp2Session, gw_url: string, txid: string
 
 			// /* make sure Slack doesn't display link contents! */
 			// slackLogPositive('warning', `[${checkServerBlockingTxids.name}] ${txid} not blocked on ${gw_url} (status: ${status}), xtrace: '${xtrace}', age: '${age}', content-length: '${contentLength}'`)
-
-		} else {
-			if (existAlertState(gw_url) && existAlertStateLine(gw_url, txid))
-				setAlertState({
-					server: gw_url,
-					serverType: 'gw',
-					details: {
-						status: 'ok',
-						line: txid,
-						endpointType: '/TXID',
-					}
-				})
 		}
 	} catch (e) {
 		const { message, code } = e as NodeJS.ErrnoException
-		console.error('caught error in handler', gw_url, txid, reqId, `code: ${code}, message: ${message}`)
+		console.error(`caught error in ${newAlarmHandler.name}`, gw_url, txid, reqId, `code: ${code}, message: ${message}`)
 		throw e
 	}
 }
 
-export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt')) => {
+const alarmOkHandler = async (session: ClientHttp2Session, gw_url: string, txid: string, reqId: number) => {
+	try {
+		const { status } = await headRequest(session, txid, reqId)
+
+		if (status === 404) {
+			setAlertState({
+				server: gw_url,
+				serverType: 'gw',
+				details: {
+					status: 'ok',
+					line: txid,
+					endpointType: '/TXID',
+				}
+			})
+			return false
+		}
+		return true
+	} catch (e) {
+		const { message, code } = e as NodeJS.ErrnoException
+		console.error(`caught error in ${alarmOkHandler.name}`, gw_url, txid, reqId, `code: ${code}, message: ${message}`)
+		throw e
+	}
+}
+
+let _sliceStart = 0 // just keep going around even after errors
+export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt')) => {
 	//sanity
 	if (!gw_url.startsWith('https://')) throw new Error(`invalid format. gw_url must start with https:// => ${gw_url}`)
 
 	/** short-circuits */
 
 	if (!unreachableTimedout(gw_url)) {
-		console.info(checkServerBlockingTxids.name, gw_url, 'currently in unreachable timeout')
+		console.info(checkServerTxids.name, gw_url, 'currently in unreachable timeout')
 		return;
 	}
 
 	if (!await checkReachable(gw_url)) {
 		setUnreachable({ name: gw_url, server: gw_url })
-		console.info(checkServerBlockingTxids.name, gw_url, 'set unreachable')
+		console.info(checkServerTxids.name, gw_url, 'set unreachable')
 		return;
 	}
 
-	/** fetch list and check thru it */
+	// plan:
+	// do a set of checks every 30s (for example)
+	// in that set check state for OKs and a slice of the blockedTxids
+	// if any in-alarm exit the rest of checks
+
+	const newSession = () => {
+		const sesh = http2.connect(gw_url, {
+			rejectUnauthorized: false,
+		}) //gw specific session 
+		/** debug */
+		sesh.on('error', () => console.error(gw_url, 'session error'))
+		sesh.on('close', () => console.info(gw_url, 'session close'))
+		sesh.on('timeout', () => console.info(gw_url, 'session timeout'))
+		return sesh;
+	}
 
 	const blockedTxids = await getBlockedTxids(key)
-	const session = http2.connect(gw_url, {
-		rejectUnauthorized: false,
-	}) //gw specific session
-
-	/** debug */
-	session.on('error', () => console.error(gw_url, 'session error'))
-	session.on('close', () => console.info(gw_url, 'session close'))
-	session.on('timeout', () => console.info(gw_url, 'session timeout'))
-
 	const t0 = performance.now() // strang behaviour: t0 initialized on all sessions, and all await error on any single other session
-	let promises: Promise<void>[] = []
-	let count = 0
-	try {
-		for (const txid of blockedTxids) {
-			promises.push(handler(session, gw_url, txid, count))
+	let blocked = blockedTxids.slice(_sliceStart, checksPerPeriod)
+	let countChecks = 0
+	do {
+		/** new session for each round */
+		const session = newSession()
+		const p0 = performance.now()
+		try {
+			/** check current alarms every time */
+			const alarms = getServerAlarms(gw_url)
+			let countAlarms = 0
+			const inAlarms = await Promise.all(Object.keys(alarms).map(async txid => {
+				if (alarms[txid].status === 'alarm') {
+					return alarmOkHandler(session, gw_url, txid, countAlarms++)
+				}
+			}))
+			const serverInAlarm = inAlarms.reduce((acc, cur) => acc || !!cur, false)
 
-			if (promises.length > maxConcurrentRequests) {
-				//let at least one resolve
-				await Promise.race(promises)
-				//remove resolved
-				promises = await filterPendingOnly(promises)
+			console.info(checkServerTxids.name, gw_url, `checked ${inAlarms.length} existing alarms, serverInAlarm=${serverInAlarm}`)
 
-				//TODO: retry rejected
+			if (serverInAlarm) {
+				/** abort further checks */
+				break;
 			}
-			if (++count % 1_000 === 0) console.log(
-				checkServerBlockingTxids.name, gw_url, key, `${count} items dispatched in ${(performance.now() - t0).toFixed(0)}ms`,
-				'outboundQueueSize', session.state.outboundQueueSize
-			)
-		}
-		await Promise.all(promises)
 
-		console.info(checkServerBlockingTxids.name, gw_url, key, `completed ${count} checks in ${(performance.now() - t0).toFixed(0)}ms`)
-	} catch (err: unknown) {
-		const { message, code, cause } = err as NodeJS.ErrnoException
-		console.error('outer catch', JSON.stringify({ message, code, cause }))
-		if (message === rejectTimedoutMsg) {
-			console.info(checkServerBlockingTxids.name, gw_url, 'set unreachable mid-session')
-			setUnreachable({ name: gw_url, server: gw_url })
+			/** check blocked */
+
+			let promises: Promise<void>[] = []
+			for (const txid of blocked) {
+				promises.push(newAlarmHandler(session, gw_url, txid, countChecks++))
+
+				if (promises.length > maxConcurrentRequests) {
+					//let at least one resolve
+					await Promise.race(promises)
+					//remove resolved
+					promises = await filterPendingOnly(promises)
+
+					//TODO: retry rejected
+				}
+				if (countChecks % 1_000 === 0) console.log(
+					checkServerTxids.name, gw_url, key, `${countChecks} items dispatched in ${(performance.now() - t0).toFixed(0)}ms`,
+					'outboundQueueSize', session.state.outboundQueueSize
+				)
+			}
+			await Promise.all(promises)
+
+		} catch (err: unknown) {
+			const { message, code, cause } = err as NodeJS.ErrnoException
+			console.error('outer catch', JSON.stringify({ message, code, cause }))
+			if (message === rejectTimedoutMsg) {
+				console.info(checkServerTxids.name, gw_url, 'set unreachable mid-session')
+				setUnreachable({ name: gw_url, server: gw_url })
+			}
+			break; //do-while
+		} finally {
+			session.close()
 		}
-	} finally {
-		session.close()
-	}
+
+		/* prepare for next run */
+		_sliceStart += checksPerPeriod
+		blocked = blockedTxids.slice(_sliceStart, checksPerPeriod)
+
+		if (blocked.length > 0) {
+			const waitTime = Math.floor(30_000 - (performance.now() - p0))
+			console.info(checkServerTxids.name, gw_url, `pausing for ${waitTime}ms to avoid rate-limiting`)
+			await sleep(waitTime)
+		} else {
+			_sliceStart = 0 //reset
+		}
+	} while (blocked.length > 0)
+
+
+
+	console.info(checkServerTxids.name, gw_url, key, `completed ${countChecks} checks in ${Math.floor(performance.now() - t0)}ms`)
+
 }
+
+
 
 // setInterval(alertStateCronjob, 10_000)
 // checkServerBlockingTxids('https://arweave.net', 'txidflagged.txt')
