@@ -16,7 +16,7 @@ const rangesOverlap = (rangeA: [number, number], rangeB: [number, number]) => {
 	return (rangeA[0] < rangeB[1] && rangeB[0] < rangeA[1])
 }
 
-export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key: RangeKey = 'rangelist.txt') => {
+export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKey = 'rangelist.txt') => {
 	/** check if server reachable */
 	if (!unreachableTimedout(item.name)) {
 		console.info(`${item.name} is in unreachable timeout`)
@@ -24,10 +24,10 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 	}
 	if (!await checkReachable(`http://${item.server}:1984/info`)) {
 		setUnreachable(item)
-		console.info(checkServerBlockingChunks.name, item.name, 'set unreachable')
+		console.info(checkServerRanges.name, item.name, 'set unreachable')
 		return;
 	}
-	console.info(checkServerBlockingChunks.name, item.name || item.server, 'reachable')
+	console.info(checkServerRanges.name, item.name || item.server, 'reachable')
 
 	try {
 
@@ -49,7 +49,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 		// get current alert state - there should only be 1 alarm for these nodes, but is another situation possible?
 		const alarms = getServerAlarms(item.server)
 
-		console.info(checkServerBlockingChunks.name, item.name, 'begin check existing alarms...')
+		console.info(checkServerRanges.name, item.name, 'begin check existing alarms...')
 		let anyAlarm = false
 		for (const line of Object.keys(alarms)) {
 			/** check if any alarms "ok" now */
@@ -65,7 +65,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 			})
 			if (!alarm) {
 				/** clear alarm */
-				console.info(checkServerBlockingChunks.name, item.name, '*** MARKING ALARM OK ***', line)
+				console.info(checkServerRanges.name, item.name, '*** MARKING ALARM OK ***', line)
 				if (existAlertState(item.server) && existAlertStateLine(item.server, line)) {
 					setAlertState({
 						server: item.server,
@@ -83,11 +83,11 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 		}//eo alarms lines
 
 		if (anyAlarm) { //skip checking for more
-			console.info(checkServerBlockingChunks.name, item.name, 'alarm already present. exiting.')
+			console.info(checkServerRanges.name, item.name, 'alarm already present. exiting.')
 			return;
 		}
 
-		console.info(checkServerBlockingChunks.name, item.name, 'check for new alarms...')
+		console.info(checkServerRanges.name, item.name, 'check for new alarms...')
 
 		let count = 0
 		const t0 = performance.now()
@@ -109,7 +109,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 					numNotBlocked++
 
 					// process.nextTick(() => doubleCheck(blockedRange, item))
-					console.info(checkServerBlockingChunks.name, `${item.name} range not blocked.`, JSON.stringify({ blockedRange, start, end }), 'aborting remaining checks.')
+					console.info(checkServerRanges.name, `${item.name} range not blocked.`, JSON.stringify({ blockedRange, start, end }), 'aborting remaining checks.')
 
 					/* raise an alarm */
 					setAlertState({
@@ -137,7 +137,7 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 		/** just set the node as unreachable this time around */
 		setUnreachable(item)
 		const { name, message } = e as Error
-		console.info(checkServerBlockingChunks.name, item.name, 'SET UNREACHABLE DURING DSR PROCESSING', `${name}:${message}`)
+		console.info(checkServerRanges.name, item.name, 'SET UNREACHABLE DURING DSR PROCESSING', `${name}:${message}`)
 	}
 }
 

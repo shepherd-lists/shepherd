@@ -1,6 +1,6 @@
 import { RangelistAllowedItem } from "./types"
-import { checkServerBlockingChunks } from "./ranges-checkOverlap"
-import { checkServerBlockingTxids } from "./txids-checkHeads"
+import { checkServerRanges } from "./ranges-checkOverlap"
+import { checkServerTxids } from "./txids-checkHeads"
 
 
 
@@ -30,7 +30,7 @@ export const checkRanges = async () => {
 	const d0 = Date.now()
 	try {
 
-		await Promise.all(rangeItems.map(async item => checkServerBlockingChunks(item)))
+		await Promise.all(rangeItems.map(async item => checkServerRanges(item)))
 
 		//TODO: might be errors to catch here?
 
@@ -59,7 +59,7 @@ const checkTxids = async (key: 'txidflagged.txt' | 'txidowners.txt') => {
 	console.info(checkTxids.name, key, `starting cronjob...`, JSON.stringify({ rangeItems, gwUrls, _running }))
 	try {
 
-		await Promise.all(gwUrls.map(async (gwUrl) => checkServerBlockingTxids(gwUrl, key)))
+		await Promise.all(gwUrls.map(async (gwUrl) => checkServerTxids(gwUrl, key)))
 
 		//TODO: might be timeouts to catch here?
 

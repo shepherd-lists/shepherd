@@ -124,20 +124,20 @@ const alarmOkHandler = async (session: ClientHttp2Session, gw_url: string, txid:
 }
 
 let _sliceStart = 0 // just keep going around even after errors
-export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt')) => {
+export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt')) => {
 	//sanity
 	if (!gw_url.startsWith('https://')) throw new Error(`invalid format. gw_url must start with https:// => ${gw_url}`)
 
 	/** short-circuits */
 
 	if (!unreachableTimedout(gw_url)) {
-		console.info(checkServerBlockingTxids.name, gw_url, 'currently in unreachable timeout')
+		console.info(checkServerTxids.name, gw_url, 'currently in unreachable timeout')
 		return;
 	}
 
 	if (!await checkReachable(gw_url)) {
 		setUnreachable({ name: gw_url, server: gw_url })
-		console.info(checkServerBlockingTxids.name, gw_url, 'set unreachable')
+		console.info(checkServerTxids.name, gw_url, 'set unreachable')
 		return;
 	}
 
@@ -176,7 +176,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 			}))
 			const serverInAlarm = inAlarms.reduce((acc, cur) => acc || !!cur, false)
 
-			console.info(checkServerBlockingTxids.name, gw_url, `checked ${inAlarms.length} existing alarms, serverInAlarm=${serverInAlarm}`)
+			console.info(checkServerTxids.name, gw_url, `checked ${inAlarms.length} existing alarms, serverInAlarm=${serverInAlarm}`)
 
 			if (serverInAlarm) {
 				/** abort further checks */
@@ -198,7 +198,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 					//TODO: retry rejected
 				}
 				if (countChecks % 1_000 === 0) console.log(
-					checkServerBlockingTxids.name, gw_url, key, `${countChecks} items dispatched in ${(performance.now() - t0).toFixed(0)}ms`,
+					checkServerTxids.name, gw_url, key, `${countChecks} items dispatched in ${(performance.now() - t0).toFixed(0)}ms`,
 					'outboundQueueSize', session.state.outboundQueueSize
 				)
 			}
@@ -208,7 +208,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 			const { message, code, cause } = err as NodeJS.ErrnoException
 			console.error('outer catch', JSON.stringify({ message, code, cause }))
 			if (message === rejectTimedoutMsg) {
-				console.info(checkServerBlockingTxids.name, gw_url, 'set unreachable mid-session')
+				console.info(checkServerTxids.name, gw_url, 'set unreachable mid-session')
 				setUnreachable({ name: gw_url, server: gw_url })
 			}
 			break; //do-while
@@ -222,7 +222,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 
 		if (blocked.length > 0) {
 			const waitTime = Math.floor(30_000 - (performance.now() - p0))
-			console.info(checkServerBlockingTxids.name, gw_url, `pausing for ${waitTime}ms to avoid rate-limiting`)
+			console.info(checkServerTxids.name, gw_url, `pausing for ${waitTime}ms to avoid rate-limiting`)
 			await sleep(waitTime)
 		} else {
 			_sliceStart = 0 //reset
@@ -231,7 +231,7 @@ export const checkServerBlockingTxids = async (gw_url: string, key: ('txidflagge
 
 
 
-	console.info(checkServerBlockingTxids.name, gw_url, key, `completed ${countChecks} checks in ${Math.floor(performance.now() - t0)}ms`)
+	console.info(checkServerTxids.name, gw_url, key, `completed ${countChecks} checks in ${Math.floor(performance.now() - t0)}ms`)
 
 }
 
