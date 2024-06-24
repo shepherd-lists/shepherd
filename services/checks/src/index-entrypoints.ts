@@ -12,6 +12,34 @@ console.info({ rangeItems, gwUrls })
 /* semaphore to prevent overlapping runs */
 let _running: { [key: string]: boolean } = {}
 
+/**
+ * range checks. relatively uncomplicated to run.
+ */
+export const checkRanges = async () => {
+	/** short-circuit */
+	if (rangeItems.length === 0) {
+		console.info(checkRanges.name, 'no range check items configured, exiting.')
+		return
+	}
+
+	if (_running['rangechecks']) {
+		console.info(checkRanges.name, `already running. exiting.`)
+		return
+	}
+	_running['rangechecks'] = true
+	const d0 = Date.now()
+	try {
+
+		await Promise.all(rangeItems.map(async item => checkServerBlockingChunks(item)))
+
+		//TODO: might be errors to catch here?
+
+	} finally {
+		delete _running['rangechecks']
+	}
+	console.info(checkRanges.name, `finished in ${(Date.now() - d0).toLocaleString()} ms`)
+}
+
 /** 
  * txid checks 
  */
@@ -43,32 +71,4 @@ const checkTxids = async (key: 'txidflagged.txt' | 'txidowners.txt') => {
 export const checkFlaggedTxids = () => checkTxids('txidflagged.txt')
 export const checkOwnersTxids = () => checkTxids('txidowners.txt')
 
-/**
- * range checks
- */
-
-export const checkRanges = async () => {
-	/** short-circuit */
-	if (rangeItems.length === 0) {
-		console.info(checkRanges.name, 'no range check items configured, exiting.')
-		return
-	}
-
-	if (_running['rangechecks']) {
-		console.info(checkRanges.name, `already running. exiting.`)
-		return
-	}
-	_running['rangechecks'] = true
-	const d0 = Date.now()
-	try {
-
-		await Promise.all(rangeItems.map(async item => checkServerBlockingChunks(item)))
-
-		//TODO: might be errors to catch here?
-
-	} finally {
-		delete _running['rangechecks']
-	}
-	console.info(checkRanges.name, `finished in ${(Date.now() - d0).toLocaleString()} ms`)
-}
 

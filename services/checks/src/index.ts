@@ -16,10 +16,11 @@ const RANGES_INTERVAL = 60_000 // 1 min
 /** main entrypoints */
 
 setInterval(checkFlaggedTxids, FLAGGED_INTERVAL)
-// setInterval(checkOwnersTxids, OWNERS_INTERVAL)
-
-/** cron for alarm state */
-setInterval(alertStateCronjob, 30_000)
-
+setInterval(checkOwnersTxids, OWNERS_INTERVAL)
 
 setInterval(checkRanges, RANGES_INTERVAL)
+
+
+/** cron for alarm state */
+setInterval(alertStateCronjob, 10_000)
+
