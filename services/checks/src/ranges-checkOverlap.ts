@@ -50,22 +50,22 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 		const alarms = getServerAlarms(item.server)
 
 		console.info(checkServerBlockingChunks.name, item.name, 'begin check existing alarms...')
-		let alarmFound = false
+		let anyAlarm = false
 		for (const line of Object.keys(alarms)) {
 			/** check if any alarms "ok" now */
 			const alarmRange = line.split(',').map(Number) as ByteRange
 
 			/** check if we have a matching alarm already, or clear any set alarms */
-			alarmFound ||= serverRanges.some(serverRange => {
+			const alarm = serverRanges.some(serverRange => {
 				const notblocked = rangesOverlap(alarmRange, serverRange)
 				if (notblocked) {
-					console.info(`${item.name} already in alarm. aborting remaining checks.`)
+					console.info(`${item.name} already in alarm ${line}. aborting remaining checks.`)
 					return true
 				}
 			})
-			if (!alarmFound) {
+			if (!alarm) {
 				/** clear alarm */
-				console.debug(item.name, 'clearing alarm', line)
+				console.info(checkServerBlockingChunks.name, item.name, '*** MARKING ALARM OK ***', line)
 				if (existAlertState(item.server) && existAlertStateLine(item.server, line)) {
 					setAlertState({
 						server: item.server,
@@ -79,9 +79,10 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 					})
 				}
 			}
-		}//eo current alarms
+			anyAlarm ||= alarm
+		}//eo alarms lines
 
-		if (alarmFound) { //skip checking for more
+		if (anyAlarm) { //skip checking for more
 			console.info(checkServerBlockingChunks.name, item.name, 'alarm already present. exiting.')
 			return;
 		}
@@ -105,12 +106,10 @@ export const checkServerBlockingChunks = async (item: RangelistAllowedItem, key:
 			const newAlarm = blockedRanges.some(blockedRange => {
 				const notblocked = rangesOverlap([start, end], blockedRange)
 				if (notblocked) {
+					numNotBlocked++
 
 					// process.nextTick(() => doubleCheck(blockedRange, item))
-					console.info(`${item.name} range not blocked.`, JSON.stringify({ blockedRange, start, end }))
-
-					numNotBlocked++
-					console.info(`aborting remaining checks on ${item.name}`)
+					console.info(checkServerBlockingChunks.name, `${item.name} range not blocked.`, JSON.stringify({ blockedRange, start, end }), 'aborting remaining checks.')
 
 					/* raise an alarm */
 					setAlertState({
