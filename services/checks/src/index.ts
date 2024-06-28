@@ -4,8 +4,10 @@
 *
 * this file contains only the timers
 */
+import { ChildProcess, fork } from 'child_process'
 import { alertStateCronjob } from './event-tracking'
-import { checkFlaggedTxids, checkOwnersTxids, checkRanges } from './index-entrypoints'
+import { checkFlaggedTxids, checkOwnersTxids } from './txids/txids-entrypoints'
+import { checkRanges } from './ranges/ranges-entrypoint'
 
 
 const FLAGGED_INTERVAL = 30_000 // 30 secs 
