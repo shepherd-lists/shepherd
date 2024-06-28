@@ -1,6 +1,6 @@
 import { RangelistAllowedItem } from "./types"
-import { checkServerRanges } from "./ranges-checkOverlap"
-import { checkServerTxids } from "./txids-checkHeads"
+import { checkServerRanges } from "./ranges/ranges-checkOverlap"
+import { checkServerTxids } from "./txids/txids-checkHeads"
 
 
 
