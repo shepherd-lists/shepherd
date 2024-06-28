@@ -27,7 +27,7 @@ export const gqlTx = moize(
 				const e = err as Error
 				const status = !isNaN(Number(e.cause)) ? Number(e.cause) : null // ar-gql errors are a bit messy
 
-				if (status && (status === 429 || status >= 500)) {
+				if (!status || status === 429 || status >= 500) {
 					if (tries++ > maxTries) {
 						throw new Error(
 							`[getTx] "${e.message}" while fetching tx: "${id}" using gqlProvider: ${gql.endpointUrl}.`

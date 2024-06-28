@@ -35,9 +35,10 @@ export const fetchRetryConnection = async (url: string) => {
 		} catch (err: unknown) {
 			const e = err as Error
 			connErrCount++
-			if (connErrCount > 30) {
-				slackLog(fetchRetryConnection.name, `Error for '${url}'. Already retried 30 times over 5m. Giving up. ${e.name}:${e.message}`)
-				throw new Error(`${fetchRetryConnection.name} giving up after 30 retries. ${e.message}`)
+			const limit = 3
+			if (connErrCount > limit) {
+				slackLog(fetchRetryConnection.name, `Error for '${url}'. Already retried ${limit} times. Giving up. ${e.name}:${e.message}`)
+				throw new Error(`${fetchRetryConnection.name} giving up after ${limit} retries. ${e.message}`)
 			}
 			//retry all of these connection errors
 			console.log(fetchRetryConnection.name, `Error for '${url}'. ${e.name}:${e.message}. Retrying in ${retryMs} ms...`)

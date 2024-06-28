@@ -1,13 +1,14 @@
 import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, } from './constants-byteRange'
+import { HOST_URL, GQL_URL_SECONDARY, GQL_URL } from './constants-byteRange'
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
 import moize from 'moize'
 import { arGql, ArGqlInterface } from 'ar-gql'
 import { slackLog } from '../../utils/slackLog'
 import { gqlTx } from '../gqlTx'
-import { HOST_URL, GQL_URL, GQL_URL_SECONDARY } from './constants-byteRange'
 
 
+if (!HOST_URL) throw new Error(`Missing env var, HOST_URL:${HOST_URL}`)
 
 /**
  *
