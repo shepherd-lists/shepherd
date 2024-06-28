@@ -2,9 +2,9 @@ import pg, { batchInsertFnOwner, ownerToTablename } from './utils/pgClient'
 import { slackLog } from './utils/slackLog'
 import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
 import { OwnerTableRecord } from '../../types'
-import { getByteRange } from './byte-ranges/byteRanges'
+import { getByteRange } from '../../libs/byte-ranges/byteRanges'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { gqlTx } from './byte-ranges/gqlTx'
+import { gqlTx } from '../../libs/byte-ranges/gqlTx'
 
 const gql = arGql(process.env.GQL_URL_SECONDARY, 3) //defaults to goldsky
 const gqlBackup = arGql(process.env.GQL_URL, 3) //defaults to arweave
