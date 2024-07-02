@@ -183,7 +183,7 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 		vpc,
 		instanceIdentifier: 'shepherd2-pgdb',
 		engine: cdk.aws_rds.DatabaseInstanceEngine.postgres({
-			version: cdk.aws_rds.PostgresEngineVersion.VER_13_10,
+			version: cdk.aws_rds.PostgresEngineVersion.VER_13_13,
 		}),
 		autoMinorVersionUpgrade: true,
 		instanceType: new cdk.aws_ec2.InstanceType('t3.xlarge'),
