@@ -41,7 +41,7 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 	securityGroup.addIngressRule(aws_ec2.Peer.ipv4(vpc.vpcCidrBlock), aws_ec2.Port.allTraffic(), 'allow traffic from within the vpc')
 
 	/** instance */
-	const instance = new aws_ec2.Instance(stack, 'tsSubRouterInstance1', {
+	const instance = new aws_ec2.Instance(stack, 'tsSubRouterInstance4', {
 		vpc,
 		role,
 		instanceType: new aws_ec2.InstanceType('t3a.nano'), // t3a.nano is cheapest
@@ -95,6 +95,8 @@ curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg | sudo tee
 curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.tailscale-keyring.list | sudo tee /etc/apt/sources.list.d/tailscale.list
 apt-get update
 apt-get install -y unzip tailscale
+apt-get remove -y --purge openssh-server
+
 
 echo "# Download and install the CloudWatch Agent"
 wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -O /tmp/amazon-cloudwatch-agent.deb
