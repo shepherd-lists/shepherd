@@ -41,16 +41,16 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 	securityGroup.addIngressRule(aws_ec2.Peer.ipv4(vpc.vpcCidrBlock), aws_ec2.Port.allTraffic(), 'allow traffic from within the vpc')
 
 	/** instance */
-	const instance = new aws_ec2.Instance(stack, 'tsSubRouterInstance4', {
+	const instance = new aws_ec2.Instance(stack, 'tsSubRouterInstance5', {
 		vpc,
 		role,
 		instanceType: new aws_ec2.InstanceType('t3a.nano'), // t3a.nano is cheapest
 		machineImage: aws_ec2.MachineImage.genericLinux({
 			/** ubuntu 22.04 LTS amd64. TODO: add more regions. https://cloud-images.ubuntu.com/locator/ec2/ */
-			'eu-west-1': 'ami-003c6328b40ce2af6',
-			'eu-west-2': 'ami-0505148b3591e4c07',
-			'ap-southeast-1': 'ami-078c1149d8ad719a7',
-			'eu-central-1': 'ami-06dd92ecc74fdfb36',
+			'eu-west-1': 'ami-0932dacac40965a65',
+			'eu-west-2': 'ami-07d20571c32ba6cdc',
+			'ap-southeast-1': 'ami-0497a974f8d5dcef8',
+			'eu-central-1': 'ami-07652eda1fbad7432',
 		}),
 		securityGroup,
 		vpcSubnets: {
