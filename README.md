@@ -2,7 +2,7 @@
 
 # shepherd
 
-# PLEASE READ THIS FIRST. THIS DOCUMENTATION IS WILDLY OUT OF DATE. IF YOU NEED HELP SETTING UP, PLEASE CREATE AN ISSUE IN THIS GITHUB REPO.
+# PLEASE READ THIS FIRST. This documentation is somewhat out of date. If you encounter issues before I have time to update, please create an Issue in the GitHub repo.
 
 ## Overview
 
