@@ -4,7 +4,6 @@ import { performance } from 'perf_hooks'
 import { checkReachable } from '../checkReachable'
 import { unreachableTimedout, setUnreachable } from '../event-unreachable'
 import { RangelistAllowedItem } from '../types'
-import { NotBlockEvent, NotBlockStateDetails } from '../event-tracking'
 import { MessageType } from '..'
 import { getServerAlarmsIPC } from './ranges-entrypoint'
 
@@ -29,7 +28,7 @@ export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKe
 		console.info(checkServerRanges.name, item.name, 'set unreachable')
 		return;
 	}
-	console.info(checkServerRanges.name, item.name || item.server, 'reachable')
+	// console.info(checkServerRanges.name, item.name || item.server, 'reachable')
 
 	try {
 
@@ -146,7 +145,7 @@ export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKe
 			}
 			await new Promise(resolve => setTimeout(resolve, 0)) //hack to break up the cpu hogging
 		}
-		console.info(item.name, `checked ${count} dataSyncRecords (${numNotBlocked} not blocked) for overlap in ${(performance.now() - t0).toFixed(0)}ms. matching time ${tMatch.toFixed(0)}ms`)
+		console.info(checkServerRanges.name, item.name, `checked ${count} dataSyncRecords (${numNotBlocked} not blocked) for overlap in ${(performance.now() - t0).toFixed(0)}ms. matching time ${tMatch.toFixed(0)}ms`)
 
 	} catch (e) {
 		/** just set the node as unreachable this time around */
