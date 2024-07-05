@@ -2,7 +2,6 @@ import { s3GetObjectWebStream, s3HeadObject } from "../../../../libs/utils/s3-se
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { performance } from 'perf_hooks'
 import { readlineWeb } from "../../../../libs/utils/webstream-utils"
-import { mergeErlangRanges } from "../../../../libs/s3-lists/merge-ranges"
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -63,17 +62,10 @@ export const getBlockedRanges = async (key: RangeKey = 'rangelist.txt'): Promise
 	const t1 = performance.now()
 	console.info(getBlockedRanges.name, key, `fetched ${ranges.length} ranges in ${(t1 - t0).toFixed(0)}ms`)
 
-	/** merge contiguous ranges (this is kind of obsolete, indexer-next already merges on creating the s3 list) */
-
-	const mergedRanges: ByteRange[] = mergeErlangRanges(ranges)
-
-	const t2 = performance.now()
-	console.info(getBlockedRanges.name, key, `sorted & merged to ${mergedRanges.length} ranges in ${(t2 - t1).toFixed(0)}ms.`)
-
 	/** finish up */
 
-	console.info(getBlockedRanges.name, key, `Total caching time: ${(t2 - t0).toFixed(0)}ms`)
+	console.info(getBlockedRanges.name, key, `Total caching time: ${(t1 - t0).toFixed(0)}ms`)
 	_rangeCache[key].eTag = eTag
 	_rangeCache[key].inProgress = false
-	return _rangeCache[key].ranges = mergedRanges
+	return _rangeCache[key].ranges = ranges
 }
