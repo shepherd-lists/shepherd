@@ -5,7 +5,7 @@ import { filterPendingOnly } from "../pending-promises"
 import { performance } from 'perf_hooks'
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { checkReachable } from "../checkReachable"
-import { alertStateCronjob, existAlertState, existAlertStateLine, getServerAlarms, setAlertState } from "../event-tracking"
+import { getServerAlarms, setAlertState } from "../event-tracking"
 import { setUnreachable, unreachableTimedout } from '../event-unreachable'
 import { slackLogPositive } from "../../../../libs/utils/slackLogPositive"
 
@@ -131,13 +131,13 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 	/** short-circuits */
 
 	if (!unreachableTimedout(gw_url)) {
-		console.info(checkServerTxids.name, gw_url, 'currently in unreachable timeout')
+		console.info(checkServerTxids.name, gw_url, key, 'currently in unreachable timeout')
 		return;
 	}
 
 	if (!await checkReachable(gw_url)) {
 		setUnreachable({ name: gw_url, server: gw_url })
-		console.info(checkServerTxids.name, gw_url, 'set unreachable')
+		console.info(checkServerTxids.name, gw_url, key, 'set unreachable')
 		return;
 	}
 
@@ -151,16 +151,16 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 			rejectUnauthorized: false,
 		}) //gw specific session 
 		/** debug */
-		sesh.on('error', () => console.error(gw_url, 'session error'))
-		sesh.on('close', () => console.info(gw_url, 'session close'))
-		sesh.on('timeout', () => console.info(gw_url, 'session timeout'))
+		sesh.on('error', () => console.error(gw_url, key, 'session error'))
+		sesh.on('close', () => console.info(gw_url, key, 'session close'))
+		sesh.on('timeout', () => console.info(gw_url, key, 'session timeout'))
 		return sesh;
 	}
 
 	const blockedTxids = await getBlockedTxids(key)
 	const t0 = performance.now() // strang behaviour: t0 initialized on all sessions, and all await error on any single other session
 	let blocked = blockedTxids.slice(_sliceStart, checksPerPeriod)
-	let countChecks = 0
+	let countChecks = _sliceStart
 	do {
 		/** new session for each round */
 		const session = newSession()
@@ -176,7 +176,7 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 			}))
 			const serverInAlarm = inAlarms.reduce((acc, cur) => acc || !!cur, false)
 
-			console.info(checkServerTxids.name, gw_url, `checked ${inAlarms.length} existing alarms, serverInAlarm=${serverInAlarm}`)
+			console.info(checkServerTxids.name, gw_url, key, `checked ${inAlarms.length} existing alarms, serverInAlarm=${serverInAlarm}`)
 
 			if (serverInAlarm) {
 				/** abort further checks */
@@ -206,9 +206,9 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 
 		} catch (err: unknown) {
 			const { message, code, cause } = err as NodeJS.ErrnoException
-			console.error('outer catch', JSON.stringify({ message, code, cause }))
+			console.error('outer catch', gw_url, key, JSON.stringify({ message, code, cause }))
 			if (message === rejectTimedoutMsg) {
-				console.info(checkServerTxids.name, gw_url, 'set unreachable mid-session')
+				console.info(checkServerTxids.name, gw_url, key, 'set unreachable mid-session')
 				setUnreachable({ name: gw_url, server: gw_url })
 			}
 			break; //do-while
@@ -222,7 +222,7 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 
 		if (blocked.length > 0) {
 			const waitTime = Math.floor(30_000 - (performance.now() - p0))
-			console.info(checkServerTxids.name, gw_url, `pausing for ${waitTime}ms to avoid rate-limiting`)
+			console.info(checkServerTxids.name, gw_url, key, `pausing for ${waitTime}ms to avoid rate-limiting`)
 			await sleep(waitTime)
 		} else {
 			_sliceStart = 0 //reset
