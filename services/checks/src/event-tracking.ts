@@ -185,7 +185,7 @@ export const alertStateCronjob = () => {
 			_slackLoggerNoFormatting(serverMsg, process.env.SLACK_PROBE) //print per server
 		if (Date.now() - earliestStart > 600_000) {
 			console.debug('PAGER_ALERT:', serverMsg, serverName || server)
-			// pagerdutyAlert(serverMsg, serverName || server)
+			pagerdutyAlert(serverMsg, serverName || server)
 		}
 	}//for _alerts
 
