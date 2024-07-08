@@ -19,7 +19,7 @@ const DNSR_INTERVAL = 600_000 // 10 mins
 
 setInterval(checkFlaggedTxids, FLAGGED_INTERVAL)
 setInterval(checkOwnersTxids, OWNERS_INTERVAL)
-checkOwnersTxids()
+checkOwnersTxids() //start early
 
 
 

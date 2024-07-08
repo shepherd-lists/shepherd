@@ -152,6 +152,7 @@ export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKe
 		setUnreachable(item)
 		const { name, message } = e as Error
 		console.info(checkServerRanges.name, item.name, 'SET UNREACHABLE DURING DSR PROCESSING', `${name}:${message}`)
+		console.error(e)
 	}
 }
 
