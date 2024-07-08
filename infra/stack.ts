@@ -177,6 +177,10 @@ export const createStack = async (app: App, config: Config) => {
 			actions: ['s3:*'],
 			resources: [listsBucket.bucketArn + '/*'],
 		}))
+		taskRoleChecks.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+			actions: ['ssm:GetParameter'],
+			resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
+		}))
 	}
 
 	const httpApi = createAddonService(stack, 'http-api', {
