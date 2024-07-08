@@ -123,10 +123,13 @@ const alarmOkHandler = async (session: ClientHttp2Session, gw_url: string, txid:
 	}
 }
 
-let _sliceStart = 0 // just keep going around even after errors
+let _sliceStart: { [key: string]: number } = {} // just keep going around even after errors
 export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt')) => {
 	//sanity
 	if (!gw_url.startsWith('https://')) throw new Error(`invalid format. gw_url must start with https:// => ${gw_url}`)
+
+	/** init */
+	if (!_sliceStart[key]) _sliceStart[key] = 0
 
 	/** short-circuits */
 
@@ -159,8 +162,8 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 
 	const blockedTxids = await getBlockedTxids(key)
 	const t0 = performance.now() // strang behaviour: t0 initialized on all sessions, and all await error on any single other session
-	let blocked = blockedTxids.slice(_sliceStart, checksPerPeriod)
-	let countChecks = _sliceStart
+	let blocked = blockedTxids.slice(_sliceStart[key], checksPerPeriod)
+	let countChecks = _sliceStart[key]
 	do {
 		/** new session for each round */
 		const session = newSession()
@@ -217,8 +220,8 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 		}
 
 		/* prepare for next run */
-		_sliceStart += checksPerPeriod
-		blocked = blockedTxids.slice(_sliceStart, _sliceStart + checksPerPeriod)
+		_sliceStart[key] += checksPerPeriod
+		blocked = blockedTxids.slice(_sliceStart[key], _sliceStart[key] + checksPerPeriod)
 
 		if (blocked.length > 0) {
 			const waitTime = Math.floor(30_000 - (performance.now() - p0))
@@ -226,7 +229,7 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 			await sleep(waitTime)
 		} else {
 			console.info(checkServerTxids.name, gw_url, key, `no more blocked slices ${blocked.length}`)
-			_sliceStart = 0 //reset
+			_sliceStart[key] = 0 //reset
 		}
 	} while (blocked.length > 0)
 
