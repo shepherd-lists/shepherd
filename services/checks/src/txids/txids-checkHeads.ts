@@ -151,9 +151,9 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 			rejectUnauthorized: false,
 		}) //gw specific session 
 		/** debug */
-		sesh.on('error', () => console.error(gw_url, key, 'session error'))
-		sesh.on('close', () => console.info(gw_url, key, 'session close'))
-		sesh.on('timeout', () => console.info(gw_url, key, 'session timeout'))
+		sesh.on('error', () => console.error(checkServerTxids.name, gw_url, key, 'session error'))
+		sesh.on('close', () => console.info(checkServerTxids.name, gw_url, key, 'session close'))
+		sesh.on('timeout', () => console.info(checkServerTxids.name, gw_url, key, 'session timeout'))
 		return sesh;
 	}
 
@@ -218,13 +218,14 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 
 		/* prepare for next run */
 		_sliceStart += checksPerPeriod
-		blocked = blockedTxids.slice(_sliceStart, checksPerPeriod)
+		blocked = blockedTxids.slice(_sliceStart, _sliceStart + checksPerPeriod)
 
 		if (blocked.length > 0) {
 			const waitTime = Math.floor(30_000 - (performance.now() - p0))
 			console.info(checkServerTxids.name, gw_url, key, `pausing for ${waitTime}ms to avoid rate-limiting`)
 			await sleep(waitTime)
 		} else {
+			console.info(checkServerTxids.name, gw_url, key, `no more blocked slices ${blocked.length}`)
 			_sliceStart = 0 //reset
 		}
 	} while (blocked.length > 0)
