@@ -1,6 +1,6 @@
-import { s3GetObjectWebStream, s3HeadObject } from "../../../libs/utils/s3-services"
-import { slackLog } from "../../../libs/utils/slackLog"
-import { readlineWeb } from "../../../libs/utils/webstream-utils"
+import { s3GetObjectWebStream, s3HeadObject } from "../../../../libs/utils/s3-services"
+import { slackLog } from "../../../../libs/utils/slackLog"
+import { readlineWeb } from "../../../../libs/utils/webstream-utils"
 
 
 

@@ -1,10 +1,11 @@
-import { existAlertState, existAlertStateLine, getServerAlarms, setAlertState } from './event-tracking'
 import { ByteRange, RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
 import { dataSyncObjectStream } from './ranges-dataSyncRecord'
 import { performance } from 'perf_hooks'
-import { checkReachable } from './checkReachable'
-import { unreachableTimedout, setUnreachable } from './event-unreachable'
-import { RangelistAllowedItem } from './types'
+import { checkReachable } from '../checkReachable'
+import { unreachableTimedout, setUnreachable } from '../event-unreachable'
+import { RangelistAllowedItem } from '../types'
+import { MessageType } from '..'
+import { getServerAlarmsIPC } from './ranges-entrypoint'
 
 
 
@@ -27,7 +28,7 @@ export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKe
 		console.info(checkServerRanges.name, item.name, 'set unreachable')
 		return;
 	}
-	console.info(checkServerRanges.name, item.name || item.server, 'reachable')
+	// console.info(checkServerRanges.name, item.name || item.server, 'reachable')
 
 	try {
 
@@ -46,10 +47,16 @@ export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKe
 		/** get blocked ranges */
 		const blockedRanges = await getBlockedRanges(key)
 
-		// get current alert state - there should only be 1 alarm for these nodes, but is another situation possible?
-		const alarms = getServerAlarms(item.server)
-
+		/* check existing alarms */
 		console.info(checkServerRanges.name, item.name, 'begin check existing alarms...')
+		// get current alert state - there *should* only be 1 alarm for these nodes
+		const a0 = performance.now()
+		const alarms = await getServerAlarmsIPC(item.server)
+		console.info(checkServerRanges.name, item.name,
+			`req-res IPC for ${Object.keys(alarms).length} alarms`,
+			`in ${Math.floor(performance.now() - a0)}ms.`
+		)
+
 		let anyAlarm = false
 		for (const line of Object.keys(alarms)) {
 			/** check if any alarms "ok" now */
@@ -66,8 +73,11 @@ export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKe
 			if (!alarm) {
 				/** clear alarm */
 				console.info(checkServerRanges.name, item.name, '*** MARKING ALARM OK ***', line)
-				if (existAlertState(item.server) && existAlertStateLine(item.server, line)) {
-					setAlertState({
+
+				/** send the new state back to the main thread */
+				process.send!(<MessageType>{
+					type: 'setState',
+					newState: {
 						server: item.server,
 						serverName: item.name,
 						serverType: 'node',
@@ -76,8 +86,8 @@ export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKe
 							line,
 							endpointType: '/chunk',
 						}
-					})
-				}
+					},
+				})
 			}
 			anyAlarm ||= alarm
 		}//eo alarms lines
@@ -111,17 +121,21 @@ export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKe
 					// process.nextTick(() => doubleCheck(blockedRange, item))
 					console.info(checkServerRanges.name, `${item.name} range not blocked.`, JSON.stringify({ blockedRange, start, end }), 'aborting remaining checks.')
 
-					/* raise an alarm */
-					setAlertState({
-						serverName: item.name,
-						server: item.server,
-						serverType: 'node',
-						details: {
-							status: 'alarm',
-							line: `${blockedRange[0]},${blockedRange[1]}`, //a string is easier as {txid} is just a string
-							endpointType: '/chunk',
+					/* send an alarm to the main thread */
+					process.send!(<MessageType>{
+						type: 'setState',
+						newState: {
+							serverName: item.name,
+							server: item.server,
+							serverType: 'node',
+							details: {
+								status: 'alarm',
+								line: `${blockedRange[0]},${blockedRange[1]}`, //a string is easier as {txid} is just a string
+								endpointType: '/chunk',
+							}
 						}
 					})
+
 					return true;
 				}
 			})
@@ -131,13 +145,14 @@ export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKe
 			}
 			await new Promise(resolve => setTimeout(resolve, 0)) //hack to break up the cpu hogging
 		}
-		console.info(item.name, `checked ${count} dataSyncRecords (${numNotBlocked} not blocked) for overlap in ${(performance.now() - t0).toFixed(0)}ms. matching time ${tMatch.toFixed(0)}ms`)
+		console.info(checkServerRanges.name, item.name, `checked ${count} dataSyncRecords (${numNotBlocked} not blocked) for overlap in ${(performance.now() - t0).toFixed(0)}ms. matching time ${tMatch.toFixed(0)}ms`)
 
 	} catch (e) {
 		/** just set the node as unreachable this time around */
 		setUnreachable(item)
 		const { name, message } = e as Error
 		console.info(checkServerRanges.name, item.name, 'SET UNREACHABLE DURING DSR PROCESSING', `${name}:${message}`)
+		console.error(e)
 	}
 }
 

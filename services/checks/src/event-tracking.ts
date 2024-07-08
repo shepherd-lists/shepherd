@@ -21,7 +21,7 @@ export interface NotBlockEvent {
 	serverType: 'gw' | 'node'
 	details: NotBlockEventDetails
 }
-interface NotBlockStateDetails extends NotBlockEventDetails {
+export interface NotBlockStateDetails extends NotBlockEventDetails {
 	startStamp: number
 	endStamp?: number //make sure to catch first 'ok' event and not overwrite
 	notified: boolean //once "ok" notified, delete state  
