@@ -33,6 +33,7 @@ export type Config = {
 		fetchers: boolean
 		httpApi: boolean
 		webserver: boolean
+		checks: boolean
 	}
 
 }
