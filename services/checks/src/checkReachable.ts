@@ -17,10 +17,12 @@ export const checkReachable = async (url: string) => new Promise<boolean>(resolv
 		resolve(false)
 		req.destroy()
 	})
-	req.setTimeout(2_000, () => {
+	const timeoutHandler = () => {
 		resolve(false)
 		req.destroy() //also calls error but takes some time
-	})
+	}
+	req.setTimeout(2_000, timeoutHandler)
+	req.on('timeout', timeoutHandler)
 	req.end()
 })
 
