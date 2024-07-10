@@ -1,5 +1,4 @@
 import { ByteRange, RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
-import { dataSyncObjectStream } from './ranges-dataSyncRecord'
 import { performance } from 'perf_hooks'
 import { checkReachable } from '../checkReachable'
 import { unreachableTimedout, setUnreachable } from '../event-unreachable'
@@ -33,11 +32,15 @@ export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKe
 	try {
 
 		/* get data_sync_records from particular server */
-		const dsrStream = await dataSyncObjectStream(item.server, 1984)
-		/** This next bit sucks! check all the work i did creating a stream, 
-		 * but now we need these in memory to recheck all again after checking set alarms in a performant manner */
+		const res = await fetch(`http://${item.server}:1984/data_sync_record`, {
+			headers: { 'Content-Type': 'application/json' },
+		})
+		if (!res.ok && res.headers.get('Content-Type') !== 'application/json') {
+			throw new Error(`could not retrieve dsr. status:${res.status}, content-type:${res.headers.get('Content-Type')}`)
+		}
+		const dsrJson = await res.json()
 		const serverRanges: ByteRange[] = []
-		for await (const dsr of dsrStream) {
+		for (const dsr of dsrJson) {
 			/** extract start and end from the single key-value pair from the crazy erlang node data. form: { [endValue: string]: string } */
 			const end = +Object.keys(dsr)[0]
 			const start = +dsr[end]
