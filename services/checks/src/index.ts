@@ -8,6 +8,7 @@ import { ChildProcess, fork } from 'child_process'
 import { NotBlockStateDetails, alertStateCronjob, getServerAlarms } from './event-tracking'
 import { NotBlockEvent, setAlertState } from './event-tracking'
 import { checkFlaggedTxids, checkOwnersTxids } from './txids/txids-entrypoints'
+import { slackLog } from '../../../libs/utils/slackLog'
 
 
 const FLAGGED_INTERVAL = 30_000 // 30 secs 
@@ -71,28 +72,35 @@ for (const c of children) {
 }
 
 const cleanUp = () => {
-	console.info('killing all child processes')
+	slackLog('killing all child processes')
 	children.forEach(child => child.kill())
 }
 
 process.on('SIGINT', () => {
 	console.info('[main] SIGINT received')
 	cleanUp()
+	process.exit(1)
 })
 process.on('SIGTERM', () => {
 	console.info('[main] SIGTERM received')
 	cleanUp()
+	process.exit(1)
 })
 
 /** ensure no orphans are created */
 process.on('exit', (code) => {
 	console.log(`exiting with code ${code}`)
-	// TODO: kill all the child processes here
+	cleanUp()
 })
 process.on('uncaughtException', (e, origin) => {
 	// !!! "It is not safe to resume normal operation after 'uncaughtException'." !!!
-	console.error('uncaught exception', e, origin)
+	slackLog('[main] uncaught exception', JSON.stringify({ e, origin }))
 	cleanUp()
 
 	throw e;
+})
+process.on('unhandledRejection', (reason, promise) => {
+	slackLog('unhandled rejection at:', JSON.stringify({ promise, reason }))
+	cleanUp()
+	process.exit(7)
 })
