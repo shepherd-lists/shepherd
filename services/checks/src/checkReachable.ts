@@ -4,7 +4,7 @@ import https from 'https'
 
 export const checkReachable = async (url: string) => new Promise<boolean>(resolve => {
 	const protocol = url.startsWith('https') ? https : http
-	const req = protocol.request(url, { method: 'HEAD' },
+	const req = protocol.request(url, { method: 'HEAD', timeout: 10_000 },
 		res => {
 			const { statusCode, statusMessage } = res
 			if (statusCode !== 200) console.info(`${url} ${statusCode} ${statusMessage}`)
