@@ -16,17 +16,6 @@ const OWNERS_INTERVAL = 300_000 // 5 mins N.B. owners will be large and take hou
 const DNSR_INTERVAL = 600_000 // 10 mins
 
 
-/** main entrypoints */
-
-setInterval(checkFlaggedTxids, FLAGGED_INTERVAL)
-setInterval(checkOwnersTxids, OWNERS_INTERVAL)
-checkOwnersTxids() //start early
-
-
-
-/** cron for alarm state */
-setInterval(alertStateCronjob, 10_000)
-
 
 
 /** we're gonna fork all these tasks into a separate processes */
@@ -104,3 +93,15 @@ process.on('unhandledRejection', (reason, promise) => {
 	cleanUp()
 	process.exit(7)
 })
+
+
+/** txid & alarm entrypoints after process event handlers */
+
+setInterval(checkFlaggedTxids, FLAGGED_INTERVAL)
+setInterval(checkOwnersTxids, OWNERS_INTERVAL)
+checkOwnersTxids() //start early
+
+
+
+/** cron for alarm state */
+setInterval(alertStateCronjob, 10_000)

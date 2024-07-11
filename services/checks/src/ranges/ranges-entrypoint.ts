@@ -7,40 +7,6 @@ import { slackLog } from "../../../../libs/utils/slackLog"
 
 
 
-/* load the access lists */
-const rangeItems: RangelistAllowedItem[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
-console.info({ rangeItems })
-
-/* semaphore to prevent overlapping runs */
-let _running: { [key: string]: boolean } = {}
-
-/**
- * range checks. relatively uncomplicated to run.
- */
-const checkRanges = async () => {
-	/** short-circuit */
-	if (rangeItems.length === 0) {
-		console.info(checkRanges.name, 'no range check items configured, exiting.')
-		return
-	}
-
-	if (_running['rangechecks']) {
-		console.info(checkRanges.name, `already running. exiting.`)
-		return
-	}
-	_running['rangechecks'] = true
-	console.info(checkRanges.name, `starting cronjob...`, JSON.stringify({ rangeItems, _running }))
-	const d0 = Date.now()
-	try {
-
-		await Promise.all(rangeItems.map(async item => checkServerRanges(item)))
-
-	} finally {
-		delete _running['rangechecks']
-	}
-	console.info(checkRanges.name, `finished in ${(Date.now() - d0).toLocaleString()} ms`, { _running })
-}
-
 /** let the main thread know there's a problem */
 process.on('uncaughtException', (e, origin) => {
 	console.error('[ranges] uncaughtException', e)
@@ -90,6 +56,41 @@ export const getServerAlarmsIPC = (server: string): Promise<{ [line: string]: No
 	})
 }
 
+/** ! ensure entrypoints run after process.on handlers are setup ! */
+
+/* load the access lists */
+const rangeItems: RangelistAllowedItem[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
+console.info({ rangeItems })
+
+/* semaphore to prevent overlapping runs */
+let _running: { [key: string]: boolean } = {}
+
+/**
+ * range checks. relatively uncomplicated to run.
+ */
+const checkRanges = async () => {
+	/** short-circuit */
+	if (rangeItems.length === 0) {
+		console.info(checkRanges.name, 'no range check items configured, exiting.')
+		return
+	}
+
+	if (_running['rangechecks']) {
+		console.info(checkRanges.name, `already running. exiting.`)
+		return
+	}
+	_running['rangechecks'] = true
+	console.info(checkRanges.name, `starting cronjob...`, JSON.stringify({ rangeItems, _running }))
+	const d0 = Date.now()
+	try {
+
+		await Promise.all(rangeItems.map(async item => checkServerRanges(item)))
+
+	} finally {
+		delete _running['rangechecks']
+	}
+	console.info(checkRanges.name, `finished in ${(Date.now() - d0).toLocaleString()} ms`, { _running })
+}
 
 /** run the task */
 const RANGES_INTERVAL = 60_000 // 1 min
