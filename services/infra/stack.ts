@@ -75,8 +75,8 @@ export class ServicesStack extends cdk.Stack {
 		/* feeder service */
 		if(config.services.feeder){
 			const feeder = createService('feeder', { stack, cluster, logGroup }, {
-				cpu: 2048,
-				memoryLimitMiB: 8192,
+				cpu: 1024,
+				memoryLimitMiB: 2048,
 			}, {
 				DB_HOST: rdsEndpoint,
 				SLACK_WEBHOOK: config.slack_webhook!,
@@ -92,7 +92,7 @@ export class ServicesStack extends cdk.Stack {
 		if(config.services.fetchers){
 			const fetchers = createService('fetchers', { stack, cluster, logGroup }, {
 				cpu: 1024,
-				memoryLimitMiB: 4096,
+				memoryLimitMiB: 2048,
 			}, {
 				DB_HOST: rdsEndpoint,
 				SLACK_WEBHOOK: config.slack_webhook!,
