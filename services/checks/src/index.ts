@@ -101,7 +101,5 @@ setInterval(checkFlaggedTxids, FLAGGED_INTERVAL)
 setInterval(checkOwnersTxids, OWNERS_INTERVAL)
 checkOwnersTxids() //start early
 
-
-
 /** cron for alarm state */
-setInterval(alertStateCronjob, 10_000)
+setInterval(alertStateCronjob, 10_000) 
