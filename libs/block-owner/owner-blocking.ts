@@ -152,24 +152,13 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 	}
 	const counts = { page: 0, items: 0, inserts: 0 }
 
-	while (hasNextPage) {
-		let nextPage = { hasNextPage: false }
-		let page: GQLEdgeInterface[] = []
-		try {
-			const { edges, pageInfo } = (await gql.run(
-				query,
-				{ ...variables, cursor }
-			)).data.transactions
-			page = edges
-			nextPage = pageInfo
-
-
-			if (page && page.length) {
-				cursor = page[page.length - 1]!.cursor
-
+	const promises: Promise<void>[] = []
+	const lambdaRetry = async (page: GQLEdgeInterface[], pageNumber: number) => {
+		while (true) {
+			try {
 				const res = await lambdaClient.send(new InvokeCommand({
 					FunctionName: process.env.FN_OWNER_BLOCKING as string,
-					Payload: JSON.stringify({ page, pageNumber: counts.page }),
+					Payload: JSON.stringify({ page, pageNumber }),
 					InvocationType: 'RequestResponse',
 				}))
 				if (res.FunctionError) {
@@ -181,14 +170,38 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 
 				const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
 				counts.inserts += lambdaCounts.total
+				break;
+			} catch (err: unknown) {
+				console.debug(blockOwnerHistory.name, err)
+				const e = err as Error
+				slackLog(blockOwnerHistory.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
+				await sleep(10_000)
+				continue;
 			}
+		}
+	}
+
+	while (hasNextPage) {
+		let nextPage = { hasNextPage: false }
+		let page: GQLEdgeInterface[] = []
+		try {
+			const { edges, pageInfo } = (await gql.run(
+				query,
+				{ ...variables, cursor }
+			)).data.transactions
+			page = edges
+			nextPage = pageInfo
+
+			if (page && page.length) {
+				cursor = page[page.length - 1]!.cursor
+
+				promises.push(lambdaRetry(page, counts.page))
+			}
+
 		} catch (err: unknown) {
 			console.debug(blockOwnerHistory.name, err)
 			const e = err as Error
-			if (typeof e.cause === 'number' && e.cause >= 500)
-				await slackLog(blockOwnerHistory.name, `GQL ERROR ${e.name}:${e.message} (http ${e.cause}) retrying after 10 seconds`, e)
-			else
-				await slackLog(blockOwnerHistory.name, `LAMBDA ERROR (MAYBE) ${e.name}:${e.message} (http? ${e.cause}) retrying after 10 seconds`, JSON.stringify(e))
+			slackLog(blockOwnerHistory.name, `GQL ERROR ${e.name}:${e.message} (http ${e.cause}) retrying after 10 seconds`, e)
 			await sleep(10_000)
 			continue;
 		}
@@ -198,6 +211,8 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 		hasNextPage = nextPage.hasNextPage
 		counts.items += page.length
 	}//EO paging-loop
+
+	await Promise.all(promises)
 
 
 	/** update owner_list status, if no error thrown above */
