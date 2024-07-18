@@ -170,6 +170,8 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 
 				const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
 				counts.inserts += lambdaCounts.total
+
+				console.info(blockOwnerHistory.name, owner, 'processed page', pageNumber)
 				break;
 			} catch (err: unknown) {
 				console.debug(blockOwnerHistory.name, err)
@@ -207,7 +209,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 		}
 
 		/** put counters at end to avoid double counts on errors */
-		console.info(blockOwnerHistory.name, owner, 'processed page', counts.page++)
+		counts.page++
 		hasNextPage = nextPage.hasNextPage
 		counts.items += page.length
 	}//EO paging-loop
