@@ -204,7 +204,7 @@ export const dataStream = async(txid: string, dbMime: string)=> {
 				incoming.emit('error', new Error(NO_DATA)) //signal consumers to abort
 				//clean up and mark bad txid
 				await dbNoDataFound(txid)
-			}else if(received < 125n){
+			}else if(received < 1000n){
 				logger(dataStream.name, 'NEGLIGIBLE_DATA, PARTIAL detected. length', received, txid)
 				const NEGLIGIBLE_DATA: FetchersStatus = 'NEGLIGIBLE_DATA'
 				await dbNegligibleData(txid)
