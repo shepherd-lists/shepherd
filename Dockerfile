@@ -1,4 +1,4 @@
-FROM node:20-slim as base
+FROM node:20-slim AS base
 
 # turn off the nuisance nodejs update message 
 ARG NO_UPDATE_NOTIFIER=true
@@ -14,7 +14,7 @@ COPY ./libs ./libs
 WORKDIR /app/libs
 RUN npm ci --omit=dev
 
-FROM base as indexer-next
+FROM base AS indexer-next
 ARG targetArg # same value as target
 WORKDIR /app/services/${targetArg}
 # need same folder depth
@@ -25,7 +25,7 @@ COPY ./services/${targetArg}/src ./src
 RUN npx tsc --noEmit
 ENTRYPOINT npx tsx ./src/index.ts
 
-FROM base as webserver-next
+FROM base AS webserver-next
 ARG targetArg 
 WORKDIR /app/services/${targetArg}
 COPY services/${targetArg}/package*.json ./
@@ -34,7 +34,7 @@ COPY ./services/${targetArg}/src ./src
 RUN npx tsc --noEmit
 ENTRYPOINT npx tsx ./src/index.ts
 
-FROM base as http-api
+FROM base AS http-api
 ARG targetArg 
 WORKDIR /app/services/${targetArg}
 COPY services/${targetArg}/package*.json ./
@@ -43,7 +43,7 @@ COPY ./services/${targetArg}/src ./src
 RUN npx tsc --noEmit
 ENTRYPOINT npx tsx ./src/index.ts
 
-FROM base as checks
+FROM base AS checks
 ARG targetArg 
 WORKDIR /app/services/${targetArg}
 COPY services/${targetArg}/package*.json ./
@@ -52,6 +52,6 @@ COPY ./services/${targetArg}/src ./src
 RUN npx tsc --noEmit
 ENTRYPOINT npx tsx ./src/index.ts
 
-FROM node:20-slim as test
+FROM node:20-slim AS test
 WORKDIR /test
 COPY . .
