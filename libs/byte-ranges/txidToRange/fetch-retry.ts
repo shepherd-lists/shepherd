@@ -1,4 +1,5 @@
 import { slackLog } from '../../utils/slackLog'
+import { HOST_URL, hostUrlRateLimited } from './constants-byteRange'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -10,20 +11,25 @@ const retryMs = 10_000
  *
  * N.B. this only catches initial connection errors. it's not actually very useful
  */
-export const fetchRetryConnection = async (url: string) => {
+export const fetchRetryConnection = async (path: string) => {
 	let res: Response | null = null
 	let aborter: AbortController | null = null
 	let connErrCount = 0
 	while (true) {
 		try {
 			aborter = new AbortController()
-			res = await fetch(url, { signal: aborter.signal })
+			res = await fetch(HOST_URL + path, { signal: aborter.signal })
 
 			const { status, statusText } = res
 
 			if (status === 404) return { res } //if the data isn't there it isn't there. bad data_root?
+			if (status === 429) {
+				console.log(fetchRetryConnection.name, `Error ${status} bad server response '${statusText}' for '${HOST_URL + path}'. switching host...`)
+				hostUrlRateLimited(HOST_URL)
+				continue
+			}
 			if (status >= 400) {
-				console.log(fetchRetryConnection.name, `Error ${status} bad server response '${statusText}' for ${url} . retrying in ${retryMs} ms...`)
+				console.log(fetchRetryConnection.name, `Error ${status} bad server response '${statusText}' for ${HOST_URL + path} . retrying in ${retryMs} ms...`)
 				await sleep(retryMs)
 				continue
 			}
@@ -37,11 +43,11 @@ export const fetchRetryConnection = async (url: string) => {
 			connErrCount++
 			const limit = 3
 			if (connErrCount > limit) {
-				slackLog(fetchRetryConnection.name, `Error for '${url}'. Already retried ${limit} times. Giving up. ${e.name}:${e.message}`)
+				slackLog(fetchRetryConnection.name, `Error for '${HOST_URL + path}'. Already retried ${limit} times. Giving up. ${e.name}:${e.message}`)
 				throw new Error(`${fetchRetryConnection.name} giving up after ${limit} retries. ${e.message}`)
 			}
 			//retry all of these connection errors
-			console.log(fetchRetryConnection.name, `Error for '${url}'. ${e.name}:${e.message}. Retrying in ${retryMs} ms...`)
+			console.log(fetchRetryConnection.name, `Error for '${HOST_URL + path}'. ${e.name}:${e.message}. Retrying in ${retryMs} ms...`)
 			console.log(e)
 			//clean up any stream resources
 			aborter?.abort()
@@ -53,16 +59,21 @@ export const fetchRetryConnection = async (url: string) => {
 	}
 }
 
-export const fetchFullRetried = async (url: string, type: ('json' | 'arraybuffer') = 'json') => {
+export const fetchFullRetried = async (path: string, type: ('json' | 'arraybuffer') = 'json') => {
 	while (true) {
 		try {
-			const res = await fetch(url,)
+			const res = await fetch(HOST_URL + path,)
 
 			const { status, statusText } = res
 
 			if (status === 404) return { status } //if the data isn't there it isn't there. bad data_root?
+			if (status === 429) {
+				console.log(fetchFullRetried.name, `Error ${status} bad server response '${statusText}' for '${HOST_URL + path}'. switching host...`)
+				hostUrlRateLimited(HOST_URL)
+				continue
+			}
 			if (status >= 400) {
-				console.log(fetchFullRetried.name, `Error ${status} bad server response '${statusText}' for '${url}'. retrying in ${retryMs} ms...`)
+				console.log(fetchFullRetried.name, `Error ${status} bad server response '${statusText}' for '${HOST_URL + path}'. retrying in ${retryMs} ms...`)
 				await sleep(retryMs)
 				continue
 			}
@@ -79,7 +90,7 @@ export const fetchFullRetried = async (url: string, type: ('json' | 'arraybuffer
 		} catch (err: unknown) {
 			const e = err as Error
 			//retry all of these connection errors
-			console.log(fetchFullRetried.name, `Error for '${url}'. Retrying in ${retryMs} ms...`)
+			console.log(fetchFullRetried.name, `Error for '${HOST_URL + path}'. Retrying in ${retryMs} ms...`)
 			console.log(e)
 			await sleep(retryMs)
 		}

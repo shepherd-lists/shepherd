@@ -1,5 +1,4 @@
-import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, } from './constants-byteRange'
-import { HOST_URL, GQL_URL_SECONDARY, GQL_URL } from './constants-byteRange'
+import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, hostUrlRateLimited, HOST_URL, GQL_URL_SECONDARY, GQL_URL } from './constants-byteRange'
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
 import moize from 'moize'
@@ -217,6 +216,10 @@ const fetchRetryOffset = moize(async (id: string) => {
 			const res = await fetch(url)
 
 			if (res.status === 404) throw new Error('404')
+			if (res.status === 429) {
+				hostUrlRateLimited(HOST_URL)
+				continue;
+			}
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
 
 			return await res.json() as { offset: string, size: string }
