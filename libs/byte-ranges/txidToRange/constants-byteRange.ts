@@ -14,9 +14,11 @@ if (!GQL_URL) throw new Error(`Missing env var, GQL_URL:${GQL_URL}`)
 
 export let HOST_URL = 'https://arweave.net'
 
-const gwUrls: string[] = [
+const gwUrls: `https://${string}`[] = [
 	'https://arweave.net',
-	'https://ar-io.net',
+	// 'https://ar-io.net', //it's arweave.net
+	'https://permagate.io',
+	'https://vilenarios.com',
 ]
 let index = 0
 const getNext = () => {
