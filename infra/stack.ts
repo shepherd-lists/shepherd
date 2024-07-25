@@ -1,4 +1,4 @@
-import { App, Stack, aws_ec2, aws_ecs, aws_elasticloadbalancingv2, aws_elasticloadbalancingv2_targets, aws_iam, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
+import { App, Duration, Stack, aws_ec2, aws_ecs, aws_elasticloadbalancingv2, aws_iam, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
 import { Config } from '../../../Config'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { createAddonService } from './createService'
@@ -57,6 +57,7 @@ export const createStack = async (app: App, config: Config) => {
 		securityGroups: [sgPgdb],
 		logGroup: logGroupServices,
 		memorySize: 256,
+		timeout: Duration.minutes(5),
 		environment: {
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: config.slack_webhook!,
