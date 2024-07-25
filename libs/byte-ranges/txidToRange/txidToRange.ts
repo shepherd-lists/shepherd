@@ -217,7 +217,9 @@ const fetchRetryOffset = moize(async (id: string) => {
 
 			if (res.status === 404) throw new Error('404')
 			if (res.status === 429) {
-				hostUrlRateLimited(HOST_URL)
+				console.error(fetchRetryOffset.name, `Error 429 : "${HOST_URL}/tx/${id}/offset". switching host...`)
+				const current = HOST_URL
+				hostUrlRateLimited(current)
 				continue;
 			}
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)

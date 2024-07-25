@@ -24,8 +24,9 @@ export const fetchRetryConnection = async (path: string) => {
 
 			if (status === 404) return { res } //if the data isn't there it isn't there. bad data_root?
 			if (status === 429) {
-				console.log(fetchRetryConnection.name, `Error ${status} bad server response '${statusText}' for '${HOST_URL + path}'. switching host...`)
-				hostUrlRateLimited(HOST_URL)
+				console.error(fetchRetryConnection.name, `Error ${status} bad server response '${statusText}' for '${HOST_URL + path}'. switching host...`)
+				const current = HOST_URL
+				hostUrlRateLimited(current)
 				continue
 			}
 			if (status >= 400) {
@@ -68,8 +69,9 @@ export const fetchFullRetried = async (path: string, type: ('json' | 'arraybuffe
 
 			if (status === 404) return { status } //if the data isn't there it isn't there. bad data_root?
 			if (status === 429) {
-				console.log(fetchFullRetried.name, `Error ${status} bad server response '${statusText}' for '${HOST_URL + path}'. switching host...`)
-				hostUrlRateLimited(HOST_URL)
+				console.error(fetchFullRetried.name, `Error ${status} bad server response '${statusText}' for '${HOST_URL + path}'. switching host...`)
+				const current = HOST_URL
+				hostUrlRateLimited(current)
 				continue
 			}
 			if (status >= 400) {
