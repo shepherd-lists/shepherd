@@ -7,7 +7,9 @@ import { slackLog } from '../utils/slackLog'
 import { readBlockOwnerQueue, updateBlockOwnerQueue } from '../utils/ssmParameters'
 import { ownerTotalCount } from './owner-totalCount'
 import { OwnersListRecord } from '../../types'
+import plimit from 'p-limit'
 
+const limit = plimit(10) //concurrency limit for adding lambdas
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -197,7 +199,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 			if (page && page.length) {
 				cursor = page[page.length - 1]!.cursor
 
-				promises.push(lambdaRetry(page, counts.page))
+				promises.push(limit(() => lambdaRetry(page, counts.page)))
 			}
 
 		} catch (err: unknown) {
