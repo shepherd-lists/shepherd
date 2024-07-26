@@ -167,7 +167,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 					let payloadMsg = ''
 					try { payloadMsg = new TextDecoder().decode(res.Payload) }
 					catch (e) { payloadMsg = 'error decoding Payload with res.FunctionError' }
-					throw new Error(`Lambda error for ${owner}: ${res.FunctionError}, payload: ${payloadMsg}`, { cause: res })
+					throw new Error(`Lambda error '${res.FunctionError}' for ${JSON.stringify({ owner, pageNumber })}, payload: ${payloadMsg}`)
 				}
 
 				const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
