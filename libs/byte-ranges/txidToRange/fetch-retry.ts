@@ -1,5 +1,5 @@
 import { slackLog } from '../../utils/slackLog'
-import { HOST_URL, hostUrlRateLimited } from './constants-byteRange'
+import { HOST_URL } from './constants-byteRange'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -23,12 +23,6 @@ export const fetchRetryConnection = async (path: string) => {
 			const { status, statusText } = res
 
 			if (status === 404) return { res } //if the data isn't there it isn't there. bad data_root?
-			if (status === 429) {
-				console.error(fetchRetryConnection.name, `Error ${status} bad server response '${statusText}' for '${HOST_URL + path}'. switching host...`)
-				const current = HOST_URL
-				hostUrlRateLimited(current)
-				continue
-			}
 			if (status >= 400) {
 				console.log(fetchRetryConnection.name, `Error ${status} bad server response '${statusText}' for ${HOST_URL + path} . retrying in ${retryMs} ms...`)
 				await sleep(retryMs)
@@ -62,20 +56,15 @@ export const fetchRetryConnection = async (path: string) => {
 
 export const fetchFullRetried = async (path: string, type: ('json' | 'arraybuffer') = 'json') => {
 	while (true) {
+		const url = HOST_URL + path
 		try {
-			const res = await fetch(HOST_URL + path,)
+			const res = await fetch(url)
 
 			const { status, statusText } = res
 
 			if (status === 404) return { status } //if the data isn't there it isn't there. bad data_root?
-			if (status === 429) {
-				console.error(fetchFullRetried.name, `Error ${status} bad server response '${statusText}' for '${HOST_URL + path}'. switching host...`)
-				const current = HOST_URL
-				hostUrlRateLimited(current)
-				continue
-			}
 			if (status >= 400) {
-				console.log(fetchFullRetried.name, `Error ${status} bad server response '${statusText}' for '${HOST_URL + path}'. retrying in ${retryMs} ms...`)
+				console.log(fetchFullRetried.name, `Error ${status} bad server response '${statusText}' for '${url}'. retrying in ${retryMs} ms...`)
 				await sleep(retryMs)
 				continue
 			}
@@ -92,7 +81,7 @@ export const fetchFullRetried = async (path: string, type: ('json' | 'arraybuffe
 		} catch (err: unknown) {
 			const e = err as Error
 			//retry all of these connection errors
-			console.log(fetchFullRetried.name, `Error for '${HOST_URL + path}'. Retrying in ${retryMs} ms...`)
+			console.log(fetchFullRetried.name, `Error for '${url}'. Retrying in ${retryMs} ms...`)
 			console.log(e)
 			await sleep(retryMs)
 		}
