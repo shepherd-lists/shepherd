@@ -5,25 +5,9 @@ export const CHUNK_SIZE = 262144n //256kb
 export const HOST_URL = process.env.HOST_URL!
 export const GQL_URL_SECONDARY = process.env.GQL_URL_SECONDARY!
 export const GQL_URL = process.env.GQL_URL!
-const http_api_nodes = (JSON.parse(process.env.http_api_nodes!) as Config['http_api_nodes']).map(n => ({ ...n, url: `http://${n.name}:1984` }))
+export const http_api_nodes = (JSON.parse(process.env.http_api_nodes!) as Config['http_api_nodes']).map(n => ({ ...n, url: `http://${n.name}:1984` }))
 if (!HOST_URL) throw new Error(`Missing env var, HOST_URL:${HOST_URL}`)
 if (!GQL_URL_SECONDARY) throw new Error(`Missing env var, GQL_URL_SECONDARY:${GQL_URL_SECONDARY}`)
 if (!GQL_URL) throw new Error(`Missing env var, GQL_URL:${GQL_URL}`)
 if (!http_api_nodes) throw new Error(`Missing env var, http_api_nodes:${http_api_nodes}`)
-
-
-/** 
- * do some switching and allow fallback
-*/
-export const http_api_nodes_length = http_api_nodes.length
-let index = 0
-export const nodeApiUrl = (fallback = false) => {
-	if (fallback) return HOST_URL
-
-	index++
-	if (index >= http_api_nodes.length) {
-		index = 0
-	}
-	return http_api_nodes[index].url
-}
 

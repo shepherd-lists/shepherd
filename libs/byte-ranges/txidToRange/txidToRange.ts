@@ -1,4 +1,4 @@
-import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, hostUrlRateLimited, HOST_URL, GQL_URL_SECONDARY, GQL_URL } from './constants-byteRange'
+import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, HOST_URL, GQL_URL_SECONDARY, GQL_URL, http_api_nodes } from './constants-byteRange'
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
 import moize from 'moize'
@@ -7,7 +7,8 @@ import { slackLog } from '../../utils/slackLog'
 import { gqlTx } from '../gqlTx'
 
 
-if (!HOST_URL) throw new Error(`Missing env var, HOST_URL:${HOST_URL}`)
+if (!HOST_URL) throw new Error('Missing HOST_URL')
+if (!http_api_nodes) throw new Error('Missing http_api_nodes')
 
 /**
  *
@@ -207,35 +208,40 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 	}
 }
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+/* randomly splice node urls from the list */
+function* hostUrls() {
+	const nodes = [...http_api_nodes]
+	while (nodes.length) {
+		const iRnd = Math.floor(Math.random() * nodes.length)
+		yield nodes.splice(iRnd, 1)[0].url
+	}
+}
+
 const fetchRetryOffset = moize(async (id: string) => {
-	while (true) {
+
+	for (const node of hostUrls()) {
+		const url = `${node}/tx/${id}/offset`
 		try {
-			const url = `${HOST_URL}/tx/${id}/offset`
 			console.info(fetchRetryOffset.name, `unmemoized fetch('${url}')`)
 			const res = await fetch(url)
 
-			if (res.status === 404) throw new Error('404')
-			if (res.status === 429) {
-				console.error(fetchRetryOffset.name, `Error 429 : "${HOST_URL}/tx/${id}/offset". switching host...`)
-				const current = HOST_URL
-				hostUrlRateLimited(current)
-				continue;
-			}
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
 
 			return await res.json() as { offset: string, size: string }
-
 		} catch (err: unknown) {
 			const e = err as Error
-			//no point retrying 404 errors?
-			if (e.message === '404') {
-				console.error(fetchRetryOffset.name, `Error 404 fetching offset for '${id}' Not retrying.`, e.name, e.message, '. child-id')
-				throw e
-			}
-			console.error(fetchRetryOffset.name, `Warning: Error fetching byte-range data with '${id}' Retrying in 10secs..`, e.name, e.message)
-			await sleep(10_000)
+			console.error(fetchRetryOffset.name, `${e.name}:${e.message}, fetching byte-range data with '${url}}'. Will retry with another node.`, e.cause)
 		}
 	}
+
+	/* all nodes exhausted, fallback to GW */
+
+	const url = `${HOST_URL}/tx/${id}/offset`
+	const res = await fetch(url)
+
+	if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+
+	return await res.json() as { offset: string, size: string }
+
 }, { maxSize: 1000, isPromise: true })
 
