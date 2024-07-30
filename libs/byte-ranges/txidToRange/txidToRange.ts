@@ -213,18 +213,30 @@ function* hostUrls() {
 	const nodes = [...http_api_nodes]
 	while (nodes.length) {
 		const iRnd = Math.floor(Math.random() * nodes.length)
-		yield nodes.splice(iRnd, 1)[0].url
+		yield nodes.splice(iRnd, 1)[0]
 	}
 }
 
 const fetchRetryOffset = moize(async (id: string) => {
 
 	for (const node of hostUrls()) {
-		const url = `${node}/tx/${id}/offset`
+		if (node.throttled) {
+			if (node.throttled - Date.now() > 0) {
+				continue
+			} else {
+				delete node['throttled']
+			}
+		}
+
+		const url = `${node.url}/tx/${id}/offset`
 		try {
 			console.info(fetchRetryOffset.name, `unmemoized fetch('${url}')`)
 			const res = await fetch(url)
 
+			if (res.status === 429) {
+				node.throttled = Date.now() + 30_000
+				throw new Error(`HTTP ${res.status} ${res.statusText}`)
+			}
 			if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
 
 			return await res.json() as { offset: string, size: string }
@@ -237,6 +249,7 @@ const fetchRetryOffset = moize(async (id: string) => {
 	/* all nodes exhausted, fallback to GW */
 
 	const url = `${HOST_URL}/tx/${id}/offset`
+	console.info(fetchRetryOffset.name, `unmemoized fetch('${url}') fallback`)
 	try {
 		const res = await fetch(url)
 
