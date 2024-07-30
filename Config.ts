@@ -23,6 +23,11 @@ export type Config = {
 	/* ranges whitelist ips for nodes */
 	ranges_whitelist: Array<{ name: string, server: string }>
 
+	/* arweave nodes for http api retrieval (fallback host_url).
+	 * N.B. name must be a FQDN (hostname)
+	 */
+	http_api_nodes: Array<{ name: string, server: string }>
+
 	/* gateways to check for blocked data */
 	gw_urls?: Array<string>
 
