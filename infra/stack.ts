@@ -1,4 +1,4 @@
-import { App, Stack, aws_ec2, aws_ecs, aws_elasticloadbalancingv2, aws_elasticloadbalancingv2_targets, aws_iam, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
+import { App, Duration, Stack, aws_ec2, aws_ecs, aws_elasticloadbalancingv2, aws_iam, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
 import { Config } from '../../../Config'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { createAddonService } from './createService'
@@ -57,12 +57,14 @@ export const createStack = async (app: App, config: Config) => {
 		securityGroups: [sgPgdb],
 		logGroup: logGroupServices,
 		memorySize: 256,
+		timeout: Duration.minutes(5),
 		environment: {
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: config.slack_webhook!,
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			HOST_URL: config.host_url || 'https://arweave.net',
+			http_api_nodes: JSON.stringify(config.http_api_nodes),
 		},
 	})
 
@@ -134,6 +136,7 @@ export const createStack = async (app: App, config: Config) => {
 			BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
 			RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
 			GW_URLS: JSON.stringify(config.gw_urls) || '',
+			http_api_nodes: JSON.stringify(config.http_api_nodes), //remove at some point
 		}
 	})
 	webserver.taskDefinition.defaultContainer!.addPortMappings({ containerPort: 80 })
@@ -200,6 +203,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
+			http_api_nodes: JSON.stringify(config.http_api_nodes),
 		}
 	})
 	httpApi.connections.securityGroups[0].addIngressRule(

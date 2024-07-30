@@ -7,7 +7,9 @@ import { slackLog } from '../utils/slackLog'
 import { readBlockOwnerQueue, updateBlockOwnerQueue } from '../utils/ssmParameters'
 import { ownerTotalCount } from './owner-totalCount'
 import { OwnersListRecord } from '../../types'
+import plimit from 'p-limit'
 
+const limit = plimit(10) //concurrency limit for adding lambdas
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -165,7 +167,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 					let payloadMsg = ''
 					try { payloadMsg = new TextDecoder().decode(res.Payload) }
 					catch (e) { payloadMsg = 'error decoding Payload with res.FunctionError' }
-					throw new Error(`Lambda error for ${owner}: ${res.FunctionError}, payload: ${payloadMsg}`, { cause: res })
+					throw new Error(`Lambda error '${res.FunctionError}' for ${JSON.stringify({ owner, pageNumber })}, payload: ${payloadMsg}`)
 				}
 
 				const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
@@ -197,7 +199,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 			if (page && page.length) {
 				cursor = page[page.length - 1]!.cursor
 
-				promises.push(lambdaRetry(page, counts.page))
+				promises.push(limit(() => lambdaRetry(page, counts.page)))
 			}
 
 		} catch (err: unknown) {

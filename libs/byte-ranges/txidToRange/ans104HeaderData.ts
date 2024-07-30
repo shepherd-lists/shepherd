@@ -6,7 +6,6 @@
  */
 import Arweave from 'arweave'
 import { fetchRetryConnection } from './fetch-retry'
-import { HOST_URL } from './constants-byteRange'
 import moize from 'moize'
 
 
@@ -57,7 +56,7 @@ const fetchHeader = async (parent: string) => {
 
 			let header = new Uint8Array(0)
 
-			const { aborter, res: { status, body } } = await fetchRetryConnection(`${HOST_URL}/${parent}`)
+			const { aborter, res: { status, body } } = await fetchRetryConnection(`/${parent}`)
 			//pass 404s up
 			if (status === 404) return {
 				status,
