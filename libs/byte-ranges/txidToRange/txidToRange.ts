@@ -237,11 +237,17 @@ const fetchRetryOffset = moize(async (id: string) => {
 	/* all nodes exhausted, fallback to GW */
 
 	const url = `${HOST_URL}/tx/${id}/offset`
-	const res = await fetch(url)
+	try {
+		const res = await fetch(url)
 
-	if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+		if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
 
-	return await res.json() as { offset: string, size: string }
+		return await res.json() as { offset: string, size: string }
+	} catch (e) {
+		const { name, message, cause } = e as Error
+		console.error(fetchRetryOffset.name, `${name}:${message}, fetching byte-range data with '${url}}'. NOT RETRYING.`, cause)
+		throw e;
+	}
 
 }, { maxSize: 1000, isPromise: true })
 
