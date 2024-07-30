@@ -64,6 +64,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			HOST_URL: config.host_url || 'https://arweave.net',
+			http_api_nodes: JSON.stringify(config.http_api_nodes),
 		},
 	})
 
@@ -135,6 +136,7 @@ export const createStack = async (app: App, config: Config) => {
 			BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
 			RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
 			GW_URLS: JSON.stringify(config.gw_urls) || '',
+			http_api_nodes: JSON.stringify(config.http_api_nodes), //remove at some point
 		}
 	})
 	webserver.taskDefinition.defaultContainer!.addPortMappings({ containerPort: 80 })
@@ -201,6 +203,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
+			http_api_nodes: JSON.stringify(config.http_api_nodes),
 		}
 	})
 	httpApi.connections.securityGroups[0].addIngressRule(
