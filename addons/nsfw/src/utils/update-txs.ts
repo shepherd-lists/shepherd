@@ -54,7 +54,8 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 
 		return txid
 
-	}catch(e:any){
+	}catch(err:unknown){
+		const e = err as Error
 		logger(txid, 'Error posting to http-api', e.name, ':', e.message, JSON.stringify(filterResult), JSON.stringify(e))
 		slackLogger(txid, 'Error posting to http-api (nsfw)', e.name, ':', e.message, JSON.stringify(filterResult))
 		logger(txid, e) // `throw e` does nothing, use the return

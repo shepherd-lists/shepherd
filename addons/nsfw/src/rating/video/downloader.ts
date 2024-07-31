@@ -17,7 +17,7 @@ const downloads = VidDownloads.getInstance()
 export const addToDownloads = async(vid: {txid: string; content_size: string, content_type: string, receiptHandle: string})=> {
 
 	// convert to a new VidDownloadRecord
-	const dl: VidDownloadRecord = Object.assign({	complete: 'FALSE', retried: false }, vid)
+	const dl: VidDownloadRecord & {retried: boolean} = {...vid, complete: 'FALSE', retried: false}
 	downloads.push(dl)
 
 	//ensure this is called async
@@ -36,6 +36,7 @@ export const addToDownloads = async(vid: {txid: string; content_size: string, co
 }
 
 export const videoDownload = async(vid: VidDownloadRecord)=> {
+	// eslint-disable-next-line no-async-promise-executor
 	return new Promise(async(resolve, reject)=> {
 
 		// const url = HOST_URL + '/' + vid.txid
@@ -143,7 +144,8 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				filewriter.close()
 			})
 
-		}catch(e:any){
+		}catch(err:unknown){
+			const e = err as Error & { code?:string; response?: { code?: string }}
 			// if(timer){
 			// 	clearTimeout(timer)
 			// }

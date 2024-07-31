@@ -33,9 +33,10 @@ export const createScreencaps = async(txid: string)=> {
 
 		return frames
 
-	}catch(e: any){
+	}catch(error: unknown){
+		const e = error as Error & { status: number}
 		/* this covers most cases */
-		const errMsg: string = e.message.split(':').pop().trim()
+		const errMsg: string = e.message.split(':').pop()!.trim()
 		const err: FfmpegError = { name: 'FfmpegError', message: errMsg, status: e.status }
 
 		/* throw specific known cases */

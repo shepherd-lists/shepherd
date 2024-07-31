@@ -28,8 +28,8 @@ export const processVids = async()=> {
 
 				frames = await createScreencaps(dl.txid)
 
-			}catch(err: any){
-				const e: FfmpegError = err
+			}catch(err: unknown){
+				const e = err as FfmpegError
 				if(e.message === 'Output file #0 does not contain any stream'){
 					logger(dl.txid, 'ffmpeg: Output file #0 does not contain any stream')
 					corruptDataConfirmed(dl.txid)

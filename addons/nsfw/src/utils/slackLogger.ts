@@ -11,7 +11,7 @@ if(process.env.SLACK_WEBHOOK){
 let _last = { text: 'dummy', time: 0}
 const timeout = 60*60*1000 //1 hour
 
-export const slackLogger = async (...args: any[]) => {
+export const slackLogger = async (...args: unknown[]) => {
 	if(!process.env.SLACK_WEBHOOK){
 		return //silently exit if no slack integration
 	}
@@ -49,7 +49,8 @@ export const slackLogger = async (...args: any[]) => {
 			]
 		})
 		return res
-	}catch(e:any){
+	}catch(err:unknown){
+		const e = err as Error & { code?:string }
 		logger('slackLogger', 'DID NOT WRITE TO SLACK', (e.code)?`${e.code}:`:'', e.message)
 	}
 }

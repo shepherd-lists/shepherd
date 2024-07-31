@@ -1,6 +1,6 @@
 // import col from 'ansi-colors'
 
-export const logger = (...args: any[]) => {
+export const logger = (...args: unknown[]) => {
 	let prefix = '[logger]'
 	if(args.length > 1){
 		prefix = '[' + args[0] + ']'

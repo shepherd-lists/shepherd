@@ -33,7 +33,8 @@ export const axiosDataTimeout = async(url: string)=> {
 
 		return res.data
 
-	}catch(e:any){
+	}catch(err:unknown){
+		const e = err as Error & {response?: object; code?: string}
 		clearTimeout(timer!)
 		if(e.response || e.code){
 			throw (e)
@@ -44,6 +45,7 @@ export const axiosDataTimeout = async(url: string)=> {
 
 //to be used on individual, unbatched urls (the above axiosDataTimeout isn't 100% perfect, so can use below for second pass, for example)
 export const axiosStreamTimeout = async(url: string)=> {
+	// eslint-disable-next-line no-async-promise-executor
 	return new Promise<NodeJS.ReadableStream>( async(resolve, reject) => {
 
 		const returnOut = new PassThrough()
@@ -82,13 +84,13 @@ export const axiosStreamTimeout = async(url: string)=> {
 			// 	return;
 			// })
 
-			stream.on('error', (e: any)=>{
+			stream.on('error', (e)=>{
 				logger('READ STREAM ERROR')
 				returnOut.destroy()
 				reject(e)
 			})
 
-		}catch(e:any){
+		}catch(e:unknown){
 			clearTimeout(timer!)
 			returnOut.destroy()
 			reject(e)

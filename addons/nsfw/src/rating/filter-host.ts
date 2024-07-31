@@ -43,7 +43,8 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		await checkImagePluginResults(pic, mime || contentType, txid)
 
 		return true
-	}catch(e:any){
+	}catch(err:unknown){
+		const e = err as Error
 
 		if(e.message === 'End-Of-Stream'){
 			logger(prefix, 'End-Of-Stream', contentType, txid)

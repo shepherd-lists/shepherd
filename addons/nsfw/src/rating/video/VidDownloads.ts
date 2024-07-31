@@ -9,7 +9,7 @@ export interface VidDownloadRecord  {
 	content_size: string
 	content_type: string
 	receiptHandle: string
-	complete: 'TRUE' | 'FALSE' | 'ERROR' | (string & {})
+	complete: 'TRUE' | 'FALSE' | 'ERROR'
 }
 
 export class VidDownloads implements Iterable<VidDownloadRecord> {

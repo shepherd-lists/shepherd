@@ -24,7 +24,7 @@ const _currentVideos = VidDownloads.getInstance()
 //keep track and set limits based on env inputs
 let _currentTotalSize = 0
 let _currentFileTasks: ReturnType<typeof messageHandler>[] = []
-const _currentImageIds: {[name:string]:any} = {}
+const _currentImageIds: {[name:string]:number} = {}
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -186,7 +186,8 @@ const messageHandler = async (message: SQS.Message) => {
 			let res = false
 			try{
 				res = await checkImageTxid(key, contentType)
-			}catch(e:any){
+			}catch(err:unknown){
+				const e = err as Error
 				if(['RequestTimeTooSkewed', 'NoSuchKey'].includes(e.name)){
 					//this item has spent too much time in the internal queue, another plugin instance has already run `cleanupAfterProcessing`
 					logger(key, `${e.name}:${e.message}. Assuming another instance has run 'cleanupAfterProcessing'.`)
