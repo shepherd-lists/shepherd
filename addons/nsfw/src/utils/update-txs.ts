@@ -88,6 +88,7 @@ export const partialImageFound = async(txid: string)=> {
 
 export const partialVideoFound = async(txid: string)=> {
 	return updateTx(txid,{
+		//@ts-expect-error data_reason doesn't include 'partial-seed'
 		data_reason: 'partial-seed', //check later if fully seeded
 	})
 }

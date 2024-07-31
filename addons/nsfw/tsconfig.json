@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "exclude": ["node_modules", "node16-ffmpeg"],
+  "exclude": [ "node_modules", "node16-ffmpeg", "infra" ],
   "ts-node": {
     "transpileOnly": true,
   }
