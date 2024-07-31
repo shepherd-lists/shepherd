@@ -19,7 +19,7 @@ const main = async()=> {
 		const config = await loadConfig() // this calls the init functions early
 
 		harness()
-		
+
 	}catch(e){
 		logger(prefix, await si.mem())
 		if(e instanceof Error){
@@ -29,6 +29,6 @@ const main = async()=> {
 			logger(prefix, `Unhandled in ${main.name}!\t`, JSON.stringify(e))
 			slackLogger(prefix, `Unhandled in ${main.name}!\t`, JSON.stringify(e))
 		}
-	}	
+	}
 }
 main()

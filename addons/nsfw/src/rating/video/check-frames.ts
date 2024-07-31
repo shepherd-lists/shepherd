@@ -1,6 +1,6 @@
 import fs from 'fs'
 import { logger } from '../../utils/logger'
-import * as FilterHost from "../filter-host"
+import * as FilterHost from '../filter-host'
 import { updateTx } from '../../utils/update-txs'
 
 
@@ -17,9 +17,9 @@ export const checkFrames = async(frames: string[], txid: string)=> {
 
 	let flagged = false
 	let top_score_name, top_score_value
-	
+
 	//loop through caps. break if flagged image found
-	for (const frame of frames) {
+	for(const frame of frames){
 		const pic = fs.readFileSync(frame)
 		const result = await FilterHost.checkImage(pic, 'image/png', txid)
 
@@ -27,20 +27,20 @@ export const checkFrames = async(frames: string[], txid: string)=> {
 			flagged = true
 			top_score_name = result.top_score_name
 			top_score_value = result.top_score_value
-			break;
+			break
 		}
 	}
 	logger(txid, 'video', ((flagged) ? 'flagged' : 'clean'), vidUrl)
 
 	const res = await updateTx(txid,{
 		flagged,
-		...( top_score_name && { 
-			top_score_name, 
+		...( top_score_name && {
+			top_score_name,
 			top_score_value,
 		}),
 	})
-	
-	return res;
+
+	return res
 }
 
 

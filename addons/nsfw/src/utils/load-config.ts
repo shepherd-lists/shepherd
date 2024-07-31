@@ -16,10 +16,11 @@ const config = async()=> {
 		return _config
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-var-requires
 	const jsonConfig = require(`${__dirname}/`+'../../shepherd.config.json')
 	const plugins: FilterPluginInterface[] = []
 
-	for (const installString of jsonConfig.plugins as string[]) {
+	for(const installString of jsonConfig.plugins as string[]){
 
 		/* get package name from install string */
 
@@ -27,9 +28,9 @@ const config = async()=> {
 		const interArr = installString.split('/')
 		let packageName = interArr[interArr.length - 1]
 		if(!packageName) throw new Error('Bad plugin string: ' + installString)
-		
+
 		//remove version detail
-		packageName = packageName.split('@')[0] 
+		packageName = packageName.split('@')[0]
 
 		logger(prefix, `installing '${installString}' shepherd plugin...`)
 		execSync(`npm list ${packageName} || npm install ${installString}`, { stdio: 'inherit'})
@@ -46,7 +47,7 @@ const config = async()=> {
 
 
 		//early model loading
-		plugin.init() 
+		plugin.init()
 	}
 
 	_config = {
@@ -55,4 +56,4 @@ const config = async()=> {
 	}
 	return _config
 }
-export default config;
+export default config

@@ -1,7 +1,7 @@
-import rimraf from "rimraf"
-import { VID_TMPDIR } from "../../constants"
-import { logger } from "../../utils/logger"
-import { cleanupAfterProcessing } from "../../harness"
+import rimraf from 'rimraf'
+import { VID_TMPDIR } from '../../constants'
+import { logger } from '../../utils/logger'
+import { cleanupAfterProcessing } from '../../harness'
 
 
 export interface VidDownloadRecord  {
@@ -13,15 +13,15 @@ export interface VidDownloadRecord  {
 }
 
 export class VidDownloads implements Iterable<VidDownloadRecord> {
-	
+
 	/* singleton boilerplate */
 	private static instance: VidDownloads
-	private constructor(){}
+	private constructor() {}
 	public static getInstance(): VidDownloads {
 		if(!VidDownloads.instance){
 			VidDownloads.instance = new VidDownloads()
 		}
-		return VidDownloads.instance;
+		return VidDownloads.instance
 	}
 
 	/* array we are wrapping */
@@ -31,7 +31,7 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 	public [Symbol.iterator] = ()=> VidDownloads.array[Symbol.iterator]()
 	public length = ()=> VidDownloads.array.length	//it's become a function
 	public push = (vdl: VidDownloadRecord)=> {
-		for (const item of VidDownloads.array) {
+		for(const item of VidDownloads.array){
 			if(vdl.txid === item.txid){
 				throw new Error(`VidDownloadsError: item '${vdl.txid}' already in array.`)
 			}
@@ -49,8 +49,8 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 	}
 
 	public listIds = ()=> {
-		let ids: string[] = []
-		for (const item of this) {
+		const ids: string[] = []
+		for(const item of this){
 			ids.push(item.txid)
 		}
 		return ids

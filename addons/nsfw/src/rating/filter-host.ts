@@ -1,5 +1,5 @@
-import { 
-	corruptDataConfirmed, corruptDataMaybe, oversizedPngFound, partialImageFound, unsupportedMimeType, wrongMimeType, updateTx 
+import {
+	corruptDataConfirmed, corruptDataMaybe, oversizedPngFound, partialImageFound, unsupportedMimeType, wrongMimeType, updateTx
 } from '../utils/update-txs'
 import { getImageMime } from './image-filetype'
 import { logger } from '../utils/logger'
@@ -18,8 +18,8 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 	/* handle all downloading & mimetype problems before sending to FilterPlugins */
 
 	// const url = `${HOST_URL}/${txid}`
-	
-	try {
+
+	try{
 
 		const pic = (await s3.getObject({ Key: txid, Bucket: AWS_INPUT_BUCKET }).promise()).Body as Buffer
 
@@ -30,7 +30,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 			}else{
 				logger(prefix, `image mime-type found to be '${mime}'. will be automatically requeued using:`, contentType, txid)
 				await wrongMimeType(txid, contentType) //shouldn't get here..
-				return true;
+				return true
 			}
 		}else if(!mime.startsWith('image/')){
 			logger(prefix, `image mime-type found to be '${mime}'. updating record; will be automatically requeued. Original:`, contentType, txid)
@@ -42,17 +42,17 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 
 		await checkImagePluginResults(pic, mime || contentType, txid)
 
-		return true;
-	} catch(e:any) {
+		return true
+	}catch(e:any){
 
 		if(e.message === 'End-Of-Stream'){
-			logger(prefix, `End-Of-Stream`, contentType, txid)
+			logger(prefix, 'End-Of-Stream', contentType, txid)
 			await corruptDataConfirmed(txid)
-			return true;
+			return true
 		}
 
 		if(['RequestTimeTooSkewed', 'NoSuchKey'].includes(e.name)){
-			throw e; //bubble up to `harness` handler
+			throw e //bubble up to `harness` handler
 		}
 
 		logger(prefix, 'UNHANDLED Error processing', txid + ' ', e.name, ':', e.message)
@@ -60,7 +60,7 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 		logger(prefix, 'UNHANDLED', txid, e)
 		logger(prefix, await si.mem())
 
-		return false;
+		return false
 	}
 }
 
@@ -79,35 +79,35 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 	if(result.flagged !== undefined){
 		await updateTx(txid, {
 			flagged: result.flagged,
-			...( result.top_score_name && { 
-				top_score_name: result.top_score_name, 
+			...( result.top_score_name && {
+				top_score_name: result.top_score_name,
 				top_score_value: result.top_score_value
 			}),
 		})
 	}else{
-		switch (result.data_reason) {
-			case 'corrupt-maybe':
-				await corruptDataMaybe(txid)
-				break;
-			case 'corrupt':
-				await corruptDataConfirmed(txid)
-				break;
-			case 'oversized':
-				await oversizedPngFound(txid)
-				break;
-			case 'partial':
-				await partialImageFound(txid)
-				break;
-			case 'unsupported':
-				await unsupportedMimeType(txid)
-				break;
-			case 'mimetype':
-				await wrongMimeType(txid, result.err_message!)
-				break;
-		
-			default:
-				logger(prefix, 'UNHANDLED FilterResult', txid)
-				slackLogger(prefix, `UNHANDLED FilterResult:\n` + JSON.stringify(result))
+		switch (result.data_reason){
+		case 'corrupt-maybe':
+			await corruptDataMaybe(txid)
+			break
+		case 'corrupt':
+			await corruptDataConfirmed(txid)
+			break
+		case 'oversized':
+			await oversizedPngFound(txid)
+			break
+		case 'partial':
+			await partialImageFound(txid)
+			break
+		case 'unsupported':
+			await unsupportedMimeType(txid)
+			break
+		case 'mimetype':
+			await wrongMimeType(txid, result.err_message!)
+			break
+
+		default:
+			logger(prefix, 'UNHANDLED FilterResult', txid)
+			slackLogger(prefix, 'UNHANDLED FilterResult:\n' + JSON.stringify(result))
 		}
 	}
 }

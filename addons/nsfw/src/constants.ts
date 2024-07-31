@@ -12,19 +12,19 @@ export const network_EXXX_codes = ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'E
 //docker-compose: HOST_URL: ${HOST_URL:-https://arweave.net}
 
 export const supportedTypes = [
-	"image/bmp",
-	"image/jpeg",
-	"image/png",
-	"image/gif",
+	'image/bmp',
+	'image/jpeg',
+	'image/png',
+	'image/gif',
 ]
 /** @deprecated */
 export const unsupportedTypes = [
-	"image/tiff",
-	"image/webp",
-	"image/x-ms-bmp",
-	"image/svg+xml",
-	"image/apng",
-	"image/heic",
+	'image/tiff',
+	'image/webp',
+	'image/x-ms-bmp',
+	'image/svg+xml',
+	'image/apng',
+	'image/heic',
 ]
 /** @deprecated */
 export const imageTypes = [
@@ -33,16 +33,16 @@ export const imageTypes = [
 ]
 /** @deprecated */
 export const videoTypes = [
-	"video/3gpp",
-	"video/3gpp2",
-	"video/mp2t",
-	"video/mp4",
-	"video/mpeg",
-	"video/ogg",
-	"video/quicktime",
-	"video/webm",
-	"video/x-flv",
-	"video/x-m4v",
-	"video/x-msvideo",
-	"video/x-ms-wmv",
+	'video/3gpp',
+	'video/3gpp2',
+	'video/mp2t',
+	'video/mp4',
+	'video/mpeg',
+	'video/ogg',
+	'video/quicktime',
+	'video/webm',
+	'video/x-flv',
+	'video/x-m4v',
+	'video/x-msvideo',
+	'video/x-ms-wmv',
 ]

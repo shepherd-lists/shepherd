@@ -7,7 +7,7 @@ import { EOL } from 'os'
 
 
 export const createScreencaps = async(txid: string)=> {
-	try {
+	try{
 		const folderpath = VID_TMPDIR + txid + '/'
 		/**
 		 * TODO: Perhaps skipping the first second of video makes sense - depending on the length of video of course - I am thinking fade-ins
@@ -18,13 +18,13 @@ export const createScreencaps = async(txid: string)=> {
 		const command = `ffmpeg -i ${folderpath}${txid} -r 1/6 ${folderpath}${txid}-%03d.png`
 		/* debug*/ console.log(createScreencaps.name, command)
 		execSync(command,{ stdio: 'pipe', maxBuffer: 200*1024*1024 })
-		
-		let list = shelljs.ls(folderpath)
-		let frames: string[] = []
-		for(const fname of list) {
+
+		const list = shelljs.ls(folderpath)
+		const frames: string[] = []
+		for(const fname of list){
 			frames.push(folderpath + fname)
 		}
-		
+
 		if(process.env.NODE_ENV === 'test'){
 			logger(txid, command)
 			logger(txid, frames)
@@ -37,7 +37,7 @@ export const createScreencaps = async(txid: string)=> {
 		/* this covers most cases */
 		const errMsg: string = e.message.split(':').pop().trim()
 		const err: FfmpegError = { name: 'FfmpegError', message: errMsg, status: e.status }
-		
+
 		/* throw specific known cases */
 		if(
 			[
@@ -51,7 +51,7 @@ export const createScreencaps = async(txid: string)=> {
 		}else{
 			logger(txid, 'possibly not throwing:', errMsg)
 		}
-		
+
 		// /* give correct error when there is no video stream in the file */
 		// const hasVideoStream = (e.message as string).match(/Stream #([0-9\:]+)([a-z0-9\(\)\[\]]*): Video/g) ? true : false
 		// if(!hasVideoStream){

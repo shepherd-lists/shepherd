@@ -10,18 +10,18 @@ import { slackLogger } from '../../utils/slackLogger'
 const downloads = VidDownloads.getInstance()
 
 export const processVids = async()=> {
-	
+
 	/* check if any vids finished downloading & process */
 
 	// /* debug */ const items = []
 	// /* debug */ for (const item of downloads) items.push(item)
 	// /* debug */ console.log(processVids.name, { items })
 
-	for (const dl of downloads) {
+	for(const dl of downloads){
 		if(dl.complete === 'TRUE'){
 			dl.complete = 'FALSE' //stop processing from beginning again
 			logger(dl.txid, 'begin processing')
-			
+
 			//create screencaps & handle errors
 			let frames: string[] = []
 			try{
@@ -34,7 +34,7 @@ export const processVids = async()=> {
 					logger(dl.txid, 'ffmpeg: Output file #0 does not contain any stream')
 					corruptDataConfirmed(dl.txid)
 					await downloads.cleanup(dl)
-					continue; //dont checkFrames
+					continue //dont checkFrames
 				}else if(e.message === 'No such file or directory'){
 					//we should not be in createScreencaps if there is no video file
 					throw e
@@ -49,21 +49,21 @@ export const processVids = async()=> {
 					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
 					await corruptDataMaybe(dl.txid)
 					await downloads.cleanup(dl)
-					continue; //dont checkFrames
+					continue //dont checkFrames
 				}else if(
 					[
-						'spawnSync /bin/sh ENOMEM', 
+						'spawnSync /bin/sh ENOMEM',
 						'ffout[1]:Error marking filters as finished',
 					].includes(e.message)
 				){
 					/**
-					 * using local retry on these errors is causing transactions to completely fill up the 
+					 * using local retry on these errors is causing transactions to completely fill up the
 					 * internal queues. better to retry using the SQS queues.
 					 */
 					logger(dl.txid, `${e.name}:${e.message}. Cleaning up and releasing back to SQS queue.`)
 					await inflightDel(dl.txid)
 					await downloads.cleanup(dl)
-					continue; //dont checkFrames
+					continue //dont checkFrames
 				}else{
 					logger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
 					slackLogger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
@@ -77,10 +77,10 @@ export const processVids = async()=> {
 			if(frames.length < 2){
 				logger(dl.txid, 'ERROR: NO FRAMES TO PROCESS!')
 				slackLogger(dl.txid, ' No frames to process!')
-			}else{ 
+			}else{
 				await checkFrames(frames, dl.txid)
 			}
-			
+
 			//delete the temp files
 			await downloads.cleanup(dl)
 		}

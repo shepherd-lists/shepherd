@@ -2,7 +2,7 @@ import { IncomingWebhook } from '@slack/webhook'
 import { logger } from './logger'
 import os from 'os'
 
-console.assert(process.env.SLACK_WEBHOOK, "process.env.SLACK_WEBHOOK is undefined")
+console.assert(process.env.SLACK_WEBHOOK, 'process.env.SLACK_WEBHOOK is undefined')
 let webhook: IncomingWebhook
 if(process.env.SLACK_WEBHOOK){
 	webhook = new IncomingWebhook(process.env.SLACK_WEBHOOK!)
@@ -13,7 +13,7 @@ const timeout = 60*60*1000 //1 hour
 
 export const slackLogger = async (...args: any[]) => {
 	if(!process.env.SLACK_WEBHOOK){
-		return; //silently exit if no slack integration
+		return //silently exit if no slack integration
 	}
 
 	let prefix = os.hostname() + ' 🐐'
@@ -21,30 +21,30 @@ export const slackLogger = async (...args: any[]) => {
 		prefix = '***Ignore these test posts***'
 	}
 
-	let text = args.join(' ')
+	const text = args.join(' ')
 	const time = Date.now()
 
 	if(text === _last.text && (_last.time + timeout) > time ){
-		return;
+		return
 	}
 	_last = { text, time }
 
 	try{
 		const res = await webhook.send({
-			"blocks": [
+			'blocks': [
 				{
-					"type": "section", 
-					"text": {
-						"type": "mrkdwn",
-						"text": `${prefix} *${new Date().toUTCString()}*`,
-					} 
+					'type': 'section',
+					'text': {
+						'type': 'mrkdwn',
+						'text': `${prefix} *${new Date().toUTCString()}*`,
+					}
 				},
 				{
-					"type": "section", 
-					"text": {
-						"type": "mrkdwn",
-						"text": text,
-					} 
+					'type': 'section',
+					'text': {
+						'type': 'mrkdwn',
+						'text': text,
+					}
 				}
 			]
 		})

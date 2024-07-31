@@ -1,5 +1,5 @@
 import { SQS, S3, STS } from 'aws-sdk'
- 
+
 /* exports */
 export { AWSError } from 'aws-sdk'
 
@@ -14,21 +14,21 @@ export const sqs = new SQS({
 
 export const s3 = new S3({
 	apiVersion: '2006-03-01',
-	...(process.env.S3_LOCAL==='yes' && { 
-		endpoint: process.env.S3_LOCAL_ENDPOINT!, 
+	...(process.env.S3_LOCAL==='yes' && {
+		endpoint: process.env.S3_LOCAL_ENDPOINT!,
 		region: 'dummy-value',
 		s3ForcePathStyle: true, // *** needed with minio ***
 	}),
-	maxRetries: 10, 
+	maxRetries: 10,
 })
 
 /* sanity checks */
 
 //env vars
-console.log(`process.env.SQS_LOCAL`, process.env.SQS_LOCAL)
-console.log(`process.env.S3_LOCAL`, process.env.S3_LOCAL)
-console.log(`process.env.AWS_SQS_INPUT_QUEUE`, process.env.AWS_SQS_INPUT_QUEUE)
-console.log(`process.env.AWS_INPUT_BUCKET`, process.env.AWS_INPUT_BUCKET)
+console.log('process.env.SQS_LOCAL', process.env.SQS_LOCAL)
+console.log('process.env.S3_LOCAL', process.env.S3_LOCAL)
+console.log('process.env.AWS_SQS_INPUT_QUEUE', process.env.AWS_SQS_INPUT_QUEUE)
+console.log('process.env.AWS_INPUT_BUCKET', process.env.AWS_INPUT_BUCKET)
 
 //check aws role (dont call locally)
 const checkAwsRole = async () => {
@@ -37,5 +37,5 @@ const checkAwsRole = async () => {
 	console.log(`CALLER IDENTITY: Arn: ${identity.Arn}`)
 }
 process.env.SQS_LOCAL !== 'yes' && checkAwsRole()
-console.log(`sqs.config.endpoint`, sqs.config.endpoint)
-console.log(`s3.config.endpoint`, s3.config.endpoint)
+console.log('sqs.config.endpoint', sqs.config.endpoint)
+console.log('s3.config.endpoint', s3.config.endpoint)
