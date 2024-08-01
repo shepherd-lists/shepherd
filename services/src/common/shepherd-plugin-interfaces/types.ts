@@ -29,6 +29,7 @@ export interface TxRecord extends TxScanned, TxFlaggedOptions {
 		| 'negligible-data'
 		| 'nodata'
 		| 'MalformedXML-data'
+		| 'unmined'
 
 	byteStart?: string	// convert to BigInt
 	byteEnd?: string		// convert to BigInt
