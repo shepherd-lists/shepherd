@@ -1,4 +1,4 @@
-FROM rosmcmahon/node18slim-ffmpeg:multi-arch as base
+FROM rosmcmahon/node18slim-ffmpeg:multi-arch AS base
 
 # create app directory
 WORKDIR /app
@@ -9,7 +9,7 @@ COPY ./tsconfig.json ./tsconfig.json
 COPY ./package*.json ./
 RUN npm ci --omit=dev
 
-FROM base as nsfw
+FROM base AS nsfw
 RUN npm i shepherd-plugin-nsfw
 RUN npm rebuild @tensorflow/tfjs-node --build-from-source
 COPY ./src ./src
@@ -17,7 +17,7 @@ COPY ./shepherd.config.json ./shepherd.config.json
 RUN npm run typecheck
 ENTRYPOINT node -r ts-node/register src/index.ts
 
-FROM base as no-nsfw
+FROM base AS no-nsfw
 COPY ./src ./src
 COPY ./shepherd.config.json ./shepherd.config.json
 RUN npm run typecheck
