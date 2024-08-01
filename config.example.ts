@@ -10,6 +10,9 @@ export const config: Config = {
 
 	txids_whitelist: [],
 
+	/* required for performing weave range calculations, fallback is host_url */
+	http_api_nodes: [],
+
 	ranges_whitelist: [],
 
 	services: {
@@ -18,6 +21,7 @@ export const config: Config = {
 		fetchers: true,
 		httpApi: true,
 		webserver: true,
-	}
+		checks: false,
+	},
 
 }
