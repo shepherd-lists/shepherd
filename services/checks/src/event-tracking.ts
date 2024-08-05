@@ -30,17 +30,13 @@ interface NotBlockState {
 	server: string //key
 	serverName?: string //dont need this for gateways
 	serverType: 'gw' | 'node'
+	pageralertRaised?: boolean
 	alarms: { [line: string]: NotBlockStateDetails }
 }
 const _alerts: { [server: string]: NotBlockState } = {} // new Map<string, NotBlockState>()
 let _changed = false
 
-export const alarmsInAlert = () => {
-	return {
-		number: _alerts.size,
-		list: _alerts,
-	}
-}
+export const alarmsInAlert = () => ({ number: _alerts.size, list: _alerts })
 export const existAlertState = (server: string) => !!_alerts[server]
 export const existAlertStateLine = (server: string, line: string) => !!_alerts[server]?.alarms[line] //&& with existAlertState above
 export const getServerAlarms = (server: string) => _alerts[server]?.alarms || {}
@@ -103,21 +99,28 @@ export const alertStateCronjob = () => {
 		return;
 	}
 	console.debug(alertStateCronjob.name, 'running cronjob...', { _changed, '_alerts.size': Object.keys(_alerts).length })
-	if (!_changed)
+	if (!_changed) {
+		console.info(alertStateCronjob.name, 'nothing changed, exiting.')
 		return;
+	}
 
 	_running = true //lock
-	const t0 = performance.now()
 	_changed = false //reset
-
-
-	let earliestStart = Date.now().valueOf() //for pagerduty alert
+	const t0 = performance.now()
 
 	console.debug(alertStateCronjob.name, 'DEBUG', 'servers', Object.keys(_alerts).length)
 
-	/** loop through servers in alerts */
-	for (const [server, state] of Object.entries(_alerts)) {
-		const { serverName, serverType, alarms } = state
+	/** separate nodes and gws */
+	const [gwAlerts, nodeAlerts] = Object.entries(_alerts).reduce((result, [key, state]) => {
+		result[state.serverType === 'gw' ? 0 : 1][key] = state
+		return result
+	},
+		[{}, {}] as [{ [server: string]: NotBlockState }, { [server: string]: NotBlockState }] //starting array of objects
+	)
+
+	/** loop through gw alerts */
+	for (const [server, state] of Object.entries(gwAlerts)) {
+		const { serverName, alarms } = state
 
 		/** server message head */
 		const alarmEntries = Object.entries(alarms)
@@ -125,19 +128,9 @@ export const alertStateCronjob = () => {
 		let serverMsg = `-= ${serverName ? serverName + ' ' : ''}\`${server}\` ${new Date().toUTCString()}. ${alarmEntries.length} entries. (display limited to ${serverDisplayLimit} alarm starts)\n`
 		const headerLength = serverMsg.length
 
-		console.debug(alertStateCronjob.name, 'DEBUG', serverName || server, 'entries', alarmEntries.length)
+		console.debug(alertStateCronjob.name, 'DEBUG gwAlerts', serverName || server, 'entries', alarmEntries.length)
 
-		/** for nodes, skip if they have already made an "alarm" notification */
-		if (serverType === 'node') {
-			const details = Object.values(alarms)
-			console.debug(JSON.stringify({ serverName, details }))
-			const inAlarm = details.some(({ status, notified }) => status === 'alarm' && notified === true)
-			if (inAlarm) {
-				console.debug(`detected ${serverName} inAlarm=${inAlarm}. skipping`)
-				continue;
-			}
-
-		}
+		let earliestStart = Infinity //for pagerduty alert
 
 		/** loop thru this server's alarm states */
 		for (const [line, details] of alarmEntries) {
@@ -181,17 +174,23 @@ export const alertStateCronjob = () => {
 			}
 
 		}//for alarms
+
 		if (serverMsg.length > headerLength)
 			_slackLoggerNoFormatting(serverMsg, process.env.SLACK_PROBE) //print per server
-		if (Date.now() - earliestStart > 600_000) {
+		if (!state.pageralertRaised && Date.now() - earliestStart > 600_000) {
+			state.pageralertRaised = true
 			console.debug('PAGER_ALERT:', serverMsg, serverName || server)
 			pagerdutyAlert(serverMsg, serverName || server)
 		}
-	}//for _alerts
+	}//for-of gwAlerts
 
+	processNodeAlerts(nodeAlerts)
+
+	/* finish up */
 	console.info(`${alertStateCronjob.name} running time ${(performance.now() - t0).toFixed(0).toLocaleString()} ms`)
 	_running = false
 }
+
 /** exported for test only */
 export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
 	console.log(_slackLoggerNoFormatting.name, '\n', text)
@@ -205,8 +204,71 @@ export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
 	}
 }
 
-/** *** USED ONLY IN TEST! *** reset server alert state */
-export const _resetAlertState = () => {
-	Object.keys(_alerts).forEach(key => delete _alerts[key])
-	_changed = false
+/** handling the node code separately, it's just too different now */
+const _summarizedNodeStates: { [server: string]: { start: EpochTimeStamp; pagerdutyRaised?: boolean } } = {}
+const processNodeAlerts = (nodeAlerts: { [server: string]: NotBlockState }) => {
+	for (const [server, state] of Object.entries(nodeAlerts)) {
+		const { serverName, alarms } = state
+
+		/** Plan:
+		 * first alarm
+		 *   - send slack
+		 *   - new state summary
+		 * if server in Alarm or OK < 5mins old
+		 *   - remain in alarm state
+		 * if server OK > 5mins old
+		 *   - server to OK state
+		 *   - send slack and delete server & actual alarms
+		 * continue to next server
+		 * 
+		 */
+
+		console.debug(alertStateCronjob.name, 'DEBUG nodeAlerts', serverName, 'entries', Object.keys(alarms).length)
+
+		const alarmStates = Object.values(alarms) //make things more simple
+
+		/** first check if it's a new alarm */
+		if (!_summarizedNodeStates[server]) {
+			const earliestStart = alarmStates.reduce((prev, curr) => curr.startStamp < prev.startStamp ? curr : prev, { startStamp: Infinity } as NotBlockStateDetails).startStamp
+			_summarizedNodeStates[server] = { start: earliestStart }
+
+			const serverMsg = `🔴 ALARM.  \`${serverName} ${server}\`, started: ${new Date(earliestStart).toUTCString()}.`
+			_slackLoggerNoFormatting(serverMsg, process.env.SLACK_PROBE)
+			continue;
+		}
+
+		/** check if this is the final OK */
+		const threshold = Date.now() - 420_000 //now - 7mins
+		const okAndOlderThanThreshold = alarmStates.every(alarm => alarm.status === 'ok' && alarm.endStamp! < threshold)
+		const firstStart = _summarizedNodeStates[server].start
+		if (okAndOlderThanThreshold) {
+			//write the last notification
+			const lastEnd = alarmStates.reduce((prev, curr) => curr.endStamp! > prev.endStamp! ? curr : prev, { endStamp: 0 } as NotBlockStateDetails).endStamp!
+			const d = (lastEnd - firstStart)
+			const dMins = (d / 60_000).toFixed(0)
+			const dSecs = ((d % 60_000) / 1000).toFixed(0)
+			const serverMsg = `🟢 OK.  \`${serverName} ${server}\`, duration: ${dMins}m ${dSecs}s, started: ${new Date(firstStart).toUTCString()}. ended: ${new Date(lastEnd).toUTCString()}`
+			_slackLoggerNoFormatting(serverMsg, process.env.SLACK_PROBE)
+			//cleanup
+			delete _summarizedNodeStates[server]
+			delete _alerts[server]
+			continue;
+		}
+
+		/** cleanup some OK alarms */
+		const oks = alarmStates.filter(s => s.status === 'ok')
+		if (oks.length > 2) {
+			const newest = oks.reduce((prev, curr) => curr.endStamp! > prev.endStamp! ? curr : prev, { endStamp: 0 } as NotBlockStateDetails)
+			_alerts[server].alarms = { [newest.line]: newest }
+		}
+
+		/** send pagerdutyAlert once if over 10 mins */
+		if (!_summarizedNodeStates[server].pagerdutyRaised && Date.now() - firstStart > 600_000) {
+			_summarizedNodeStates[server].pagerdutyRaised = true
+			const msg = `🔴 ALARM.  \`${serverName} ${server}\`, started: ${new Date(firstStart).toUTCString()}.`
+			console.info('PAGER_ALERT:', msg)
+			pagerdutyAlert(msg, serverName!)
+		}
+
+	}//for _alerts
 }
