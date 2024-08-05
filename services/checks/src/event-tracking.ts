@@ -226,10 +226,10 @@ const processNodeAlerts = (nodeAlerts: { [server: string]: NotBlockState }) => {
 		console.debug(alertStateCronjob.name, 'DEBUG nodeAlerts', serverName, 'entries', Object.keys(alarms).length)
 
 		const alarmStates = Object.values(alarms) //make things more simple
-		const earliestStart = alarmStates.reduce((prev, curr) => curr.startStamp < prev.startStamp ? curr : prev, { startStamp: Infinity } as NotBlockStateDetails).startStamp
 
 		/** first check if it's a new alarm */
 		if (!_summarizedNodeStates[server]) {
+			const earliestStart = alarmStates.reduce((prev, curr) => curr.startStamp < prev.startStamp ? curr : prev, { startStamp: Infinity } as NotBlockStateDetails).startStamp
 			_summarizedNodeStates[server] = { start: earliestStart }
 
 			const serverMsg = `🔴 ALARM.  \`${serverName} ${server}\`, started: ${new Date(earliestStart).toUTCString()}.`
@@ -240,13 +240,14 @@ const processNodeAlerts = (nodeAlerts: { [server: string]: NotBlockState }) => {
 		/** check if this is the final OK */
 		const threshold = Date.now() - 420_000 //now - 7mins
 		const okAndOlderThanThreshold = alarmStates.every(alarm => alarm.status === 'ok' && alarm.endStamp! < threshold)
+		const firstStart = _summarizedNodeStates[server].start
 		if (okAndOlderThanThreshold) {
 			//write the last notification
 			const lastEnd = alarmStates.reduce((prev, curr) => curr.endStamp! > prev.endStamp! ? curr : prev, { endStamp: 0 } as NotBlockStateDetails).endStamp!
-			const d = (lastEnd - earliestStart)
+			const d = (lastEnd - firstStart)
 			const dMins = (d / 60_000).toFixed(0)
 			const dSecs = ((d % 60_000) / 1000).toFixed(0)
-			const serverMsg = `🟢 OK.  \`${serverName} ${server}\`, duration: ${dMins}m ${dSecs}s, started: ${new Date(earliestStart).toUTCString()}. ended: ${new Date(lastEnd).toUTCString()}`
+			const serverMsg = `🟢 OK.  \`${serverName} ${server}\`, duration: ${dMins}m ${dSecs}s, started: ${new Date(firstStart).toUTCString()}. ended: ${new Date(lastEnd).toUTCString()}`
 			_slackLoggerNoFormatting(serverMsg, process.env.SLACK_PROBE)
 			//cleanup
 			delete _summarizedNodeStates[server]
@@ -262,9 +263,9 @@ const processNodeAlerts = (nodeAlerts: { [server: string]: NotBlockState }) => {
 		}
 
 		/** send pagerdutyAlert once if over 10 mins */
-		if (!_summarizedNodeStates[server].pagerdutyRaised && Date.now() - earliestStart > 600_000) {
+		if (!_summarizedNodeStates[server].pagerdutyRaised && Date.now() - firstStart > 600_000) {
 			_summarizedNodeStates[server].pagerdutyRaised = true
-			const msg = `🔴 ALARM.  \`${serverName} ${server}\`, started: ${new Date(earliestStart).toUTCString()}.`
+			const msg = `🔴 ALARM.  \`${serverName} ${server}\`, started: ${new Date(firstStart).toUTCString()}.`
 			console.info('PAGER_ALERT:', msg)
 			pagerdutyAlert(msg, serverName!)
 		}
