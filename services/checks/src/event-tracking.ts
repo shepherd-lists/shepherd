@@ -235,7 +235,7 @@ const processNodeAlerts = (nodeAlerts: { [server: string]: NotBlockState }) => {
 		}
 
 		/** check if this is the final OK */
-		const threshold = Date.now() - 300_000 //now - 5mins
+		const threshold = Date.now() - 420_000 //now - 7mins
 		const okAndOlderThanThreshold = alarmStates.every(alarm => alarm.status === 'ok' && alarm.endStamp! < threshold)
 		if (okAndOlderThanThreshold) {
 			//write the last notification
