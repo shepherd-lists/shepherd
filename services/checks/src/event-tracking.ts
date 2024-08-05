@@ -202,7 +202,7 @@ export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
 }
 
 /** handling the node code separately, it's just too different now */
-const _summarizedNodeStates: { [server: string]: { start: EpochTimeStamp; end?: EpochTimeStamp } } = {}
+const _summarizedNodeStates: { [server: string]: { start: EpochTimeStamp; pagerdutyRaised?: boolean } } = {}
 const processNodeAlerts = (nodeAlerts: { [server: string]: NotBlockState }) => {
 	for (const [server, state] of Object.entries(nodeAlerts)) {
 		const { serverName, alarms } = state
@@ -258,8 +258,9 @@ const processNodeAlerts = (nodeAlerts: { [server: string]: NotBlockState }) => {
 			_alerts[server].alarms = { [newest.line]: newest }
 		}
 
-		/** send pagerdutyAlert if over 10 mins */
-		if (Date.now() - earliestStart > 600_000) {
+		/** send pagerdutyAlert once if over 10 mins */
+		if (!_summarizedNodeStates[server].pagerdutyRaised && Date.now() - earliestStart > 600_000) {
+			_summarizedNodeStates[server].pagerdutyRaised = true
 			const msg = `🔴 ALARM.  \`${serverName} ${server}\`, started: ${new Date(earliestStart).toUTCString()}.`
 			console.info('PAGER_ALERT:', msg)
 			pagerdutyAlert(msg, serverName!)
