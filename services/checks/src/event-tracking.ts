@@ -30,6 +30,7 @@ interface NotBlockState {
 	server: string //key
 	serverName?: string //dont need this for gateways
 	serverType: 'gw' | 'node'
+	pageralertRaised?: boolean
 	alarms: { [line: string]: NotBlockStateDetails }
 }
 const _alerts: { [server: string]: NotBlockState } = {} // new Map<string, NotBlockState>()
@@ -173,9 +174,11 @@ export const alertStateCronjob = () => {
 			}
 
 		}//for alarms
+
 		if (serverMsg.length > headerLength)
 			_slackLoggerNoFormatting(serverMsg, process.env.SLACK_PROBE) //print per server
-		if (Date.now() - earliestStart > 600_000) {
+		if (!state.pageralertRaised && Date.now() - earliestStart > 600_000) {
+			state.pageralertRaised = true
 			console.debug('PAGER_ALERT:', serverMsg, serverName || server)
 			pagerdutyAlert(serverMsg, serverName || server)
 		}
