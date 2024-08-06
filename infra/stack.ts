@@ -56,7 +56,7 @@ export const createStack = async (app: App, config: Config) => {
 		vpc,
 		securityGroups: [sgPgdb],
 		logGroup: logGroupServices,
-		memorySize: 256,
+		memorySize: 350,
 		timeout: Duration.minutes(5),
 		environment: {
 			DB_HOST: rdsEndpoint,
