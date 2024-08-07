@@ -199,7 +199,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 			if (page && page.length) {
 				cursor = page[page.length - 1]!.cursor
 
-				promises.push(limit(() => lambdaRetry(page, counts.page)))
+				promises.push(limit(lambdaRetry, page, counts.page))
 			}
 
 		} catch (err: unknown) {
