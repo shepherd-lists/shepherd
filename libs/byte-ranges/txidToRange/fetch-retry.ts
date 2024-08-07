@@ -57,8 +57,9 @@ export const fetchRetryConnection = async (path: string) => {
 export const fetchFullRetried = async (path: string, type: ('json' | 'arraybuffer') = 'json') => {
 	while (true) {
 		const url = HOST_URL + path
+		let res: Response | undefined
 		try {
-			const res = await fetch(url)
+			res = await fetch(url)
 
 			const { status, statusText } = res
 
@@ -84,6 +85,10 @@ export const fetchFullRetried = async (path: string, type: ('json' | 'arraybuffe
 			console.log(fetchFullRetried.name, `Error for '${url}'. Retrying in ${retryMs} ms...`)
 			console.log(e)
 			await sleep(retryMs)
+		} finally {
+			if (res?.body && !res.bodyUsed) {
+				res.body.cancel()
+			}
 		}
 	}
 }

@@ -14,13 +14,19 @@ export const slackLog = async (...args: any) => {
 	/** post to slack */
 	const controller = new AbortController()
 	const timeoutId = setTimeout(() => controller.abort(), 20_000)
+	let res: Response | undefined
 	try {
-		const res = await fetch(hookUrl, { method: 'POST', body: JSON.stringify({ text }), signal: controller.signal })
+		res = await fetch(hookUrl, { method: 'POST', body: JSON.stringify({ text }), signal: controller.signal })
 
 		if (!res.ok) throw new Error(`response not ok: ${res.status}, ${res.statusText}}`)
 
 		console.log(slackLog.name, `response: ${res.status}, ${await res.text()}`) // use up and close connnection
 	} catch (e) {
 		console.log(slackLog.name, 'error occurred when posting.', e)
+	} finally {
+		clearTimeout(timeoutId)
+		if (res?.body && !res.bodyUsed) {
+			res.body.cancel()
+		}
 	}
 }

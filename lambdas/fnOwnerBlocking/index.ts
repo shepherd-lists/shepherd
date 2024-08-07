@@ -29,7 +29,7 @@ export const handler = async (event: any) => {
 		 * batch insert each wallet"s records
 		 */
 
-		const records: { [owner: string]: OwnerTableRecord[] } = {}
+		let records: { [owner: string]: OwnerTableRecord[] } = {}
 
 		await Promise.all(inputs.page.map(async ({ node }) => {
 
@@ -94,6 +94,9 @@ export const handler = async (event: any) => {
 			counts[key] += inserted!
 			counts.total += inserted!
 		}
+
+		//@ts-expect-error null is incorrect type, but we just want gc
+		records = null;
 
 		console.info(`completed processing page ${inputs.pageNumber} ${JSON.stringify(counts)}`)
 

@@ -229,9 +229,10 @@ const fetchRetryOffset = moize(async (id: string) => {
 		}
 
 		const url = `${node.url}/tx/${id}/offset`
+		let res: Response | undefined
 		try {
 			console.info(fetchRetryOffset.name, `unmemoized fetch('${url}')`)
-			const res = await fetch(url)
+			res = await fetch(url)
 
 			if (res.status === 429) {
 				node.throttled = Date.now() + 30_000
@@ -243,6 +244,10 @@ const fetchRetryOffset = moize(async (id: string) => {
 		} catch (err: unknown) {
 			const e = err as Error
 			console.error(fetchRetryOffset.name, `${e.name}:${e.message}, fetching byte-range data with '${url}}'. Will retry with another node.`, e.cause)
+		} finally {
+			if (res?.body && !res.bodyUsed) {
+				res.body.cancel()
+			}
 		}
 	}
 
@@ -250,16 +255,21 @@ const fetchRetryOffset = moize(async (id: string) => {
 
 	const url = `${HOST_URL}/tx/${id}/offset`
 	console.info(fetchRetryOffset.name, `unmemoized fetch('${url}') fallback`)
+	let resFb: Response | undefined
 	try {
-		const res = await fetch(url)
+		resFb = await fetch(url)
 
-		if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`)
+		if (!resFb.ok) throw new Error(`HTTP ${resFb.status} ${resFb.statusText}`)
 
-		return await res.json() as { offset: string, size: string }
+		return await resFb.json() as { offset: string, size: string }
 	} catch (e) {
 		const { name, message, cause } = e as Error
 		console.error(fetchRetryOffset.name, `${name}:${message}, fetching byte-range data with '${url}}'. NOT RETRYING.`, cause)
 		throw e;
+	} finally {
+		if (resFb?.body && !resFb.bodyUsed) {
+			resFb.body.cancel()
+		}
 	}
 
 }, { maxSize: 1000, isPromise: true })
