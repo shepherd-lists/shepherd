@@ -34,7 +34,6 @@ interface NotBlockState {
 	alarms: { [line: string]: NotBlockStateDetails }
 }
 const _alerts: { [server: string]: NotBlockState } = {} // new Map<string, NotBlockState>()
-let _changed = false
 
 export const alarmsInAlert = () => ({ number: _alerts.size, list: _alerts })
 export const existAlertState = (server: string) => !!_alerts[server]
@@ -61,7 +60,6 @@ export const setAlertState = (event: NotBlockEvent) => {
 				}
 			},
 		}
-		_changed = true
 		return;
 	}
 	/** set subsequent new alarms */
@@ -71,7 +69,6 @@ export const setAlertState = (event: NotBlockEvent) => {
 			notified: false,
 			startStamp: Date.now(),
 		}
-		_changed = true
 		return;
 	}
 
@@ -85,7 +82,6 @@ export const setAlertState = (event: NotBlockEvent) => {
 			notified: false,
 			endStamp: Date.now(),
 		}
-		_changed = true
 	}
 	/** if the status is the same, we don't need to update the state */
 	/** deletion handled after "OK" notification sent */
@@ -98,17 +94,11 @@ export const alertStateCronjob = () => {
 		console.info(alertStateCronjob.name, 'cronjob still running, exiting.')
 		return;
 	}
-	console.debug(alertStateCronjob.name, 'running cronjob...', { _changed, '_alerts.size': Object.keys(_alerts).length })
-	if (!_changed) {
-		console.info(alertStateCronjob.name, 'nothing changed, exiting.')
-		return;
-	}
+	console.info(alertStateCronjob.name, 'running cronjob... servers in alert', Object.keys(_alerts).length)
 
 	_running = true //lock
-	_changed = false //reset
 	const t0 = performance.now()
 
-	console.debug(alertStateCronjob.name, 'DEBUG', 'servers', Object.keys(_alerts).length)
 
 	/** separate nodes and gws */
 	const [gwAlerts, nodeAlerts] = Object.entries(_alerts).reduce((result, [key, state]) => {
@@ -205,7 +195,7 @@ export const _slackLoggerNoFormatting = (text: string, hook?: string) => {
 }
 
 /** handling the node code separately, it's just too different now */
-const _summarizedNodeStates: { [server: string]: { start: EpochTimeStamp; pagerdutyRaised?: boolean } } = {}
+const _summarizedNodeStates: { [server: string]: { readonly start: EpochTimeStamp; pagerdutyRaised?: boolean } } = {}
 const processNodeAlerts = (nodeAlerts: { [server: string]: NotBlockState }) => {
 	for (const [server, state] of Object.entries(nodeAlerts)) {
 		const { serverName, alarms } = state
