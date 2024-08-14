@@ -30,6 +30,9 @@ query($cursor: String, $owners: [String!]) {
       {name:"Bundle-Version", op:NEQ},
       {name: "type", values: "redstone-oracles", op: NEQ},
     ]
+
+		#remove pending results
+		sort: HEIGHT_DESC
     
     # standard template below
     after: $cursor

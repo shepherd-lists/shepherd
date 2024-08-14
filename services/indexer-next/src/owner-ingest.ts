@@ -23,6 +23,8 @@ query($cursor: String, $owners: [String!], $minAt: Int, $maxAt: Int) {
       min: $minAt,
       max: $maxAt,
     }
+		#remove pending results
+		sort: HEIGHT_DESC
 
     tags: [
       {name:"Bundle-Version", op:NEQ},

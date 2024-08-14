@@ -12,7 +12,13 @@ export const ownerTotalCount = moize(
 	async (owner: string) => {
 		const query = `
 			query ($owner: String!){ 
-				transactions( owners:[ $owner ] ){ count } 
+				transactions( 
+					owners:[ $owner ]
+					#remove pending results
+					sort: HEIGHT_DESC
+				){ 
+					count 
+				} 
 			}
 		`
 		const variables = {
