@@ -249,7 +249,16 @@ const processNodeAlerts = (nodeAlerts: { [server: string]: NotBlockState }) => {
 		const oks = alarmStates.filter(s => s.status === 'ok')
 		if (oks.length > 2) {
 			const newest = oks.reduce((prev, curr) => curr.endStamp! > prev.endStamp! ? curr : prev, { endStamp: 0 } as NotBlockStateDetails)
-			_alerts[server].alarms = { [newest.line]: newest }
+
+			console.debug(`DEBUG _alerts BEFORE ${server} ${JSON.stringify(_alerts[server])}`)
+
+			for (const [line, alarm] of Object.entries(_alerts[server].alarms)) {
+				if (alarm.status === 'ok' && alarm.line !== newest.line) {
+					delete _alerts[server].alarms[line]
+				}
+			}
+
+			console.debug(`DEBUG _alerts AFTER ${server} ${JSON.stringify(_alerts[server])}`)
 		}
 
 		/** send pagerdutyAlert once if over 10 mins */
