@@ -210,3 +210,14 @@ export const getTxFromInbox = async (txid: string) => {
 		throw e
 	}
 }
+
+export const checkTxFresh = async (txid: string) => {
+	try {
+		const fresh = await knex<TxRecord>('txs').where({ txid })
+		return fresh.length === 0
+	} catch (e) {
+		const { name, message } = e as Error
+		slackLog(txid, '❌ Error checking txs record', `${name}:${message}`, JSON.stringify(e))
+	}
+}
+

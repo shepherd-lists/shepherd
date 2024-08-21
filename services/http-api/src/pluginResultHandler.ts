@@ -1,6 +1,6 @@
 import { getByteRange } from '../../../libs/byte-ranges/byteRanges'
 import { APIFilterResult } from 'shepherd-plugin-interfaces'
-import { dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, getTxFromInbox, updateInboxDb } from './utils/db-update-txs'
+import { checkTxFresh, dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, getTxFromInbox, updateInboxDb } from './utils/db-update-txs'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { slackLogPositive } from '../../../libs/utils/slackLogPositive'
 import { moveInboxToTxs } from './move-records'
@@ -27,7 +27,14 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 
 		if (result.flagged !== undefined) {
 			if (result.flagged === true) {
-				slackLogPositive('flagged', JSON.stringify(body))
+				if (result.flag_type === 'matched') {
+					slackLogPositive('flagged', JSON.stringify(body))
+				} else if (result.flag_type === 'classified' && await checkTxFresh(txid)) {
+					//we use checkTxFresh so as not to bombard Slack during SQS retries and recheck cronjobs
+
+					/** these currently don't get automatically processed, need to check these warnings */
+					slackLog(`:warning: *!!! classified !!!* :warning: \`${txid}\``, JSON.stringify(result))
+				}
 			}
 			if (result.flag_type === 'test') {
 				slackLog('✅ *Test Message* ✅', JSON.stringify(body))
@@ -71,7 +78,10 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 				...(byteStart && { byteStart, byteEnd }),
 				last_update_date: new Date(),
 			}
-			if (result.flagged === true) {
+			if (result.flagged === true && (!result.flag_type || result.flag_type === 'matched')) {
+				/** to explain the above expression: 
+				 * a. some addons dont use flag_type (e.g. nsfw), in that case just process them all
+				 * b. if flag_type in use only automatically process `matched` results */
 
 				return processFlagged(txid, record!, updates)
 
