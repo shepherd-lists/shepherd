@@ -36,6 +36,9 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		'owner',
 	]
 
+	/** ensure new null column values overwrite existing data */
+	const overwriteAllCols = allTxRecordKeys.map(k => `${k} = EXCLUDED..${k}`)
+
 	let trx: Knex.Transaction
 	try {
 		trx = await knex.transaction()
@@ -49,7 +52,7 @@ export const moveInboxToTxs = async (txids: string[]) => {
 							.orWhereNotNull('flagged') // future use
 					})
 			)
-			.onConflict('txid').merge(allTxRecordKeys)
+			.onConflict('txid').merge(overwriteAllCols)
 			.returning('txid')
 
 		/** only remove what's been inserted */
