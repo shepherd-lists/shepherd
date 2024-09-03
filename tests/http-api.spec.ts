@@ -121,7 +121,7 @@ describe('http api', () => {
 		const resInboxMove = await moveInboxToTxs([initialRec.txid])
 
 		const record = await knex<TxRecord>('txs').where({ txid: initialRec.txid }).first() as TxRecord
-		console.debug({ record })
+		// console.debug({ record })
 
 		//sanity checks
 		assert.equal(resInboxMove, 1)
