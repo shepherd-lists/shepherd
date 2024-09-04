@@ -6,6 +6,9 @@ import knexCreate from '../libs/utils/knexCreate';
 import { processFlagged } from '../services/http-api/src/flagged';
 import { ownerToInfractionsTablename, ownerToOwnerTablename } from '../libs/block-owner/owner-table-utils';
 
+import { TxRecord } from 'shepherd-plugin-interfaces/types'
+import { moveInboxToTxs } from '../services/http-api/src/move-records'
+
 console.info(`using ${process.env.HTTP_API} for HTTP_API ip address`)
 
 const knex = knexCreate()
@@ -14,6 +17,7 @@ describe('http api', () => {
 	const mockId1 = 'mock-id1'.padEnd(43, '-')
 	const mockId2 = 'mock-id2'.padEnd(43, '-')
 	const mockOwner = 'mock-owner'.padEnd(43, '-')
+	const mockIdOverwrite = 'overwrite'.padEnd(43, '-')
 
 	const mockTxRecord = {
 		txid: mockId1,
@@ -35,8 +39,9 @@ describe('http api', () => {
 	})
 
 	afterEach(async () => {
-		await pool.query(`DELETE FROM txs WHERE txid in ($1, $2)`, [mockId1, mockId2])
-		await pool.query(`DROP TABLE "${ownerToInfractionsTablename(mockOwner)}"`)
+		await pool.query(`DELETE FROM txs WHERE txid in ($1, $2, $3)`, [mockId1, mockId2, mockIdOverwrite])
+		await pool.query('DELETE FROM inbox WHERE txid = $1', [mockIdOverwrite])
+		await pool.query(`DROP TABLE IF EXISTS "${ownerToInfractionsTablename(mockOwner)}"`)
 		// await pool.query(`DROP TABLE $1`, [ownerToOwnerTablename(mockOwner)])
 	})
 	after(async () => {
@@ -78,6 +83,59 @@ describe('http api', () => {
 
 		/** N.B. our mock owner won't have any real txids, so GQL returns empty and no lambdas are run */
 
+	})
+
+	it('moveInboxToTxs insert-merge should overwrite column values when latest are null', async () => {
+		const initialRec: TxRecord = {
+			txid: mockIdOverwrite,
+			content_type: 'text/plain',
+			flagged: true,
+			valid_data: true,
+			height: 123,
+			content_size: '123',
+			data_reason: 'mimetype',
+
+			last_update_date: new Date(),
+			parent: null,
+			owner: mockOwner,
+			flag_type: 'classified',
+			top_score_name: 'nsfw',
+			top_score_value: 0.999,
+			byteStart: '123',
+			byteEnd: '456', // ********** test these DON'T get overwritten with either `null` or `-1`
+		}
+		await knex<TxRecord>('txs').insert(initialRec)
+
+		/* update the data */
+		const updates: TxRecord = {
+			...initialRec,
+			flagged: false, //should overwrite
+			top_score_name: undefined,
+			byteStart: undefined,
+			byteEnd: '-1',
+		}
+		delete updates.top_score_value
+
+		await knex<TxRecord>('inbox').insert(updates)
+
+		const resInboxMove = await moveInboxToTxs([initialRec.txid])
+
+		const record = await knex<TxRecord>('txs').where({ txid: initialRec.txid }).first() as TxRecord
+		// console.debug({ record })
+
+		//sanity checks
+		assert.equal(resInboxMove, 1)
+		assert.equal(record.content_type, initialRec.content_type)
+		assert.equal(record.valid_data, initialRec.valid_data)
+		assert.equal(record.height, initialRec.height)
+		//probly more than enough
+
+		//actual tests
+		assert.equal(record.byteStart, '123')
+		assert.equal(record.byteEnd, '456')
+		assert.equal(record.top_score_name, null)
+		assert.equal(record.top_score_value, null)
+		assert.equal(record.flagged, false)
 
 
 	})

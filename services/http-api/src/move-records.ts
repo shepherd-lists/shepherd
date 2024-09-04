@@ -5,16 +5,8 @@ import { slackLog } from '../../../libs/utils/slackLog'
 
 const knex = dbConnection()
 
-/* batch move records from inbox to txs tables */
-export const moveInboxToTxs = async (txids: string[]) => {
-
-	/**
-	 * Adding (temporarilly?) an onConflict-merge here.
-	 * this is to:
-	 * - prevent duplicate key error when initially switching over to the new tables layout
-	 * - also used when doing pass2 on a flagged record, should be rare enough
-	 * */
-
+/** we need this object for applying merge-conflict rules. also used in 'flagged.tx' */
+export const mergeRulesObject = () => {
 	/** consider upgrading this "typechecking". zod? class? */
 	type TxRecordKeys = (keyof TxRecord)[]
 	const allTxRecordKeys: TxRecordKeys = [
@@ -36,13 +28,41 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		'owner',
 	]
 
-	/** ensure new null column values overwrite existing data */
-	const overwriteAllCols = allTxRecordKeys.map(k => `${k} = EXCLUDED..${k}`)
+	/** ensure new null column values overwrite existing data, special case for byte-ranges */
+	const updateObject: Record<string, Knex.Raw> = {}
+
+	allTxRecordKeys.forEach(k => {
+		if (k === 'byteStart' || k === 'byteEnd') { //special cases
+			updateObject[k] = knex.raw(
+				`CASE
+					WHEN EXCLUDED.?? IS NOT NULL AND EXCLUDED.??::bigint != -1 
+					THEN EXCLUDED.??
+					ELSE txs.??
+				END
+				`, [k, k, k, k])
+		} else {
+			updateObject[k] = knex.raw('EXCLUDED.??', [k])
+		}
+	})
+
+	return updateObject;
+}
+
+/* batch move records from inbox to txs tables */
+export const moveInboxToTxs = async (txids: string[]) => {
+
+	/**
+	 * Adding an onConflict-merge here.
+	 * this is to prevent duplicate key error when:
+	 * - doing extra passes on records
+	 * - initially switching over to the new inbox/txs tables layout
+	 * */
+
 
 	let trx: Knex.Transaction
 	try {
 		trx = await knex.transaction()
-		const res = await trx('txs')
+		const sql = trx('txs')
 			.insert(
 				knex<TxRecord>('inbox').select('*')
 					.whereIn('txid', txids)
@@ -52,8 +72,11 @@ export const moveInboxToTxs = async (txids: string[]) => {
 							.orWhereNotNull('flagged') // future use
 					})
 			)
-			.onConflict('txid').merge(overwriteAllCols)
+			.onConflict('txid').merge(mergeRulesObject())
 			.returning('txid')
+		// console.debug(sql.toSQL())
+		const res = await sql
+
 
 		/** only remove what's been inserted */
 		const insertedIds = res.map(r => r.txid) as string[]
