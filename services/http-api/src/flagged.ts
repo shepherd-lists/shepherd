@@ -7,6 +7,7 @@ import { queueBlockOwner } from '../../../libs/block-owner/owner-blocking'
 import { updateAddresses, updateFullTxidsRanges } from '../../../libs/s3-lists/update-lists'
 import moize from 'moize'
 import { OwnersListRecord } from '../../../types'
+import { mergeRulesObject } from './move-records'
 
 
 const knex = dbConnection()
@@ -55,8 +56,6 @@ export const processFlagged = async (
 		await trx('inflights')
 			.delete()
 			.where('txid', txid)
-
-		/** update tx in db */
 		await trx<TxRecord>('inbox')
 			.delete()
 			.where('txid', txid)
@@ -64,7 +63,8 @@ export const processFlagged = async (
 		/** insert to txs */
 		const resInsert = await trx('txs')
 			.insert({ ...record, ...updates })
-			// .onConflict('txid').merge() this just shouldn't happen
+			// .onConflict('txid').merge() this just shouldn't happen ?? why did i think this?
+			.onConflict('txid').merge(mergeRulesObject())
 			.returning('txid')
 		const insertedId = resInsert[0]?.txid
 		if (insertedId !== txid) {
