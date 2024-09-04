@@ -5,16 +5,8 @@ import { slackLog } from '../../../libs/utils/slackLog'
 
 const knex = dbConnection()
 
-/* batch move records from inbox to txs tables */
-export const moveInboxToTxs = async (txids: string[]) => {
-
-	/**
-	 * Adding an onConflict-merge here.
-	 * this is to prevent duplicate key error when:
-	 * - doing extra passes on records
-	 * - initially switching over to the new inbox/txs tables layout
-	 * */
-
+/** we need this object for applying merge-conflict rules. also used in 'flagged.tx' */
+export const mergeRulesObject = () => {
 	/** consider upgrading this "typechecking". zod? class? */
 	type TxRecordKeys = (keyof TxRecord)[]
 	const allTxRecordKeys: TxRecordKeys = [
@@ -53,6 +45,20 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		}
 	})
 
+	return updateObject;
+}
+
+/* batch move records from inbox to txs tables */
+export const moveInboxToTxs = async (txids: string[]) => {
+
+	/**
+	 * Adding an onConflict-merge here.
+	 * this is to prevent duplicate key error when:
+	 * - doing extra passes on records
+	 * - initially switching over to the new inbox/txs tables layout
+	 * */
+
+
 	let trx: Knex.Transaction
 	try {
 		trx = await knex.transaction()
@@ -66,7 +72,7 @@ export const moveInboxToTxs = async (txids: string[]) => {
 							.orWhereNotNull('flagged') // future use
 					})
 			)
-			.onConflict('txid').merge(updateObject)
+			.onConflict('txid').merge(mergeRulesObject())
 			.returning('txid')
 		// console.debug(sql.toSQL())
 		const res = await sql
