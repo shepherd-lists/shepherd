@@ -33,6 +33,7 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 					//we use checkTxFresh so as not to bombard Slack during SQS retries and recheck cronjobs
 
 					/** these currently don't get automatically processed, need to check these warnings */
+					result.flagged = false
 					slackLog(`:warning: *!!! classified !!!* :warning: \`${txid}\``, JSON.stringify(result))
 				}
 			}
