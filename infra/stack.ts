@@ -124,6 +124,11 @@ export const createStack = async (app: App, config: Config) => {
 			cpu: 256,
 			memoryLimitMiB: 2048,
 		},
+		/* quicker dev deployments */
+		...(config.region !== 'ap-southeast-1' && {
+			minHealthyPercent: 100,
+			maxHealthyPercent: 200,
+		}),
 		environment: {
 			LISTS_BUCKET: `shepherd-lists-${config.region}`,
 			DB_HOST: rdsEndpoint,

@@ -38,10 +38,12 @@ export const createAddonService = (
 		logGroup: aws_logs.ILogGroup,
 		cloudMapNamespace: aws_servicediscovery.IPrivateDnsNamespace,
 		resources: ServiceResources,
+		minHealthyPercent?: number,
+		maxHealthyPercent?: number,
 		environment: Record<string, string>,
 	},
 ) => {
-	const { cluster, logGroup, cloudMapNamespace, resources: { cpu, memoryLimitMiB }, environment } = init
+	const { cluster, logGroup, cloudMapNamespace, resources: { cpu, memoryLimitMiB }, minHealthyPercent, maxHealthyPercent, environment } = init
 	const Name = name.charAt(0).toUpperCase() + name.slice(1)
 
 	const dockerImage = new aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
@@ -82,6 +84,8 @@ export const createAddonService = (
 			cloudMapNamespace,
 		},
 		desiredCount: 1,
+		minHealthyPercent,
+		maxHealthyPercent,
 	})
 
 	return fg
