@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { after, afterEach, beforeEach, describe, it } from 'node:test'
 import pool from '../libs/utils/pgClient'
 import knexCreate from '../libs/utils/knexCreate';
-import { processFlagged } from '../services/http-api/src/flagged';
-import { ownerToInfractionsTablename, ownerToOwnerTablename } from '../libs/block-owner/owner-table-utils';
+import { processFlagged, createInfractionsTable } from '../services/http-api/src/flagged';
+import { dropOwnerTables, ownerToInfractionsTablename, ownerToOwnerTablename } from '../libs/block-owner/owner-table-utils';
 
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { moveInboxToTxs } from '../services/http-api/src/move-records'
@@ -17,7 +17,8 @@ describe('http api', () => {
 	const mockId1 = 'mock-id1'.padEnd(43, '-')
 	const mockId2 = 'mock-id2'.padEnd(43, '-')
 	const mockOwner = 'mock-owner'.padEnd(43, '-')
-	const mockIdOverwrite = 'overwrite'.padEnd(43, '-')
+	const mockIdClassified = 'classified1'.padEnd(43, '-')
+	const mockIdClassified2 = 'classified2'.padEnd(43, '-')
 
 	const mockTxRecord = {
 		txid: mockId1,
@@ -34,15 +35,35 @@ describe('http api', () => {
 		valid_data: true,
 	}
 
+	const mockClassifiedRecord: TxRecord = {
+		txid: mockIdClassified,
+		content_type: 'text/plain',
+		flagged: true,
+		valid_data: true,
+		height: 123,
+		content_size: '123',
+		data_reason: 'mimetype',
+
+		last_update_date: new Date(),
+		parent: null,
+		owner: mockOwner,
+		flag_type: 'classified',
+		top_score_name: 'nsfw',
+		top_score_value: 0.999,
+		byteStart: '123',
+		byteEnd: '456', // ********** test these DON'T get overwritten with either `null` or `-1`
+	}
+
 	beforeEach(async () => {
 		await pool.query("DELETE FROM owners_list WHERE owner = $1", [mockOwner])
 	})
 
 	afterEach(async () => {
-		await pool.query(`DELETE FROM txs WHERE txid in ($1, $2, $3)`, [mockId1, mockId2, mockIdOverwrite])
-		await pool.query('DELETE FROM inbox WHERE txid = $1', [mockIdOverwrite])
-		await pool.query(`DROP TABLE IF EXISTS "${ownerToInfractionsTablename(mockOwner)}"`)
+		await pool.query(`DELETE FROM txs WHERE txid in ($1, $2, $3, $4)`, [mockId1, mockId2, mockIdClassified, mockIdClassified2])
+		await pool.query('DELETE FROM inbox WHERE txid in ($1, $2)', [mockIdClassified, mockIdClassified2])
+		// await pool.query(`DROP TABLE IF EXISTS "${ownerToInfractionsTablename(mockOwner)}"`)
 		// await pool.query(`DROP TABLE $1`, [ownerToOwnerTablename(mockOwner)])
+		await dropOwnerTables(mockOwner) //this does both tables
 	})
 	after(async () => {
 		await pool.end()
@@ -86,29 +107,12 @@ describe('http api', () => {
 	})
 
 	it('moveInboxToTxs insert-merge should overwrite column values when latest are null', async () => {
-		const initialRec: TxRecord = {
-			txid: mockIdOverwrite,
-			content_type: 'text/plain',
-			flagged: true,
-			valid_data: true,
-			height: 123,
-			content_size: '123',
-			data_reason: 'mimetype',
 
-			last_update_date: new Date(),
-			parent: null,
-			owner: mockOwner,
-			flag_type: 'classified',
-			top_score_name: 'nsfw',
-			top_score_value: 0.999,
-			byteStart: '123',
-			byteEnd: '456', // ********** test these DON'T get overwritten with either `null` or `-1`
-		}
-		await knex<TxRecord>('txs').insert(initialRec)
+		await knex<TxRecord>('txs').insert(mockClassifiedRecord)
 
 		/* update the data */
 		const updates: TxRecord = {
-			...initialRec,
+			...mockClassifiedRecord,
 			flagged: false, //should overwrite
 			top_score_name: undefined,
 			byteStart: undefined,
@@ -118,16 +122,16 @@ describe('http api', () => {
 
 		await knex<TxRecord>('inbox').insert(updates)
 
-		const resInboxMove = await moveInboxToTxs([initialRec.txid])
+		const resInboxMove = await moveInboxToTxs([mockClassifiedRecord.txid])
 
-		const record = await knex<TxRecord>('txs').where({ txid: initialRec.txid }).first() as TxRecord
+		const record = await knex<TxRecord>('txs').where({ txid: mockClassifiedRecord.txid }).first() as TxRecord
 		// console.debug({ record })
 
 		//sanity checks
 		assert.equal(resInboxMove, 1)
-		assert.equal(record.content_type, initialRec.content_type)
-		assert.equal(record.valid_data, initialRec.valid_data)
-		assert.equal(record.height, initialRec.height)
+		assert.equal(record.content_type, mockClassifiedRecord.content_type)
+		assert.equal(record.valid_data, mockClassifiedRecord.valid_data)
+		assert.equal(record.height, mockClassifiedRecord.height)
 		//probly more than enough
 
 		//actual tests
@@ -136,7 +140,31 @@ describe('http api', () => {
 		assert.equal(record.top_score_name, null)
 		assert.equal(record.top_score_value, null)
 		assert.equal(record.flagged, false)
+	})
 
+	it('should log appropriate detail when an owner breaches infractions', async () => {
+		/* load up inbox, then call `processFlagged` `infraction_limit` times  */
+		//make variable names the same
+		const owner = mockOwner
+		const infractionsTablename = ownerToInfractionsTablename(owner)
+		const trx = knex
+		const infractions = 2 //for example
+		const txid = mockIdClassified2
+		const slackLog = console.log
+
+		//insert test records for the owner
+		await knex('txs').insert([mockClassifiedRecord, { ...mockClassifiedRecord, txid: mockIdClassified2 }])
+		await createInfractionsTable(owner)
+		await knex(infractionsTablename).insert([{ txid: mockIdClassified }, { txid: mockIdClassified2 }])
+
+		/// this is our code snippet (easier than importing)
+		//
+		const infractionRecs = await trx<TxRecord>('txs').whereIn('txid', function () {
+			this.select('txid').from(infractionsTablename)
+		})
+		slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. ${txid}`, JSON.stringify(infractionRecs, null, 2))
+		//
+		/// end of snippet
 
 	})
 
