@@ -14,8 +14,10 @@ const knex = dbConnection()
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
-/** utility function. beware of potential race-condition between hasTable & createTable */
-const createInfractionsTable = async (owner: string) => {
+/** utility function. beware of potential race-condition between hasTable & createTable. 
+ * @description exported for test only 
+ */
+export const createInfractionsTable = async (owner: string) => {
 	const tablename = ownerToInfractionsTablename(owner)
 
 	if (await knex.schema.hasTable(tablename)) return tablename
@@ -151,7 +153,12 @@ const ownerUpdate = async (owner: string, txid: string) => {
 			if (whitelisted) {
 				slackLog(processFlagged.name, `${owner} is whitelisted, not blocking`)
 			} else {
-				slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. (KEEP AN EYE ON NOTIFICATIONS!) ${txid}`)
+				/* get infraction records for notification */
+				const infractionRecs = await trx<TxRecord>('txs').whereIn('txid', function () {
+					this.select('txid').from(infractionsTablename)
+				})
+				slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. ${txid}`, JSON.stringify(infractionRecs, null, 2))
+
 				const numBlocked = await queueBlockOwner(owner, 'auto') // cannot rollback. most likely will not queue and run immediately.
 				slackLog(processFlagged.name, `:white_check_mark: finished ${queueBlockOwner.name}: blocked ${numBlocked} items from ${owner}`)
 
