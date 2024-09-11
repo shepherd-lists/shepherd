@@ -154,7 +154,7 @@ const ownerUpdate = async (owner: string, txid: string) => {
 				slackLog(processFlagged.name, `${owner} is whitelisted, not blocking`)
 			} else {
 				/* get infraction records for notification */
-				const infractionRecs = await trx<TxRecord>('txs').whereIn('txid', function () {
+				const infractionRecs = await knex<TxRecord>('txs').whereIn('txid', function () {
 					this.select('txid').from(infractionsTablename)
 				})
 				slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. ${txid}`, JSON.stringify(infractionRecs, null, 2))
