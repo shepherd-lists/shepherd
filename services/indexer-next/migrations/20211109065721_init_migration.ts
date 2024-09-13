@@ -2,7 +2,7 @@ import { Knex } from "knex";
 
 
 export async function up(knex: Knex): Promise<void> {
-	await knex.schema.createTable('txs', (table)=>{
+	await knex.schema.createTable('txs', (table) => {
 		table.increments('id') //consider migrating to bigIncrements
 		table.specificType('txid', 'char(43)').unique().notNullable()
 		table.text('content_type').notNullable()
@@ -22,14 +22,14 @@ export async function up(knex: Knex): Promise<void> {
 	await knex.schema.raw('ALTER TABLE txs ADD CONSTRAINT cc_txid CHECK ((char_length(txid) = 43))')
 
 
-	await knex.schema.createTable('states', table=> {
+	await knex.schema.createTable('states', table => {
 		table.increments('id')
 		table.text('pname').notNullable()
 		table.integer('value').notNullable()
 	})
 	await knex('states').insert([
-		{ pname: 'scanner_position', value: 90_000}, // there's nothing down there except 1 tx with a bug for ario gql
-		{ pname: 'rating_position', value: 0},
+		{ pname: 'scanner_position', value: 90_000 }, // there's nothing down there except 1 tx with a bug for ario gql
+		{ pname: 'rating_position', value: 0 },
 	])
 }
 

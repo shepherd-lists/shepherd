@@ -7,7 +7,7 @@ export async function up(knex: Knex): Promise<void> {
 
 
 export async function down(knex: Knex): Promise<void> {
-	await knex.schema.alterTable('txs', table =>{
+	await knex.schema.alterTable('txs', table => {
 		table.dropIndex('flagged', 'txs_flagged_null')
 	})
 }

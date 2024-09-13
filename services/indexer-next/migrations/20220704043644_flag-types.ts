@@ -16,6 +16,6 @@ export async function down(knex: Knex): Promise<void> {
 		table.dropColumn('flag_type')
 		table.dropColumn('top_score_name')
 		table.dropColumn('top_score_value')
-	}) 
+	})
 }
 

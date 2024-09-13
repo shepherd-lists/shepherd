@@ -2,7 +2,7 @@ import { Knex } from "knex";
 
 
 export async function up(knex: Knex): Promise<void> {
-	await knex.schema.table('txs', table=>{
+	await knex.schema.table('txs', table => {
 		//remove nsfw_* columns
 		table.dropColumns(
 			'nsfw_porn',
@@ -19,7 +19,7 @@ export async function up(knex: Knex): Promise<void> {
 
 
 export async function down(knex: Knex): Promise<void> {
-	await knex.schema.table('txs', table=>{
+	await knex.schema.table('txs', table => {
 		table.float('nsfw_porn')
 		table.float('nsfw_sexy')
 		table.float('nsfw_hentai')

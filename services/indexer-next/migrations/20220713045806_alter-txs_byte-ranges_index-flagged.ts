@@ -17,6 +17,6 @@ export async function down(knex: Knex): Promise<void> {
 		table.dropColumn('byteEnd')
 
 		table.dropIndex('flagged', 'txs_flagged')
-	}) 
+	})
 }
 
