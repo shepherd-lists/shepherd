@@ -10,8 +10,6 @@ import { AWSError } from 'aws-sdk'
 import { s3, AWS_INPUT_BUCKET } from '../../utils/aws-services'
 
 
-const HOST_URL = process.env.HOST_URL!
-
 const downloads = VidDownloads.getInstance()
 
 export const addToDownloads = async(vid: {txid: string; content_size: string, content_type: string, receiptHandle: string})=> {
