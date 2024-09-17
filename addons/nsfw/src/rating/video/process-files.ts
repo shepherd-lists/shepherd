@@ -1,7 +1,7 @@
 import { logger } from '../../utils/logger'
 import { FfmpegError, } from 'shepherd-plugin-interfaces/types'
 import { corruptDataConfirmed, corruptDataMaybe, inflightDel } from '../../utils/update-txs'
-import { createScreencaps } from '../../../infra/screencaps'
+import { createScreencaps } from './screencaps'
 import { checkFrames } from './check-frames'
 import { VidDownloads } from './VidDownloads'
 import { slackLogger } from '../../utils/slackLogger'
