@@ -185,7 +185,7 @@ export const dataStream = async(txid: string, dbMime: string)=> {
 		/** file-type checking happens here */
 		if(mimeNotFound){
 			filehead = Buffer.concat([filehead, chunk])
-			if(filehead.length > 4100){
+			if(filehead.length > 16384){ //16kb
 				mimeNotFound = false
 				process.nextTick(()=>
 					filetypeCheck(incoming, filehead, txid, dbMime)
