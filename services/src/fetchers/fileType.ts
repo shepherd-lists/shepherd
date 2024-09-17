@@ -1,4 +1,4 @@
-import { fromBuffer, fromStream } from 'file-type' //16.5.4 for cjs
+import { fromBuffer } from 'file-type' //16.5.4 for cjs
 import { Readable } from 'stream'
 import { FetchersStatus } from '../common/constants'
 import { dbWrongMimeType } from '../common/utils/db-update-txs'
@@ -16,7 +16,8 @@ export const filetypeCheck = async(incoming: Readable, buffer: ArrayBuffer, txid
 	if(
 		ft?.mime.startsWith('image')
 		|| ft?.mime.startsWith('video')
-		|| ft === undefined // sometimes file-type doesn't dectect, so we'll assume it's ok and catch problems later
+		|| ft?.mime.startsWith('audio')
+		|| ft === undefined // sometimes file-type doesn't detect, so we'll assume it's ok and catch problems later
 	){
 
 		// do nothing
