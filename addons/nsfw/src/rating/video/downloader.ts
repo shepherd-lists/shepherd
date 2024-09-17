@@ -54,7 +54,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 			let filesizeDownloaded = 0
 
 			const fileTypeGood = (res: FileTypeResult | undefined)=>{
-				if(res && !res.mime.startsWith('video/')){
+				if(res && !(res.mime.startsWith('video') || res.mime.startsWith('audio') )){
 					logger(vid.txid, 'invalid video file-type:', res.mime)
 					wrongMimeType(vid.txid, res.mime)
 					vid.content_type = res.mime
@@ -69,7 +69,7 @@ export const videoDownload = async(vid: VidDownloadRecord)=> {
 				/* check the file head for mimetype & abort download if necessary */
 				if(mimeNotFound){
 					filehead = Buffer.concat([filehead, chunk])
-					if(filehead.length > 4100){
+					if(filehead.length > 16384){ //16kb
 						mimeNotFound = false
 						const res = await filetype.fromBuffer(filehead)
 						if(!fileTypeGood(res)){

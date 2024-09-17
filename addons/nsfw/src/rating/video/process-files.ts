@@ -1,7 +1,7 @@
 import { logger } from '../../utils/logger'
 import { FfmpegError, } from 'shepherd-plugin-interfaces/types'
 import { corruptDataConfirmed, corruptDataMaybe, inflightDel } from '../../utils/update-txs'
-import { createScreencaps } from './screencaps'
+import { createScreencaps } from '../../../infra/screencaps'
 import { checkFrames } from './check-frames'
 import { VidDownloads } from './VidDownloads'
 import { slackLogger } from '../../utils/slackLogger'
@@ -75,8 +75,8 @@ export const processVids = async()=> {
 
 			//let tfjs run through the screencaps & write to db
 			if(frames.length < 2){
-				logger(dl.txid, 'ERROR: NO FRAMES TO PROCESS!')
-				slackLogger(dl.txid, ' No frames to process!')
+				logger(dl.txid, dl.content_type, 'ERROR: NO FRAMES TO PROCESS!')
+				slackLogger(dl.txid, dl.content_type, 'No frames to process!')
 			}else{
 				await checkFrames(frames, dl.txid)
 			}
