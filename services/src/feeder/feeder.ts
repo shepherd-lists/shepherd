@@ -33,7 +33,7 @@ const getTxRecords =async (limit: number) => {
 				.leftJoin('inflights', 'inbox.txid', 'inflights.txid')
 				.whereNull('inflights.txid')
 				.whereNull('valid_data')
-				.whereRaw('content_type SIMILAR TO \'(image|video)/%\'')
+				.whereRaw('content_type SIMILAR TO \'(image|video|audio|application/octet)%\'')
 				.orderBy('inbox.height', 'asc')
 				.limit(limit)
 
