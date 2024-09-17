@@ -159,7 +159,7 @@ const messageHandler = async (message: SQS.Message) => {
 		}
 
 		const {contentLength, contentType} = headRes
-		const videoLength = contentType.startsWith('video/') || contentType.startsWith('audio') ? contentLength : 0 //images don't get stored in VID_TMPDIR
+		const videoLength = !contentType.startsWith('image') ? contentLength : 0 //images don't get stored in VID_TMPDIR
 		if(_currentTotalSize + videoLength > TOTAL_FILESIZE){
 			logger(prefix, key, `no room for this ${contentLength.toLocaleString()} byte file. releasing back to queue (aware DLQ)`, {_currentTotalSize})
 			await releaseMessage(message.ReceiptHandle!) //message may end up in DLQ if this is excessive.
@@ -172,7 +172,7 @@ const messageHandler = async (message: SQS.Message) => {
 		_currentTotalSize += videoLength
 
 		//send to vid or image processing
-		if(contentType.startsWith('video') || contentType.startsWith('audio')){
+		if(!contentType.startsWith('image')){
 			/* add to video download queue */
 			await addToDownloads({
 				content_size: contentLength.toString(),

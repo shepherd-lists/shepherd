@@ -28,8 +28,9 @@ export const checkImageTxid = async(txid: string, contentType: string)=> {
 			if(contentType.startsWith('image/')){
 				logger(prefix, 'image mime-type found to be `undefined`. try rating anyway. Original:', contentType, txid)
 			}else{
-				logger(prefix, `image mime-type found to be '${mime}'. will be automatically requeued using:`, contentType, txid)
-				await wrongMimeType(txid, contentType) //shouldn't get here..
+				const typeUpdated = contentType.startsWith('video') ? contentType : `video/${contentType}` //force to ffmpeg
+				logger(prefix, `image mime-type found to be '${mime}'. will be automatically requeued using:`, typeUpdated, txid)
+				await wrongMimeType(txid, typeUpdated) //shouldn't get here..
 				return true
 			}
 		}else if(!mime.startsWith('image/')){
