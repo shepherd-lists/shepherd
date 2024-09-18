@@ -13,6 +13,6 @@ module.exports = {
 		max: 10
 	},
 	migrations: {
-		tableName: 'knex_migrations_wallets'
+		// tableName: 'knex_migrations_wallets'
 	}
 }

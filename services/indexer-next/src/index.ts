@@ -25,7 +25,7 @@ while (true) {
 			/* knex migrate:latest */
 			const [batchNo, logs] = await knex.migrate.latest({
 				directory: new URL('../migrations/', import.meta.url).pathname,
-				tableName: 'knex_migrations_wallets',
+				// tableName: 'knex_migrations_wallets',
 			})
 			if (logs.length !== 0) {
 				console.info('migrate >>', 'Database upgrades complete', batchNo, logs)
