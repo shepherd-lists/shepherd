@@ -44,6 +44,7 @@ export const processVids = async()=> {
 						'ffout[1]:Error opening filters!',
 						'ffout[1]:undefined',
 						'ffout[1]:Conversion failed!',
+						'ffout[1]:Error marking filters as finished',
 					].includes(e.message)
 				){
 					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
@@ -53,7 +54,6 @@ export const processVids = async()=> {
 				}else if(
 					[
 						'spawnSync /bin/sh ENOMEM',
-						'ffout[1]:Error marking filters as finished',
 					].includes(e.message)
 				){
 					/**
