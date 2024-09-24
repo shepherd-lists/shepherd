@@ -29,34 +29,28 @@ if (!GQL_URL) throw new Error('GQL_URL not set')
 
 
 
-export const topHeightLoop = async (loop = true) => {
+export const tipLoop = async (loop = true) => {
 	let current = await gqlHeight(GQL_URL)
 	do {
 		/* get ario height */
-		const now = new Date()
-		const padOut = (n: number) => n.toString().padStart(2, '0')
-		const time = `${now.getUTCHours()}:${padOut(now.getUTCMinutes())}:${padOut(now.getSeconds())} UTC`
-		console.debug(`current height: ${current} ${time}`)
+		console.debug(`current height: ${current}`, new Date().toLocaleTimeString())
 
 		/* query min <=> max blocks  */
 		//TODO: gql query that sends off to lambdas
 		const min = current - 1, max = current
 		console.debug('querying blocks', { min, max })
 
-		/* catch up, or wait for next height */
+		/* wait for next height */
 		let next = await gqlHeight(GQL_URL)
 
-		if (current < next)
-			current++
-		else {
-			while (next === current) {
-				const waitMs = 30_000
-				console.info(`waiting ${waitMs.toLocaleString()} ms for new height...`, { current, next })
-				await sleep(waitMs) // wait for next block to be mined
-				next = await gqlHeight(GQL_URL)
-			}
+		while (next === current) {
+			const waitMs = 30_000
+			console.info(`waiting ${waitMs.toLocaleString()} ms for new height...`, { current, next })
+			await sleep(waitMs) // wait for next block to be mined
+			next = await gqlHeight(GQL_URL)
 		}
+		current = next //ensures we don't get backlogged, we're only interested in the tip
 	} while (loop)
 }
 
-// topHeightLoop()
+// tipLoop()
