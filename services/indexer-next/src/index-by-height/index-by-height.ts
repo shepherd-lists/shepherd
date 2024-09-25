@@ -20,8 +20,8 @@
  * 4. repeat
  * n.b. only latest blocks get queried, goldsky is the main indexer
 */
-import { gqlHeight } from "./gql-height"
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+import { gqlHeight as gqlHeightOrig } from "./gql-height"
+const sleepOrig = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const GQL_URL = process.env.GQL_URL as string //ario by default
 console.info(`GQL_URL: ${GQL_URL}`)
@@ -29,7 +29,13 @@ if (!GQL_URL) throw new Error('GQL_URL not set')
 
 const MIN_MAX_DIFFERENCE = 1
 
-export const tipLoop = async (loop = true) => {
+export const tipLoop = async (
+	/* dependency injection for test */
+	loop = true,
+	sleep = sleepOrig,
+	gqlHeight = gqlHeightOrig,
+	gqlLoop = gqlLoopOrig,
+) => {
 	let current = await gqlHeight(GQL_URL)
 	do {
 		/* get ario height */
@@ -38,7 +44,7 @@ export const tipLoop = async (loop = true) => {
 		/* query min <=> max blocks  */
 		//TODO: gql query that sends off to lambdas
 		const min = current - MIN_MAX_DIFFERENCE, max = current
-		console.debug('querying blocks', { min, max })
+		await gqlLoop({ min, max })
 
 		/* wait for next height */
 		let next = await gqlHeight(GQL_URL)
@@ -53,3 +59,6 @@ export const tipLoop = async (loop = true) => {
 	} while (loop)
 }
 
+const gqlLoopOrig = async ({ min, max }: { min: number, max: number }) => {
+	console.debug('querying blocks', { min, max })
+}
