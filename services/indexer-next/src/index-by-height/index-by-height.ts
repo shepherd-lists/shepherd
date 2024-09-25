@@ -27,7 +27,7 @@ const GQL_URL = process.env.GQL_URL as string //ario by default
 console.info(`GQL_URL: ${GQL_URL}`)
 if (!GQL_URL) throw new Error('GQL_URL not set')
 
-
+const MIN_MAX_DIFFERENCE = 1
 
 export const tipLoop = async (loop = true) => {
 	let current = await gqlHeight(GQL_URL)
@@ -37,7 +37,7 @@ export const tipLoop = async (loop = true) => {
 
 		/* query min <=> max blocks  */
 		//TODO: gql query that sends off to lambdas
-		const min = current - 1, max = current
+		const min = current - MIN_MAX_DIFFERENCE, max = current
 		console.debug('querying blocks', { min, max })
 
 		/* wait for next height */
@@ -53,4 +53,3 @@ export const tipLoop = async (loop = true) => {
 	} while (loop)
 }
 
-// tipLoop()
