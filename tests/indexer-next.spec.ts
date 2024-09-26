@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { tipLoop } from '../services/indexer-next/src/index-by-height/index-by-height'
+import { tipLoop } from '../services/indexer-next/src/index-by-height'
 import assert from "node:assert/strict";
 import { after, afterEach, beforeEach, describe, it, mock } from 'node:test'
 
@@ -23,13 +23,22 @@ describe('indexer-next tests', {}, () => {
 			return 4
 		})
 		const sleepMock = mock.fn(async () => { })
+		const gqlLoopMock = mock.fn(async ({ min, max }) => {
+			console.debug('querying blocks', { min, max })
+			if (count === 4) throw new Error('test finished')
+		})
 
 
-		await tipLoop(false, sleepMock, gqlHeightMock)
+		try {
+			await tipLoop(true, sleepMock, gqlHeightMock, gqlLoopMock)
+		} catch (e) {
+			if ((e as Error).message !== 'test finished') throw e
+		}
 
-		gqlHeightMock.mock.calls
-		assert.equal(gqlHeightMock.mock.calls.length, 3)
-
-
+		assert.deepEqual(gqlLoopMock.mock.calls[0].arguments, [{ min: 0, max: 1 }])
+		assert.deepEqual(gqlLoopMock.mock.calls[1].arguments, [{ min: 1, max: 2 }])
+		assert.deepEqual(gqlLoopMock.mock.calls[2].arguments, [{ min: 3, max: 4 }])
 	})
+
+
 })
