@@ -11,7 +11,7 @@ if (!process.env.GQL_URL_SECONDARY) throw new Error('missing env var: GQL_URL_SE
 const GQL_URL_SECONDARY = process.env.GQL_URL_SECONDARY!
 
 const lambdaClient = new LambdaClient({})
-const gql = arGql(GQL_URL_SECONDARY, 3) //defaults to goldsky
+const gql = arGql({ endpointUrl: GQL_URL_SECONDARY, retries: 3 }) //defaults to goldsky
 
 const ingestQuery = `
 query($cursor: String, $owners: [String!], $minAt: Int, $maxAt: Int) {
