@@ -22,7 +22,6 @@
 */
 import { gqlHeight as gqlHeightOrig } from "./gql-height"
 import { gqlPages } from "./query-processor"
-import { arGql } from 'ar-gql'
 const sleepOrig = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
@@ -36,8 +35,6 @@ if (!GQL_URL_SECONDARY) throw new Error('GQL_URL_SECONDARY not set')
 
 const MIN_MAX_DIFFERENCE = 1
 
-const ario = arGql({ endpointUrl: GQL_URL, retries: 3 })
-const goldsky = arGql({ endpointUrl: GQL_URL_SECONDARY, retries: 3 })
 
 
 export const tipLoop = async (
@@ -134,8 +131,8 @@ const gqlQueryOrig = async ({ min, max }: { min: number, max: number }) => {
 		query: queryArio,
 		variables,
 		indexName: 'indexer_tip',
-		gql: ario,
-		gqlBackup: goldsky,
+		gqlUrl: GQL_URL, //arweave.net
+		gqlUrlBackup: GQL_URL_SECONDARY, //goldsky.com
 	})
 
 
