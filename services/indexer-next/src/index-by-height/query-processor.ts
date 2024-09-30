@@ -1,7 +1,8 @@
 import pLimit from 'p-limit'
 import { slackLog } from '../../../../libs/utils/slackLog'
-import { ArGqlInterface } from 'ar-gql'
+import { arGql, ArGqlInterface } from 'ar-gql'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 
 
 const ARIO_DELAY_MS = 500
@@ -9,22 +10,30 @@ const MAX_INDEXER_LAMBDAS = 10
 const limit = pLimit(MAX_INDEXER_LAMBDAS)
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+const lambdaClient = new LambdaClient({})
+
+
+const FN_INDEXER = process.env.FN_INDEXER as string //ario by default
+console.info(`FN_INDEXER: ${FN_INDEXER}`)
+if (!FN_INDEXER) throw new Error('FN_INDEXER not set')
+
 
 export const gqlPages = async ({
 	query,
 	variables,
 	indexName,
-	gql,
-	gqlBackup,
+	gqlUrl,
+	gqlUrlBackup,
 }: {
 	query: string
 	variables: Record<string, any>,
 	indexName: string,
-	gql: ArGqlInterface,
-	gqlBackup: ArGqlInterface,
+	gqlUrl: string,
+	gqlUrlBackup: string,
 }) => {
 
-	const gqlProvider = gql.endpointUrl.includes('goldsky') ? 'goldsky.com' : 'arweave.net'
+	const gql = arGql({ endpointUrl: gqlUrl, retries: 3 })
+	const gqlProvider = gqlUrl.includes('goldsky') ? 'goldsky.com' : 'arweave.net'
 
 	let hasNextPage = true
 	let cursor = ''
@@ -53,7 +62,6 @@ export const gqlPages = async ({
 
 				/** getting a lot of temporary 502 errors lately */
 				if (status === 502) {
-					console.error(indexName, 'gql-error', status, ':', e.message, gqlProvider)
 					await slackLog(indexName, 'gql-error', status, ':', e.message, gqlProvider, 'retrying in 10s')
 					console.log(err)
 					await sleep(10_000)
@@ -74,7 +82,7 @@ export const gqlPages = async ({
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
-			promises.push(limit(lambdaInvoker, edges, pageCount, gql, indexName, gqlProvider, gqlBackup))
+			promises.push(limit(lambdaInvoker, { metas: edges, pageNumber: pageCount, gqlUrl, gqlUrlBackup, gqlProvider, indexName }))
 
 		}
 		hasNextPage = res.pageInfo.hasNextPage
@@ -101,7 +109,39 @@ export const gqlPages = async ({
 	return;
 }
 
-const lambdaInvoker = async (metas: GQLEdgeInterface[], pageNumber: number, gql: ArGqlInterface, indexName: string, gqlProvider: string, gqlBackup: ArGqlInterface) => {
-	//TODO: invoke lambdas, retry on errors, return count
-	return 0
+const lambdaInvoker = async (inputs: {
+	metas: GQLEdgeInterface[],
+	pageNumber: number,
+	gqlUrl: string,
+	gqlUrlBackup: string
+	gqlProvider: string,
+	indexName: string,
+}) => {
+	const { indexName, pageNumber, metas } = inputs
+	/* invoke lambdas, retry on errors, return count */
+	while (true) {
+		try {
+			const res = await lambdaClient.send(new InvokeCommand({
+				FunctionName: FN_INDEXER as string,
+				Payload: JSON.stringify(inputs),
+				InvocationType: 'RequestResponse',
+			}))
+			if (res.FunctionError) {
+				let payloadMsg = ''
+				try { payloadMsg = new TextDecoder().decode(res.Payload) }
+				catch (e) { payloadMsg = 'error decoding Payload with res.FunctionError' }
+				throw new Error(`Lambda error '${res.FunctionError}' for ${JSON.stringify({ indexName, pageNumber })}, payload: ${payloadMsg}`)
+			}
+
+			const inserts: number = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
+
+			console.info(indexName, lambdaInvoker.name, `page ${pageNumber}, ${inserts}/${metas.length} inserted`)
+			return inserts;
+		} catch (err: unknown) {
+			const e = err as Error
+			slackLog(indexName, lambdaInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
+			await sleep(10_000)
+			continue;
+		}
+	}
 }
