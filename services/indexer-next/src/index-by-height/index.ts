@@ -42,10 +42,12 @@ const goldsky = arGql({ endpointUrl: GQL_URL_SECONDARY, retries: 3 })
 
 export const tipLoop = async (
 	/* dependency injection for test */
-	loop = true,
-	sleep = sleepOrig,
-	gqlHeight = gqlHeightOrig,
-	gqlLoop = gqlQueryOrig,
+	{
+		loop = true,
+		sleep = sleepOrig,
+		gqlHeight = gqlHeightOrig,
+		gqlQuery = gqlQueryOrig,
+	},
 ) => {
 	let current = await gqlHeight(GQL_URL)
 	do {
@@ -55,7 +57,7 @@ export const tipLoop = async (
 		/* query min <=> max blocks  */
 		//TODO: gql query that sends off to lambdas
 		const min = current - MIN_MAX_DIFFERENCE, max = current
-		await gqlLoop({ min, max })
+		await gqlQuery({ min, max })
 
 		/* wait for next height */
 		let next = await gqlHeight(GQL_URL)

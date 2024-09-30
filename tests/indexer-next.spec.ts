@@ -23,21 +23,26 @@ describe('indexer-next tests', {}, () => {
 			return 4
 		})
 		const sleepMock = mock.fn(async () => { })
-		const gqlLoopMock = mock.fn(async ({ min, max }) => {
+		const gqlQueryMock = mock.fn(async ({ min, max }) => {
 			console.debug('querying blocks', { min, max })
 			if (count === 4) throw new Error('test finished')
 		})
 
 
 		try {
-			await tipLoop(true, sleepMock, gqlHeightMock, gqlLoopMock)
+			await tipLoop({
+				loop: true,
+				sleep: sleepMock,
+				gqlHeight: gqlHeightMock,
+				gqlQuery: gqlQueryMock
+			})
 		} catch (e) {
 			if ((e as Error).message !== 'test finished') throw e
 		}
 
-		assert.deepEqual(gqlLoopMock.mock.calls[0].arguments, [{ min: 0, max: 1 }])
-		assert.deepEqual(gqlLoopMock.mock.calls[1].arguments, [{ min: 1, max: 2 }])
-		assert.deepEqual(gqlLoopMock.mock.calls[2].arguments, [{ min: 3, max: 4 }])
+		assert.deepEqual(gqlQueryMock.mock.calls[0].arguments, [{ min: 0, max: 1 }])
+		assert.deepEqual(gqlQueryMock.mock.calls[1].arguments, [{ min: 1, max: 2 }])
+		assert.deepEqual(gqlQueryMock.mock.calls[2].arguments, [{ min: 3, max: 4 }])
 	})
 
 
