@@ -21,20 +21,31 @@
  * n.b. only latest blocks get queried, goldsky is the main indexer
 */
 import { gqlHeight as gqlHeightOrig } from "./gql-height"
+import { gqlPages } from "./query-processor"
+import { arGql } from 'ar-gql'
 const sleepOrig = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+
 const GQL_URL = process.env.GQL_URL as string //ario by default
+const GQL_URL_SECONDARY = process.env.GQL_URL_SECONDARY as string //goldsky by default
 console.info(`GQL_URL: ${GQL_URL}`)
+console.info(`GQL_URL_SECONDARY : ${GQL_URL_SECONDARY}`)
 if (!GQL_URL) throw new Error('GQL_URL not set')
+if (!GQL_URL_SECONDARY) throw new Error('GQL_URL_SECONDARY not set')
+
 
 const MIN_MAX_DIFFERENCE = 1
+
+const ario = arGql({ endpointUrl: GQL_URL, retries: 3 })
+const goldsky = arGql({ endpointUrl: GQL_URL_SECONDARY, retries: 3 })
+
 
 export const tipLoop = async (
 	/* dependency injection for test */
 	loop = true,
 	sleep = sleepOrig,
 	gqlHeight = gqlHeightOrig,
-	gqlLoop = gqlLoopOrig,
+	gqlLoop = gqlQueryOrig,
 ) => {
 	let current = await gqlHeight(GQL_URL)
 	do {
@@ -59,6 +70,71 @@ export const tipLoop = async (
 	} while (loop)
 }
 
-const gqlLoopOrig = async ({ min, max }: { min: number, max: number }) => {
+const gqlQueryOrig = async ({ min, max }: { min: number, max: number }) => {
 	console.debug('querying blocks', { min, max })
+	const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
+		transactions(
+			block: {
+				min: $minBlock,
+				max: $maxBlock,
+			}
+			tags: [
+				{ name: "Content-Type", values: [
+					"image/bmp",
+					"image/jpeg",
+					"image/jpg",
+					"image/png",
+					"image/gif",
+					"image/tiff",
+					"image/webp",
+					"image/x-ms-bmp",
+					"image/svg+xml",
+					"image/apng",
+					"image/heic",
+					"video/3gpp",
+					"video/3gpp2",
+					"video/mp2t",
+					"video/mp4",
+					"video/mpeg",
+					"video/ogg",
+					"video/quicktime",
+					"video/webm",
+					"video/x-flv",
+					"video/x-m4v",
+					"video/x-msvideo",
+					"video/x-ms-wmv",
+				] }
+			]
+			first: 100
+			after: $cursor
+		) {
+			pageInfo { hasNextPage }
+			edges {
+				cursor
+				node{
+					id
+					data{ size type }
+					tags{ name value }
+					block{ height }
+					parent{ id }
+					owner{ address }
+				}
+			}
+		}
+	}`
+	const variables = {
+		minBlock: min,
+		maxBlock: max,
+	}
+
+	//call generic handler
+	await gqlPages({
+		query: queryArio,
+		variables,
+		indexName: 'indexer_tip',
+		gql: ario,
+		gqlBackup: goldsky,
+	})
+
+
 }
