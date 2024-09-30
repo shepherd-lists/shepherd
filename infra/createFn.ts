@@ -7,7 +7,9 @@ export const createFn = (
 	init: {
 		vpc: aws_ec2.IVpc,
 		securityGroups: aws_ec2.ISecurityGroup[],
+		/** @default 128 mb */
 		memorySize?: number,
+		/** @default 15 mins */
 		timeout?: Duration,
 		logGroup?: aws_logs.ILogGroup,
 		environment: Record<string, string>,
