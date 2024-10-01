@@ -112,6 +112,7 @@ export const gqlPages = async ({
 	return;
 }
 
+/** N.B. `inputs` must match fnIndex `event` */
 const lambdaInvoker = async (inputs: {
 	metas: GQLEdgeInterface[],
 	pageNumber: number,

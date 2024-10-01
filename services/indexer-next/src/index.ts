@@ -43,9 +43,9 @@ while (true) {
 			/** initialise lists if necessary */
 			await assertLists()
 
-			/** start ingest loops */
-			ownerIngestCatchLoop() //this async never returns, has own catch-loop
-			tipLoop({}) //ditto
+			/** start ingest loops. n.b. never return, have own catch loops */
+			ownerIngestCatchLoop()
+			tipLoop({})
 
 			runonce = false
 		}
