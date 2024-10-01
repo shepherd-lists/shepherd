@@ -1,3 +1,10 @@
 {
-	"type": "module"
+	"type": "module",
+	"dependencies": {
+		"ar-gql": "^2.0.2",
+		"knex": "^3.1.0",
+		"moize": "^6.1.6",
+		"pg": "^8.13.0",
+		"shepherd-plugin-interfaces": "^0.3.4"
+	}
 }
