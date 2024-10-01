@@ -33,7 +33,9 @@ if (!GQL_URL) throw new Error('GQL_URL not set')
 if (!GQL_URL_SECONDARY) throw new Error('GQL_URL_SECONDARY not set')
 
 
-const MIN_MAX_DIFFERENCE = 1
+const MIN_MAX_DIFFERENCE = 0 //cannot make it bigger. ario restriction: 1 block indexed
+
+const indexName = 'indexer_tip'
 
 
 
@@ -49,7 +51,7 @@ export const tipLoop = async (
 	let current = await gqlHeight(GQL_URL)
 	do {
 		/* get ario height */
-		console.debug(`current height: ${current}`, new Date().toLocaleTimeString())
+		console.debug(indexName, `current height: ${current}`, new Date().toLocaleTimeString())
 
 		/* query min <=> max blocks  */
 		//TODO: gql query that sends off to lambdas
@@ -61,7 +63,7 @@ export const tipLoop = async (
 
 		while (next === current) {
 			const waitMs = 30_000
-			console.info(`waiting ${waitMs.toLocaleString()} ms for new height...`, { current, next })
+			console.info(indexName, `waiting ${waitMs.toLocaleString()} ms for new height...`, { current, next })
 			await sleep(waitMs) // wait for next block to be mined
 			next = await gqlHeight(GQL_URL)
 		}
@@ -70,7 +72,7 @@ export const tipLoop = async (
 }
 
 const gqlQueryOrig = async ({ min, max }: { min: number, max: number }) => {
-	console.debug('querying blocks', { min, max })
+	console.debug(indexName, 'querying blocks', { min, max })
 	const queryArio = `query($cursor: String, $minBlock: Int, $maxBlock: Int) {
 		transactions(
 			block: {
@@ -134,6 +136,4 @@ const gqlQueryOrig = async ({ min, max }: { min: number, max: number }) => {
 		gqlUrl: GQL_URL, //arweave.net
 		gqlUrlBackup: GQL_URL_SECONDARY, //goldsky.com
 	})
-
-
 }
