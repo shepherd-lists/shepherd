@@ -4,6 +4,7 @@ import { checkForManuallyModifiedOwners } from './services/check-manually-added-
 import { assertLists, updateFullTxidsRanges } from '../../../libs/s3-lists/update-lists'
 import { ownerIngestCatchLoop } from './owner-ingest'
 import { processBlockedOwnersQueue } from '../../../libs/block-owner/owner-blocking'
+import { tipLoop } from './index-by-height'
 
 
 
@@ -42,8 +43,9 @@ while (true) {
 			/** initialise lists if necessary */
 			await assertLists()
 
-			/** start block-owner-ingest loop */
+			/** start ingest loops */
 			ownerIngestCatchLoop() //this async never returns, has own catch-loop
+			tipLoop({}) //ditto
 
 			runonce = false
 		}
@@ -60,7 +62,7 @@ while (true) {
 		}
 
 
-		console.info('nothing to do. sleeping for 50 seconds...')
+		console.info('owner-checks', 'nothing to do. sleeping for 50 seconds...')
 		await new Promise(resolve => setTimeout(resolve, 50_000))
 
 
