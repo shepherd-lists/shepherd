@@ -18,7 +18,7 @@ export const createFn = (
 
 	const { vpc, securityGroups, memorySize, timeout, logGroup, environment } = init
 
-	const fnOwnerTable = new aws_lambda_nodejs.NodejsFunction(stack, name, {
+	const fn = new aws_lambda_nodejs.NodejsFunction(stack, name, {
 		runtime: aws_lambda.Runtime.NODEJS_20_X,
 		architecture: aws_lambda.Architecture.X86_64,
 		memorySize, //defaults to 128
@@ -27,6 +27,14 @@ export const createFn = (
 		bundling: {
 			format: aws_lambda_nodejs.OutputFormat.ESM,
 			banner: 'import { createRequire } from \'module\';const require = createRequire(import.meta.url);',
+			externalModules: [
+				'sqlite3',
+				'better-sqlite3',
+				'tedious',
+				'mysql',
+				'mysql2',
+				'oracledb',
+			]
 		},
 		timeout: timeout || Duration.minutes(15), //default to max
 		environment,
@@ -36,5 +44,5 @@ export const createFn = (
 		logGroup,
 	})
 
-	return fnOwnerTable;
+	return fn;
 }
