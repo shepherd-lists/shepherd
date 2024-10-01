@@ -44,15 +44,19 @@ export const gqlPages = async ({
 	while (hasNextPage) {
 		const p0 = performance.now()
 
-		let res
+		let edges, res
 		while (true) {
 			try {
-				res = (await gql.run(query, {
+				res = await gql.run(query, {
 					...variables,
 					cursor,
-				})).data.transactions
+				})
+				edges = res.data.transactions.edges
 				break
 			} catch (err: unknown) {
+				console.error(JSON.stringify({ err }))
+				console.error(JSON.stringify({ res }))
+				console.error(JSON.stringify({ edges }))
 				const e = err as Error
 				const status = Number(e.cause) || 0
 				if (!e.cause) {
@@ -74,7 +78,6 @@ export const gqlPages = async ({
 			}
 		}//end while-gql.run
 
-		let edges = res.edges
 		if (edges && edges.length) {
 			cursor = edges[edges.length - 1].cursor
 			itemCount += edges.length
@@ -82,10 +85,10 @@ export const gqlPages = async ({
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
-			promises.push(limit(lambdaInvoker, { metas: edges, pageNumber: pageCount, gqlUrl, gqlUrlBackup, gqlProvider, indexName }))
+			promises.push(limit(lambdaInvoker, { metas: edges, pageNumber: pageCount++, gqlUrl, gqlUrlBackup, gqlProvider, indexName }))
 
 		}
-		hasNextPage = res.pageInfo.hasNextPage
+		hasNextPage = res.data.transactions.pageInfo.hasNextPage
 
 		const tPage = performance.now() - p0
 		let logstring = `retrieved & dispatched gql page of ${edges.length} results in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
@@ -104,7 +107,7 @@ export const gqlPages = async ({
 
 	const results = await Promise.all(promises)
 	const inserted = results.reduce((acc, result) => acc + result, 0)
-	console.info(indexName, `${pageCount} pages, ${inserted}/${itemCount} items inserted in ${performance.now() - t0}`)
+	console.info(indexName, `${pageCount} pages, ${inserted}/${itemCount} items inserted in ${(performance.now() - t0).toFixed(0)} ms`)
 
 	return;
 }
