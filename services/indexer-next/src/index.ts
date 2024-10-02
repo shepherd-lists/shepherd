@@ -45,7 +45,7 @@ while (true) {
 
 			/** start ingest loops. n.b. never return, have own catch loops */
 			ownerIngestCatchLoop()
-			tipLoop({})
+			// tipLoop({})
 
 			runonce = false
 		}
