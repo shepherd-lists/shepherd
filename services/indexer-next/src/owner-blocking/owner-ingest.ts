@@ -1,9 +1,9 @@
 import { arGql } from 'ar-gql'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
-import pool from '../../../libs/utils/pgClient'
-import { s3GetObject, s3HeadObject } from '../../../libs/utils/s3-services'
+import pool from '../../../../libs/utils/pgClient'
+import { s3GetObject, s3HeadObject } from '../../../../libs/utils/s3-services'
 import { performance } from 'perf_hooks'
-import { slackLog } from '../../../libs/utils/slackLog'
+import { slackLog } from '../../../../libs/utils/slackLog'
 
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
 const LISTS_BUCKET = process.env.LISTS_BUCKET!
@@ -154,7 +154,7 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 	} while (loop)
 }// EO blockOwnerIngest
 
-export const ownerIngestCatchLoop = async () => {
+export const ownerIngestLoop = async () => {
 	while (true) {
 		try {
 			await blockOwnerIngest()
