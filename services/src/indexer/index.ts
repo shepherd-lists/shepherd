@@ -17,23 +17,23 @@ const start = async()=> {
 		/**
 		 * Database updates happen here before indexer and other services start
 		 */
-		logger('migrate', 'applying any knex migrations...')
-		const [ batchNo, logs] = await knex.migrate.latest({ directory: `${__dirname}/../../migrations/`})
+		// logger('migrate', 'applying any knex migrations...')
+		// const [ batchNo, logs] = await knex.migrate.latest({ directory: `${__dirname}/../../migrations/`})
 
-		if(logs.length !== 0){
-			logger('migrate', col.green('Database upgrades complete'), batchNo, logs)
-			logger('migrate', 'now running vacuum...')
-			await knex.raw('vacuum verbose analyze;')
-			const vacResults = await knex.raw('SELECT relname, last_vacuum, last_autovacuum FROM pg_stat_user_tables;')
-			for(const row of vacResults.rows){
-				logger('vacuum', JSON.stringify(row))
-			}
-		}else{
-			logger('migrate', col.green('Database upgrade not required'), batchNo, logs)
-		}
+		// if(logs.length !== 0){
+		// 	logger('migrate', col.green('Database upgrades complete'), batchNo, logs)
+		// 	logger('migrate', 'now running vacuum...')
+		// 	await knex.raw('vacuum verbose analyze;')
+		// 	const vacResults = await knex.raw('SELECT relname, last_vacuum, last_autovacuum FROM pg_stat_user_tables;')
+		// 	for(const row of vacResults.rows){
+		// 		logger('vacuum', JSON.stringify(row))
+		// 	}
+		// }else{
+		// 	logger('migrate', col.green('Database upgrade not required'), batchNo, logs)
+		// }
 
-		const seed = await knex.seed.run({ directory: `${__dirname}/../../seeds/`})
-		logger('info', 'applied the following seed files', seed)
+		// const seed = await knex.seed.run({ directory: `${__dirname}/../../seeds/`})
+		// logger('info', 'applied the following seed files', seed)
 
 
 		const arGql1 = arGql(GQL_URL)
