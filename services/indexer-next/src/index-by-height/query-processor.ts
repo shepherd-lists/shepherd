@@ -78,6 +78,8 @@ export const gqlPages = async ({
 			}
 		}//end while-gql.run
 
+		let logstring = ''
+		let tPage = 0
 		if (edges && edges.length) {
 			cursor = edges[edges.length - 1].cursor
 			itemCount += edges.length
@@ -87,11 +89,12 @@ export const gqlPages = async ({
 
 			promises.push(limit(lambdaInvoker, { metas: edges, pageNumber: pageCount++, gqlUrl, gqlUrlBackup, gqlProvider, indexName }))
 
+			tPage = performance.now() - p0
+			logstring = `retrieved & dispatched gql page of ${edges.length} results in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
+		} else {
+			logstring = `no pages to dispatch. cursor: ${cursor}`
 		}
-		hasNextPage = res.data.transactions.pageInfo.hasNextPage
 
-		const tPage = performance.now() - p0
-		let logstring = `retrieved & dispatched gql page of ${edges.length} results in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
 
 		/* slow down, too hard to get out of arweave.net's rate-limit once it kicks in */
 		if (gql.endpointUrl.includes('arweave.net')) {
@@ -103,11 +106,13 @@ export const gqlPages = async ({
 		} else {
 			console.info(indexName, logstring)
 		}
+
+		hasNextPage = res.data.transactions.pageInfo.hasNextPage
 	}//end while(hasNextPage)
 
 	const results = await Promise.all(promises)
 	const inserted = results.reduce((acc, result) => acc + result, 0)
-	console.info(indexName, `${pageCount} pages, ${inserted}/${itemCount} items inserted in ${(performance.now() - t0).toFixed(0)} ms`)
+	console.info(indexName, `finished ${pageCount} pages, ${inserted}/${itemCount} items inserted in ${(performance.now() - t0).toFixed(0)} ms`)
 
 	return;
 }
