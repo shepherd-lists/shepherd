@@ -138,7 +138,7 @@ export const insertRecords = async (records: TxScanned[], indexName: string, gql
 
 	let alteredCount = 0
 	try {
-		if (indexName === 'indexer_pass1') {
+		if (indexName === 'indexer_tip') {
 			/** expecting almost zero conflicts here */
 
 			// console.log('pass1 inserting records', records.length, {records})
@@ -154,8 +154,6 @@ export const insertRecords = async (records: TxScanned[], indexName: string, gql
 			const recordsInInbox = await knex<TxRecord>('inbox').whereIn('txid', records.map(r => r.txid))
 			const recordsInTxs = await knex<TxRecord>('txs').whereIn('txid', records.map(r => r.txid))
 			const recordsInDb = [...recordsInInbox, ...recordsInTxs]
-
-			/** need to account for records that have already been processed and moved to txs */
 
 
 			/* step 1: update records with newer height */
