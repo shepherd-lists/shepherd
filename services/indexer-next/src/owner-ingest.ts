@@ -11,43 +11,43 @@ if (!process.env.GQL_URL_SECONDARY) throw new Error('missing env var: GQL_URL_SE
 const GQL_URL_SECONDARY = process.env.GQL_URL_SECONDARY!
 
 const lambdaClient = new LambdaClient({})
-const gql = arGql(GQL_URL_SECONDARY, 3) //defaults to goldsky
+const gql = arGql({ endpointUrl: GQL_URL_SECONDARY, retries: 3 }) //defaults to goldsky
 
 const ingestQuery = `
 query($cursor: String, $owners: [String!], $minAt: Int, $maxAt: Int) {
-  transactions(
-    # your query parameters
+	transactions(
+		# your query parameters
 		owners: $owners
 
 		ingested_at: {
-      min: $minAt,
-      max: $maxAt,
-    }
+			min: $minAt,
+			max: $maxAt,
+		}
 		#remove pending results
 		sort: HEIGHT_DESC
 
-    tags: [
-      {name:"Bundle-Version", op:NEQ},
-      {name: "type", values: "redstone-oracles", op: NEQ},
-    ]
-    
-    # standard template below
-    after: $cursor
-    first: 100
-  ) {
-    pageInfo{hasNextPage}
+		tags: [
+			{name:"Bundle-Version", op:NEQ},
+			{name: "type", values: "redstone-oracles", op: NEQ},
+		]
+		
+		# standard template below
+		after: $cursor
+		first: 100
+	) {
+		pageInfo{hasNextPage}
 
-    edges {
-      cursor
-      node {
-        # what tx data you want to query for:
-        id
-        parent{id}
-        data{size}
+		edges {
+			cursor
+			node {
+				# what tx data you want to query for:
+				id
+				parent{id}
+				data{size}
 				owner{address}
-      }
-    }
-  }
+			}
+		}
+	}
 }
 `
 

@@ -67,6 +67,22 @@ export const createStack = async (app: App, config: Config) => {
 			http_api_nodes: JSON.stringify(config.http_api_nodes),
 		},
 	})
+	/** create lambda to process incoming items */
+	const fnIndex = createFn('fnIndex', stack, {
+		vpc,
+		securityGroups: [sgPgdb],
+		logGroup: logGroupServices,
+		// memorySize: 128,
+		// timeout: Duration.minutes(15),
+		environment: {
+			DB_HOST: rdsEndpoint,
+			SLACK_WEBHOOK: config.slack_webhook!,
+			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
+			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
+			HOST_URL: config.host_url || 'https://arweave.net',
+			http_api_nodes: JSON.stringify(config.http_api_nodes),
+		},
+	})
 
 	/** create s3 for lists */
 	const listsBucket = buildListsBucket(stack, {
@@ -97,6 +113,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
+			FN_INDEXER: fnIndex.functionName,
 			LISTS_BUCKET: `shepherd-lists-${config.region}`,
 		}
 	})
@@ -104,7 +121,7 @@ export const createStack = async (app: App, config: Config) => {
 	const taskroleIndex = indexerNext.taskDefinition.taskRole
 	taskroleIndex.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['lambda:InvokeFunction'],
-		resources: [fnOwnerBlocking.functionArn],
+		resources: [fnOwnerBlocking.functionArn, fnIndex.functionArn],
 	}))
 	taskroleIndex.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['s3:*'],
