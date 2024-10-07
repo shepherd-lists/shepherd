@@ -8,6 +8,7 @@ import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 const ARIO_DELAY_MS = 500
 const MAX_INDEXER_LAMBDAS = 10
 const limit = pLimit(MAX_INDEXER_LAMBDAS)
+const MISSING_HEIGHT = 'MISSING_HEIGHT'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const lambdaClient = new LambdaClient({})
@@ -52,6 +53,11 @@ export const gqlPages = async ({
 					cursor,
 				})
 				edges = res.data.transactions.edges
+
+				/** facing a common issue where heights have not yet been applied to mined items */
+				const missingHeight = edges.find((edge: GQLEdgeInterface) => !edge.node.block?.height)
+				if (missingHeight) throw new Error(`${MISSING_HEIGHT} from ${missingHeight.node.id}`)
+
 				break
 			} catch (err: unknown) {
 				console.error(JSON.stringify({ err }))
@@ -68,6 +74,12 @@ export const gqlPages = async ({
 				if (status === 502) {
 					await slackLog(indexName, 'gql-error', status, ':', e.message, gqlProvider, 'retrying in 10s')
 					console.log(err)
+					await sleep(10_000)
+					continue
+				}
+
+				if (e.message.startsWith(MISSING_HEIGHT)) {
+					await slackLog(indexName, 'gql-error', e.message, 'retrying in 10s')
 					await sleep(10_000)
 					continue
 				}
