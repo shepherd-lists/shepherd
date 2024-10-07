@@ -10,6 +10,7 @@
  * - it will only be used for live indexing of new blocks.
  * - it can scan multiple blocks at a time as the numbers should be low, and little if any dataItems unbundled.
  *   -- this will be empirically tested, but max = height && min = height -1, for example.
+ *   N.B. these assumptions were wrong! ario cannot query multiple blocks with our other generic parameters
  * 
  * footnote: this will replace the oldest, and last remaining code from the original shepherd versions!
  */
@@ -21,7 +22,7 @@
  * n.b. only latest blocks get queried, goldsky is the main indexer
 */
 import { gqlHeight as gqlHeightOrig } from "./gql-height"
-import { gqlPages } from "./query-processor"
+import { gqlPages } from "../index-shared/query-processor"
 const sleepOrig = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 

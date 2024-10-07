@@ -1,6 +1,6 @@
 import pool from '../../../../libs/utils/pgClient'
 import { performance } from 'perf_hooks'
-import { gqlPages } from '../index-by-height/query-processor'
+import { gqlPages } from '../index-shared/query-processor'
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
