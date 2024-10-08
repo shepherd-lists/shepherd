@@ -1,7 +1,6 @@
 import { slackLog } from '../../../../libs/utils/slackLog'
 import { checkForManuallyModifiedOwners } from './check-manually-added-owners'
-import { assertLists, updateFullTxidsRanges } from '../../../../libs/s3-lists/update-lists'
-import { ownerIngestLoop } from './owner-ingest'
+import { updateFullTxidsRanges } from '../../../../libs/s3-lists/update-lists'
 import { processBlockedOwnersQueue } from '../../../../libs/block-owner/owner-blocking'
 
 

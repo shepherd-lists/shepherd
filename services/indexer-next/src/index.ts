@@ -1,9 +1,7 @@
 import { slackLog } from '../../../libs/utils/slackLog'
 import knexCreate from '../../../libs/utils/knexCreate'
-import { checkForManuallyModifiedOwners } from './owner-blocking/check-manually-added-owners'
-import { assertLists, updateFullTxidsRanges } from '../../../libs/s3-lists/update-lists'
+import { assertLists } from '../../../libs/s3-lists/update-lists'
 import { ownerIngestLoop } from './owner-blocking/owner-ingest'
-import { processBlockedOwnersQueue } from '../../../libs/block-owner/owner-blocking'
 import { tipLoop } from './index-by-height'
 import { ingestLoop } from './index-by-ingested_at'
 import { ownerChecks } from './owner-blocking'
@@ -46,8 +44,8 @@ while (true) {
 		/** start ingest loops. n.b. never return, have own catch loops */
 		ownerIngestLoop()
 		ownerChecks()
-		// tipLoop({})
-		// ingestLoop()
+		tipLoop({})
+		ingestLoop()
 
 		break;
 	} catch (err: unknown) {

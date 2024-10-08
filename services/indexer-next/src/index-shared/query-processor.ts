@@ -1,6 +1,6 @@
 import pLimit from 'p-limit'
 import { slackLog } from '../../../../libs/utils/slackLog'
-import { arGql, ArGqlInterface } from 'ar-gql'
+import { arGql } from 'ar-gql'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 
@@ -8,6 +8,7 @@ import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 const ARIO_DELAY_MS = 500
 const MAX_INDEXER_LAMBDAS = 10
 const limit = pLimit(MAX_INDEXER_LAMBDAS)
+const MISSING_HEIGHT = 'MISSING_HEIGHT'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const lambdaClient = new LambdaClient({})
@@ -52,6 +53,11 @@ export const gqlPages = async ({
 					cursor,
 				})
 				edges = res.data.transactions.edges
+
+				/** facing a common issue where heights have not yet been applied to mined items */
+				const missingHeight = edges.find((edge: GQLEdgeInterface) => !edge.node.block?.height)
+				if (missingHeight) throw new Error(`${MISSING_HEIGHT} from ${missingHeight.node.id}`)
+
 				break
 			} catch (err: unknown) {
 				console.error(JSON.stringify({ err }))
@@ -59,6 +65,14 @@ export const gqlPages = async ({
 				console.error(JSON.stringify({ edges }))
 				const e = err as Error
 				const status = Number(e.cause) || 0
+
+				if (e.message.startsWith(MISSING_HEIGHT)) {
+					await slackLog(indexName, 'gql-error', e.message, 'retrying in 10s')
+					await sleep(10_000)
+					continue
+				}
+
+				/** ar-gql http errors have a cause, otherwise connection issue */
 				if (!e.cause) {
 					console.error(indexName, `gql-error '${e.message}'. trying again`, gqlProvider)
 					continue

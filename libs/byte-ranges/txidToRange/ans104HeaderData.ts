@@ -49,6 +49,7 @@ const concatByteArray = (a: Uint8Array, b: Uint8Array) => {
 
 /* handle errors during the stream */
 const fetchHeader = async (parent: string) => {
+	const BUNDLE_DATA_CONTAINS_TEXT_HTML = "bundle data contains 'text/html'"
 	while (true) {
 		let reader: ReadableStreamDefaultReader<Uint8Array>
 		try {
@@ -56,19 +57,24 @@ const fetchHeader = async (parent: string) => {
 
 			let header = new Uint8Array(0)
 
-			const { aborter, res: { status, body } } = await fetchRetryConnection(`/${parent}`)
+			const { aborter, res } = await fetchRetryConnection(`/${parent}`)
 			//pass 404s up
-			if (status === 404) return {
-				status,
+			if (res.status === 404) return {
+				status: res.status,
 				header,
 				numDataItems: -1,
 				headerLength: 0n,
 			}
 
+			/** gateway bug, where wrong data present. report it! */
+			if (res.headers.get('content-type')?.includes('text/html')) {
+				throw new Error(`${BUNDLE_DATA_CONTAINS_TEXT_HTML}. id: ${parent}`)
+			}
+
 			/* fetch the bytes we're interested in */
 
 			//read bytes for numDataItems and calculate header size
-			reader = body!.getReader()
+			reader = res.body!.getReader()
 			header = await readEnoughBytes(reader, header, 32)
 			const numDataItems = byteArrayToNumber(header.slice(0, 32))
 			const totalHeaderLength = 64 * numDataItems + 32
@@ -83,10 +89,10 @@ const fetchHeader = async (parent: string) => {
 			/* close the stream & return results */
 			// aborter!.abort() this changed around nodejs v20.13.0, throws abort error event
 			reader?.releaseLock()
-			body?.cancel() //twice to be sure?
+			res.body?.cancel() //twice to be sure?
 
 			return {
-				status,
+				status: res.status,
 				header,
 				numDataItems,
 				headerLength: BigInt(totalHeaderLength),
@@ -94,6 +100,9 @@ const fetchHeader = async (parent: string) => {
 
 		} catch (e) {
 			if (reader!) reader.releaseLock() //non-null assertion testing for null. keeps ts happy :shrug:
+			if ((e as Error).message.startsWith(BUNDLE_DATA_CONTAINS_TEXT_HTML)) {
+				throw e;
+			}
 			//can we just retry everything?
 			const retryMs = 10_000
 			console.log(fetchHeader.name, `Error for '${parent}'. Retrying in ${retryMs} ms...`)
