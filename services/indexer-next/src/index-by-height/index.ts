@@ -6,17 +6,15 @@
  * - where goldsky is lacking is in latency, especially for base txs.
  * 
  * so this will be an ario based indexer using min/max heights to scan blocks.
- * - it will not be used for backfilling or catchup indexing.
+ * - it will not be used for backfilling or catchup indexing. so no state saves required.
  * - it will only be used for live indexing of new blocks.
- * - it can scan multiple blocks at a time as the numbers should be low, and little if any dataItems unbundled.
- *   -- this will be empirically tested, but max = height && min = height -1, for example.
- *   N.B. these assumptions were wrong! ario cannot query multiple blocks with our other generic parameters
  * 
  * footnote: this will replace the oldest, and last remaining code from the original shepherd versions!
  */
 /** plan:
  * 1. get current ario height
- * 2. scan blocks for min/max heights to index, dispatch to worker lambdas
+ * 2. scan blocks for min/max heights to index, dispatch to worker lambdas 
+ *    - edit: separate min/max not required, only possible to query 1 block using ARio
  * 3. wait for next block height
  * 4. repeat
  * n.b. only latest blocks get queried, goldsky is the main indexer

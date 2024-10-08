@@ -1,6 +1,6 @@
 import pLimit from 'p-limit'
 import { slackLog } from '../../../../libs/utils/slackLog'
-import { arGql, ArGqlInterface } from 'ar-gql'
+import { arGql } from 'ar-gql'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 
