@@ -65,6 +65,14 @@ export const gqlPages = async ({
 				console.error(JSON.stringify({ edges }))
 				const e = err as Error
 				const status = Number(e.cause) || 0
+
+				if (e.message.startsWith(MISSING_HEIGHT)) {
+					await slackLog(indexName, 'gql-error', e.message, 'retrying in 10s')
+					await sleep(10_000)
+					continue
+				}
+
+				/** ar-gql http errors have a cause, otherwise connection issue */
 				if (!e.cause) {
 					console.error(indexName, `gql-error '${e.message}'. trying again`, gqlProvider)
 					continue
@@ -74,12 +82,6 @@ export const gqlPages = async ({
 				if (status === 502) {
 					await slackLog(indexName, 'gql-error', status, ':', e.message, gqlProvider, 'retrying in 10s')
 					console.log(err)
-					await sleep(10_000)
-					continue
-				}
-
-				if (e.message.startsWith(MISSING_HEIGHT)) {
-					await slackLog(indexName, 'gql-error', e.message, 'retrying in 10s')
 					await sleep(10_000)
 					continue
 				}
