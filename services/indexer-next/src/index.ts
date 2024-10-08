@@ -44,8 +44,8 @@ while (true) {
 		/** start ingest loops. n.b. never return, have own catch loops */
 		ownerIngestLoop()
 		ownerChecks()
-		// tipLoop({})
-		// ingestLoop()
+		tipLoop({})
+		ingestLoop()
 
 		break;
 	} catch (err: unknown) {
