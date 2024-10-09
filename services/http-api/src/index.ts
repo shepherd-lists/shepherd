@@ -3,10 +3,8 @@ import { Socket } from 'net'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { network_EXXX_codes } from '../../../libs/constants'
 import { pluginResultHandler } from './pluginResultHandler'
-import { doneInit, moveDone } from './done-records'
+import './done-records' //self starting
 
-/** call init early */
-doneInit().then(() => moveDone())
 
 const prefix = 'http-api'
 const app = express()
