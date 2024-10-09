@@ -67,8 +67,8 @@ export const gqlPages = async ({
 				const status = Number(e.cause) || 0
 
 				if (e.message.startsWith(MISSING_HEIGHT)) {
-					await slackLog(indexName, 'gql-error', e.message, 'retrying in 10s')
-					await sleep(10_000)
+					await slackLog(indexName, 'gql-error', e.message, 'retrying in 30s')
+					await sleep(30_000)
 					continue
 				}
 
