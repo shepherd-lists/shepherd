@@ -14,8 +14,8 @@ const inbox2txs = async () => {
 	_running = true
 	const finished = await knex<TxRecord>('inbox')
 		.select('txid')
-		// .whereNotNull('flagged')
-		.whereNotNull('valid_data')
+		.whereNotNull('flagged')
+	// .whereNotNull('valid_data')
 
 	console.info(inbox2txs.name, `found ${finished.length} records in inbox.`)
 
