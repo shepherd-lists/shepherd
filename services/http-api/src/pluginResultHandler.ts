@@ -3,8 +3,6 @@ import { APIFilterResult } from 'shepherd-plugin-interfaces'
 import { checkTxFresh, dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, getTxFromInbox, updateInboxDb } from './utils/db-update-txs'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { slackLogPositive } from '../../../libs/utils/slackLogPositive'
-import { moveInboxToTxs } from './move-records'
-import { doneAdd } from './done-records'
 import { processFlagged } from './flagged'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 
@@ -95,7 +93,6 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 					throw new Error('Could not update database')
 				}
 
-				await doneAddTested(txid)
 			}
 
 		} else if (result.data_reason === undefined) {
@@ -130,7 +127,6 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 					slackLog(pluginResultHandler.name, 'UNHANDLED plugin result in http-api', txid)
 					throw new Error('UNHANDLED plugin result in http-api:\n' + JSON.stringify(result))
 			}
-			await doneAddTested(txid)
 		}
 	} finally {
 		// await dbInflightDel(txid)
@@ -138,14 +134,3 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 	}
 }
 
-const doneAddTested = async (txid: string) => {
-	const record = await getTxFromInbox(txid)
-	if (record) {
-		if (record.flagged !== undefined || record.valid_data !== undefined) {
-			console.info(txid, 'flagged or valid_data set. calling doneAdd')
-			await doneAdd(txid, record.height)
-		} else {
-			console.info(txid, 'flagged or valid_data not set.')
-		}
-	}
-}
