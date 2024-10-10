@@ -54,9 +54,14 @@ export const gqlPages = async ({
 				})
 				edges = res.data.transactions.edges
 
-				/** facing a common issue where heights have not yet been applied to mined items */
-				const missingHeight = edges.find((edge: GQLEdgeInterface) => !edge.node.block?.height)
-				if (missingHeight) throw new Error(`${MISSING_HEIGHT} from ${missingHeight.node.id}`)
+				/** workaround: some ingested_at items are being returned without heights, i.e. still pending. skip and get later with heights */
+				edges = edges.filter(({ node }) => {
+					if (!node.block?.height) {
+						slackLog(indexName, MISSING_HEIGHT, 'from', node.id)
+						return false
+					}
+					return true
+				})
 
 				break
 			} catch (err: unknown) {
@@ -65,12 +70,6 @@ export const gqlPages = async ({
 				console.error(JSON.stringify({ edges }))
 				const e = err as Error
 				const status = Number(e.cause) || 0
-
-				if (e.message.startsWith(MISSING_HEIGHT)) {
-					await slackLog(indexName, 'gql-error', e.message, 'retrying in 30s')
-					await sleep(30_000)
-					continue
-				}
 
 				/** ar-gql http errors have a cause, otherwise connection issue */
 				if (!e.cause) {
