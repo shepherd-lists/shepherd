@@ -37,6 +37,7 @@ query($cursor: String, $minAt: Int, $maxAt: Int) {
 				block{ height }
 				parent{ id }
 				owner{ address }
+				ingested_at
 			}
 		}
 	}
