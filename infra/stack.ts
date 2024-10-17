@@ -83,6 +83,19 @@ export const createStack = async (app: App, config: Config) => {
 			http_api_nodes: JSON.stringify(config.http_api_nodes),
 		},
 	})
+	/** create lambda to update s3 lists using db */
+	const fnLists = createFn('fnLists', stack, {
+		vpc,
+		securityGroups: [sgPgdb],
+		logGroup: logGroupServices,
+		memorySize: 1024, //?? play with this
+		timeout: Duration.minutes(5), //lower later, needs to be much faster than this!
+		environment: {
+			DB_HOST: rdsEndpoint,
+			SLACK_WEBHOOK: config.slack_webhook!,
+			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+		}
+	})
 
 	/** create s3 for lists */
 	const listsBucket = buildListsBucket(stack, {
@@ -114,14 +127,19 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
 			FN_INDEXER: fnIndex.functionName,
+			FN_LISTS: fnIndex.functionName,
 			LISTS_BUCKET: `shepherd-lists-${config.region}`,
 		}
 	})
-	/* allow indexerNext to invoke lambda fnOwnerTable */
+	/* allow indexerNext to invoke various lambdas */
 	const taskroleIndex = indexerNext.taskDefinition.taskRole
 	taskroleIndex.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['lambda:InvokeFunction'],
-		resources: [fnOwnerBlocking.functionArn, fnIndex.functionArn],
+		resources: [
+			fnOwnerBlocking.functionArn,
+			fnIndex.functionArn,
+			fnLists.functionArn
+		],
 	}))
 	taskroleIndex.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['s3:*'],
@@ -225,6 +243,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
+			FN_LISTS: fnLists.functionName,
 			http_api_nodes: JSON.stringify(config.http_api_nodes),
 		}
 	})
@@ -240,7 +259,10 @@ export const createStack = async (app: App, config: Config) => {
 	}))
 	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['lambda:InvokeFunction'],
-		resources: [fnOwnerBlocking.functionArn],
+		resources: [
+			fnOwnerBlocking.functionArn,
+			fnLists.functionArn,
+		],
 	}))
 	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['ssm:GetParameter', 'ssm:PutParameter'],
@@ -248,10 +270,10 @@ export const createStack = async (app: App, config: Config) => {
 	}))
 
 
-
-	/** give both services listsBucket access */
+	/** give various services listsBucket access */
 	listsBucket.grantReadWrite(taskroleIndex)
 	listsBucket.grantReadWrite(taskRoleWeb)
 	listsBucket.grantReadWrite(taskRoleHttpApi)
+	listsBucket.grantReadWrite(fnLists.role!)
 
 }
