@@ -5,10 +5,14 @@ import QueryStream from "pg-query-stream"
 import { finished } from "stream/promises"
 import { ByteRange, mergeErlangRanges } from "./merge-ranges"
 import { performance } from 'perf_hooks'
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
 const LISTS_BUCKET = process.env.LISTS_BUCKET as string
+const FN_LISTS = process.env.FN_LISTS as string
 
 
 const keyExists = async (key: string) => {
@@ -82,8 +86,7 @@ export const updateAddresses = async () => {
 	}
 }
 
-/** updateFullTxidsRanges. 
- * - N.B. if the /addresses.txt feature is introduced  we can omit owner_* from /blacklists.txt */
+/** updateFullTxidsRanges. */
 let _inProgess_updateFullTxidsRanges = false
 export const updateFullTxidsRanges = async () => {
 
@@ -103,100 +106,7 @@ export const updateFullTxidsRanges = async () => {
 
 	const t0 = performance.now()
 
-	const flaggedStream = new QueryStream('SELECT txid, "byteStart", "byteEnd" FROM txs WHERE flagged = true', [])
-
-	const ownerTablenames = await getOwnersTablenames()
-	console.debug(updateFullTxidsRanges.name, `DEBUG ownersTablenames ${JSON.stringify(ownerTablenames)}`)
-
-	const ownerStreams: QueryStream[] = []
-	ownerTablenames.map((tablename) => ownerStreams.push(
-		new QueryStream(`SELECT txid, byte_start, byte_end FROM "${tablename}"`)
-	))
-
-	/** N.B. need to handle the connection manually for pg-query-stream */
-	const client = await pool.connect() //using one connection for sequential queries
-	client.query(flaggedStream)
-	ownerStreams.map((stream) => client.query(stream))
-
-	/** prepare output streams to s3 */
-	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'blacklist.txt')
-	const s3TxidFlagged = s3UploadReadable(LISTS_BUCKET, 'txidflagged.txt')
-	const s3TxidOwners = s3UploadReadable(LISTS_BUCKET, 'txidowners.txt')
-	const s3RangeFlagged = s3UploadReadable(LISTS_BUCKET, 'rangeflagged.txt')
-	const s3RangesOwners = s3UploadReadable(LISTS_BUCKET, 'rangeowners.txt')
-
-	/** rangelist needs sort & merge processing before upload */
-	const ranges: Array<ByteRange> = []
-
-	const t1 = performance.now()
-	console.info(`prepared streams in ${(t1 - t0).toFixed(0)} ms`)
-
-	let count = 0
-	for await (const row of flaggedStream) {
-		// console.debug('row', row)
-		count++
-		s3Txids.write(`${row.txid}\n`)
-		s3TxidFlagged.write(`${row.txid}\n`)
-		if (!row.byteStart) {
-			slackLog(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
-			continue;
-		} else if (row.byteStart === '-1') {
-			console.info(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
-			continue;
-		}
-		s3RangeFlagged.write(`${row.byteStart},${row.byteEnd}\n`)
-		ranges.push([+row.byteStart, +row.byteEnd])
-	}
-	s3RangeFlagged.end()
-
-	console.debug(updateFullTxidsRanges.name, 'DEBUG flaggedStream', count)
-	console.debug(updateFullTxidsRanges.name, 'DEBUG ownerStreams.length', ownerStreams.length)
-	let i = 0
-	for (const stream of ownerStreams) {
-		console.debug(updateFullTxidsRanges.name, 'DEBUG ownerStreams', ownerTablenames[i++])
-		for await (const row of stream) {
-			// console.debug('row', row)
-			count++
-			s3Txids.write(`${row.txid}\n`)
-			s3TxidOwners.write(`${row.txid}\n`)
-			if (!row.byte_start) {
-				slackLog(updateFullTxidsRanges.name, `missing byte-range`, JSON.stringify(row))
-				continue;
-			} else if (row.byte_start === '-1') {
-				console.info(updateFullTxidsRanges.name, `bad byte-range`, JSON.stringify(row))
-				continue;
-			}
-			s3RangesOwners.write(`${row.byte_start},${row.byte_end}\n`)
-			ranges.push([+row.byte_start, +row.byte_end])
-		}
-	}
-	console.info(updateFullTxidsRanges.name, 'count', count)
-	client.release() //release connection back to pool
-
-	/** close the output streams */
-	s3Txids.end()
-	s3TxidFlagged.end()
-	s3TxidOwners.end()
-	s3RangesOwners.end()
-	await Promise.all([
-		finished(s3Txids),
-		finished(s3TxidFlagged),
-		finished(s3TxidOwners),
-		finished(s3RangeFlagged),
-		finished(s3RangesOwners),
-	])
-
-	const t2 = performance.now()
-	console.info(updateFullTxidsRanges.name, `finished txids in ${(t2 - t1).toFixed(0)} ms`)
-
-	/** process ranges and write out */
-	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
-	for await (const range of mergeErlangRanges(ranges)) {
-		s3Ranges.write(`${range[0]},${range[1]}\n`)
-	}
-	ranges.length = 0 //side-effects, dont use again
-	s3Ranges.end()
-	await finished(s3Ranges)
+	const count = await lambdaInvoker()
 
 	console.info(updateFullTxidsRanges.name, `total update time ${(performance.now() - t0).toFixed(0)} ms`)
 
@@ -205,19 +115,32 @@ export const updateFullTxidsRanges = async () => {
 	return count; //something to indicate success
 }
 
-/** get a list of all the tables with blocked owners items.
- * - N.B. omit whitelisted owners
- */
-const getOwnersTablenames = async () => {
+const lambdaInvoker = async () => {
+	const lambdaClient = new LambdaClient({})
 
-	const { rows } = await pool.query<{ tablename: string }>(`
-		SELECT tablename FROM pg_catalog.pg_tables
-		WHERE tablename LIKE 'owner\\_%'
-		AND NOT EXISTS (
-				SELECT 1 FROM owners_whitelist
-				WHERE pg_catalog.pg_tables.tablename = 'owner_' || REPLACE(owners_whitelist.owner, '-', '~')
-		);
-	`)
+	while (true) {
+		try {
+			const res = await lambdaClient.send(new InvokeCommand({
+				FunctionName: FN_LISTS,
+				Payload: JSON.stringify({ dummy: 0 }),
+				InvocationType: 'RequestResponse',
+			}))
+			if (res.FunctionError) {
+				let payloadMsg = ''
+				try { payloadMsg = new TextDecoder().decode(res.Payload) }
+				catch (e) { payloadMsg = 'error decoding Payload with res.FunctionError' }
+				throw new Error(`Lambda error '${res.FunctionError}', payload: ${payloadMsg}`)
+			}
 
-	return rows.map(row => row.tablename)
+			const count: number = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
+
+			console.info(lambdaInvoker.name, `total ids ${count}`)
+			return count;
+		} catch (err: unknown) {
+			const e = err as Error
+			slackLog(lambdaInvoker.name, lambdaInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
+			await sleep(10_000)
+			continue;
+		}
+	}
 }
