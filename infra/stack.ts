@@ -127,7 +127,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
 			FN_INDEXER: fnIndex.functionName,
-			FN_LISTS: fnIndex.functionName,
+			FN_LISTS: fnLists.functionName,
 			LISTS_BUCKET: `shepherd-lists-${config.region}`,
 		}
 	})
