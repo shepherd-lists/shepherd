@@ -93,11 +93,11 @@ export const handler = async (event: any) => {
 	s3TxidOwners.end()
 	s3RangesOwners.end()
 	await Promise.all([
-		finished(s3Txids),
-		finished(s3TxidFlagged),
-		finished(s3TxidOwners),
-		finished(s3RangeFlagged),
-		finished(s3RangesOwners),
+		finished(s3Txids), s3Txids.promise,
+		finished(s3TxidFlagged), s3TxidFlagged.promise,
+		finished(s3TxidOwners), s3TxidOwners.promise,
+		finished(s3RangeFlagged), s3RangeFlagged.promise,
+		finished(s3RangesOwners), s3RangesOwners.promise,
 	])
 	cnns.map(cnn => cnn.release()) //release all db connections
 
@@ -111,7 +111,7 @@ export const handler = async (event: any) => {
 	}
 	ranges.length = 0 //side-effects, dont use again
 	s3Ranges.end()
-	await finished(s3Ranges)
+	await Promise.all([finished(s3Ranges), s3Ranges.promise])
 
 	return count
 }
