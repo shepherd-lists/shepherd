@@ -10,13 +10,14 @@ import { ByteRange, mergeErlangRanges } from "../../libs/s3-lists/merge-ranges"
 const LISTS_BUCKET = process.env.LISTS_BUCKET as string
 if (!LISTS_BUCKET) throw new Error('LISTS_BUCKET is not set')
 
+const highWaterMark = 200 // 100/50s, 200/43,46s, 300/47s, 400/47s, 1_000/46s, 10_000/66s
 
 export const handler = async (event: any) => {
 	console.info(JSON.stringify(event, null, 2))
 
 	const t0 = performance.now()
 
-	const flaggedStream = new QueryStream('SELECT txid, "byteStart", "byteEnd" FROM txs WHERE flagged = true', [])
+	const flaggedStream = new QueryStream('SELECT txid, "byteStart", "byteEnd" FROM txs WHERE flagged = true', [], { highWaterMark })
 
 
 	/** N.B. need to handle the connection manually for pg-query-stream */
@@ -62,7 +63,7 @@ export const handler = async (event: any) => {
 	console.debug(`ownersTablenames, count=${ownerTablenames.length} ${JSON.stringify(ownerTablenames)}`)
 
 	const cnns = await Promise.all(ownerTablenames.map(async tablename => {
-		const stream = new QueryStream(`SELECT txid, byte_start, byte_end FROM "${tablename}"`)
+		const stream = new QueryStream(`SELECT txid, byte_start, byte_end FROM "${tablename}"`, [], { highWaterMark })
 		const cnn = await pool.connect() //1 cnn per table
 		cnn.query(stream)
 		console.debug('ownerStream', tablename)
