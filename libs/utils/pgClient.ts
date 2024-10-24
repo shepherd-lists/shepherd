@@ -14,7 +14,7 @@ const config: pg.PoolConfig = {
 	user: 'postgres',
 	password: 'postgres',
 	database: 'arblacklist',
-	max: 10,
+	max: 500,
 	idleTimeoutMillis: 120_000,
 }
 

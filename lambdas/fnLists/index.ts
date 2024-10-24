@@ -18,18 +18,10 @@ export const handler = async (event: any) => {
 
 	const flaggedStream = new QueryStream('SELECT txid, "byteStart", "byteEnd" FROM txs WHERE flagged = true', [])
 
-	const ownerTablenames = await getOwnersTablenames()
-	console.debug(`DEBUG ownersTablenames ${JSON.stringify(ownerTablenames)}`)
-
-	const ownerStreams: QueryStream[] = []
-	ownerTablenames.map((tablename) => ownerStreams.push(
-		new QueryStream(`SELECT txid, byte_start, byte_end FROM "${tablename}"`)
-	))
 
 	/** N.B. need to handle the connection manually for pg-query-stream */
-	const client = await pool.connect() //using one connection for sequential queries
-	client.query(flaggedStream)
-	ownerStreams.map((stream) => client.query(stream))
+	const cnnFlagged = await pool.connect() //using one connection per query
+	cnnFlagged.query(flaggedStream)
 
 	/** prepare output streams to s3 */
 	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'blacklist.txt')
@@ -61,12 +53,19 @@ export const handler = async (event: any) => {
 		ranges.push([+row.byteStart, +row.byteEnd])
 	}
 	s3RangeFlagged.end()
+	cnnFlagged.release() //release connection back to pool
 
-	console.debug('DEBUG flaggedStream', count)
-	console.debug('DEBUG ownerStreams.length', ownerStreams.length)
-	let i = 0
-	for (const stream of ownerStreams) {
-		console.debug('DEBUG ownerStreams', ownerTablenames[i++])
+	console.debug('flaggedStream', count)
+
+	/** process owner tables */
+	const ownerTablenames = await getOwnersTablenames()
+	console.debug(`ownersTablenames, count=${ownerTablenames.length} ${JSON.stringify(ownerTablenames)}`)
+
+	const cnns = await Promise.all(ownerTablenames.map(async tablename => {
+		const stream = new QueryStream(`SELECT txid, byte_start, byte_end FROM "${tablename}"`)
+		const cnn = await pool.connect() //1 cnn per table
+		cnn.query(stream)
+		console.debug('ownerStream', tablename)
 		for await (const row of stream) {
 			// console.debug('row', row)
 			count++
@@ -82,9 +81,11 @@ export const handler = async (event: any) => {
 			s3RangesOwners.write(`${row.byte_start},${row.byte_end}\n`)
 			ranges.push([+row.byte_start, +row.byte_end])
 		}
-	}
+		return cnn;
+	}))
+
 	console.info('count', count)
-	client.release() //release connection back to pool
+
 
 	/** close the output streams */
 	s3Txids.end()
@@ -98,6 +99,7 @@ export const handler = async (event: any) => {
 		finished(s3RangeFlagged),
 		finished(s3RangesOwners),
 	])
+	cnns.map(cnn => cnn.release()) //release all db connections
 
 	const t2 = performance.now()
 	console.info(`finished txids in ${(t2 - t1).toFixed(0)} ms`)
