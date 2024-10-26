@@ -14,8 +14,8 @@ const config: pg.PoolConfig = {
 	user: 'postgres',
 	password: 'postgres',
 	database: 'arblacklist',
-	max: 500,
-	idleTimeoutMillis: 120_000,
+	max: 200,
+	idleTimeoutMillis: 30_000,
 }
 
 //note: ok to ignore ssl cert (firewalls and a private network)
