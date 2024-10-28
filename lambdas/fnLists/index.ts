@@ -1,6 +1,5 @@
 import pool from '../../libs/utils/pgClient'
 import QueryStream from "pg-query-stream"
-import { finished } from 'stream/promises'
 import { slackLog } from '../../libs/utils/slackLog'
 import { s3UploadReadable } from '../../libs/utils/s3-services'
 import { ByteRange, mergeErlangRanges } from "../../libs/s3-lists/merge-ranges"
@@ -15,7 +14,7 @@ const highWaterMark = 200 // 100/50s, 200/43,46s, 300/47s, 400/47s, 1_000/46s, 1
 export const handler = async (event: any) => {
 	console.info(JSON.stringify(event, null, 2))
 
-	const t0 = performance.now()
+	const t0 = Date.now()
 
 	const flaggedStream = new QueryStream('SELECT txid, "byteStart", "byteEnd" FROM txs WHERE flagged = true', [], { highWaterMark })
 
@@ -34,10 +33,12 @@ export const handler = async (event: any) => {
 	/** rangelist needs sort & merge processing before upload */
 	const ranges: Array<ByteRange> = []
 
-	const t1 = performance.now()
-	console.info(`prepared streams in ${(t1 - t0).toFixed(0)} ms`)
+	const t1 = Date.now()
+	console.info(`prepared streams in ${(t1 - t0).toLocaleString()} ms`)
 
 	let count = 0
+
+	console.debug('flagged stream starting')
 	for await (const row of flaggedStream) {
 		// console.debug('row', row)
 		count++
@@ -53,6 +54,7 @@ export const handler = async (event: any) => {
 		s3RangeFlagged.write(`${row.byteStart},${row.byteEnd}\n`)
 		ranges.push([+row.byteStart, +row.byteEnd])
 	}
+	console.debug(`time to stream flagged ${(Date.now() - t1).toLocaleString()}ms`)
 	s3RangeFlagged.end()
 	cnnFlagged.release() //release connection back to pool
 
@@ -62,29 +64,38 @@ export const handler = async (event: any) => {
 	const ownerTablenames = await getOwnersTablenames()
 	console.debug(`ownersTablenames, count=${ownerTablenames.length} ${JSON.stringify(ownerTablenames)}`)
 
-	const cnns = await Promise.all(ownerTablenames.map(async tablename => {
+	const tOwner = Date.now()
+	await Promise.all(ownerTablenames.map(async tablename => {
 		const stream = new QueryStream(`SELECT txid, byte_start, byte_end FROM "${tablename}"`, [], { highWaterMark })
 		const cnn = await pool.connect() //1 cnn per table
-		cnn.query(stream)
-		console.debug('ownerStream', tablename)
-		for await (const row of stream) {
-			// console.debug('row', row)
-			count++
-			s3Txids.write(`${row.txid}\n`)
-			s3TxidOwners.write(`${row.txid}\n`)
-			if (!row.byte_start) {
-				slackLog(`missing byte-range`, JSON.stringify(row))
-				continue;
-			} else if (row.byte_start === '-1') {
-				console.info(`bad byte-range`, JSON.stringify(row))
-				continue;
+		try {
+			cnn.query(stream)
+			console.debug(tablename, 'stream starting')
+			let c = 0
+			const t0 = Date.now()
+			for await (const row of stream) {
+				// console.debug('row', row)
+				c++
+				s3Txids.write(`${row.txid}\n`)
+				s3TxidOwners.write(`${row.txid}\n`)
+				if (!row.byte_start) {
+					slackLog(`missing byte-range`, JSON.stringify(row))
+					continue;
+				} else if (row.byte_start === '-1') {
+					console.info(`bad byte-range`, JSON.stringify(row))
+					continue;
+				}
+				s3RangesOwners.write(`${row.byte_start},${row.byte_end}\n`)
+				ranges.push([+row.byte_start, +row.byte_end])
 			}
-			s3RangesOwners.write(`${row.byte_start},${row.byte_end}\n`)
-			ranges.push([+row.byte_start, +row.byte_end])
+			console.debug(tablename, `stream done. ${c} items in ${(Date.now() - t0).toLocaleString()}ms`)
+			count += c
+		} finally {
+			cnn.release()
 		}
-		return cnn;
 	}))
 
+	console.debug(`time to process owners ${(Date.now() - tOwner).toLocaleString()}ms`)
 	console.info('count', count)
 
 
@@ -94,16 +105,15 @@ export const handler = async (event: any) => {
 	s3TxidOwners.end()
 	s3RangesOwners.end()
 	await Promise.all([
-		finished(s3Txids), s3Txids.promise,
-		finished(s3TxidFlagged), s3TxidFlagged.promise,
-		finished(s3TxidOwners), s3TxidOwners.promise,
-		finished(s3RangeFlagged), s3RangeFlagged.promise,
-		finished(s3RangesOwners), s3RangesOwners.promise,
+		s3Txids.promise,
+		s3TxidFlagged.promise,
+		s3TxidOwners.promise,
+		s3RangeFlagged.promise,
+		s3RangesOwners.promise,
 	])
-	cnns.map(cnn => cnn.release()) //release all db connections
 
-	const t2 = performance.now()
-	console.info(`finished txids in ${(t2 - t1).toFixed(0)} ms`)
+	const t2 = Date.now()
+	console.info(`finished txids & raw ranges in ${(t2 - t1).toLocaleString()} ms`)
 
 	/** process ranges and write out */
 	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
@@ -112,7 +122,9 @@ export const handler = async (event: any) => {
 	}
 	ranges.length = 0 //side-effects, dont use again
 	s3Ranges.end()
-	await Promise.all([finished(s3Ranges), s3Ranges.promise])
+	await s3Ranges.promise
+
+	console.info(`finished ranges in ${(Date.now() - t2).toLocaleString()} ms`)
 
 	return count
 }
