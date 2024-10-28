@@ -30,6 +30,8 @@ export const s3UploadStream = async (Bucket: string, Key: string, Body: Readable
 				ContentType: 'text/plain',
 				Body,
 			},
+			// partSize: default = min = 5mb
+			queueSize: 8, //default 4
 		})
 
 		// Start the upload
