@@ -1,7 +1,7 @@
 import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { slackLog } from './slackLog'
-import { PassThrough, Readable } from 'stream'
+import { PassThrough, Readable, Writable } from 'stream'
 
 
 console.info('AWS_DEFAULT_REGION', process.env.AWS_DEFAULT_REGION)
@@ -30,6 +30,8 @@ export const s3UploadStream = async (Bucket: string, Key: string, Body: Readable
 				ContentType: 'text/plain',
 				Body,
 			},
+			// partSize: default = min = 5mb
+			queueSize: 8, //default 4
 		})
 
 		// Start the upload
@@ -42,9 +44,11 @@ export const s3UploadStream = async (Bucket: string, Key: string, Body: Readable
 	}
 }
 export const s3UploadReadable = (Bucket: string, Key: string) => {
-	const readable = new PassThrough({ autoDestroy: true, emitClose: true })
-	s3UploadStream(Bucket, Key, readable)
-	return readable;
+	const Body = new PassThrough({ autoDestroy: true, emitClose: true })
+	const promise = s3UploadStream(Bucket, Key, Body)
+	const customObject = Body as unknown as Writable & { promise: Promise<void> }
+	customObject.promise = promise
+	return customObject
 }
 
 export const s3PutObject = async (Bucket: string, Key: string, text: string) => {
