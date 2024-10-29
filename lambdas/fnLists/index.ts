@@ -32,7 +32,7 @@ export const handler = async (event: any) => {
 	let count = 0 //all items
 
 	/** flagged streams */
-	const flaggedPromise = async () => {
+	const flaggedProcess = async () => {
 		const flaggedStream = new QueryStream('SELECT txid, "byteStart", "byteEnd" FROM txs WHERE flagged = true', [], { highWaterMark })
 
 		/** N.B. need to handle connections manually for pg-query-stream */
@@ -69,7 +69,7 @@ export const handler = async (event: any) => {
 	const ownerTablenames = await getOwnersTablenames()
 	console.debug(`ownersTablenames, count=${ownerTablenames.length} ${JSON.stringify(ownerTablenames)}`)
 
-	await Promise.all(ownerTablenames.map(async tablename => {
+	const ownerProcessing = async (tablename: string) => {
 		const stream = new QueryStream(`SELECT txid, byte_start, byte_end FROM "${tablename}"`, [], { highWaterMark })
 		const cnn = await pool.connect() //1 cnn per table
 		try {
@@ -97,7 +97,10 @@ export const handler = async (event: any) => {
 		} finally {
 			cnn.release()
 		}
-	}))
+	}
+
+	/** await all promises */
+	await Promise.all([flaggedProcess(), ...ownerTablenames.map(ownerProcessing)])
 
 	console.debug(`time to finish db reads ${(Date.now() - t1Prep).toLocaleString()}ms`)
 	console.info('count', count)
