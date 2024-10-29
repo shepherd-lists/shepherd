@@ -103,11 +103,8 @@ export const createStack = async (app: App, config: Config) => {
 		//this following below is not used
 		vpc,
 		listener: null as any,
-		logGroupServices,
-		environment: {
-			RANGES_WHITELIST_JSON: JSON.stringify(config.ranges_whitelist),
-			TXIDS_WHITELIST_JSON: JSON.stringify(config.txids_whitelist),
-		},
+		logGroupServices, //unused
+		environment: {}, //unused
 	})
 
 	/** create indexer-next service */
