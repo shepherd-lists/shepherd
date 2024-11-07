@@ -9,6 +9,7 @@ export type Http_Api_Node = {
 }
 /* populate with env var if exists */
 let _nodes = (JSON.parse(process.env.http_api_nodes || '[]') as Array<Http_Api_Node>).map(n => ({ ...n, url: `http://${n.name}:1984` }))
+let _rangeItems = JSON.parse(process.env.RANGELIST_ALLOWED || '[]') as Array<Http_Api_Node>
 
 /** cron function */
 const checkEndpoint = async () => {
@@ -20,7 +21,10 @@ const checkEndpoint = async () => {
 		const nodes: Http_Api_Node[] = await fetch(http_api_nodes_url).then(res => res.json().then(j => j))
 
 		_nodes = nodes.map(n => ({ ...n, url: `http://${n.name}:1984` }))
-		console.debug({ _nodes })
+		const rangeItems = [..._nodes, ..._rangeItems.filter(ri => !_nodes.some(n => n.name === ri.name))]
+		_rangeItems = rangeItems
+		console.info('httpApiNodes', _nodes)
+		console.info('rangeItems', _rangeItems)
 	} catch (e) {
 		console.error(`error fetching http_api_nodes_url=${http_api_nodes_url}`)
 		throw e
@@ -39,6 +43,5 @@ setInterval(checkEndpoint, interval)
 export const httpApiNodes = () => _nodes
 
 /** range items */
-const rangelistAllowed = JSON.parse(process.env.RANGELIST_ALLOWED || '[]') as Http_Api_Node[]
-export const rangeItems = () => [..._nodes, rangelistAllowed.filter(ri => !_nodes.find(n => n.name === ri.name))]
+export const rangeAllowed = () => _rangeItems
 
