@@ -1,14 +1,14 @@
-import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, HOST_URL, GQL_URL_SECONDARY, GQL_URL, http_api_nodes } from './constants-byteRange'
+import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, HOST_URL, GQL_URL_SECONDARY, GQL_URL } from './constants-byteRange'
 import { ans104HeaderData } from './ans104HeaderData'
 import { byteRange102 } from './byteRange102'
 import moize from 'moize'
 import { arGql, ArGqlInterface } from 'ar-gql'
 import { slackLog } from '../../utils/slackLog'
 import { gqlTx } from '../gqlTx'
+import { httpApiNodes } from '../../utils/update-http-nodes'
 
 
 if (!HOST_URL) throw new Error('Missing HOST_URL')
-if (!http_api_nodes) throw new Error('Missing http_api_nodes')
 
 /**
  *
@@ -210,7 +210,7 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 
 /* randomly splice node urls from the list */
 function* hostUrls() {
-	const nodes = [...http_api_nodes]
+	const nodes = [...httpApiNodes()]
 	while (nodes.length) {
 		const iRnd = Math.floor(Math.random() * nodes.length)
 		yield nodes.splice(iRnd, 1)[0]
