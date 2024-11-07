@@ -5,7 +5,7 @@ import moize from 'moize'
 import { arGql, ArGqlInterface } from 'ar-gql'
 import { slackLog } from '../../utils/slackLog'
 import { gqlTx } from '../gqlTx'
-import { httpApiNodes } from '../../utils/update-http-nodes'
+import { Http_Api_Node, httpApiNodes } from '../../utils/update-range-nodes'
 
 
 if (!HOST_URL) throw new Error('Missing HOST_URL')
@@ -210,7 +210,7 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 
 /* randomly splice node urls from the list */
 function* hostUrls() {
-	const nodes = [...httpApiNodes()]
+	const nodes = [...httpApiNodes()] as Array<Http_Api_Node & { throttled?: EpochTimeStamp }>
 	while (nodes.length) {
 		const iRnd = Math.floor(Math.random() * nodes.length)
 		yield nodes.splice(iRnd, 1)[0]
