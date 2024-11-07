@@ -40,8 +40,5 @@ export const httpApiNodes = () => _nodes
 
 /** range items */
 const rangelistAllowed = JSON.parse(process.env.RANGELIST_ALLOWED || '[]') as Http_Api_Node[]
-export const rangeItems = () => {
-
-	return [..._nodes, rangelistAllowed.filter(ei => !_nodes.find(n => n.name === ei.name))]
-}
+export const rangeItems = () => [..._nodes, rangelistAllowed.filter(ri => !_nodes.find(n => n.name === ri.name))]
 
