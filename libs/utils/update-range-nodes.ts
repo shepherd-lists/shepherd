@@ -10,6 +10,7 @@ export type Http_Api_Node = {
 /* populate with env var if exists */
 let _nodes = (JSON.parse(process.env.http_api_nodes || '[]') as Array<Http_Api_Node>).map(n => ({ ...n, url: `http://${n.name}:1984` }))
 let _rangeItems = JSON.parse(process.env.RANGELIST_ALLOWED || '[]') as Array<Http_Api_Node>
+let _rangeItemIps = _rangeItems.map(r => r.server)
 
 /** cron function */
 const checkEndpoint = async () => {
@@ -23,6 +24,7 @@ const checkEndpoint = async () => {
 		_nodes = nodes.map(n => ({ ...n, url: `http://${n.name}:1984` }))
 		const rangeItems = [..._nodes, ..._rangeItems.filter(ri => !_nodes.some(n => n.name === ri.name))]
 		_rangeItems = rangeItems
+		_rangeItemIps = rangeItems.map(r => r.server)
 		console.info('httpApiNodes', JSON.stringify(_nodes))
 		console.info('rangeItems', JSON.stringify(_rangeItems))
 	} catch (e) {
@@ -44,4 +46,6 @@ export const httpApiNodes = () => _nodes
 
 /** range items */
 export const rangeAllowed = () => _rangeItems
+
+export const rangeAllowedIps = () => _rangeItemIps
 
