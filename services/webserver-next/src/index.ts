@@ -5,7 +5,7 @@ console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 // import './checkBlocking/index-cron'
 import express from 'express'
 import { slackLog } from '../../../libs/utils/slackLog'
-import { ipAllowRangesMiddleware, ipAllowTxidsMiddleware } from './ipAllowLists'
+import { ipAllowMiddleware } from './ipAllowLists'
 import { network_EXXX_codes } from '../../../libs/constants'
 import { Socket } from 'net'
 import { txsTableNames } from './tablenames'
@@ -27,7 +27,7 @@ app.get('/', async (req, res) => {
 	res.status(200).end()
 })
 
-app.get('/addresses.txt', ipAllowTxidsMiddleware, async (req, res) => {
+app.get('/addresses.txt', ipAllowMiddleware('txids'), async (req, res) => {
 	try {
 		res.setHeader('Content-Type', 'text/plain')
 		await getList(res, '/addresses.txt')
@@ -43,13 +43,13 @@ txsTableNames().then((tablenames) => {
 	tablenames.forEach((tablename) => {
 		const routepath = tablename.replace('_txs', '')
 		const routeTxids = `/${routepath}/txids.txt`
-		app.get(routeTxids, ipAllowTxidsMiddleware, async (req, res) => {
+		app.get(routeTxids, ipAllowMiddleware('txids'), async (req, res) => {
 			res.setHeader('Content-Type', 'text/plain')
 			await getRecords(res, 'txids', tablename)
 			res.status(200).end()
 		})
 		const routeRanges = `/${routepath}/ranges.txt`
-		app.get(routeRanges, ipAllowRangesMiddleware, async (req, res) => {
+		app.get(routeRanges, ipAllowMiddleware('ranges'), async (req, res) => {
 			res.setHeader('Content-Type', 'text/plain')
 			await getRecords(res, 'ranges', tablename)
 			res.status(200).end()
@@ -58,12 +58,12 @@ txsTableNames().then((tablenames) => {
 	})
 })
 
-app.head('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
+app.head('/blacklist.txt', ipAllowMiddleware('txids'), async (req, res) => {
 	res.setHeader('eTag', await getETag(req.path as GetListPath))
 	res.sendStatus(200)
 })
 
-app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
+app.get('/blacklist.txt', ipAllowMiddleware('txids'), async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
 	try {
 		await getList(res, '/blacklist.txt')
@@ -75,12 +75,12 @@ app.get('/blacklist.txt', ipAllowTxidsMiddleware, async (req, res) => {
 	}
 })
 
-app.head('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
+app.head('/rangelist.txt', ipAllowMiddleware('ranges'), async (req, res) => {
 	res.setHeader('eTag', await getETag(req.path as GetListPath))
 	res.sendStatus(200)
 })
 
-app.get('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
+app.get('/rangelist.txt', ipAllowMiddleware('ranges'), async (req, res) => {
 	const path = req.path as GetListPath
 	res.setHeader('Content-Type', 'text/plain')
 	try {
@@ -94,11 +94,11 @@ app.get('/rangelist.txt', ipAllowRangesMiddleware, async (req, res) => {
 })
 
 /** used by shep-v */
-app.head(/^\/range(flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
+app.head(/^\/range(flagged|owners).txt$/, ipAllowMiddleware('ranges'), async (req, res) => {
 	res.setHeader('eTag', await getETag(req.path as GetListPath))
 	res.sendStatus(200)
 })
-app.get(/^\/range(flagged|owners).txt$/, ipAllowRangesMiddleware, async (req, res) => {
+app.get(/^\/range(flagged|owners).txt$/, ipAllowMiddleware('ranges'), async (req, res) => {
 	const path = req.path as GetListPath
 	res.setHeader('Content-Type', 'text/plain')
 	try {

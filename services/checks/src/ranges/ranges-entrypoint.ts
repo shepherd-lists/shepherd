@@ -1,9 +1,9 @@
-import { RangelistAllowedItem } from "../types"
 import { checkServerRanges } from "./ranges-checkOverlap"
 import { MessageType } from '..'
 import { NotBlockStateDetails } from "../event-tracking"
 import { randomUUID } from "crypto"
 import { slackLog } from "../../../../libs/utils/slackLog"
+import { rangeAllowed } from "../../../../libs/utils/update-range-nodes"
 
 
 
@@ -58,10 +58,6 @@ export const getServerAlarmsIPC = (server: string): Promise<{ [line: string]: No
 
 /** ! ensure entrypoints run after process.on handlers are setup ! */
 
-/* load the access lists */
-const rangeItems: RangelistAllowedItem[] = JSON.parse(process.env.RANGELIST_ALLOWED || '[]')
-console.info({ rangeItems })
-
 /* semaphore to prevent overlapping runs */
 let _running: { [key: string]: boolean } = {}
 
@@ -69,6 +65,9 @@ let _running: { [key: string]: boolean } = {}
  * range checks. relatively uncomplicated to run.
  */
 const checkRanges = async () => {
+	/** grab the current rangeItems */
+	const rangeItems = rangeAllowed()
+
 	/** short-circuit */
 	if (rangeItems.length === 0) {
 		console.info(checkRanges.name, 'no range check items configured, exiting.')
