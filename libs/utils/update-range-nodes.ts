@@ -23,8 +23,8 @@ const checkEndpoint = async () => {
 		_nodes = nodes.map(n => ({ ...n, url: `http://${n.name}:1984` }))
 		const rangeItems = [..._nodes, ..._rangeItems.filter(ri => !_nodes.some(n => n.name === ri.name))]
 		_rangeItems = rangeItems
-		console.info('httpApiNodes', _nodes)
-		console.info('rangeItems', _rangeItems)
+		console.info('httpApiNodes', JSON.stringify(_nodes))
+		console.info('rangeItems', JSON.stringify(_rangeItems))
 	} catch (e) {
 		console.error(`error fetching http_api_nodes_url=${http_api_nodes_url}`)
 		throw e
