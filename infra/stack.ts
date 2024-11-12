@@ -174,6 +174,7 @@ export const createStack = async (app: App, config: Config) => {
 			RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
 			GW_URLS: JSON.stringify(config.gw_urls) || '',
 			http_api_nodes: JSON.stringify(config.http_api_nodes), //used in byte-ranges only
+			http_api_nodes_url: config.http_api_nodes_url || '', //byte-ranges and allowed list
 		}
 	})
 	webserver.taskDefinition.defaultContainer!.addPortMappings({ containerPort: 80 })
@@ -210,6 +211,7 @@ export const createStack = async (app: App, config: Config) => {
 				BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
 				RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
 				GW_URLS: JSON.stringify(config.gw_urls) || '',
+				http_api_nodes_url: config.http_api_nodes_url || '',
 			}
 		})
 		const taskRoleChecks = checks.taskDefinition.taskRole!
@@ -242,6 +244,7 @@ export const createStack = async (app: App, config: Config) => {
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
 			FN_LISTS: fnLists.functionName,
 			http_api_nodes: JSON.stringify(config.http_api_nodes), //for byte-ranges only
+			http_api_nodes_url: config.http_api_nodes_url || '', //for byte-ranges only
 		}
 	})
 	httpApi.connections.securityGroups[0].addIngressRule(
