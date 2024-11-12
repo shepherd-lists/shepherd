@@ -1,10 +1,10 @@
 /** -= Unresponsive Servers =- */
 
 
-import { RangelistAllowedItem } from './types'
+import { Http_Api_Node } from '../../../libs/utils/update-range-nodes'
 
 
-interface Unreachable extends RangelistAllowedItem {
+interface Unreachable extends Http_Api_Node {
 	since: number
 }
 const timeout = 300_000 // 5 minutes
@@ -13,7 +13,7 @@ const _unreachable = new Map<string, Unreachable>()
 export const isUnreachable = (server: string) => {
 	return _unreachable.has(server)
 }
-export const setUnreachable = (item: RangelistAllowedItem) => {
+export const setUnreachable = (item: Http_Api_Node) => {
 	_unreachable.set(item.server, { ...item, since: Date.now() })
 }
 

@@ -2,7 +2,7 @@ import { ByteRange, RangeKey, getBlockedRanges } from './ranges-cachedBlocked'
 import { performance } from 'perf_hooks'
 import { checkReachable } from '../checkReachable'
 import { unreachableTimedout, setUnreachable } from '../event-unreachable'
-import { RangelistAllowedItem } from '../types'
+import { Http_Api_Node } from '../../../../libs/utils/update-range-nodes'
 import { MessageType } from '..'
 import { getServerAlarmsIPC } from './ranges-entrypoint'
 
@@ -16,7 +16,7 @@ const rangesOverlap = (rangeA: [number, number], rangeB: [number, number]) => {
 	return (rangeA[0] < rangeB[1] && rangeB[0] < rangeA[1])
 }
 
-export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKey = 'rangelist.txt') => {
+export const checkServerRanges = async (item: Http_Api_Node, key: RangeKey = 'rangelist.txt') => {
 	/** check if server reachable */
 	if (!unreachableTimedout(item.name)) {
 		console.info(`${item.name} is in unreachable timeout`)
@@ -160,7 +160,7 @@ export const checkServerRanges = async (item: RangelistAllowedItem, key: RangeKe
 }
 
 /** dont run these check outside of test */
-const doubleCheck = async (range: ByteRange, item: RangelistAllowedItem) => {
+const doubleCheck = async (range: ByteRange, item: Http_Api_Node) => {
 
 	const startChunk = (range[0] + 1).toString()
 	const endChunk = range[1].toString()
