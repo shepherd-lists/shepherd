@@ -21,11 +21,11 @@ export type Config = {
 	txids_whitelist: Array<string>
 
 	/* ranges whitelist ips for nodes */
+	http_api_nodes_url?: string //future feature: auto update range lists
 	ranges_whitelist: Array<{ name: string, server: string }>
 
 	/* arweave nodes for http api retrieval (fallback host_url).
-	 * N.B. name must be a FQDN (hostname)
-	 */
+	 * N.B. `name` must be a FQDN (hostname) */
 	http_api_nodes: Array<{ name: string, server: string }>
 
 	/* gateways to check for blocked data */
