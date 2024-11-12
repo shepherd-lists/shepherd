@@ -9,12 +9,6 @@ console.info(prefix, 'accessList (BLACKLIST_ALLOWED) for \'/blacklist.txt\' acce
 const accessRangelist: string[] = (JSON.parse(process.env.RANGELIST_ALLOWED || '[]') as RangelistAllowedItem[]).map(item => item.server)
 console.info(prefix, 'accessList (RANGELIST_ALLOWED) for \'/rangelist.txt\' access', accessRangelist)
 
-/** older ip whitelist checking functions */
-
-export const ipAllowBlacklist = (ip: string) => ipAllowList(ip, 'txids')
-
-export const ipAllowRangelist = (ip: string) => ipAllowList(ip, 'ranges')
-
 const ipAllowList = (ip: string, listType: ('txids' | 'ranges')) => {
 	if (ip.startsWith('::ffff:')) {
 		ip = ip.substring(7)
