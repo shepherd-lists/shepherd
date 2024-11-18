@@ -24,19 +24,16 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 	try {
 
 		if (result.flagged !== undefined) {
-			if (result.flagged === true) {
-				if (result.flag_type === 'matched') {
-					slackLogPositive('flagged', JSON.stringify(body))
-				} else if (result.flag_type === 'classified' && await checkTxFresh(txid)) {
-					//we use checkTxFresh so as not to bombard Slack during SQS retries and recheck cronjobs
-
-					/** these currently don't get automatically processed, need to check these warnings */
-					result.flagged = false
-					slackLog(`:warning: *!!! classified !!!* :warning: \`${txid}\``, JSON.stringify(result))
-				}
+			if (result.flagged === true && result.flag_type === 'matched') {
+				slackLogPositive('flagged', JSON.stringify(body))
 			}
 			if (result.flag_type === 'test') {
 				slackLog('✅ *Test Message* ✅', JSON.stringify(body))
+			}
+			if (result.flag_type === 'classified' && Number(result.top_score_value) > 0.9 && result.top_score_name === 'csam' && await checkTxFresh(txid)) {
+				//we use checkTxFresh so as not to bombard Slack during SQS retries and recheck cronjobs
+
+				slackLog(`:warning: *!!! classified !!!* :warning: \`${txid}\``, JSON.stringify(result))
 			}
 
 			let byteStart, byteEnd, record
