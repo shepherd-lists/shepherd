@@ -65,6 +65,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			HOST_URL: config.host_url || 'https://arweave.net',
 			http_api_nodes: JSON.stringify(config.http_api_nodes),
+			http_api_nodes_url: config.http_api_nodes_url || '', //byte-ranges
 		},
 	})
 	/** create lambda to process incoming items */
@@ -81,6 +82,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			HOST_URL: config.host_url || 'https://arweave.net',
 			http_api_nodes: JSON.stringify(config.http_api_nodes),
+			http_api_nodes_url: config.http_api_nodes_url || '', //byte-ranges
 		},
 	})
 	/** create lambda to update s3 lists using db */
