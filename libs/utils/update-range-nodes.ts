@@ -1,4 +1,5 @@
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const http_api_nodes_url = process.env.http_api_nodes_url
 
@@ -18,18 +19,27 @@ const checkEndpoint = async () => {
 		return console.debug(`http_api_nodes_url is not set. using http_api_nodes=${JSON.stringify(_nodes)}`)
 	}
 
-	try {
-		const nodes: Http_Api_Node[] = await fetch(http_api_nodes_url).then(res => res.json().then(j => j))
+	let retries = 3
+	while (true) {
+		try {
+			const nodes: Http_Api_Node[] = await fetch(http_api_nodes_url).then(res => res.json().then(j => j))
 
-		_nodes = nodes.map(n => ({ ...n, url: `http://${n.name}:1984` }))
-		const rangeItems = [..._nodes, ..._rangeItems.filter(ri => !_nodes.some(n => n.name === ri.name))]
-		_rangeItems = rangeItems
-		_rangeItemIps = rangeItems.map(r => r.server)
-		console.info('httpApiNodes', JSON.stringify(_nodes))
-		console.info('rangeItems', JSON.stringify(_rangeItems))
-	} catch (e) {
-		console.error(`error fetching http_api_nodes_url=${http_api_nodes_url}`)
-		throw e
+			_nodes = nodes.map(n => ({ ...n, url: `http://${n.name}:1984` }))
+			const rangeItems = [..._nodes, ..._rangeItems.filter(ri => !_nodes.some(n => n.name === ri.name))]
+			_rangeItems = rangeItems
+			_rangeItemIps = rangeItems.map(r => r.server)
+			console.info('httpApiNodes', JSON.stringify(_nodes))
+			console.info('rangeItems', JSON.stringify(_rangeItems))
+			break;
+		} catch (err: unknown) {
+			const e = err as Error
+			if (--retries === 0) {
+				throw new Error(`error fetching http_api_nodes_url=${http_api_nodes_url}`, { cause: e })
+			}
+			const timeout = 10_000
+			console.error(`error fetching http_api_nodes_url=${http_api_nodes_url}. retrying in ${timeout}ms`, e)
+			await sleep(timeout)
+		}
 	}
 }
 await checkEndpoint() //run straight away to populate
