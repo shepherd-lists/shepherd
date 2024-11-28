@@ -1,3 +1,4 @@
+import { slackLog } from "./slackLog"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -34,6 +35,7 @@ const checkEndpoint = async () => {
 		} catch (err: unknown) {
 			const e = err as Error
 			if (--retries === 0) {
+				await slackLog(`error fetching http_api_nodes_url=${http_api_nodes_url}`, `cause:= ${e.name}:${e.message}`)
 				throw new Error(`error fetching http_api_nodes_url=${http_api_nodes_url}`, { cause: e })
 			}
 			const timeout = 10_000
