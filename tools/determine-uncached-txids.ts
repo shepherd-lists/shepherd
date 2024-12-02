@@ -1,10 +1,7 @@
 import { createWriteStream, readFileSync } from 'fs'
-import { TxRecord, TxScanned } from 'shepherd-plugin-interfaces/types'
 import { finished } from 'stream/promises'
-import pLimit from 'p-limit'
 
 const MAX_FETCHES = 100
-const limit = pLimit(MAX_FETCHES)
 
 // basic argument checking
 if (process.argv.length > 2) {

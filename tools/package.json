@@ -4,8 +4,5 @@
 		"ar-gql": "^2.0.2",
 		"file-type": "^19.5.0",
 		"moize": "^6.1.6"
-	},
-	"dependencies": {
-		"p-limit": "^6.1.0"
 	}
 }
