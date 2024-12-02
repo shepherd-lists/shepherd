@@ -25,28 +25,28 @@ const out = createWriteStream('uncached-txids.txt', 'utf-8')
 
 let batch = txids.splice(0, Math.min(100, txids.length))
 let writeCount = 0
+let readCount = 0
 
 while (batch.length > 0) {
 	await Promise.all(batch.map(async id => {
+		++readCount
 		while (true) {
 			try {
+
 				const res = await fetch(`https://arweave.net/raw/${id}`)
-				console.debug(id, res.status)
+				console.debug(id, res.status, readCount)
 
 				if (!res.bodyUsed) res.body?.cancel() //close stream
 
 				if (res.status === 404) {
 					console.debug('write', id, 'to file')
-					writeCount++
+					++writeCount
 					out.write(id + '\n')
 				} else if (res.status === 200) {
 					//do nothing
 				} else {
-					console.error('**********************************************************************************************')
-					console.error('**********************************************************************************************')
-					console.error('!!! UNHANDLED STATUS !!!', id, res.status)
-					console.error('**********************************************************************************************')
-					console.error('**********************************************************************************************')
+					//big stop
+					throw new Error(`UNHANDLED STATUS ${JSON.stringify({ id, readCount, writeCount, status: res.status, statusText: res.statusText })}`)
 				}
 				break;
 			} catch (e) {
