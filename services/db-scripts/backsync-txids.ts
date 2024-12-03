@@ -26,10 +26,20 @@ const main = async () => {
 	console.debug(txsRecords.length)
 
 	const inserts = txsRecords.map(({txid, content_size, content_type, height, parent, parents, owner }):TxScanned => ({txid, content_size, content_type, height, parent, parents, owner }))
+	console.debug(inserts.length)
 
-	const res = await knex('inbox').insert(inserts).returning('txid')
+	let count = 0
+	let batch = inserts.splice(0, Math.min(100, inserts.length))
+	while(batch.length > 0){
+		const res = await knex('inbox').insert(batch).returning('txid')
+		count +=  res.length
+		console.debug(`inserted ${res.length}, tot: ${count}`)
 
-	console.log('inserted', res.length)
+		// get next batch
+		batch = inserts.splice(0, Math.min(100, inserts.length))
+	}
+
+	console.log('total inserted', count)
 	await knex.destroy()
 
 }
