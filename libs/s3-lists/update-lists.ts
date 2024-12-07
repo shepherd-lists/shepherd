@@ -1,9 +1,6 @@
-import { s3HeadObject, s3PutObject, s3UploadReadable } from "../utils/s3-services"
+import { s3HeadObject, s3PutObject } from "../utils/s3-services"
 import { slackLog } from "../utils/slackLog"
 import pool from '../utils/pgClient'
-import QueryStream from "pg-query-stream"
-import { finished } from "stream/promises"
-import { ByteRange, mergeErlangRanges } from "./merge-ranges"
 import { performance } from 'perf_hooks'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 
