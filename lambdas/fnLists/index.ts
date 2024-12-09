@@ -4,6 +4,7 @@ import { slackLog } from '../../libs/utils/slackLog'
 import { s3UploadReadable } from '../../libs/utils/s3-services'
 import { ByteRange, mergeErlangRanges } from "../../libs/s3-lists/merge-ranges"
 import { getAddonTablenames } from './addon-tablenames'
+import { processAddonTable } from './table-processing'
 
 
 
@@ -103,7 +104,16 @@ export const handler = async (event: any) => {
 	}
 
 	/** await all promises */
-	await Promise.all([flaggedProcess(), ...ownerTablenames.map(ownerProcessing)])
+	await Promise.all([
+		flaggedProcess(),
+		...ownerTablenames.map(ownerProcessing),
+		...addonTablenames.map(tablename => processAddonTable({
+			tablename,
+			LISTS_BUCKET,
+			highWaterMark,
+			ranges,
+		}))
+	])
 
 	const t2Process = Date.now()
 	console.debug(`time to finish db reads ${(t2Process - t1Prep).toLocaleString()}ms`)
