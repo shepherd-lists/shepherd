@@ -56,7 +56,7 @@ describe('fnLists tests', () => {
 				LISTS_BUCKET: process.env.LISTS_BUCKET!,
 			})
 
-			console.debug({ ranges })
+			// console.debug({ ranges })
 			assert.deepEqual(ranges, [[1, 2]])
 
 		} finally {

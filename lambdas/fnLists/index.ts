@@ -107,12 +107,9 @@ export const handler = async (event: any) => {
 	await Promise.all([
 		flaggedProcess(),
 		...ownerTablenames.map(ownerProcessing),
-		...addonTablenames.map(tablename => processAddonTable({
-			tablename,
-			LISTS_BUCKET,
-			highWaterMark,
-			ranges,
-		}))
+		...addonTablenames.map(tablename =>
+			processAddonTable({ tablename, LISTS_BUCKET, highWaterMark, ranges }).then(c => count += c)
+		)
 	])
 
 	const t2Process = Date.now()

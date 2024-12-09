@@ -33,7 +33,7 @@ export const processAddonTable = async (config: {
 	const t = Date.now()
 	try {
 		for await (const row of stream) {
-			console.debug('row', row)
+			// console.debug('row', row)
 			++c
 			s3AddonTxids.write(`${row.txid}\n`)
 			if (!row.byteStart) {
@@ -60,7 +60,7 @@ export const processAddonTable = async (config: {
 		}))
 
 		/** return count */
-		console.debug(`${tablename}  stream done. ${c} items in ${(Date.now() - t).toLocaleString()}ms`)
+		console.info(`${tablename}  stream done. ${c} items in ${(Date.now() - t).toLocaleString()}ms`)
 		return c;
 	}
 }
