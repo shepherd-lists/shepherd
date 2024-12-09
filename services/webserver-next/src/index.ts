@@ -34,7 +34,7 @@ app.get('/addresses.txt', ipAllowMiddleware('txids'), async (req, res) => {
 		res.status(200).end()
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog('/addresses.txt', `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+		await slackLog(prefix, '/addresses.txt', `❌ ERROR retrieving! ${e.name}:${e.message}.`)
 		res.status(500).send('internal server error\n')
 	}
 })
@@ -70,7 +70,7 @@ app.get('/blacklist.txt', ipAllowMiddleware('txids'), async (req, res) => {
 		res.status(200).end()
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog('/blacklist.txt', `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+		await slackLog(prefix, '/blacklist.txt', `❌ ERROR retrieving! ${e.name}:${e.message}.`)
 		res.status(500).send('internal server error\n')
 	}
 })
@@ -88,7 +88,7 @@ app.get('/rangelist.txt', ipAllowMiddleware('ranges'), async (req, res) => {
 		res.status(200).end()
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog(path, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+		await slackLog(prefix, path, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
 		res.status(500).send('internal server error\n')
 	}
 })
@@ -106,7 +106,7 @@ app.get(/^\/range(flagged|owners).txt$/, ipAllowMiddleware('ranges'), async (req
 		res.status(200).end()
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog(path, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+		await slackLog(prefix, path, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
 		res.status(500).send('internal server error\n')
 	}
 })
@@ -119,7 +119,7 @@ const server = app.listen(port, () => console.info(`webserver started on http://
  */
 server.on('clientError', (e: Error & { code: string }, socket: Socket) => {
 
-	console.error('express-clientError', `${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
+	slackLog(prefix, 'express-clientError', `${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
 	//debug
 	console.log('Socket:', {
 		timeout: socket.timeout,
