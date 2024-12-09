@@ -5,7 +5,6 @@ import { ownerToInfractionsTablename, ownerToOwnerTablename } from '../../../lib
 import { infraction_limit } from '../../../libs/constants'
 import { queueBlockOwner } from '../../../libs/block-owner/owner-blocking'
 import { updateAddresses, updateFullTxidsRanges } from '../../../libs/s3-lists/update-lists'
-import moize from 'moize'
 import { OwnersListRecord } from '../../../types'
 import { mergeRulesObject } from './move-records'
 
