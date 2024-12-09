@@ -3,6 +3,7 @@ import QueryStream from "pg-query-stream"
 import { slackLog } from '../../libs/utils/slackLog'
 import { s3UploadReadable } from '../../libs/utils/s3-services'
 import { ByteRange, mergeErlangRanges } from "../../libs/s3-lists/merge-ranges"
+import { getAddonTablenames } from './addon-tablenames'
 
 
 
@@ -22,6 +23,8 @@ export const handler = async (event: any) => {
 	const s3TxidOwners = s3UploadReadable(LISTS_BUCKET, 'txidowners.txt')
 	const s3RangeFlagged = s3UploadReadable(LISTS_BUCKET, 'rangeflagged.txt')
 	const s3RangesOwners = s3UploadReadable(LISTS_BUCKET, 'rangeowners.txt')
+	/** addons handled differently. n.b. in the future everything will be an addon */
+	const addonTablenames = await getAddonTablenames()
 
 	/** rangelist needs sort & merge processing before upload */
 	const ranges: Array<ByteRange> = []
@@ -48,10 +51,10 @@ export const handler = async (event: any) => {
 			s3Txids.write(`${row.txid}\n`)
 			s3TxidFlagged.write(`${row.txid}\n`)
 			if (!row.byteStart) {
-				slackLog(`bad byte-range`, JSON.stringify(row))
+				slackLog(`"flagged txs" bad byte-range`, JSON.stringify(row))
 				continue;
 			} else if (row.byteStart === '-1') {
-				console.info(`bad byte-range`, JSON.stringify(row))
+				console.info(`"flagged txs" bad byte-range`, JSON.stringify(row))
 				continue;
 			}
 			s3RangeFlagged.write(`${row.byteStart},${row.byteEnd}\n`)
@@ -83,10 +86,10 @@ export const handler = async (event: any) => {
 				s3Txids.write(`${row.txid}\n`)
 				s3TxidOwners.write(`${row.txid}\n`)
 				if (!row.byte_start) {
-					slackLog(`missing byte-range`, JSON.stringify(row))
+					slackLog(`${tablename} missing byte-range`, JSON.stringify(row))
 					continue;
 				} else if (row.byte_start === '-1') {
-					console.info(`bad byte-range`, JSON.stringify(row))
+					console.info(tablename, `bad byte-range`, JSON.stringify(row))
 					continue;
 				}
 				s3RangesOwners.write(`${row.byte_start},${row.byte_end}\n`)
