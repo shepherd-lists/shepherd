@@ -26,6 +26,7 @@ export const processAddonTable = async (config: {
 	let query = `SELECT txid, "byteStart", "byteEnd" FROM "${tablename}" WHERE flagged = true`
 	const stream: AsyncIterable<{ txid: string; byteStart: string; byteEnd: string }> = new QueryStream(query, [], { highWaterMark })
 	const cnn = await pool.connect()
+	cnn.query(stream as QueryStream)
 
 	/** loop thru table */
 	let c = 0
