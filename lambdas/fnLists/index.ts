@@ -62,7 +62,7 @@ export const handler = async (event: any) => {
 		count += c
 		cnn.release() //release connection back to pool
 
-		console.debug('flaggedStream', count)
+		console.debug('flaggedStream', c)
 	}
 
 	/** process owner tables */
@@ -102,8 +102,9 @@ export const handler = async (event: any) => {
 	/** await all promises */
 	await Promise.all([flaggedProcess(), ...ownerTablenames.map(ownerProcessing)])
 
-	console.debug(`time to finish db reads ${(Date.now() - t1Prep).toLocaleString()}ms`)
-	console.info('count', count)
+	const t2Process = Date.now()
+	console.debug(`time to finish db reads ${(t2Process - t1Prep).toLocaleString()}ms`)
+	console.info('count', count, Date())
 
 
 	/** close the output streams */
@@ -119,8 +120,8 @@ export const handler = async (event: any) => {
 		s3RangesOwners.promise,
 	])
 
-	const t2CloseS3 = Date.now()
-	console.info(`time to close s3 streams ${(t2CloseS3 - t1Prep).toLocaleString()} ms`)
+	const t3CloseS3 = Date.now()
+	console.info(`time to close s3 streams ${(t3CloseS3 - t2Process).toLocaleString()} ms`)
 
 	/** process ranges and write out */
 	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
@@ -131,7 +132,7 @@ export const handler = async (event: any) => {
 	s3Ranges.end()
 	await s3Ranges.promise
 
-	console.info(`merge and close ranges in ${(Date.now() - t2CloseS3).toLocaleString()} ms`)
+	console.info(`merge and close ranges in ${(Date.now() - t3CloseS3).toLocaleString()} ms`)
 
 	return count
 }
