@@ -33,9 +33,9 @@ RDS_INSTANCE_IDENTIFIER="shepherd2-pgdb"
 ECS_CLUSTER_NAME="shepherd-services"
 
 # Stop the RDS instance and update the ECS service in the background
-echo "Stopping RDS instance: $RDS_INSTANCE_IDENTIFIER"
-aws rds stop-db-instance --db-instance-identifier "$RDS_INSTANCE_IDENTIFIER" &
-pid_rds=$!
+#echo "Stopping RDS instance: $RDS_INSTANCE_IDENTIFIER"
+#aws rds stop-db-instance --db-instance-identifier "$RDS_INSTANCE_IDENTIFIER" &
+#pid_rds=$!
 
 stop_service() {
 	local service=$1
@@ -55,8 +55,8 @@ pid_http_api=$!
 stop_service 'webserver' &
 
 # Wait for both commands to finish and capture their exit statuses
-wait $pid_rds
-status_rds=$?
+# wait $pid_rds
+# status_rds=$?
 wait $pid_feeder
 status_feeder=$?
 wait $pid_fetchers
@@ -69,7 +69,7 @@ wait $pid_webserver
 status_webserver=$?
 
 # Check the status of each command
-check_status $status_rds 'rds'
+#check_status $status_rds 'rds'
 check_status $status_feeder 'feeder'
 check_status $status_fetchers 'fetchers'
 check_status $status_indexer 'indexer'
