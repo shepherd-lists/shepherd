@@ -114,7 +114,14 @@ export const getList = async (response: Writable, path: GetListPath) => {
 
 export const prefetchLists = async () => {
 	console.info('prefetching lists...')
-	await Promise.all(['/addresses.txt', '/blacklist.txt', '/rangelist.txt'].map(async path => {
+	const routes = ['/addresses.txt', '/blacklist.txt', '/rangelist.txt']
+	const addonPaths = (await txsTableNames()).map(tablename => tablename.replace('_txs', ''))
+	addonPaths.map(addonPath => {
+		routes.push(`/${addonPath}/txids.txt`)
+		routes.push(`/${addonPath}/ranges.txt`)
+	})
+
+	await Promise.all(routes.map(async path => {
 		const dummy = new PassThrough()
 		await getList(dummy, path as GetListPath)
 		dummy.destroy()
