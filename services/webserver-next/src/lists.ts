@@ -1,6 +1,7 @@
 import { PassThrough, Writable } from 'stream'
 import { s3GetObjectWebStream, s3HeadObject } from '../../../libs/utils/s3-services'
 import { readlineWeb } from '../../../libs/utils/webstream-utils'
+import { txsTableNames } from './tablenames'
 
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
 console.debug('LISTS_BUCKET', process.env.LISTS_BUCKET)
@@ -21,10 +22,13 @@ export type GetListPath = ('/addresses.txt'
 	| '/rangelist.txt'
 	| '/rangeflagged.txt'	//needed for shep-v
 	| '/rangeowners.txt'	//needed for shep-v
-	| '/testing.txt')
+	| '/testing.txt'
+	| `${string}/txids.txt`		//addons
+	| `${string}/ranges.txt`	//addons
+)
 
 export const getETag = async (path: GetListPath) => {
-	const key = path.replace('/', '')
+	const key = path.replace(/^\//, '') //remove starting `/`
 	const etag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
 	return etag
 }
@@ -35,7 +39,7 @@ export const getList = async (response: Writable, path: GetListPath) => {
 		getHeader: (name: string) => string
 	}
 
-	const key = path.replace('/', '')
+	const key = path.replace(/^\//, '') //starting `/` only
 
 	/** init cache if necessary */
 	if (!_cache[path]) {
