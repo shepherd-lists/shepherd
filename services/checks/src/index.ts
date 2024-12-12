@@ -43,8 +43,7 @@ for (const c of children) {
 	c.on('message', (message: MessageType) => {
 		// console.debug('[main] received', JSON.stringify(message))
 		if (message.type === 'uncaughtException') {
-			cleanUp()
-			process.exit(1)
+			cleanUpAndExit()
 		}
 		if (message.type === 'setState') {
 			setAlertState(message.newState!)
@@ -60,38 +59,34 @@ for (const c of children) {
 	})
 }
 
-const cleanUp = () => {
-	slackLog('killing all child processes')
+const cleanUpAndExit = async () => {
+	await slackLog('killing all child processes')
 	children.forEach(child => child.kill())
+	process.exit(1)
 }
 
 process.on('SIGINT', () => {
 	console.info('[main] SIGINT received')
-	cleanUp()
-	process.exit(1)
+	cleanUpAndExit()
 })
 process.on('SIGTERM', () => {
 	console.info('[main] SIGTERM received')
-	cleanUp()
-	process.exit(1)
+	cleanUpAndExit()
 })
 
 /** ensure no orphans are created */
 process.on('exit', (code) => {
 	console.log(`exiting with code ${code}`)
-	cleanUp()
+	cleanUpAndExit()
 })
 process.on('uncaughtException', (e, origin) => {
 	// !!! "It is not safe to resume normal operation after 'uncaughtException'." !!!
 	slackLog('[main] uncaught exception', JSON.stringify({ e, origin }))
-	cleanUp()
-
-	throw e;
+	cleanUpAndExit()
 })
 process.on('unhandledRejection', (reason, promise) => {
 	slackLog('unhandled rejection at:', JSON.stringify({ promise, reason }))
-	cleanUp()
-	process.exit(7)
+	cleanUpAndExit()
 })
 
 

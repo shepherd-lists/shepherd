@@ -3,6 +3,8 @@ import QueryStream from "pg-query-stream"
 import { slackLog } from '../../libs/utils/slackLog'
 import { s3UploadReadable } from '../../libs/utils/s3-services'
 import { ByteRange, mergeErlangRanges } from "../../libs/s3-lists/merge-ranges"
+import { getAddonTablenames } from './addon-tablenames'
+import { processAddonTable } from './table-processing'
 
 
 
@@ -22,6 +24,8 @@ export const handler = async (event: any) => {
 	const s3TxidOwners = s3UploadReadable(LISTS_BUCKET, 'txidowners.txt')
 	const s3RangeFlagged = s3UploadReadable(LISTS_BUCKET, 'rangeflagged.txt')
 	const s3RangesOwners = s3UploadReadable(LISTS_BUCKET, 'rangeowners.txt')
+	/** addons handled differently. n.b. in the future everything will be an addon */
+	const addonTablenames = await getAddonTablenames()
 
 	/** rangelist needs sort & merge processing before upload */
 	const ranges: Array<ByteRange> = []
@@ -48,10 +52,10 @@ export const handler = async (event: any) => {
 			s3Txids.write(`${row.txid}\n`)
 			s3TxidFlagged.write(`${row.txid}\n`)
 			if (!row.byteStart) {
-				slackLog(`bad byte-range`, JSON.stringify(row))
+				slackLog(`"flagged txs" bad byte-range`, JSON.stringify(row))
 				continue;
 			} else if (row.byteStart === '-1') {
-				console.info(`bad byte-range`, JSON.stringify(row))
+				console.info(`"flagged txs" bad byte-range`, JSON.stringify(row))
 				continue;
 			}
 			s3RangeFlagged.write(`${row.byteStart},${row.byteEnd}\n`)
@@ -62,7 +66,7 @@ export const handler = async (event: any) => {
 		count += c
 		cnn.release() //release connection back to pool
 
-		console.debug('flaggedStream', count)
+		console.debug('flaggedStream', c)
 	}
 
 	/** process owner tables */
@@ -83,10 +87,10 @@ export const handler = async (event: any) => {
 				s3Txids.write(`${row.txid}\n`)
 				s3TxidOwners.write(`${row.txid}\n`)
 				if (!row.byte_start) {
-					slackLog(`missing byte-range`, JSON.stringify(row))
+					slackLog(`${tablename} missing byte-range`, JSON.stringify(row))
 					continue;
 				} else if (row.byte_start === '-1') {
-					console.info(`bad byte-range`, JSON.stringify(row))
+					console.info(tablename, `bad byte-range`, JSON.stringify(row))
 					continue;
 				}
 				s3RangesOwners.write(`${row.byte_start},${row.byte_end}\n`)
@@ -100,10 +104,17 @@ export const handler = async (event: any) => {
 	}
 
 	/** await all promises */
-	await Promise.all([flaggedProcess(), ...ownerTablenames.map(ownerProcessing)])
+	await Promise.all([
+		flaggedProcess(),
+		...ownerTablenames.map(ownerProcessing),
+		...addonTablenames.map(tablename =>
+			processAddonTable({ tablename, LISTS_BUCKET, highWaterMark, ranges }).then(c => count += c)
+		)
+	])
 
-	console.debug(`time to finish db reads ${(Date.now() - t1Prep).toLocaleString()}ms`)
-	console.info('count', count)
+	const t2Process = Date.now()
+	console.debug(`time to finish db reads ${(t2Process - t1Prep).toLocaleString()}ms`)
+	console.info('count', count, Date())
 
 
 	/** close the output streams */
@@ -119,8 +130,8 @@ export const handler = async (event: any) => {
 		s3RangesOwners.promise,
 	])
 
-	const t2CloseS3 = Date.now()
-	console.info(`time to close s3 streams ${(t2CloseS3 - t1Prep).toLocaleString()} ms`)
+	const t3CloseS3 = Date.now()
+	console.info(`time to close s3 streams ${(t3CloseS3 - t2Process).toLocaleString()} ms`)
 
 	/** process ranges and write out */
 	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
@@ -131,7 +142,7 @@ export const handler = async (event: any) => {
 	s3Ranges.end()
 	await s3Ranges.promise
 
-	console.info(`merge and close ranges in ${(Date.now() - t2CloseS3).toLocaleString()} ms`)
+	console.info(`merge and close ranges in ${(Date.now() - t3CloseS3).toLocaleString()} ms`)
 
 	return count
 }

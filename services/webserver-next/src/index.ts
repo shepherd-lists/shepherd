@@ -42,17 +42,39 @@ app.get('/addresses.txt', ipAllowMiddleware('txids'), async (req, res) => {
 txsTableNames().then((tablenames) => {
 	tablenames.forEach((tablename) => {
 		const routepath = tablename.replace('_txs', '')
-		const routeTxids = `/${routepath}/txids.txt`
-		app.get(routeTxids, ipAllowMiddleware('txids'), async (req, res) => {
-			res.setHeader('Content-Type', 'text/plain')
-			await getRecords(res, 'txids', tablename)
-			res.status(200).end()
+
+		const routeTxids: GetListPath = `/${routepath}/txids.txt`
+		app.head(routeTxids, ipAllowMiddleware('txids'), async (req, res) => {
+			res.setHeader('eTag', await getETag(routeTxids))
+			res.sendStatus(200)
 		})
-		const routeRanges = `/${routepath}/ranges.txt`
+		app.get(routeTxids, ipAllowMiddleware('txids'), async (req, res) => {
+			try {
+				res.setHeader('Content-Type', 'text/plain')
+				await getList(res, routeTxids)
+				res.status(200).end()
+			} catch (err) {
+				const e = err as Error
+				await slackLog(prefix, routeTxids, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+				res.status(500).send('internal server error\n')
+			}
+		})
+
+		const routeRanges: GetListPath = `/${routepath}/ranges.txt`
+		app.head(routeRanges, ipAllowMiddleware('ranges'), async (req, res) => {
+			res.setHeader('eTag', await getETag(routeRanges))
+			res.sendStatus(200)
+		})
 		app.get(routeRanges, ipAllowMiddleware('ranges'), async (req, res) => {
-			res.setHeader('Content-Type', 'text/plain')
-			await getRecords(res, 'ranges', tablename)
-			res.status(200).end()
+			try {
+				res.setHeader('Content-Type', 'text/plain')
+				await getList(res, routeRanges)
+				res.status(200).end()
+			} catch (err) {
+				const e = err as Error
+				await slackLog(prefix, routeRanges, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+				res.status(500).send('internal server error\n')
+			}
 		})
 		console.log(JSON.stringify({ tablename, routepath, routeTxids, routeRanges }))
 	})

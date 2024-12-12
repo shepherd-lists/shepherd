@@ -8,7 +8,7 @@ import { Readable } from 'stream'
 
 
 
-describe('update addresses', () => {
+describe('update lists', () => {
 
 	it('should be able to update addresses (not currently testing anything apart from no errors)', async () => {
 		await assert.doesNotReject(async () => {
@@ -16,7 +16,7 @@ describe('update addresses', () => {
 		})
 	})
 
-	it('should stream sql results', async () => {
+	it('should stream sql results (test only tests itself)', async () => {
 		const stream = new QueryStream('SELECT txid FROM txs WHERE flagged = true', [])
 		const client = await pg.connect()
 		client.query(stream)
