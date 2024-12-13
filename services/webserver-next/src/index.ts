@@ -8,7 +8,7 @@ import { slackLog } from '../../../libs/utils/slackLog'
 import { ipAllowMiddleware } from './ipAllowLists'
 import { network_EXXX_codes } from '../../../libs/constants'
 import { Socket } from 'net'
-import { txsTableNames } from './tablenames'
+import { txsTableNames } from '../../../libs/utils/addon-tablenames'
 import { GetListPath, getETag, getList, prefetchLists } from './lists'
 import { getRecords } from './blacklist' //legacy
 
