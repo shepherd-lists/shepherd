@@ -16,7 +16,7 @@ const _txidCaches: { [key: string]: TxidCache } = {}
 
 
 
-export const getBlockedTxids = async (key: ('txidflagged.txt' | 'txidowners.txt')) => {
+export const getBlockedTxids = async (key: ('txidflagged.txt' | 'txidowners.txt' | `${string}/txids.txt`)) => {
 	/** create an empty entry */
 	if (!_txidCaches[key]) {
 		_txidCaches[key] = { eTag: '', ids: [], inProgress: false }

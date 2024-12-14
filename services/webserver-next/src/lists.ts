@@ -1,7 +1,7 @@
 import { PassThrough, Writable } from 'stream'
 import { s3GetObjectWebStream, s3HeadObject } from '../../../libs/utils/s3-services'
 import { readlineWeb } from '../../../libs/utils/webstream-utils'
-import { txsTableNames } from './tablenames'
+import { txsTableNames } from '../../../libs/utils/addon-tablenames'
 
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
 console.debug('LISTS_BUCKET', process.env.LISTS_BUCKET)

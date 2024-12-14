@@ -7,8 +7,9 @@
 import { ChildProcess, fork } from 'child_process'
 import { NotBlockStateDetails, alertStateCronjob, getServerAlarms } from './event-tracking'
 import { NotBlockEvent, setAlertState } from './event-tracking'
-import { checkFlaggedTxids, checkOwnersTxids } from './txids/txids-entrypoints'
+import { checkTxids } from './txids/txids-entrypoints'
 import { slackLog } from '../../../libs/utils/slackLog'
+import { txsTableNames } from '../../../libs/utils/addon-tablenames'
 
 
 const FLAGGED_INTERVAL = 30_000 // 30 secs 
@@ -92,9 +93,13 @@ process.on('unhandledRejection', (reason, promise) => {
 
 /** txid & alarm entrypoints after process event handlers */
 
-setInterval(checkFlaggedTxids, FLAGGED_INTERVAL)
-setInterval(checkOwnersTxids, OWNERS_INTERVAL)
-checkOwnersTxids() //start early
+setInterval(() => checkTxids('txidflagged.txt'), FLAGGED_INTERVAL)
+setInterval(() => checkTxids('txidowners.txt'), OWNERS_INTERVAL)
+checkTxids('txidowners.txt') //start early
+const addonKeys = (await txsTableNames()).map(t => `${t.split('_')[0]}/txids.txt`)
+console.info(JSON.stringify({ addonKeys }))
+addonKeys.map(t => setInterval(() => checkTxids(`${t}/txids.txt`), DNSR_INTERVAL))
+
 
 /** cron for alarm state */
 setInterval(alertStateCronjob, 10_000) 
