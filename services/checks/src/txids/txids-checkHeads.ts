@@ -124,7 +124,7 @@ const alarmOkHandler = async (session: ClientHttp2Session, gw_url: string, txid:
 }
 
 let _sliceStart: { [key: string]: number } = {} // just keep going around even after errors
-export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt')) => {
+export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt' | `${string}/txids.txt`)) => {
 	//sanity
 	if (!gw_url.startsWith('https://')) throw new Error(`invalid format. gw_url must start with https:// => ${gw_url}`)
 

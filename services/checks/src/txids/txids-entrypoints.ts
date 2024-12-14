@@ -11,7 +11,7 @@ let _running: { [key: string]: boolean } = {}
 /** 
  * txid checks 
  */
-const checkTxids = async (key: 'txidflagged.txt' | 'txidowners.txt') => {
+export const checkTxids = async (key: 'txidflagged.txt' | 'txidowners.txt' | `${string}/txids.txt`) => {
 	/** short-circuit */
 	if (gwUrls.length === 0) {
 		console.info(checkTxids.name, key, 'no gw urls configured, exiting.', gwUrls)
@@ -34,7 +34,4 @@ const checkTxids = async (key: 'txidflagged.txt' | 'txidowners.txt') => {
 		delete _running[key]
 	}
 }
-
-export const checkFlaggedTxids = () => checkTxids('txidflagged.txt')
-export const checkOwnersTxids = () => checkTxids('txidowners.txt')
 
