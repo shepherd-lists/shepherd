@@ -96,9 +96,9 @@ process.on('unhandledRejection', (reason, promise) => {
 setInterval(() => checkTxids('txidflagged.txt'), FLAGGED_INTERVAL)
 setInterval(() => checkTxids('txidowners.txt'), OWNERS_INTERVAL)
 checkTxids('txidowners.txt') //start early
-const addonKeys = (await txsTableNames()).map(t => `${t.split('_')[0]}/txids.txt`)
+const addonKeys = (await txsTableNames()).map(t => `${t.split('_')[0]}/txids.txt`) as `${string}/txids.txt`[]
 console.info(JSON.stringify({ addonKeys }))
-addonKeys.map(t => setInterval(() => checkTxids(`${t}/txids.txt`), DNSR_INTERVAL))
+addonKeys.map(key => setInterval(() => checkTxids(key), DNSR_INTERVAL))
 
 
 /** cron for alarm state */
