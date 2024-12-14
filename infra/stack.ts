@@ -214,6 +214,7 @@ export const createStack = async (app: App, config: Config) => {
 				RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
 				GW_URLS: JSON.stringify(config.gw_urls) || '',
 				http_api_nodes_url: config.http_api_nodes_url || '',
+				DB_HOST: rdsEndpoint, //to detect addons
 			}
 		})
 		const taskRoleChecks = checks.taskDefinition.taskRole!
