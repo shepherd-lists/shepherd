@@ -3,7 +3,7 @@ console.log(`process.env.SLACK_POSITIVE ${process.env.SLACK_POSITIVE}`)
 console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
 // import './checkBlocking/index-cron'
-import express from 'express'
+import express, { ErrorRequestHandler } from 'express'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { ipAllowMiddleware } from './ipAllowLists'
 import { network_EXXX_codes } from '../../../libs/constants'
@@ -17,6 +17,22 @@ const app = express()
 const port = 80
 
 // app.use(cors())
+// app.use(express.raw({
+// 	type: '*/*',
+// 	verify(req, res, buf, encoding) {
+// 		//nothing to do. parser will throw on parse error apparently
+// 	},
+// }))
+// app.use(((err, req, res, next) => {
+// 	const ip = req.headers['x-forwarded-for']
+
+// 	// if (err.code) {
+// 	slackLog(prefix, `parser error from ip: ${ip}, ${err.name}:${err.message}`)
+// 	console.error('parser', err)
+// 	return res.status(456).send('Bad Request?')
+// 	// }
+// 	// next(err)
+// }) as ErrorRequestHandler)
 
 prefetchLists()
 

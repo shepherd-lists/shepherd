@@ -30,6 +30,7 @@ export type GetListPath = ('/addresses.txt'
 export const getETag = async (path: GetListPath) => {
 	const key = path.replace(/^\//, '') //remove starting `/`
 	const etag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
+	console.info(`${getETag.name}(${path}) head request. etag: ${etag}`)
 	return etag
 }
 
