@@ -57,7 +57,7 @@ export const gqlPages = async ({
 				/** workaround: some ingested_at items are being returned without heights, i.e. still pending. skip and get later with heights */
 				edges = edges.filter(({ node }) => {
 					if (!node.block?.height) {
-						slackLog(indexName, MISSING_HEIGHT, 'from', node.id)
+						console.warn(indexName, MISSING_HEIGHT, 'from', node.id)
 						return false
 					}
 					return true
