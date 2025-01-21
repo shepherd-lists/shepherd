@@ -77,17 +77,11 @@ export const gqlPages = async ({
 					continue
 				}
 
-				/** getting a lot of temporary 502 errors lately */
-				if (status === 502) {
-					await slackLog(indexName, 'gql-error', status, ':', e.message, gqlProvider, 'retrying in 10s')
-					console.log(err)
-					await sleep(10_000)
-					continue
-				}
-
-				console.error(indexName, 'gql-error', status, ':', e.message, gqlProvider)
-
-				throw e
+				/** in all other cases sleep before retrying */
+				await slackLog(indexName, 'gql-error', status, ':', e.message, gqlProvider, 'retrying in 10s')
+				console.log(err)
+				await sleep(10_000)
+				continue
 			}
 		}//end while-gql.run
 

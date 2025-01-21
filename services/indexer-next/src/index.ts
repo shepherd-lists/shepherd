@@ -7,6 +7,15 @@ import { ingestLoop } from './index-by-ingested_at'
 import { ownerChecks } from './owner-blocking'
 
 
+/** catch all unhandled server errors */
+process.on('uncaughtException', (e, origin) => {
+	slackLog('[indexer-next] uncaught exception', JSON.stringify({ e, origin })).then(() => process.exit(1))
+})
+process.on('unhandledRejection', (reason, promise) => {
+	slackLog('[indexer-next] unhandled rejection', JSON.stringify({ promise, reason })).then(() => process.exit(1))
+})
+
+
 
 /** check this stuff right at the entrypoint */
 if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var, FN_OWNER_BLOCKING')
