@@ -55,6 +55,7 @@ export const gqlPages = async ({
 				edges = res.data.transactions.edges
 
 				/** workaround: some ingested_at items are being returned without heights, i.e. still pending. skip and get later with heights */
+				cursor = edges.length ? edges[edges.length - 1].cursor : ''
 				edges = edges.filter(({ node }) => {
 					if (!node.block?.height) {
 						console.warn(indexName, MISSING_HEIGHT, 'from', node.id)
@@ -88,7 +89,6 @@ export const gqlPages = async ({
 		let logstring = ''
 		let tPage = 0
 		if (edges && edges.length) {
-			cursor = edges[edges.length - 1].cursor
 			itemCount += edges.length
 
 			/* filter dupes from edges. batch insert does not like dupes */
