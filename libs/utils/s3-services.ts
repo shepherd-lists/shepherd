@@ -1,7 +1,8 @@
-import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand, GetObjectTaggingCommand } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { slackLog } from './slackLog'
 import { PassThrough, Readable, Writable } from 'stream'
+import { Bucket } from 'aws-cdk-lib/aws-s3'
 
 
 console.info('AWS_DEFAULT_REGION', process.env.AWS_DEFAULT_REGION)
@@ -10,13 +11,12 @@ console.info('AWS_REGION', process.env.AWS_REGION)
 const s3client = new S3Client()
 
 
-export const s3HeadObject = async (Bucket: string, Key: string) => {
-	return s3client.send(new HeadObjectCommand({ Bucket, Key }))
-}
+export const s3HeadObject = async (Bucket: string, Key: string) => s3client.send(new HeadObjectCommand({ Bucket, Key }))
 
-export const s3DeleteObject = async (Bucket: string, Key: string) => {
-	return s3client.send(new DeleteObjectCommand({ Bucket, Key }))
-}
+export const s3ObjectTagging = async (Bucket: string, Key: string) => s3client.send(new GetObjectTaggingCommand({ Bucket, Key }))
+
+export const s3DeleteObject = async (Bucket: string, Key: string) => s3client.send(new DeleteObjectCommand({ Bucket, Key }))
+
 
 /** N.B. this will accept either a Readable or ReadableStream (nodejs or web stream)  */
 export const s3UploadStream = async (Bucket: string, Key: string, Body: ReadableStream | Readable) => {
@@ -51,12 +51,13 @@ export const s3UploadReadable = (Bucket: string, Key: string) => {
 	return customObject
 }
 
-export const s3PutObject = async (Bucket: string, Key: string, text: string) => {
+export const s3PutObject = async ({ Bucket, Key, text, Sha1 }: { Bucket: string; Key: string; text: string; Sha1?: string }) => {
 	const res = await s3client.send(new PutObjectCommand({
 		Bucket,
 		Key,
 		ContentType: 'text/plain',
 		Body: text,
+		Tagging: Sha1 ? `SHA-1=${Sha1}` : undefined,
 	}))
 	return res.$metadata.httpStatusCode
 }
