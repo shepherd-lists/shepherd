@@ -52,7 +52,7 @@ export async function checkForManuallyModifiedOwners() {
 		/** delete those whitelisted owner tables */
 		for (const { owner } of modifiedOwners.rows) {
 			const tableOwner = owner.replaceAll('-', '~')
-			await pool.query(`DROP TABLE IF EXISTS owner_${tableOwner}`)
+			await pool.query(`DROP TABLE "owner_${tableOwner}"`)
 			console.info(checkForManuallyModifiedOwners.name, `dropped table "owner_${tableOwner}"`)
 		}
 		txidsModified = true //as we need to remove some txids from the lists
