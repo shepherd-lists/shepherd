@@ -1,4 +1,4 @@
-import { s3HeadObject, s3PutObject } from "../utils/s3-services"
+import { s3HeadObject, s3PutObject, s3ObjectTagging } from "../utils/s3-services"
 import { slackLog } from "../utils/slackLog"
 import pool from '../utils/pgClient'
 import { performance } from 'perf_hooks'
@@ -26,18 +26,24 @@ const keyExists = async (key: string) => {
 		}
 	}
 }
+const s3GetTag = async (objectKey: string, tagKey: string) => {
+	const tagging = await s3ObjectTagging(LISTS_BUCKET, objectKey)
+	return tagging.TagSet?.find(tag => tag.Key === tagKey)?.Value
+}
 
+/** this is called once on service start */
 export const assertLists = async () => {
 
 	/** check if lists need to be created */
 
-	if (!(await keyExists('addresses.txt'))) {
-		console.info(`list 'addresses.txt' does not exist. creating...`)
+	if (!(await keyExists('addresses.txt') || !await s3GetTag('addresses.txt', 'SHA-1'))) {
+		console.info(`list 'addresses.txt' or it's SHA-1 hash does not exist. creating...`)
 		console.info(
 			'addresses.txt count',
 			await updateAddresses()
 		)
 	}
+
 
 	if (
 		!(await keyExists('blacklist.txt'))
@@ -57,21 +63,41 @@ export const assertLists = async () => {
 	console.info('done assertLists')
 }
 
+const ownersFromDb = async () => {
+	/** addresses should be pretty small, otherwise we might use streams. order for hashing */
+	let { rows } = await pool.query(
+		`SELECT owners_list.owner FROM owners_list
+			LEFT JOIN owners_whitelist ON owners_list.owner = owners_whitelist.owner
+			WHERE owners_whitelist IS NULL
+			AND (add_method = 'manual' OR add_method = 'blocked')
+			ORDER BY owners_list.owner ASC`
+	)
+	const owners = rows.map((row: { owner: string }) => row.owner)
+	return owners
+}
+const textHash = async (text: string) => {
+	const hashBuffer = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text))
+	return Array.from(new Uint8Array(hashBuffer)).map((b: any) => b.toString(16).padStart(2, '0')).join('')
+}
+
+
 /** not really certain if /addresses.txt is going to be a feature, but we use it interally now. */
 export const updateAddresses = async () => {
 	try {
 
-		/** addresses should be pretty small, otherwise we might use streams */
-		let { rows } = await pool.query(
-			`SELECT owners_list.owner FROM owners_list
-			LEFT JOIN owners_whitelist ON owners_list.owner = owners_whitelist.owner
-			WHERE owners_whitelist IS NULL
-			AND (add_method = 'manual' OR add_method = 'blocked')`
-		)
-		const owners = rows.map((row: { owner: string }) => row.owner)
-		console.info(updateAddresses.name, 'updating addresses.txt... length', owners.length, JSON.stringify(owners))
+		const owners = await ownersFromDb()
 
-		await s3PutObject(process.env.LISTS_BUCKET!, 'addresses.txt', owners.join('\n') + '\n')
+		/** check if an update is actually required */
+		const actualHash = await textHash(owners.join('\n') + '\n')
+		const s3Hash = await s3GetTag('addresses.txt', 'SHA-1')
+		if (actualHash === s3Hash) {
+			console.info(updateAddresses.name, 'not updating, hash for addresses.txt matches', actualHash)
+			return false
+		}
+
+		console.info(updateAddresses.name, `updating addresses.txt... hash:${actualHash}, length:${owners.length}`, JSON.stringify(owners))
+
+		await s3PutObject({ Bucket: process.env.LISTS_BUCKET!, Key: 'addresses.txt', text: owners.join('\n') + '\n', Sha1: actualHash })
 
 
 		return owners.length
