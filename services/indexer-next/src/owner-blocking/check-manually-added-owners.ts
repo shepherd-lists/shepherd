@@ -3,7 +3,6 @@ import { updateAddresses } from '../../../../libs/s3-lists/update-lists'
 import pool from '../../../../libs/utils/pgClient'
 
 
-let _lastWhitelist = -1
 export async function checkForManuallyModifiedOwners() {
 	let txidsModified = false
 	let addressesModified = false
@@ -30,24 +29,38 @@ export async function checkForManuallyModifiedOwners() {
 	const newOwners = res.rows.map((row) => row.owner)
 	addressesModified = newOwners.length > 0
 
-	/** now check if whitelist was updated */
-	const whitelist = await pool.query<{ owner: string, last_update: Date }>('SELECT owner, last_update FROM owners_whitelist')
-	const lastUpdate = whitelist.rows.reduce((max, row) => row.last_update.valueOf() > max.last_update.valueOf() ? row : max, { owner: 'null', last_update: new Date(0) })
+	/** now check if whitelist was updated 
+	 * - we only need to check when there's a new whitelist, that has a previously blocked history
+	 * - we should also remove this owner_table so this query returns false next time
+	 */
+	const modifiedOwners = await pool.query<{ owner: string }>(`
+		SELECT ow.owner
+		FROM owners_whitelist ow
+		WHERE EXISTS (
+				SELECT 1
+				FROM information_schema.tables t
+				WHERE t.table_schema = 'public'
+				AND t.table_name = 'owner_' || replace(ow.owner, '-', '~')
+		)
+	`)
+	const modifiedOwnersCount = Number(modifiedOwners.rowCount)
 
-	console.debug(checkForManuallyModifiedOwners.name, 'whitelist lastUpdate', JSON.stringify(lastUpdate))
+	console.debug(checkForManuallyModifiedOwners.name, 'modified whitelisted owners', JSON.stringify(modifiedOwnersCount))
 
-	if (lastUpdate.last_update.valueOf() !== _lastWhitelist) {
-		_lastWhitelist = lastUpdate.last_update.valueOf()
+	if (modifiedOwnersCount > 0) {
 		addressesModified = true
-		txidsModified = true //as might need to remove some txids from the lists
+		/** delete those whitelisted owner tables */
+		for (const { owner } of modifiedOwners.rows) {
+			const tableOwner = owner.replaceAll('-', '~')
+			await pool.query(`DROP TABLE "owner_${tableOwner}"`)
+			console.info(checkForManuallyModifiedOwners.name, `dropped table "owner_${tableOwner}"`)
+		}
+		txidsModified = true //as we need to remove some txids from the lists
 	}
 
-	if (addressesModified) {
-		console.info(checkForManuallyModifiedOwners.name, 'blocked owners modified', newOwners, 'updating /addresses.txt')
-		await updateAddresses()
-	} else {
-		console.info(checkForManuallyModifiedOwners.name, 'no new owners found')
-	}
+	/** this fn checks internally if it needs updating */
+	const addrUpdated = await updateAddresses()
+	console.info(checkForManuallyModifiedOwners.name, addrUpdated ? 'addresses updated' : 'addresses unchanged', addrUpdated)
 
 	/** queue any new owners */
 	let inserts = 0

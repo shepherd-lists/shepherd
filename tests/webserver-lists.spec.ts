@@ -7,7 +7,7 @@ import { Writable } from 'node:stream'
 import { s3DeleteObject, s3PutObject } from '../libs/utils/s3-services'
 
 console.debug(`process.env.LISTS_BUCKET = "${process.env.LISTS_BUCKET}"`)
-const bucketName = process.env.LISTS_BUCKET as string
+const Bucket = process.env.LISTS_BUCKET as string
 
 describe('webserver lists', () => {
 
@@ -15,12 +15,12 @@ describe('webserver lists', () => {
 
 	})
 	afterEach(async () => {
-		await s3DeleteObject(bucketName, 'testing.txt')
+		await s3DeleteObject(Bucket, 'testing.txt')
 	})
 
 	it('should return a short list of test items', async () => {
 		//gotta assume s3PutObject is well tested
-		await s3PutObject(bucketName, 'testing.txt', 'this is a test file\nline 2\nline 3\n')
+		await s3PutObject({ Bucket, Key: 'testing.txt', text: 'this is a test file\nline 2\nline 3\n' })
 
 		let res = ''
 		const writer = new Writable({
@@ -42,7 +42,7 @@ describe('webserver lists', () => {
 		//gotta assume s3PutObject is well tested
 		const numLines = 100_000
 		const longList = Array(numLines).fill('this is a test file\n').join('')
-		await s3PutObject(bucketName, 'testing.txt', longList)
+		await s3PutObject({ Bucket, Key: 'testing.txt', text: longList })
 
 		let res = ''
 		const writer = new Writable({

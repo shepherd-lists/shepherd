@@ -6,28 +6,28 @@ import { Readable } from 'node:stream'
 import { readlineWeb } from '../utils/webstream-utils'
 
 console.debug(`process.env.LISTS_BUCKET = "${process.env.LISTS_BUCKET}"`)
-const bucketName = process.env.LISTS_BUCKET as string
+const Bucket = process.env.LISTS_BUCKET as string
 
 describe('s3 services', () => {
 	beforeEach(async () => {
-		await s3PutObject(bucketName, 'test.txt', 'this is a test file\nline 2\nline 3\n')
+		await s3PutObject({ Bucket, Key: 'test.txt', text: 'this is a test file\nline 2\nline 3\n' })
 	})
 	afterEach(async () => {
-		await s3DeleteObject(bucketName, 'test.txt')
+		await s3DeleteObject(Bucket, 'test.txt')
 	})
 
 	it('should be able to read a file head from s3', async () => {
-		const exists = await s3HeadObject(bucketName, 'test.txt')
+		const exists = await s3HeadObject(Bucket, 'test.txt')
 		assert.equal(exists.$metadata.httpStatusCode, 200, 'file exists')
 	})
 
 	it('should be able to get an object from s3', async () => {
-		const file = await s3GetObject(bucketName, 'test.txt')
+		const file = await s3GetObject(Bucket, 'test.txt')
 		assert.ok(file, 'this should be defined')
 	})
 
 	it('should be able to get a file from s3 as a stream', async () => {
-		const stream = await s3GetObjectWebStream(bucketName, 'test.txt')
+		const stream = await s3GetObjectWebStream(Bucket, 'test.txt')
 		// console.debug('stream', stream)
 		assert.ok(stream, 'stream defined')
 
@@ -43,11 +43,11 @@ describe('s3 services', () => {
 		assert.ok(stream)
 
 		await assert.doesNotReject(async () => {
-			await s3UploadStream(bucketName, 'test2.txt', stream)
+			await s3UploadStream(Bucket, 'test2.txt', stream)
 		})
 		//if no error, upload should be successful
-		const exists = await s3HeadObject(bucketName, 'test2.txt')
+		const exists = await s3HeadObject(Bucket, 'test2.txt')
 		assert.equal(exists.$metadata.httpStatusCode, 200, 'file exists')
-		await s3DeleteObject(bucketName, 'test2.txt')
+		await s3DeleteObject(Bucket, 'test2.txt')
 	})
 })
