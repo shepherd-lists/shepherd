@@ -53,16 +53,14 @@ export async function checkForManuallyModifiedOwners() {
 		for (const { owner } of modifiedOwners.rows) {
 			const tableOwner = owner.replaceAll('-', '~')
 			await pool.query(`DROP TABLE IF EXISTS owner_${tableOwner}`)
+			console.info(checkForManuallyModifiedOwners.name, `dropped table "owner_${tableOwner}"`)
 		}
 		txidsModified = true //as we need to remove some txids from the lists
 	}
 
-	if (addressesModified) {
-		console.info(checkForManuallyModifiedOwners.name, 'blocked owners modified', newOwners, 'updating /addresses.txt')
-		await updateAddresses()
-	} else {
-		console.info(checkForManuallyModifiedOwners.name, 'no new owners found')
-	}
+	/** this fn checks internally if it needs updating */
+	const addrUpdated = await updateAddresses()
+	console.info(checkForManuallyModifiedOwners.name, addrUpdated ? 'addresses updated' : 'addresses unchanged', addrUpdated)
 
 	/** queue any new owners */
 	let inserts = 0
