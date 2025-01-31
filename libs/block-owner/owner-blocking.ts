@@ -1,6 +1,6 @@
 import { createOwnerTable } from './owner-table-utils'
 import { arGql } from 'ar-gql'
-import { GQLEdgeInterface } from 'ar-gql/dist/faces'
+import { GQLEdgeInterface, GQLError } from 'ar-gql/dist/faces'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 import pool from '../utils/pgClient'
 import { slackLog } from '../utils/slackLog'
@@ -19,8 +19,8 @@ if (!process.env.GQL_URL) throw new Error('missing env var: GQL_URL')
 
 const lambdaClient = new LambdaClient({})
 
-const gql = arGql(process.env.GQL_URL_SECONDARY, 3) //defaults to goldsky
-const gqlBackup = arGql(process.env.GQL_URL, 3) //defaults to arweave
+const gql = arGql({ endpointUrl: process.env.GQL_URL_SECONDARY, retries: 3 }) //defaults to goldsky
+const gqlBackup = arGql({ endpointUrl: process.env.GQL_URL, retries: 3 }) //defaults to arweave
 const query = `
 query($cursor: String, $owners: [String!]) {
   transactions(
@@ -207,8 +207,8 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 
 		} catch (err: unknown) {
 			console.debug(blockOwnerHistory.name, err)
-			const e = err as Error
-			slackLog(blockOwnerHistory.name, `GQL ERROR ${e.name}:${e.message} (http ${e.cause}) retrying after 10 seconds`, e)
+			const e = err as GQLError
+			slackLog(blockOwnerHistory.name, `GQL ERROR ${e.name}:${e.message}, retrying after 10 seconds. (${e.cause.gqlError})`, e)
 			await sleep(10_000)
 			continue;
 		}

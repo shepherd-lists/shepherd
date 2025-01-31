@@ -44,14 +44,14 @@ export const txidToRange = async (id: string, parent: string | null, parents: st
 	}
 	//handle L2 ans104 (arbundles)
 
-	const gqlGold = arGql(GQL_URL_SECONDARY) //defaults to goldsky
+	const gqlGold = arGql({ endpointUrl: GQL_URL_SECONDARY }) //defaults to goldsky
 
 	let txParent = await gqlTx(parent, gqlGold)
 	/** handle bugs in the gql indexing services */
 	if (!txParent) {
 		/** notify on missing parents */
 		console.error(txidToRange.name, `Parent ${parent} not found using ${GQL_URL_SECONDARY}. Trying ${GQL_URL} next. id: ${id}`)
-		const gqlArweave = arGql(GQL_URL) //defaults to arweave
+		const gqlArweave = arGql({ endpointUrl: GQL_URL }) //defaults to arweave
 		txParent = await gqlTx(parent, gqlArweave)
 		//fail fast
 		if (!txParent) {

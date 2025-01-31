@@ -3,11 +3,11 @@ import { slackLog } from './utils/slackLog'
 import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
 import { OwnerTableRecord } from '../../types'
 import { getByteRange } from '../../libs/byte-ranges/byteRanges'
-import { GQLEdgeInterface } from 'ar-gql/dist/faces'
+import { GQLEdgeInterface, GQLError } from 'ar-gql/dist/faces'
 import { gqlTx } from '../../libs/byte-ranges/gqlTx'
 
-const gql = arGql(process.env.GQL_URL_SECONDARY, 3) //defaults to goldsky
-const gqlBackup = arGql(process.env.GQL_URL, 3) //defaults to arweave
+const gql = arGql({ endpointUrl: process.env.GQL_URL_SECONDARY, retries: 3 }) //defaults to goldsky
+const gqlBackup = arGql({ endpointUrl: process.env.GQL_URL, retries: 3 }) //defaults to arweave
 
 
 /** the handler will receive 1 page of blocked wallet results. 
@@ -58,7 +58,7 @@ export const handler = async (event: any) => {
 						try {
 							p = (await gqlTx(p0, gqlBackup)).parent?.id || null
 						} catch (eInner: unknown) {
-							slackLog(`getParent error: "${(eInner as Error).message}" while fetching parent: ${p0} for dataItem: ${txid} Tried both gql endpoints.`)
+							slackLog(`getParent error: "${(eInner as Error).message}" while fetching parent: ${p0} for dataItem: ${txid} Tried both gql endpoints. ${(eInner as GQLError).cause.gqlError}`)
 						}
 					}
 				} while (p && parents.push(p))
