@@ -6,7 +6,7 @@ const GQL_URL_SECONDARY = process.env.GQL_URL_SECONDARY
 if (!GQL_URL_SECONDARY?.includes('goldsky')) throw new Error(`GQL_URL_SECONDARY: '${GQL_URL_SECONDARY}' must be a goldsky endpoint!`)
 
 
-const gql = arGql(GQL_URL_SECONDARY, 1) //defaults to goldsky
+const gql = arGql({ endpointUrl: GQL_URL_SECONDARY, retries: 1 }) //defaults to goldsky
 
 export const ownerTotalCount = moize(
 	async (owner: string) => {
