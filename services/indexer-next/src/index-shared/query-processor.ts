@@ -1,6 +1,7 @@
 import pLimit from 'p-limit'
 import { slackLog } from '../../../../libs/utils/slackLog'
 import { arGql } from 'ar-gql'
+import { GQLError } from 'ar-gql/dist/faces'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 
@@ -69,17 +70,17 @@ export const gqlPages = async ({
 				console.error(JSON.stringify({ err }))
 				console.error(JSON.stringify({ res }))
 				console.error(JSON.stringify({ edges }))
-				const e = err as Error
-				const status = Number(e.cause) || 0
+				const e = err as GQLError
+				const status = e.cause?.status || undefined
 
-				/** ar-gql http errors have a cause, otherwise connection issue */
-				if (!e.cause) {
+				/** ar-gql http errors have a cause.status, otherwise connection issue */
+				if (!status) {
 					console.error(indexName, `gql-error '${e.message}'. trying again`, gqlProvider)
 					continue
 				}
 
 				/** in all other cases sleep before retrying */
-				await slackLog(indexName, 'gql-error', status, ':', e.message, gqlProvider, 'retrying in 10s')
+				await slackLog(indexName, 'gql-error', status, ':', e.message, gqlProvider, e.cause, 'retrying in 10s')
 				console.log(err)
 				await sleep(10_000)
 				continue

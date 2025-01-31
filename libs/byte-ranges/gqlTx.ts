@@ -2,6 +2,7 @@
  * refactoring and generalising gqlTx into it's own module for performance reasons 
  */
 import { ArGqlInterface } from 'ar-gql'
+import { GQLError } from 'ar-gql/dist/faces'
 import moize from 'moize'
 
 
@@ -24,14 +25,15 @@ export const gqlTx = moize(
 				return await gql.tx(id)
 
 			} catch (err: unknown) {
-				const e = err as Error
-				const status = !isNaN(Number(e.cause)) ? Number(e.cause) : null // ar-gql errors are a bit messy
+				const e = err as GQLError
+				const status = e.cause?.status || null
 
 				if (!status || status === 429 || status >= 500) {
 					if (tries++ > maxTries) {
 						throw new Error(
 							`[getTx] "${e.message}" while fetching tx: "${id}" using gqlProvider: ${gql.endpointUrl}.`
 							+ ` Tried ${tries} times.`
+							+ e.cause.gqlError
 						)
 					}
 					console.warn(gqlTx.name, `warning: (${status}) '${e.message}', for '${id}'. retrying in 10secs...`)

@@ -1,6 +1,6 @@
 import { slackLog } from '../../libs/utils/slackLog'
 import { arGql, ArGqlInterface } from 'ar-gql'
-import { GQLEdgeInterface } from 'ar-gql/dist/faces'
+import { GQLEdgeInterface, GQLError } from 'ar-gql/dist/faces'
 import moize from 'moize'
 import { TxRecord, TxScanned } from 'shepherd-plugin-interfaces/types'
 import knexCreate from '../../libs/utils/knexCreate'
@@ -89,12 +89,13 @@ const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 				try {
 					p = await getParent(p0, gql)
 				} catch (eOuter: unknown) {
-					const outerMessage = (eOuter as Error).message
+					const outerMessage = (eOuter as GQLError).message
 					await slackLog(`getParent error: "${outerMessage}" while fetching parent: "${p}" using: ${gqlProvider}, ${height}. Trying gqlBackup now.`)
 					try {
 						p = await getParent(p0, gqlBackup)
 					} catch (eInner: unknown) {
-						throw new TypeError(`getParent error: "${(eInner as Error).message}" while fetching parent: ${p0} for dataItem: ${txid} USING GQLBACKUP: ${gqlBackup.endpointUrl.includes('goldsky') ? 'gold' : 'ario'}`)
+						const gqlEInner = eInner as GQLError
+						throw new TypeError(`getParent error: "${gqlEInner.message}" while fetching parent: ${p0} for dataItem: ${txid} USING GQLBACKUP: ${gqlBackup.endpointUrl.includes('goldsky') ? 'gold' : 'ario'}. ${gqlEInner.cause.gqlError}`)
 					}
 				}
 
