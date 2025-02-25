@@ -51,7 +51,7 @@ export const batchInsert = async <T extends object>(records: T[], tableName: str
 
 		const values = records.map(r => Object.values(r)).flat()
 
-		console.debug('values', values)
+		console.debug('values', JSON.stringify(values, null, 2))
 
 		const res = await pool.query(query, values) // query is a template string, values is an array
 
