@@ -101,7 +101,7 @@ const newAlarmHandler = async (session: ClientHttp2Session, gw_url: string, txid
 
 const alarmOkHandler = async (session: ClientHttp2Session, gw_url: string, txid: string, reqId: number) => {
 	try {
-		const { status } = await headRequest(session, txid, reqId)
+		const { status, contentLength } = await headRequest(session, txid, reqId)
 
 		if (status === 404) {
 			setAlertState({
@@ -111,6 +111,8 @@ const alarmOkHandler = async (session: ClientHttp2Session, gw_url: string, txid:
 					status: 'ok',
 					line: txid,
 					endpointType: '/TXID',
+					httpStatus: 404,
+					contentLength,
 				}
 			})
 			return false
