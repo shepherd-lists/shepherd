@@ -222,7 +222,7 @@ const processNodeAlerts = (nodeAlerts: { [server: string]: NotBlockState }) => {
 			const earliestStart = alarmStates.reduce((prev, curr) => curr.startStamp < prev.startStamp ? curr : prev, { startStamp: Infinity } as NotBlockStateDetails).startStamp
 			_summarizedNodeStates[server] = { start: earliestStart }
 
-			const serverMsg = `🔴 ALARM.  \`${serverName} ${server}\`, started: ${new Date(earliestStart).toUTCString()}.`
+			const serverMsg = `🔴 ALARM, serving censored content:  \`${serverName} ${server}\`, started: ${new Date(earliestStart).toUTCString()}. Try: stop node, delete ar_tx_blacklist folder, and restart.`
 			_slackLoggerNoFormatting(serverMsg, process.env.SLACK_PROBE)
 			continue;
 		}
