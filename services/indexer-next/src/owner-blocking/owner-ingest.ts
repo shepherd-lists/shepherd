@@ -163,7 +163,7 @@ export const ownerIngestLoop = async () => {
 			await blockOwnerIngest()
 		} catch (err: unknown) {
 			const e = err as Error
-			await slackLog('owner-ingest', `FATAL error ❌ ${e.name}:${e.message} \n${e.cause} \n${e.stack} \nrestarting in 30 secs...`)
+			await slackLog('owner-ingest', `FATAL error ❌ ${e.name}:${e.message} \ncause ${String(e.cause)} \n${e.stack} \nrestarting in 30 secs...`)
 			await sleep(30_000)
 		}
 	}
