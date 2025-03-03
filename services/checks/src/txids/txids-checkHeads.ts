@@ -3,11 +3,9 @@ import http2, { ClientHttp2Session } from 'http2'
 import { Semaphore } from 'await-semaphore'
 import { filterPendingOnly } from "../pending-promises"
 import { performance } from 'perf_hooks'
-import { slackLog } from "../../../../libs/utils/slackLog"
 import { checkReachable } from "../checkReachable"
 import { getServerAlarms, setAlertState } from "../event-tracking"
 import { setUnreachable, unreachableTimedout } from '../event-unreachable'
-import { slackLogPositive } from "../../../../libs/utils/slackLogPositive"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -88,9 +86,6 @@ const newAlarmHandler = async (session: ClientHttp2Session, gw_url: string, txid
 					httpStatus: status,
 				},
 			})
-
-			// /* make sure Slack doesn't display link contents! */
-			// slackLogPositive('warning', `[${checkServerBlockingTxids.name}] ${txid} not blocked on ${gw_url} (status: ${status}), xtrace: '${xtrace}', age: '${age}', content-length: '${contentLength}'`)
 		}
 	} catch (e) {
 		const { message, code } = e as NodeJS.ErrnoException

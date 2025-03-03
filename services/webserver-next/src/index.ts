@@ -1,5 +1,4 @@
 console.log(`process.env.SLACK_WEBHOOK ${process.env.SLACK_WEBHOOK}`)
-console.log(`process.env.SLACK_POSITIVE ${process.env.SLACK_POSITIVE}`)
 console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
 // import './checkBlocking/index-cron'
