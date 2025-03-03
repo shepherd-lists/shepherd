@@ -167,7 +167,6 @@ export const createStack = async (app: App, config: Config) => {
 			LISTS_BUCKET: `shepherd-lists-${config.region}`,
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: config.slack_webhook!,
-			SLACK_POSITIVE: config.slack_positive!,
 			SLACK_PROBE: config.slack_probe!,
 			HOST_URL: config.host_url || 'https://arweave.net',
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
@@ -208,7 +207,6 @@ export const createStack = async (app: App, config: Config) => {
 			environment: {
 				LISTS_BUCKET: `shepherd-lists-${config.region}`,
 				SLACK_WEBHOOK: config.slack_webhook!,
-				SLACK_POSITIVE: config.slack_positive!,
 				SLACK_PROBE: config.slack_probe!,
 				BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
 				RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
