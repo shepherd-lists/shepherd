@@ -20,7 +20,7 @@ const config = {
 
 const pool = new pg.Pool({
 	...config,
-	ssl: {
+	ssl: process.env.NODE_ENV === 'test' ? false : {
 		rejectUnauthorized: false, //ignore ssl cert (firewalls and a private network)
 	},
 })
