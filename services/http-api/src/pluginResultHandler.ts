@@ -2,7 +2,7 @@ import { getByteRange } from '../../../libs/byte-ranges/byteRanges'
 import { APIFilterResult } from 'shepherd-plugin-interfaces'
 import { checkTxFresh, dbCorruptDataConfirmed, dbCorruptDataMaybe, dbInflightDel, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, dbWrongMimeType, getTxFromInbox, updateInboxDb } from './utils/db-update-txs'
 import { slackLog } from '../../../libs/utils/slackLog'
-import { slackLogPositive } from '../../../libs/utils/slackLogPositive'
+import { slackLogPositive } from './utils/slackLogPositive'
 import { processFlagged } from './flagged'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 

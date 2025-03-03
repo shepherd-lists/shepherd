@@ -1,4 +1,4 @@
-import os from 'os'
+import os from 'node:os'
 
 
 const SLACK_POSITIVE = process.env.SLACK_POSITIVE as string
