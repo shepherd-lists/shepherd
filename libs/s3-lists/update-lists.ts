@@ -129,7 +129,7 @@ export const updateFullTxidsRanges = async () => {
 
 	const t0 = performance.now()
 
-	const count = await lambdaInvoker()
+	const count = await fnListsInvoker()
 
 	console.info(updateFullTxidsRanges.name, `total update time ${(performance.now() - t0).toFixed(0)} ms`)
 
@@ -138,7 +138,7 @@ export const updateFullTxidsRanges = async () => {
 	return count; //something to indicate success
 }
 
-const lambdaInvoker = async () => {
+const fnListsInvoker = async () => {
 	const lambdaClient = new LambdaClient({})
 
 	while (true) {
@@ -157,11 +157,11 @@ const lambdaInvoker = async () => {
 
 			const count: number = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
 
-			console.info(lambdaInvoker.name, `total ids ${count}`)
+			console.info(fnListsInvoker.name, `total ids ${count}`)
 			return count;
 		} catch (err: unknown) {
 			const e = err as Error
-			slackLog(lambdaInvoker.name, lambdaInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
+			slackLog(fnListsInvoker.name, fnListsInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
 			await sleep(10_000)
 			continue;
 		}

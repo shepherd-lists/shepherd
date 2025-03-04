@@ -95,7 +95,7 @@ export const gqlPages = async ({
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
-			promises.push(limit(lambdaInvoker, { metas: edges, pageNumber: pageCount++, gqlUrl, gqlUrlBackup, gqlProvider, indexName }))
+			promises.push(limit(fnIndexerInvoker, { metas: edges, pageNumber: pageCount++, gqlUrl, gqlUrlBackup, gqlProvider, indexName }))
 
 			tPage = performance.now() - p0
 			logstring = `retrieved & dispatched gql page of ${edges.length} results in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
@@ -126,7 +126,7 @@ export const gqlPages = async ({
 }
 
 /** N.B. `inputs` must match fnIndex `event` */
-const lambdaInvoker = async (inputs: {
+const fnIndexerInvoker = async (inputs: {
 	metas: GQLEdgeInterface[],
 	pageNumber: number,
 	gqlUrl: string,
@@ -152,11 +152,11 @@ const lambdaInvoker = async (inputs: {
 
 			const inserts: number = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
 
-			console.info(indexName, lambdaInvoker.name, `page ${pageNumber}, ${inserts}/${metas.length} inserted`)
+			console.info(indexName, fnIndexerInvoker.name, `page ${pageNumber}, ${inserts}/${metas.length} inserted`)
 			return inserts;
 		} catch (err: unknown) {
 			const e = err as Error
-			slackLog(indexName, lambdaInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
+			slackLog(indexName, fnIndexerInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
 			await sleep(10_000)
 			continue;
 		}
