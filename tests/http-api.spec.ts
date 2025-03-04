@@ -56,6 +56,7 @@ describe('http api', () => {
 
 	beforeEach(async () => {
 		await pool.query("DELETE FROM owners_list WHERE owner = $1", [mockOwner])
+		await dropOwnerTables(mockOwner) //this does both tables
 	})
 
 	afterEach(async () => {
