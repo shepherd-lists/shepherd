@@ -79,10 +79,13 @@ export const gqlPages = async ({
 					continue
 				}
 
+				let ms = 10_000
+				if (Number(status) === 429) ms = 30_000
+
 				/** in all other cases sleep before retrying */
-				await slackLog(indexName, 'gql-error', status, ':', e.message, gqlProvider, String(e.cause), 'retrying in 10s')
+				await slackLog(indexName, 'gql-error', status, ':', e.message, gqlProvider, String(e.cause), `retrying in ${ms / 1000}s`)
 				console.log(err)
-				await sleep(10_000)
+				await sleep(ms)
 				continue
 			}
 		}//end while-gql.run
