@@ -62,16 +62,13 @@ export const queueBlockOwner = async (owner: string, method: 'auto' | 'manual') 
 	const q = await updateBlockOwnerQueue({ owner, method }, 'add') //returns [] if already in queue
 
 	if (q.length === 0) {
-		return 0 //already in queue (race conditions etc)
-	}
-
-	if (q.length === 1) {
-		return blockOwnerHistory(owner, method)
+		await slackLog(queueBlockOwner.name, `${owner} '${method}' already queued`)
+		return false //already in queue (race conditions etc)
 	}
 
 	await slackLog(queueBlockOwner.name, `${owner} added to queue`)
 
-	return 0 //no items blocked at this time
+	return true //no items blocked at this time
 }
 
 export const processBlockedOwnersQueue = async () => {
@@ -82,10 +79,9 @@ export const processBlockedOwnersQueue = async () => {
 	if (q.length === 0) return
 
 	/** attempt one owner per cycle, it's already too fast */
-	//TODO: can we do this all in the param store rather than polling the db?
 	const running = await pool.query<OwnersListRecord>(`SELECT * FROM owners_list WHERE add_method = 'updating'`)
 	if (running.rows.length > 0) {
-		console.info(processBlockedOwnersQueue.name, running.rows[0].owner, 'blocking already in progress')
+		console.info(processBlockedOwnersQueue.name, `blocking already in progress: ${running.rows[0].owner}`)
 		return
 	}
 
@@ -236,6 +232,8 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 
 
 	await slackLog(blockOwnerHistory.name, `✅ ${owner} blocking completed ${JSON.stringify(counts)}`)
+
+	//TODO: call "lists update" here with our changes
 
 
 	return counts.inserts
