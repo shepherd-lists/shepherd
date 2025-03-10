@@ -67,7 +67,7 @@ export const updateBlockOwnerQueue = async (value: BlockOwnerQueueItem, op: 'add
 			try {
 				const queue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
 				if (op === 'add' && queue.find(i => i.owner === value.owner)) {
-					await slackLog(blockOwnerQueueParamName, `DEBUG ${value.owner} already in queue`)
+					console.debug(blockOwnerQueueParamName, `DEBUG ${value.owner} already in queue`)
 					return []
 				}
 
