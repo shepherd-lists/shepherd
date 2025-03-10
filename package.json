@@ -13,7 +13,7 @@
   "license": "LGPL-3.0-or-later",
   "devDependencies": {
     "@aws-sdk/client-ssm": "^3.503.1",
-    "@types/node": "^20.12.7",
+    "@types/node": "^20.17.24",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1",
     "ansi-colors": "^4.1.3",
