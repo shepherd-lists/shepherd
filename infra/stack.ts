@@ -75,7 +75,7 @@ export class InfraStack extends cdk.Stack {
 		createTailscaleSubrouter(stack, vpc)
 
 		/** create the postgres rds database */
-		const { sgPgdb, pgdb } = pgdbAndAccess(stack, vpc)
+		const { sgPgdb, pgdb } = pgdbAndAccess(stack, vpc, config.region)
 
 		/** create input bucket, and queues */
 		const { inputBucket, sqsInputQ } = bucketAndNotificationQs(stack, vpc)
@@ -168,7 +168,7 @@ export class InfraStack extends cdk.Stack {
 	}
 }
 
-const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
+const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc, region: string) => {
 
 	/** create the security group for the postgres rds database */
 	const sgPgdb = new cdk.aws_ec2.SecurityGroup(stack, 'shepherd2-pgdb-sg', {
@@ -179,6 +179,7 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 	sgPgdb.addIngressRule(cdk.aws_ec2.Peer.ipv4(vpc.vpcCidrBlock), cdk.aws_ec2.Port.tcp(5432), 'allow db traffic') // allow traffic from within the vpc
 
 	/** create the postgres rds database */
+	const instanceTypename = region === 'ap-southeast-1' ? 't3.small' : 't3.xlarge'
 	const pgdb = new cdk.aws_rds.DatabaseInstance(stack, 'shepherd2-pgdb', {
 		vpc,
 		instanceIdentifier: 'shepherd2-pgdb',
@@ -186,7 +187,7 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 			version: cdk.aws_rds.PostgresEngineVersion.VER_13_13,
 		}),
 		autoMinorVersionUpgrade: true,
-		instanceType: new cdk.aws_ec2.InstanceType('t3.xlarge'),
+		instanceType: new cdk.aws_ec2.InstanceType(instanceTypename),
 		allocatedStorage: 80,
 		storageType: cdk.aws_rds.StorageType.GP2,
 		deletionProtection: true,
