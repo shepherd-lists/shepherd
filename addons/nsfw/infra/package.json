@@ -1,18 +1,4 @@
 {
   "name": "nsfw-infra",
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@aws-sdk/client-ssm": "^3.454.0",
-    "aws-cdk": "^2.110.0",
-    "aws-cdk-lib": "^2.110.0",
-    "esbuild": "^0.19.8",
-    "tsx": "^4.7.0"
-  }
+  "type": "module"
 }
