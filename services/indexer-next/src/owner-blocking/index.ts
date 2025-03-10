@@ -19,10 +19,10 @@ export const ownerChecks = async () => {
 			/** check if lists need to be updated */
 			//this should be in a setInterval with it's own try-catch?
 			if (
-				await checkForManuallyModifiedOwners()
-				|| await processBlockedOwnersQueue()
+				await checkForManuallyModifiedOwners() // returns true if whitelisted items need to be removed
+				|| await processBlockedOwnersQueue() //blocks 1 owner from queue
 			) {
-				console.info('owner modified. recreating lists')
+				console.info('owner modified. recreating lists') //<= this should be done internally above when updates are found or queue processed
 				const updateLists = await updateFullTxidsRanges()
 				console.info({ updateLists })
 			} else {
