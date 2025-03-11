@@ -6,7 +6,7 @@ import { infraction_limit } from '../../../libs/constants'
 import { queueBlockOwner } from '../../../libs/block-owner/owner-blocking'
 import { updateAddresses, updateFullTxidsRanges } from '../../../libs/s3-lists/update-lists'
 import { OwnersListRecord } from '../../../types'
-import { mergeRulesObject } from './move-records'
+import { mergeRulesObject } from './service/move-records'
 
 
 const knex = dbConnection()
@@ -152,17 +152,20 @@ const ownerUpdate = async (owner: string, txid: string) => {
 			if (whitelisted) {
 				slackLog(processFlagged.name, `${owner} is whitelisted, not blocking`)
 			} else {
-				/* get infraction records for notification */
-				const infractionRecs = await knex<TxRecord>('txs').whereIn('txid', function () {
-					this.select('txid').from(infractionsTablename)
-				})
-				slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. ${txid}`, JSON.stringify(infractionRecs, null, 2))
-
-				const numBlocked = await queueBlockOwner(owner, 'auto') // cannot rollback. most likely will not queue and run immediately.
-				slackLog(processFlagged.name, `:white_check_mark: finished ${queueBlockOwner.name}: blocked ${numBlocked} items from ${owner}`)
+				/* add to queue */
+				const added = await queueBlockOwner(owner, 'auto')
+				if (added) {
+					//TODO: move all of this inside queueBlockOwner
+					/* get infraction records for notification */
+					const infractionRecs = await knex<TxRecord>('txs').whereIn('txid', function () {
+						this.select('txid').from(infractionsTablename)
+					})
+					slackLog(processFlagged.name, `:warning: started blocking owner: ${owner} with ${infractions} infractions. ${txid}`, JSON.stringify(infractionRecs, null, 2))
+				}
 
 				/** update s3://addresses.txt */
-				await updateAddresses() //needs to be commited 
+				//TODO: this should be called internally
+				await updateAddresses()
 			}
 		}
 

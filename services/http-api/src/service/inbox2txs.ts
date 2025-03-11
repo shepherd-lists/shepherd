@@ -1,5 +1,5 @@
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import dbConnection from '../../../libs/utils/knexCreate'
+import dbConnection from '../../../../libs/utils/knexCreate'
 import { moveInboxToTxs } from './move-records'
 
 const knex = dbConnection()

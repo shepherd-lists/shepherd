@@ -1,11 +1,15 @@
 import { Knex } from 'knex'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import dbConnection from '../../../libs/utils/knexCreate'
-import { slackLog } from '../../../libs/utils/slackLog'
+import dbConnection from '../../../../libs/utils/knexCreate'
+import { slackLog } from '../../../../libs/utils/slackLog'
 
 const knex = dbConnection()
 
-/** we need this object for applying merge-conflict rules. also used in 'flagged.tx' */
+/** we need this object for applying merge-conflict rules. 
+ * 
+ * also used in 'flagged.ts'
+ *  
+ */
 export const mergeRulesObject = () => {
 	/** consider upgrading this "typechecking". zod? class? */
 	type TxRecordKeys = (keyof TxRecord)[]

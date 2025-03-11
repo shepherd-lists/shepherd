@@ -1,5 +1,4 @@
 import { GetParameterCommand, SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm'
-import { slackLog } from './slackLog'
 
 
 const ssm = new SSMClient() //current region
@@ -16,7 +15,7 @@ const writeParamLive = async (name: string, value: Array<object>) => {
 	const Value = JSON.stringify(value)
 	if (Value.length > 4096) throw new Error(`Value too long: ${Value.length}`)
 
-	await slackLog(writeParamLive.name, `DEBUG '/shepherd/live/${name}' <= ${Value}`)
+	console.debug(writeParamLive.name, `DEBUG '/shepherd/live/${name}' <= ${Value}`)
 
 	ssm.send(new PutParameterCommand({
 		Name: `/shepherd/live/${name}`,
@@ -39,7 +38,7 @@ try {
 	await readParamLive(blockOwnerQueueParamName)
 } catch (e) {
 	if (e instanceof Error && e.name === 'ParameterNotFound') {
-		await slackLog(blockOwnerQueueParamName, 'creating queue state in param store')
+		console.info(blockOwnerQueueParamName, 'creating queue state in param store')
 		await writeParamLive(blockOwnerQueueParamName, [])
 	}
 }
@@ -67,7 +66,7 @@ export const updateBlockOwnerQueue = async (value: BlockOwnerQueueItem, op: 'add
 			try {
 				const queue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
 				if (op === 'add' && queue.find(i => i.owner === value.owner)) {
-					await slackLog(blockOwnerQueueParamName, `DEBUG ${value.owner} already in queue`)
+					console.debug(blockOwnerQueueParamName, `DEBUG ${value.owner} already in queue`)
 					return []
 				}
 

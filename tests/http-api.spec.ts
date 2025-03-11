@@ -7,7 +7,7 @@ import { processFlagged, createInfractionsTable } from '../services/http-api/src
 import { dropOwnerTables, ownerToInfractionsTablename, ownerToOwnerTablename } from '../libs/block-owner/owner-table-utils';
 
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import { moveInboxToTxs } from '../services/http-api/src/move-records'
+import { moveInboxToTxs } from '../services/http-api/src/service/move-records'
 
 console.info(`using ${process.env.HTTP_API} for HTTP_API ip address`)
 
@@ -56,6 +56,7 @@ describe('http api', () => {
 
 	beforeEach(async () => {
 		await pool.query("DELETE FROM owners_list WHERE owner = $1", [mockOwner])
+		await dropOwnerTables(mockOwner) //this does both tables
 	})
 
 	afterEach(async () => {

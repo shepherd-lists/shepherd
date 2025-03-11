@@ -4,8 +4,6 @@ import pool from '../../../../libs/utils/pgClient'
 
 
 export async function checkForManuallyModifiedOwners() {
-	let txidsModified = false
-	let addressesModified = false
 
 	/** Manually added owners will not have their own block history table
 	 * so we need to check "owners_list" for owners with add_method = 'manual' && no `owner_${owner}` table.
@@ -27,13 +25,12 @@ export async function checkForManuallyModifiedOwners() {
 	const res = await pool.query<{ owner: string }>(query)
 
 	const newOwners = res.rows.map((row) => row.owner)
-	addressesModified = newOwners.length > 0
 
 	/** now check if whitelist was updated 
 	 * - we only need to check when there's a new whitelist, that has a previously blocked history
 	 * - we should also remove this owner_table so this query returns false next time
 	 */
-	const modifiedOwners = await pool.query<{ owner: string }>(`
+	const newWhitelistedOwners = await pool.query<{ owner: string }>(`
 		SELECT ow.owner
 		FROM owners_whitelist ow
 		WHERE EXISTS (
@@ -43,19 +40,19 @@ export async function checkForManuallyModifiedOwners() {
 				AND t.table_name = 'owner_' || replace(ow.owner, '-', '~')
 		)
 	`)
-	const modifiedOwnersCount = Number(modifiedOwners.rowCount)
+	const newWhitelistedOwnersCount = Number(newWhitelistedOwners.rowCount)
 
-	console.debug(checkForManuallyModifiedOwners.name, 'modified whitelisted owners', JSON.stringify(modifiedOwnersCount))
+	console.debug(checkForManuallyModifiedOwners.name, 'modified whitelisted owners', JSON.stringify(newWhitelistedOwnersCount))
 
-	if (modifiedOwnersCount > 0) {
-		addressesModified = true
+	let removeWhitelistedTxids = false
+	if (newWhitelistedOwnersCount > 0) {
 		/** delete those whitelisted owner tables */
-		for (const { owner } of modifiedOwners.rows) {
+		for (const { owner } of newWhitelistedOwners.rows) {
 			const tableOwner = owner.replaceAll('-', '~')
 			await pool.query(`DROP TABLE "owner_${tableOwner}"`)
 			console.info(checkForManuallyModifiedOwners.name, `dropped table "owner_${tableOwner}"`)
 		}
-		txidsModified = true //as we need to remove some txids from the lists
+		removeWhitelistedTxids = true //as we need to remove some txids from the lists
 	}
 
 	/** this fn checks internally if it needs updating */
@@ -63,14 +60,10 @@ export async function checkForManuallyModifiedOwners() {
 	console.info(checkForManuallyModifiedOwners.name, addrUpdated ? 'addresses updated' : 'addresses unchanged', addrUpdated)
 
 	/** queue any new owners */
-	let inserts = 0
 	for (const owner of newOwners) {
-		inserts += await queueBlockOwner(owner, 'manual')
+		await queueBlockOwner(owner, 'manual')
 	}
 
-	/** toggle modified if necessary */
-	txidsModified ||= inserts > 0
-
-	return txidsModified // this is used to trigger a full update of the lists
+	return removeWhitelistedTxids // this is used to trigger a full update of the lists
 }
 
