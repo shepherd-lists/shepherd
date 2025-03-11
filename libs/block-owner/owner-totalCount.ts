@@ -3,7 +3,7 @@ import moize from 'moize'
 
 //sanity check
 const GQL_URL_SECONDARY = process.env.GQL_URL_SECONDARY
-if (!GQL_URL_SECONDARY?.includes('goldsky')) throw new Error(`GQL_URL_SECONDARY: '${GQL_URL_SECONDARY}' must be a goldsky endpoint!`)
+if (!GQL_URL_SECONDARY?.includes('goldsky')) console.warn(`GQL_URL_SECONDARY: '${GQL_URL_SECONDARY}' must be a goldsky endpoint!`)
 
 
 const gql = arGql({ endpointUrl: GQL_URL_SECONDARY, retries: 1 }) //defaults to goldsky

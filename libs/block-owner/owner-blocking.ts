@@ -117,7 +117,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 			[owner]
 		)
 
-		await slackLog(blockOwnerHistory.name, `DEBUG ${owner} status count: ${status.rowCount}, rows:`, JSON.stringify(status.rows))
+		console.debug(blockOwnerHistory.name, `DEBUG ${owner} status count: ${status.rowCount}, rows:`, JSON.stringify(status.rows))
 
 		if (status.rowCount === 0) {
 			await slackLog(blockOwnerHistory.name, `owner ${owner} is already being blocked`)
