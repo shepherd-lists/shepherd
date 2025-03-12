@@ -21,6 +21,7 @@ const vpcName = await readParam('VpcName')
 const rdsEndpoint = await readParam('RdsEndpoint')
 const feederQueueUrl = await readParam('FeederQueueUrl')
 const inputBucketName = await readParam('InputBucket')
+const inputQueueUrl = await readParam('InputQueueUrl') //for feeder to check length
 const logGroupName = await readParam('LogGroup')
 const albArn = await readParam('AlbArn')
 
@@ -81,10 +82,14 @@ export class ServicesStack extends cdk.Stack {
 				DB_HOST: rdsEndpoint,
 				SLACK_WEBHOOK: config.slack_webhook!,
 				AWS_FEEDER_QUEUE: feederQueueUrl,
+				AWS_SQS_INPUT_QUEUE: inputQueueUrl,
 			})
 			feeder.taskDefinition.taskRole.addToPrincipalPolicy(new cdk.aws_iam.PolicyStatement({
 				actions: ['sqs:*'],
-				resources: [`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd2-feeder-q`],
+				resources: [
+					`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd2-feeder-q`,
+					`arn:aws:sqs:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:shepherd2-input-q`,
+				],
 			}))
 		}
 

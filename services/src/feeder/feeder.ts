@@ -10,6 +10,7 @@ import { legacyRecordOwnerFix } from './legacyFix-RecordOwner'
 const prefix = 'feeder'
 const knex = dbConnection()
 const QueueUrl = process.env.AWS_FEEDER_QUEUE as string
+const InputQueueUrl = process.env.AWS_SQS_INPUT_QUEUE as string
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -64,14 +65,14 @@ const getTxRecords =async (limit: number) => {
 	}
 }
 
-const inflightsSize = async()=> {
+const getInflightsSize = async()=> {
 	while(true){
 		try{
 			return +(await knex.raw('SELECT reltuples::bigint AS estimate FROM pg_class where relname = \'inflights\'')).rows[0].estimate
 		}catch(err:unknown){
 			const e = err as Error
-			logger(inflightsSize.name, `some error getting table size. ${e.name}:${e.message}. waiting 30s...`)
-			slackLogger(inflightsSize.name, `some error getting table size. ${e.name}:${e.message}. waiting 30s...`)
+			logger(getInflightsSize.name, `some error getting table size. ${e.name}:${e.message}. waiting 30s...`)
+			slackLogger(getInflightsSize.name, `some error getting table size. ${e.name}:${e.message}. waiting 30s...`)
 			await sleep(30000)
 		}
 	}
@@ -86,10 +87,10 @@ export const feeder = async()=> {
 	const INFLIGHTS_MAX = 100_000 //deletions get really slow when inflights table in the millions
 
 	while(true){
-		const numSqsMsgs = await approximateNumberOfMessages()
+		const numSqsMsgs = await approximateNumberOfMessages(QueueUrl)
 		logger(prefix, 'approximateNumberOfMessages', numSqsMsgs)
 
-		const numInflights = await inflightsSize()
+		const numInflights = await getInflightsSize()
 		logger(prefix, 'approx. inflights size', numInflights)
 
 		/**
@@ -106,12 +107,20 @@ export const feeder = async()=> {
 			}
 		}
 
+		/** give a warning if inflights is full but queues are empty */
+		if(numInflights > INFLIGHTS_MAX){
+			const numInputQ = await approximateNumberOfMessages(InputQueueUrl)
+			if(numInputQ+numSqsMsgs === 0){
+				await slackLogger(`💀❌ inflights: ${numInflights}, but nothing in FEEDER or INPUT queues 💀❌`)
+			}
+		}
+
 		logger('sleeping for 1 minutes...', `feeders-sqs:${numSqsMsgs}/${WORKING_RECORDS}, inflights:${numInflights}/${INFLIGHTS_MAX}`)
 		await sleep(ABSOLUTE_TIMEOUT)
 	}
 }
 
-const approximateNumberOfMessages = async()=> +(await sqs.getQueueAttributes({
+const approximateNumberOfMessages = async(QueueUrl: string)=> +(await sqs.getQueueAttributes({
 	QueueUrl,
 	AttributeNames: ['ApproximateNumberOfMessages'],
 }).promise()).Attributes!.ApproximateNumberOfMessages
@@ -169,7 +178,7 @@ const sendToSqs = async(records: TxRecord[])=>{
 		console.log(`${count} remaining messages sent`)
 	}
 
-	console.log('approximateNumberOfMessages', await approximateNumberOfMessages())
+	console.log('approximateNumberOfMessages', await approximateNumberOfMessages(QueueUrl))
 }
 
 const processMessageBatch = async(inflights: InflightsRecord[], entries: SQS.SendMessageBatchRequestEntry[])=> {
