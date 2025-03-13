@@ -1,8 +1,8 @@
 {
 	"compilerOptions": {
 		"target": "ES2022",
-		"moduleResolution": "Node",
 		"module": "ES2022",
+		"moduleResolution": "bundler",
 		"allowSyntheticDefaultImports": true,
 	},
 	"exclude": [ "cdk.out*", "**/node_modules", "node_modules" ]
