@@ -1,15 +1,12 @@
 import 'dotenv/config'
 import assert from "node:assert/strict";
-import { after, afterEach, beforeEach, describe, it } from 'node:test'
+import { describe, it } from 'node:test'
 
 import { txidToRange } from '../byte-ranges/txidToRange/txidToRange'
 
 
 describe('byte-ranges-nested tests', () => {
 
-	// before(async function() {
-	// 	this.timeout(0)
-	// })
 
 	it('should return correct byte range for a trivially small ans104 2D nested dataItem', async () => {
 
