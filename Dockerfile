@@ -1,4 +1,4 @@
-FROM node:20-slim AS base
+FROM node:22-slim AS base
 
 # turn off the nuisance nodejs update message 
 ARG NO_UPDATE_NOTIFIER=true
@@ -52,6 +52,7 @@ COPY ./services/${targetArg}/src ./src
 RUN npx tsc --noEmit
 ENTRYPOINT npx tsx ./src/index.ts
 
-FROM node:20-slim AS test
+#unused?
+FROM node:22-slim AS test 
 WORKDIR /test
 COPY . .

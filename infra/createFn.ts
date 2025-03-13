@@ -19,7 +19,7 @@ export const createFn = (
 	const { vpc, securityGroups, memorySize, timeout, logGroup, environment } = init
 
 	const fn = new aws_lambda_nodejs.NodejsFunction(stack, name, {
-		runtime: aws_lambda.Runtime.NODEJS_20_X,
+		runtime: aws_lambda.Runtime.NODEJS_22_X,
 		architecture: aws_lambda.Architecture.X86_64,
 		memorySize, //defaults to 128
 		handler: 'handler',

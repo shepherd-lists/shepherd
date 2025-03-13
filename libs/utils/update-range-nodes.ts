@@ -46,7 +46,9 @@ const checkEndpoint = async () => {
 }
 await checkEndpoint() //run straight away to populate
 const interval = 1000 * 60 * 60 // once an hour 
-setInterval(checkEndpoint, interval)
+if (http_api_nodes_url) { //if no url, no point checking (makes tests stop also)
+	setInterval(checkEndpoint, interval)
+}
 
 /** use a cron to check for updates. update on access too complicated/costly for the consumers */
 

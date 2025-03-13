@@ -11,12 +11,12 @@
   "author": "Ros McMahon <rosmcmahon@gmail.com",
   "license": "GPL-3.0",
   "devDependencies": {
-    "@types/node": "^20.11.16",
+    "@types/node": "^22.13.10",
     "dotenv": "^16.4.5",
-    "esbuild": "^0.23.0",
+    "esbuild": "^0.25.1",
     "husky": "^9.0.10",
     "shepherd-plugin-interfaces": "^0.3.4",
     "tsx": "^4.7.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.8.2"
   }
 }
