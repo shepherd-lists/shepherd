@@ -5,20 +5,20 @@ import { videoDownload } from '../src/rating/video/downloader'
 import { VidDownloadRecord } from '../src/rating/video/VidDownloads'
 import dbConnection from './utils/dbConnection-for-tests-only'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import { S3 } from "aws-sdk";
+import { S3 } from 'aws-sdk'
 import { readFileSync } from 'fs'
 
 const s3 = new S3({
 	apiVersion: '2006-03-01',
-	...(process.env.SQS_LOCAL==='yes' && { 
-		endpoint: process.env.S3_LOCAL_ENDPOINT!, 
+	...(process.env.SQS_LOCAL==='yes' && {
+		endpoint: process.env.S3_LOCAL_ENDPOINT!,
 		region: 'dummy-value',
 		s3ForcePathStyle: true, // *** needed with minio ***
 	}),
 	maxRetries: 1,
 })
 const s3Upload = async (txid:string) => s3.upload({
-	Bucket: 'shepherd-input-mod-local', 
+	Bucket: 'shepherd-input-mod-local',
 	Key: txid,
 	Body: readFileSync(`${__dirname}/`+`./fixtures/${txid}`),
 }).promise()
@@ -41,8 +41,8 @@ describe('video-badtx video bad tx handling tests', ()=> {
 			while(badData.complete === 'FALSE'){ await sleep(500) }
 			if(badData.complete === 'ERROR') throw new Error(badData.txid + ' download failed')
 			//we're expecting an ffmpeg error in createScreencaps
-			const frames = await createScreencaps(badData.txid) 
-			expect(true).false //err if we get here 
+			const frames = await createScreencaps(badData.txid)
+			expect(true).false //err if we get here
 		}catch(e:any){
 			expect(e.message).eq('Invalid data found when processing input')
 		}
@@ -62,7 +62,7 @@ describe('video-badtx video bad tx handling tests', ()=> {
 			if(badData.complete === 'ERROR') throw new Error(badData.txid + ' download failed')
 			//we're expecting an ffmpeg error in createScreencaps
 			const frames = await createScreencaps(badData.txid)
-			expect(true).false //err if we get here 
+			expect(true).false //err if we get here
 		}catch(e:any){
 			expect(e.message).eq('Output file #0 does not contain any stream')
 		}

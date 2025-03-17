@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "resolveJsonModule": true,
-    "target": "ES2021",
+    "target": "ES2022",
     "module": "commonjs",
     "strict": true,
 
@@ -9,8 +9,5 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "exclude": [ "node_modules", "node16-ffmpeg", "infra" ],
-  "ts-node": {
-    "transpileOnly": true,
-  }
+  "exclude": [ "node_modules", "infra" ]
 }

@@ -12,15 +12,15 @@ import { S3 } from 'aws-sdk'
 
 const s3 = new S3({
 	apiVersion: '2006-03-01',
-	...(process.env.SQS_LOCAL==='yes' && { 
-		endpoint: process.env.S3_LOCAL_ENDPOINT!, 
+	...(process.env.SQS_LOCAL==='yes' && {
+		endpoint: process.env.S3_LOCAL_ENDPOINT!,
 		region: 'dummy-value',
 		s3ForcePathStyle: true, // *** needed with minio ***
 	}),
 	maxRetries: 1,
 })
 const s3Upload = async (txid:string) => s3.upload({
-	Bucket: 'shepherd-input-mod-local', 
+	Bucket: 'shepherd-input-mod-local',
 	Key: txid,
 	Body: readFileSync(`${__dirname}/`+`./fixtures/${txid}`),
 }).promise()
@@ -38,7 +38,7 @@ describe('image-prepare tests', ()=> {
 	const txPartial = 'DFzY841LjCmoEZ0ou4V5uFoorOcEvANQzAMi-CA93lA'
 
 
-	before( async function(){
+	before( async function() {
 		this.timeout(0)
 
 		try{
@@ -70,8 +70,8 @@ describe('image-prepare tests', ()=> {
 			}
 
 
-		}catch(e:any){
-			console.log(col.redBright('error connecting to DB'), JSON.stringify(e))
+		}catch(e){
+			console.log(col.redBright('error connecting to DB'), e)
 			process.exit(1)
 		}
 	})
@@ -96,7 +96,7 @@ describe('image-prepare tests', ()=> {
 	it('tests handling image with non-image mimetype', async()=>{
 		const res = await imageFilter.checkImageTxid(txNonImageMime, 'image/png')
 		expect(res).true // true: handled the wrong mimetype
-		
+
 		const check = await db<TxRecord>('txs').where({ txid: txNonImageMime})
 		expect(check.length).eq(1)
 		expect(check[0].content_type).eq('video/mp4')
@@ -105,7 +105,7 @@ describe('image-prepare tests', ()=> {
 	it('tests handling image with wrong image mimetype', async()=>{
 		const res = await imageFilter.checkImageTxid(txWrongImageMime, 'image/jpeg')
 		expect(res).true // true: handled the wrong mimetype
-		
+
 		const check = await db<TxRecord>('txs').where({ txid: txWrongImageMime})
 		expect(check.length).eq(1)
 		expect(check[0].content_type).eq('image/jpeg') //we dont change these anymore
@@ -116,7 +116,7 @@ describe('image-prepare tests', ()=> {
 	// it('tests handling corrupt image: mimetype undefined', async()=>{
 	// 	const res = await imageFilter.checkImageTxid(txCorrupt, 'image/png')
 	// 	expect(res).true // true: handled it
-		
+
 	// 	const check = await db<TxRecord>('txs').where({ txid: txCorrupt})
 
 	// 	console.log({res, check})
@@ -126,7 +126,7 @@ describe('image-prepare tests', ()=> {
 	// 	expect(check[0].data_reason).eq('corrupt')
 	// }).timeout(0)
 
-	
+
 })
 
 
