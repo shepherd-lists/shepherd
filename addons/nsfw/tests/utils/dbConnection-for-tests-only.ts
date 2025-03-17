@@ -1,19 +1,19 @@
 import knex, { Knex } from 'knex'
-import { checkHeartbeat } from 'knex-utils';
+import { checkHeartbeat } from 'knex-utils'
 
 let cachedConnection: Knex<any, unknown[]>
 
 export default () => {
-  if (cachedConnection) {
-    console.log("using cached db connection");
-    return cachedConnection;
-  }
+	if(cachedConnection){
+		console.log('using cached db connection')
+		return cachedConnection
+	}
 	let connTimeout = 60_000 //default value
 	if(process.env.NODE_ENV === 'test'){
 		connTimeout = 5_000
 	}
 
-	console.log("creating new db connection");
+	console.log('creating new db connection')
 	const connection = knex({
 		client: 'pg',
 		pool: {
@@ -40,6 +40,6 @@ export default () => {
 		console.log('*** ERROR IN DB CONNECTION ***', JSON.stringify(res), JSON.stringify(`host: ${process.env.DB_HOST}`))
 	})
 
-	cachedConnection = connection;
-  return connection;
-};
+	cachedConnection = connection
+	return connection
+}
