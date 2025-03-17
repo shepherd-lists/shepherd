@@ -2,7 +2,7 @@ import { harness } from './harness'
 import si from 'systeminformation'
 import { logger } from './utils/logger'
 import { slackLogger } from './utils/slackLogger'
-import rimraf from 'rimraf'
+import {rimraf} from 'rimraf'
 import { VID_TMPDIR } from './constants'
 import loadConfig from './utils/load-config'
 
@@ -12,9 +12,7 @@ const main = async()=> {
 	try{
 
 		//clean up tempdir from previous run
-		rimraf(VID_TMPDIR + '*', (e)=> {
-			if(e) logger(prefix, 'error: could not clean', VID_TMPDIR, JSON.stringify(e))
-		})
+		await rimraf(VID_TMPDIR + '*')
 
 		const config = await loadConfig() // this calls the init functions early
 
