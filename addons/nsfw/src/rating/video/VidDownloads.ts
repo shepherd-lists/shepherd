@@ -1,4 +1,4 @@
-import rimraf from 'rimraf'
+import {rimraf} from 'rimraf'
 import { VID_TMPDIR } from '../../constants'
 import { logger } from '../../utils/logger'
 import { cleanupAfterProcessing } from '../../harness'
@@ -43,7 +43,11 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 	public size = ()=> VidDownloads.array.reduce((acc, curr)=> acc + Number(curr.content_size), 0)
 
 	public cleanup = async(vdl: VidDownloadRecord)=> {
-		rimraf(VID_TMPDIR + vdl.txid, (e)=> e && logger(vdl.txid, 'Error deleting temp folder', e))
+		try{
+			await rimraf(VID_TMPDIR + vdl.txid)
+		}catch(e){
+			logger(vdl.txid, 'Error deleting temp folder', e)
+		}
 		VidDownloads.array = VidDownloads.array.filter(d => d !== vdl)
 		await cleanupAfterProcessing(vdl.receiptHandle, vdl.txid, +vdl.content_size)
 	}
