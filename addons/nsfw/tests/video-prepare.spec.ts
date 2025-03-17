@@ -8,6 +8,7 @@ import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { VidDownloadRecord, VidDownloads } from '../src/rating/video/VidDownloads'
 import { addToDownloads, videoDownload } from '../src/rating/video/downloader'
 import {rimraf} from 'rimraf'
+import { rmSync } from 'node:fs'
 import dbConnection from './utils/dbConnection-for-tests-only'
 import sinon from 'sinon'
 import { PassThrough } from 'stream'
@@ -42,34 +43,35 @@ const s3Upload = async (txid:string) => s3.upload({
 
 describe('video-prepare tests', ()=> {
 
-	before((done)=>{
-		rimraf('temp-screencaps/./*').catch(e=>{
+	before( async ()=> {
+		try{
+			await rimraf('temp-screencaps/**/*',{maxRetries:0,glob: true})
+		}catch(e){
 			console.log('error in before cleaning tempdir', e)
-			done()
-		})
+		}
 	})
 
-	afterEach( (done)=>{
-		rimraf('temp-screencaps/./*').catch((e)=> {
+	afterEach( async()=>{
+		try{
+			await rimraf('temp-screencaps/./*')
+		}catch(e){
 			console.log('error in afterEach cleaning tempdir', e)
-			done()
-		})
+		}
 	})
 
 	afterEach(()=> sinon.restore())
 
 	it('1. videoDownload: downloads a video', async()=> {
-		//@ts-ignore
-		const smallvid: VidDownloadRecord = {
+		const smallvid: Partial<VidDownloadRecord> = {
 			complete: 'FALSE',
 			content_size: '10108',
 			txid: 'nSX3Qaz-r1NF2dJ4Xh-pMrD6VNt_5wmtu6AgezO3h9U',
 			content_type: 'video/mp4',
 		}
-		await s3Upload(smallvid.txid)
+		await s3Upload(smallvid.txid as VidDownloadRecord['txid'])
 		await knex<TxRecord>('txs').where('txid', smallvid.txid).delete()
 		await knex<TxRecord>('txs').insert({ txid: smallvid.txid, content_type: 'video/mp4', content_size: '10108'})
-		const res = await videoDownload(smallvid)
+		const res = await videoDownload(smallvid as VidDownloadRecord)
 		while(smallvid.complete === 'FALSE') await sleep(500)
 		expect(res).to.be.true
 	}).timeout(0)
@@ -98,22 +100,20 @@ describe('video-prepare tests', ()=> {
 	// }).timeout(0)
 
 	it('3. videoDownload: incorrect file-type can be detected & download aborted', async()=> {
-		//@ts-ignore
-		const notvid: VidDownloadRecord = {
+		const notvid: Partial<VidDownloadRecord> = {
 			complete: 'FALSE',
 			content_size: '419080',
 			txid: 'rbm6bKvIKhuui9wATaySbLDuRUKq1KLb8qmaihNpsbU', // an image file
 		}
-		await s3Upload(notvid.txid)
+		await s3Upload(notvid.txid as VidDownloadRecord['txid'])
 		await knex<TxRecord>('txs').where('txid', notvid.txid).delete()
 		await knex<TxRecord>('txs').insert({ txid: notvid.txid, content_type: 'video/mp4', content_size: '123'})
-		const res = await videoDownload(notvid)
+		const res = await videoDownload(notvid as VidDownloadRecord)
 		expect(res).false
 	}).timeout(0)
 
 	it('4. createScreencaps: create screencaps from video', async()=> {
-		//@ts-ignore
-		const vid: VidDownloadRecord = {
+		const vid: Partial<VidDownloadRecord> = {
 			complete: 'FALSE',
 			content_size: '229455',
 			txid: 'MudCCqbbf--ktx1b0EMrhSdNWP3ZT9XnMJP-oC486cM',
@@ -126,14 +126,13 @@ describe('video-prepare tests', ()=> {
 		shelljs.mkdir('-p', folderpath)
 		shelljs.cp(`${__dirname}/fixtures/${vid.txid}`, folderpath)
 
-		const frames = await createScreencaps(vid.txid)
+		const frames = await createScreencaps(vid.txid as VidDownloadRecord['txid'])
 		expect(frames.length).greaterThan(1)
 		expect(frames.length).lessThanOrEqual(4) //ffmpeg sometimes creates 2,3,4 screencaps. not an error.
 	}).timeout(0)
 
 	it('5. checkFrames: check screencaps for nsfw content', async()=> {
-		//@ts-ignore
-		const vid: VidDownloadRecord = {
+		const vid: Partial< VidDownloadRecord> = {
 			complete: 'FALSE',
 			content_size: '229455',
 			txid: 'MudCCqbbf--ktx1b0EMrhSdNWP3ZT9XnMJP-oC486cM',
@@ -146,34 +145,32 @@ describe('video-prepare tests', ()=> {
 		shelljs.mkdir('-p', folderpath)
 		shelljs.cp(`${__dirname}/fixtures/${vid.txid}`, folderpath)
 
-		const frames = await createScreencaps(vid.txid)
+		const frames = await createScreencaps(vid.txid as VidDownloadRecord['txid'])
 		expect(frames.length).greaterThan(1)
-		const checkId = await checkFrames(frames, vid.txid)
+		const checkId = await checkFrames(frames, vid.txid as VidDownloadRecord['txid'])
 		expect(checkId).to.exist
 		expect(checkId).eq(vid.txid)
 		// if(checkId){ expect(checkId).equal(vid.txid) }
 	}).timeout(0)
 
 	it('6. full processing of a video', async()=>{
-		//@ts-ignore
-		const vid: TxRecord = {
+		const vid: Partial<TxRecord> = {
 			txid: 'nwIUNPF8R03uW0zrPHnR4aTAnDdExqv56fMbbMQoHCA',
 			content_type: 'video/mp4',
 			content_size: '16498',
 		}
-		await s3Upload(vid.txid)
+		await s3Upload(vid.txid as VidDownloadRecord['txid'])
 		/* set up DB data */
 		await knex<TxRecord>('txs').where('txid', vid.txid).delete()
 		await knex<TxRecord>('txs').insert(vid)
 
 		await addToDownloads({
-			content_size: vid.content_size,
-			content_type: vid.content_type,
-			txid: vid.txid,
+			content_size: vid.content_size as VidDownloadRecord['content_size'],
+			content_type: vid.content_type as VidDownloadRecord['content_type'],
+			txid: vid.txid as VidDownloadRecord['txid'],
 			receiptHandle: 'dummy-receiptHandle',
 		})
-		//@ts-ignore
-		let dl: VidDownloadRecord = {}
+		let dl: Partial< VidDownloadRecord> = {}
 		for(const d of VidDownloads.getInstance()){
 			if(d.txid === vid.txid) dl = d
 		}
