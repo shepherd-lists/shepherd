@@ -8,7 +8,7 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile.test
-      target: tests
+      target: test-service
     environment: 
       DB_HOST: pgdb-test
       # SLACK_WEBHOOK: ${SLACK_WEBHOOK:-}

@@ -1,6 +1,7 @@
 import knex, { Knex } from 'knex'
 import { checkHeartbeat } from 'knex-utils'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let cachedConnection: Knex<any, unknown[]>
 
 export default () => {

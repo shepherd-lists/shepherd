@@ -70,8 +70,8 @@ describe('image-prepare tests', ()=> {
 			}
 
 
-		}catch(e:any){
-			console.log(col.redBright('error connecting to DB'), JSON.stringify(e))
+		}catch(e){
+			console.log(col.redBright('error connecting to DB'), e)
 			process.exit(1)
 		}
 	})

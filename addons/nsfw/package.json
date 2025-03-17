@@ -16,7 +16,7 @@
       "ts"
     ]
   },
-  "keywords": [ ],
+  "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -46,10 +46,10 @@
     "@types/sinon": "^10.0.13",
     "chai": "^4.3.6",
     "chai-as-promised": "^7.1.1",
-    "knex": "^2.4.2",
+    "knex": "^3.1.0",
     "knex-utils": "^6.0.0",
     "mocha": "^10.0.0",
-    "pg": "^8.10.0",
+    "pg": "^8.14.0",
     "sinon": "^14.0.0"
   }
 }
