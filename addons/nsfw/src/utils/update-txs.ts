@@ -9,6 +9,7 @@ import axios from 'axios'
 // http.globalAgent.maxSockets = 1_000
 
 let count = 0
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 if(!process.env.HTTP_API_URL) throw new Error('HTTP_API_URL not defined')
 const HTTP_API_URL = process.env.HTTP_API_URL
@@ -24,12 +25,28 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 		const payloadString = JSON.stringify(payload)
 
 		console.log(txid, `sending ${_count} ...`, )
-		const res = await axios.post(HTTP_API_URL, payloadString, {
-			headers: {
-				'Content-Type': 'application/json; charset=UTF-8',
-			},
-		})
-		console.log(txid, `sent ${_count}`, res.status, res.statusText)
+		let tries=3
+		while(true){
+			--tries
+			try{
+				const res = await axios.post(HTTP_API_URL, payloadString, {
+					headers: {
+						'Content-Type': 'application/json; charset=UTF-8',
+					},
+				})
+				console.log(txid, `sent ${_count}`, res.status, res.statusText)
+				break
+			}catch(err0:unknown){
+				const e0 = err0 as Error
+				if(tries>=0){
+					console.error(txid, 'error posting to http-api',e0.name, ':', e0.message, 'retrying...')
+					await sleep(2_000)
+					continue
+				}else{
+					throw err0
+				}
+			}
+		}
 
 
 		// const res = await fetch(HTTP_API_URL, {
@@ -56,8 +73,8 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 
 	}catch(err:unknown){
 		const e = err as Error
-		logger(txid, 'Error posting to http-api', e.name, ':', e.message, JSON.stringify(filterResult), JSON.stringify(e))
-		slackLogger(txid, 'Error posting to http-api (nsfw)', e.name, ':', e.message, JSON.stringify(filterResult))
+		logger(txid, 'Error posting to http-api', e.name, ':', e.message, JSON.stringify(filterResult), e)
+		slackLogger(txid, ':warning: Error posting to http-api (nsfw) after 3 tries', e.name, ':', e.message, JSON.stringify(filterResult))
 		logger(txid, e) // `throw e` does nothing, use the return
 	}
 }
