@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand, GetObjectTaggingCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand, GetObjectTaggingCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { slackLog } from './slackLog'
 import { PassThrough, Readable, Writable } from 'stream'
@@ -16,6 +16,38 @@ export const s3ObjectTagging = async (Bucket: string, Key: string) => s3client.s
 
 export const s3DeleteObject = async (Bucket: string, Key: string) => s3client.send(new DeleteObjectCommand({ Bucket, Key }))
 
+export const s3CheckFolderExists = async (Bucket: string, folderName: string) => {
+	try {
+		await s3client.send(new ListObjectsV2Command({ Bucket, Prefix: folderName, MaxKeys: 1 }))
+		return true
+	} catch (e) {
+		console.error(`could not find '${folderName}' in ${Bucket}`, e)
+		return false
+	}
+}
+
+/** uses pagination */
+export const s3ListFolderObjects = async (Bucket: string, folder: string) => {
+	let continuationToken: string | undefined;
+	let contents: any[] = [];
+
+	do {
+		const response = await s3client.send(new ListObjectsV2Command({
+			Bucket,
+			Prefix: folder, // specify the folder prefix here
+			Delimiter: "/", // use a delimiter to list only objects in the folder
+			ContinuationToken: continuationToken, // include theContinuationToken if present
+		}));
+
+		if (response.Contents) {
+			contents = contents.concat(response.Contents);
+		}
+
+		continuationToken = response.IsTruncated ? response.ContinuationToken : undefined;
+	} while (continuationToken);
+
+	return contents.map((object) => object.Key); // return an array of file names
+}
 
 /** N.B. this will accept either a Readable or ReadableStream (nodejs or web stream)  */
 export const s3UploadStream = async (Bucket: string, Key: string, Body: ReadableStream | Readable) => {
