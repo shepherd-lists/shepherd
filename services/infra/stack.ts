@@ -4,10 +4,16 @@ import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { Config } from '../../Config'
 
 /** import params from shepherd regions (London is global store) */
-const remoteParam = async (name: string, ssm: SSMClient) => (await ssm.send(new GetParameterCommand({
-	Name: `/shepherd/${name}`,
-	WithDecryption: true, // ignored if unencrypted
-}))).Parameter!.Value as string // throws if undefined
+const remoteParam = async (name: string, ssm: SSMClient) => {
+	try{
+		return (await ssm.send(new GetParameterCommand({
+			Name: `/shepherd/${name}`,
+			WithDecryption: true, // ignored if unencrypted
+		}))).Parameter!.Value as string // throws if undefined
+	}catch(e){
+		throw new Error(`Failed to get '${name}' from '${await ssm.config.region()}'. ${e.name}:${e.message}`)
+	}
+}
 // console.log('reading remote params...') //--currently no remote params!
 
 
@@ -17,7 +23,7 @@ const readParam = async (paramName: string) => {
 	return remoteParam(paramName, ssm)
 }
 console.log('reading params from infra stack...')
-const vpcName = await readParam('VpcName')
+const vpcId = await readParam('VpcId')
 const rdsEndpoint = await readParam('RdsEndpoint')
 const feederQueueUrl = await readParam('FeederQueueUrl')
 const inputBucketName = await readParam('InputBucket')
@@ -39,7 +45,7 @@ export class ServicesStack extends cdk.Stack {
 
 		/** import shepherd-infra-stack items  */
 
-		const vpc = cdk.aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcName })
+		const vpc = cdk.aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcId })
 		const alb = cdk.aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn: albArn })
 		const logGroup = cdk.aws_logs.LogGroup.fromLogGroupName(stack, 'logGroup', logGroupName)
 
@@ -50,7 +56,7 @@ export class ServicesStack extends cdk.Stack {
 			vpc,
 			clusterName: 'shepherd-services',
 			defaultCloudMapNamespace: { name: 'shepherd.local' },
-			containerInsights: true,
+			// containerInsights: true,
 		})
 
 		/** create a listener for the alb.
