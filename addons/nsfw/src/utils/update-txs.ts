@@ -38,7 +38,7 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 				break
 			}catch(err0:unknown){
 				const e0 = err0 as Error
-				if(tries>=0){
+				if(tries>0){
 					console.error(txid, 'error posting to http-api',e0.name, ':', e0.message, 'retrying...')
 					await sleep(2_000)
 					continue
