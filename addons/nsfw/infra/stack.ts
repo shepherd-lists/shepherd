@@ -35,7 +35,7 @@ export const createStack = (app: App, config: Config) => {
 	})
 
 	/** import stack components from the shepherd stack */
-	const vpc = aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcName: vpcId })
+	const vpc = aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcId })
 	const logGroup = aws_logs.LogGroup.fromLogGroupName(stack, 'logGroup', logGroupName)
 	const cluster = aws_ecs.Cluster.fromClusterAttributes(stack, 'shepherd-cluster', {
 		clusterName,
