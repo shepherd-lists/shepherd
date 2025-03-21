@@ -10,12 +10,16 @@ import { buildListsBucket } from './listsBucket'
 /** import params */
 const readParamSdk = async (name: string) => {
 	const ssm = new SSMClient()
-	return (await ssm.send(new GetParameterCommand({
-		Name: `/shepherd/${name}`,
-		WithDecryption: true, // ignored if unencrypted
-	}))).Parameter!.Value as string // throw when undefined
+	try {
+		return (await ssm.send(new GetParameterCommand({
+			Name: `/shepherd/${name}`,
+			WithDecryption: true, // ignored if unencrypted
+		}))).Parameter!.Value as string // throw when undefined
+	} catch (e) {
+		throw new Error(`Failed to read SSM parameter '/shepherd/${name}' from '${await ssm.config.region()}': ${(e as Error).name}:${(e as Error).message}`)
+	}
 }
-const vpcName = await readParamSdk('VpcName')
+const vpcId = await readParamSdk('VpcId')
 const loadBalancerArn = await readParamSdk('AlbArn')
 
 
@@ -35,7 +39,7 @@ export const createStack = async (app: App, config: Config) => {
 		return aws_ssm.StringParameter.fromStringParameterName(stack, name, name).stringValue
 	}
 	const rdsEndpoint = readParamCfn('RdsEndpoint')
-	const vpc = aws_ec2.Vpc.fromLookup(stack, 'shepherd-vpc', { vpcName })
+	const vpc = aws_ec2.Vpc.fromLookup(stack, 'shepherd-vpc', { vpcId })
 	const sgPgdb = aws_ec2.SecurityGroup.fromSecurityGroupId(stack, 'pgdb-sg', readParamCfn('PgdbSg'))
 	const logGroupServices = aws_logs.LogGroup.fromLogGroupName(stack, 'services-logs', readParamCfn('LogGroup'))
 	const cluster = aws_ecs.Cluster.fromClusterAttributes(stack, 'shepherd-cluster', { vpc, clusterName: readParamCfn('ClusterName') })
