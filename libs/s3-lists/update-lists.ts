@@ -27,8 +27,15 @@ const keyExists = async (key: string) => {
 	}
 }
 const s3GetTag = async (objectKey: string, tagKey: string) => {
-	const tagging = await s3ObjectTagging(LISTS_BUCKET, objectKey)
-	return tagging.TagSet?.find(tag => tag.Key === tagKey)?.Value
+	try {
+		const tagging = await s3ObjectTagging(LISTS_BUCKET, objectKey)
+		return tagging.TagSet?.find(tag => tag.Key === tagKey)!.Value as string
+	} catch (e) {
+		if (['NoSuchKey', 'NotFound'].includes(((e as Error).name)))
+			return 'undefined'
+		await slackLog(s3GetTag.name, objectKey, tagKey, String(e))
+		throw new Error(`unexpected error`, { cause: e })
+	}
 }
 
 /** this is called once on service start */
