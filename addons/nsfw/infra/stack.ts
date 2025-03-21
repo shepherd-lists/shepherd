@@ -7,12 +7,16 @@ import { Config } from '../../../Config'
 /** import stack params */
 const readParam = async (name: string) => {
 	const ssm = new SSMClient()
-	return (await ssm.send(new GetParameterCommand({
-		Name: `/shepherd/${name}`,
-		WithDecryption: true, // ignored if unencrypted
-	}))).Parameter!.Value as string // throw undefined
+	try{
+		return (await ssm.send(new GetParameterCommand({
+			Name: `/shepherd/${name}`,
+			WithDecryption: true, // ignored if unencrypted
+		}))).Parameter!.Value as string // throw undefined
+	}catch(e){
+		throw new Error(`Failed to read parameter '${name}' from '${await ssm.config.region()}': ${e.name}:${e.message}`)
+	}
 }
-const vpcName = await readParam('VpcName')
+const vpcId = await readParam('VpcId')
 const logGroupName = await readParam('LogGroup')
 const clusterName = await readParam('ClusterName')
 const namespaceArn = await readParam('NamespaceArn')
@@ -31,7 +35,7 @@ export const createStack = (app: App, config: Config) => {
 	})
 
 	/** import stack components from the shepherd stack */
-	const vpc = aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcName })
+	const vpc = aws_ec2.Vpc.fromLookup(stack, 'vpc', { vpcName: vpcId })
 	const logGroup = aws_logs.LogGroup.fromLogGroupName(stack, 'logGroup', logGroupName)
 	const cluster = aws_ecs.Cluster.fromClusterAttributes(stack, 'shepherd-cluster', {
 		clusterName,
