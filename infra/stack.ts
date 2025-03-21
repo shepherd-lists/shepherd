@@ -78,13 +78,13 @@ export class InfraStack extends cdk.Stack {
 		const { sgPgdb, pgdb } = pgdbAndAccess(stack, vpc, config.region)
 
 		/** create input bucket, and queues */
-		const { inputBucket, sqsInputQ } = bucketAndNotificationQs(stack, vpc)
+		const { inputBucket, sqsInputQ } = bucketAndNotificationQs(stack)
 
 		/** inputQ metric and notifications */
 		const { inputAgeMetricProps } = inputQMetricAndNotifications(stack, vpc, sqsInputQ.queueName, config.slack_public!, logGroupInfra)
 
 		/** create feeder Q */
-		const { feederQ } = feederQs(stack, vpc)
+		const { feederQ } = feederQs(stack)
 
 
 		/** SQS queue security */
@@ -151,7 +151,7 @@ export class InfraStack extends cdk.Stack {
 			})
 		}
 
-		writeParam('VpcName', vpcName)
+		writeParam('VpcId', vpc.vpcId)
 		writeParam('VpcSg', vpc.vpcDefaultSecurityGroup)
 		writeParam('PgdbSg', sgPgdb.securityGroupId)
 		writeParam('InputBucket', inputBucket.bucketName)	// AWS_INPUT_BUCKET
@@ -184,7 +184,7 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc, region: string) =
 		vpc,
 		instanceIdentifier: 'shepherd2-pgdb',
 		engine: cdk.aws_rds.DatabaseInstanceEngine.postgres({
-			version: cdk.aws_rds.PostgresEngineVersion.VER_13_13,
+			version: cdk.aws_rds.PostgresEngineVersion.VER_13,
 		}),
 		autoMinorVersionUpgrade: true,
 		instanceType: new cdk.aws_ec2.InstanceType(instanceTypename),
@@ -210,7 +210,7 @@ const pgdbAndAccess = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc, region: string) =
 	}
 }
 
-const bucketAndNotificationQs = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
+const bucketAndNotificationQs = (stack: cdk.Stack) => {
 
 	/** create AWS_SQS_INPUT_QUEUE, with DLQ and policies */
 	const sqsInputQ = new cdk.aws_sqs.Queue(stack, 'shepherd2-input-q', {
@@ -241,7 +241,7 @@ const bucketAndNotificationQs = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
 	}
 }
 
-const feederQs = (stack: cdk.Stack, vpc: cdk.aws_ec2.Vpc) => {
+const feederQs = (stack: cdk.Stack) => {
 	const feederQ = new cdk.aws_sqs.Queue(stack, 'shepherd2-feeder-q', {
 		queueName: 'shepherd2-feeder-q',
 		retentionPeriod: cdk.Duration.days(14), //max value
