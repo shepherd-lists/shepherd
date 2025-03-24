@@ -16,12 +16,13 @@ export const s3ObjectTagging = async (Bucket: string, Key: string) => s3client.s
 
 export const s3DeleteObject = async (Bucket: string, Key: string) => s3client.send(new DeleteObjectCommand({ Bucket, Key }))
 
-export const s3CheckFolderExists = async (Bucket: string, folderName: string) => {
+export const s3CheckFolderExists = async (Bucket: string, folder: string) => {
+	const Prefix = folder.endsWith('/') ? folder : `${folder}/`
 	try {
-		await s3client.send(new ListObjectsV2Command({ Bucket, Prefix: folderName, MaxKeys: 1 }))
+		await s3client.send(new ListObjectsV2Command({ Bucket, Prefix, MaxKeys: 1 }))
 		return true
 	} catch (e) {
-		console.error(`could not find '${folderName}' in ${Bucket}`, e)
+		console.error(`could not find '${Prefix}' in ${Bucket}`, e)
 		return false
 	}
 }
@@ -30,11 +31,12 @@ export const s3CheckFolderExists = async (Bucket: string, folderName: string) =>
 export const s3ListFolderObjects = async (Bucket: string, folder: string) => {
 	let continuationToken: string | undefined;
 	let contents: any[] = [];
+	const Prefix = folder.endsWith('/') ? folder : `${folder}/`;
 
 	do {
 		const response = await s3client.send(new ListObjectsV2Command({
 			Bucket,
-			Prefix: folder, // specify the folder prefix here
+			Prefix, // specify the folder prefix here
 			Delimiter: "/", // use a delimiter to list only objects in the folder
 			ContinuationToken: continuationToken, // include theContinuationToken if present
 		}));
