@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { s3DeleteObject, s3HeadObject, s3GetObject, s3GetObjectWebStream, s3PutObject, s3UploadStream, s3CheckFolderExists, s3ListFolderObjects } from '../utils/s3-services'
+import { s3DeleteObject, s3HeadObject, s3GetObject, s3GetObjectWebStream, s3PutObject, s3UploadStream, s3CheckFolderExists, s3ListFolderObjects, s3DeleteFolder } from '../utils/s3-services'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
@@ -54,19 +54,22 @@ describe('s3 services', () => {
 
 	it('should check s3 folders existence & list files', async () => {
 		const folder = 'test-folder/'
-		const keys = [
-			`${folder}file1`,
-			`${folder}file2`,
-			`${folder}file3`,
-		]
-		await Promise.all(keys.map(Key => s3PutObject({ Bucket, Key, text: 'test content' })))
+		const numFiles = 2001
+		const keys = [...Array(numFiles).keys()].map(i => `${folder}${i.toString().padStart(4, '0')}.txt`)
 
-		const folderExists = await s3CheckFolderExists(Bucket, keys[0])
+		let batch = keys.splice(0, Math.max(100, keys.length))
+		while (batch.length > 0) {
+			await Promise.all(batch.map(Key => s3PutObject({ Bucket, Key, text: 'test content' })))
+			batch = keys.splice(0, Math.max(100, keys.length))
+		}
+
+		const folderExists = await s3CheckFolderExists(Bucket, folder)
 		assert.ok(folderExists)
 
 		const list = await s3ListFolderObjects(Bucket, folder)
-		console.debug({ folderExists, list })
-		assert.equal(list.length, 3)
+		assert.equal(list.length, numFiles)
 
+		/* clean up */
+		await assert.doesNotReject(async () => await s3DeleteFolder(Bucket, folder))
 	})
 })
