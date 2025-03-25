@@ -24,7 +24,7 @@ export const s3ObjectTagging = async (Bucket: string, Key: string) => s3client.s
 export const s3DeleteObject = async (Bucket: string, Key: string) => s3client.send(new DeleteObjectCommand({ Bucket, Key }))
 
 export const s3CheckFolderExists = async (Bucket: string, folder: string) => {
-	const Prefix = folder.endsWith('/') ? folder : `${folder}/`
+	const Prefix = folder.endsWith('/') ? folder : folder + '/'
 	try {
 		await s3client.send(new ListObjectsV2Command({ Bucket, Prefix, MaxKeys: 1 }))
 		return true
@@ -38,28 +38,29 @@ export const s3CheckFolderExists = async (Bucket: string, folder: string) => {
 export const s3ListFolderObjects = async (Bucket: string, folder: string) => {
 	let continuationToken: string | undefined
 	let contents: any[] = []
-	const Prefix = folder.endsWith('/') ? folder : `${folder}/`
+	const Prefix = folder.endsWith('/') ? folder : folder + '/'
 
 	do {
-		const response = await s3client.send(new ListObjectsV2Command({
+		const { Contents, IsTruncated, NextContinuationToken } = await s3client.send(new ListObjectsV2Command({
 			Bucket,
 			Prefix, // specify the folder prefix here
 			Delimiter: "/", // use a delimiter to list only objects in the folder
 			ContinuationToken: continuationToken, // include theContinuationToken if present
 		}))
 
-		if (response.Contents) {
-			contents = contents.concat(response.Contents);
+		if (Contents) {
+			contents = contents.concat(Contents)
 		}
 
-		continuationToken = response.IsTruncated ? response.ContinuationToken : undefined;
-	} while (continuationToken);
+		// console.debug({ IsTruncated, NextContinuationToken })
+		continuationToken = NextContinuationToken
+	} while (continuationToken)
 
-	return contents.map((object) => object.Key); // return an array of file names
+	return contents.map(item => item.Key)
 }
 
 export const s3DeleteFolder = async (Bucket: string, folder: string) => {
-	const Prefix = folder.endsWith('/') ? folder : `${folder}/`
+	const Prefix = folder.endsWith('/') ? folder : folder + '/'
 
 	/* 1. List all objects "recursively" */
 	let continuationToken: string | undefined
