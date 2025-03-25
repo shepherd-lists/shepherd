@@ -1,13 +1,20 @@
-import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand, GetObjectTaggingCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand, GetObjectTaggingCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 import { slackLog } from './slackLog'
 import { PassThrough, Readable, Writable } from 'stream'
+import { NodeHttpHandler } from '@aws-sdk/node-http-handler'
 
 
 console.info('AWS_DEFAULT_REGION', process.env.AWS_DEFAULT_REGION)
 console.info('AWS_REGION', process.env.AWS_REGION)
 
-const s3client = new S3Client()
+const s3client = new S3Client({
+	requestHandler: new NodeHttpHandler({
+		connectionTimeout: 0,
+		requestTimeout: 0,
+	}),
+	maxAttempts: 3,
+})
 
 
 export const s3HeadObject = async (Bucket: string, Key: string) => s3client.send(new HeadObjectCommand({ Bucket, Key }))
@@ -29,9 +36,9 @@ export const s3CheckFolderExists = async (Bucket: string, folder: string) => {
 
 /** uses pagination */
 export const s3ListFolderObjects = async (Bucket: string, folder: string) => {
-	let continuationToken: string | undefined;
-	let contents: any[] = [];
-	const Prefix = folder.endsWith('/') ? folder : `${folder}/`;
+	let continuationToken: string | undefined
+	let contents: any[] = []
+	const Prefix = folder.endsWith('/') ? folder : `${folder}/`
 
 	do {
 		const response = await s3client.send(new ListObjectsV2Command({
@@ -39,7 +46,7 @@ export const s3ListFolderObjects = async (Bucket: string, folder: string) => {
 			Prefix, // specify the folder prefix here
 			Delimiter: "/", // use a delimiter to list only objects in the folder
 			ContinuationToken: continuationToken, // include theContinuationToken if present
-		}));
+		}))
 
 		if (response.Contents) {
 			contents = contents.concat(response.Contents);
@@ -49,6 +56,43 @@ export const s3ListFolderObjects = async (Bucket: string, folder: string) => {
 	} while (continuationToken);
 
 	return contents.map((object) => object.Key); // return an array of file names
+}
+
+export const s3DeleteFolder = async (Bucket: string, folder: string) => {
+	const Prefix = folder.endsWith('/') ? folder : `${folder}/`
+
+	/* 1. List all objects "recursively" */
+	let continuationToken: string | undefined
+	let objectIdentifiers: { Key: string }[] = []
+
+	do {
+		const list = await s3client.send(new ListObjectsV2Command({
+			Bucket,
+			Prefix,
+			// no delimiter to list all objects starting with Prefix
+			ContinuationToken: continuationToken,
+		}))
+
+		if (list.Contents) {
+			objectIdentifiers.push(...list.Contents.map(obj => ({ Key: obj.Key! })));
+		}
+
+		continuationToken = list.NextContinuationToken;
+	} while (continuationToken)
+
+	/* 2. Batch delete in parallel (1000 objects per request - S3 limit) */
+	const batchSize = 1000
+	const total = objectIdentifiers.length
+	for (let i = 0; i < objectIdentifiers.length; i += batchSize) {
+		const batch = objectIdentifiers.slice(i, i + batchSize);
+
+		await s3client.send(new DeleteObjectsCommand({
+			Bucket,
+			Delete: { Objects: batch },
+		}))
+	}
+
+	// console.debug(`deleted ${total} objects from ${Prefix}`);
 }
 
 /** N.B. this will accept either a Readable or ReadableStream (nodejs or web stream)  */
