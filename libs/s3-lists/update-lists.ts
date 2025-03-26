@@ -1,8 +1,9 @@
-import { s3HeadObject, s3PutObject, s3ObjectTagging } from "../utils/s3-services"
+import { s3HeadObject, s3PutObject, s3ObjectTagging, s3CheckFolderExists } from "../utils/s3-services"
 import { slackLog } from "../utils/slackLog"
 import pool from '../utils/pgClient'
 import { performance } from 'perf_hooks'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
+import { ByteRange } from "./merge-ranges"
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -98,7 +99,7 @@ export const updateAddresses = async () => {
 		const actualHash = await textHash(owners.join('\n') + '\n')
 		const s3Hash = await s3GetTag('addresses.txt', 'SHA-1')
 		if (actualHash === s3Hash) {
-			console.info(updateAddresses.name, 'not updating, hash for addresses.txt matches', actualHash)
+			console.info(updateAddresses.name, `not updating, hash for addresses.txt matches:\n${actualHash}\n${s3Hash}`)
 			return false
 		}
 
@@ -116,8 +117,37 @@ export const updateAddresses = async () => {
 	}
 }
 
-/** updateFullTxidsRanges. */
+export const updateS3Lists = async (
+	listname: string,
+	records: Array<{ txid: string, range: ByteRange, op?: 'remove' }>
+) => {
+	const path = listname.endsWith('/') ? listname : listname + '/'
+
+	const postfix = new Date().toISOString().replace(/[:.]/g, '-') + '.txt'
+	const keyTxids = `${path}txids_${postfix}`
+	const keyRanges = `${path}ranges_${postfix}`
+
+	let txids = ''
+	let ranges = ''
+	for (const { txid, range, op } of records) {
+		const remove = op ? ',remove' : ''
+		txids += `${txid}${remove}\n`
+		ranges += `${range[0]},${range[1]}${remove}\n`
+	}
+
+	const [statusTxid, statusRange] = await Promise.all([
+		s3PutObject({ Bucket: LISTS_BUCKET, Key: keyTxids, text: txids }),
+		s3PutObject({ Bucket: LISTS_BUCKET, Key: keyRanges, text: ranges }),
+	])
+	if (statusTxid !== 200 || statusRange !== 200) {
+		await slackLog(postfix, 'upload failed! 💀❌')
+		throw new Error(`upload failed. ${JSON.stringify({ statusTxid, statusRange })}`)
+	}
+}
+
+/** updateFullTxidsRanges.  */
 let _inProgess_updateFullTxidsRanges = false
+/** @deprecated use specific updates */
 export const updateFullTxidsRanges = async () => {
 
 	/** this is a big operation, avoid parallel runs */
