@@ -30,6 +30,8 @@ export const buildListsBucket = (
 			restrictPublicBuckets: true,
 		},
 
+		versioned: true, // Enable versioning for the bucket
+
 		// cors: [{
 		// 	allowedMethods: [aws_s3.HttpMethods.GET, aws_s3.HttpMethods.HEAD],
 		// 	allowedOrigins: ['*'],
