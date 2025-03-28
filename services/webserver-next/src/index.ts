@@ -7,7 +7,7 @@ import { slackLog } from '../../../libs/utils/slackLog'
 import { ipAllowMiddleware } from './ipAllowLists'
 import { network_EXXX_codes } from '../../../libs/constants'
 import { Socket } from 'net'
-import { txsTableNames } from '../../../libs/utils/addon-tablenames'
+import { addonTxsTableNames } from '../../../libs/utils/addon-tablenames'
 import { GetListPath, getETag, getList, prefetchLists } from './lists'
 
 
@@ -53,7 +53,7 @@ app.get('/addresses.txt', ipAllowMiddleware('txids'), async (req, res) => {
 	}
 })
 
-txsTableNames().then((tablenames) => {
+addonTxsTableNames().then((tablenames) => {
 	tablenames.forEach((tablename) => {
 		const routepath = tablename.replace('_txs', '')
 

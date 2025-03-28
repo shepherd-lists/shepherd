@@ -9,7 +9,7 @@ import { NotBlockStateDetails, alertStateCronjob, getServerAlarms } from './even
 import { NotBlockEvent, setAlertState } from './event-tracking'
 import { checkTxids } from './txids/txids-entrypoints'
 import { slackLog } from '../../../libs/utils/slackLog'
-import { txsTableNames } from '../../../libs/utils/addon-tablenames'
+import { addonTxsTableNames } from '../../../libs/utils/addon-tablenames'
 
 
 const FLAGGED_INTERVAL = 30_000 // 30 secs 
@@ -96,7 +96,7 @@ process.on('unhandledRejection', (reason, promise) => {
 setInterval(() => checkTxids('txidflagged.txt'), FLAGGED_INTERVAL)
 setInterval(() => checkTxids('txidowners.txt'), OWNERS_INTERVAL)
 checkTxids('txidowners.txt') //start early
-const addonKeys = (await txsTableNames()).map(t => `${t.split('_')[0]}/txids.txt`) as `${string}/txids.txt`[]
+const addonKeys = (await addonTxsTableNames()).map(t => `${t.split('_')[0]}/txids.txt`) as `${string}/txids.txt`[]
 console.info(JSON.stringify({ addonKeys }))
 addonKeys.map(key => setInterval(() => checkTxids(key), DNSR_INTERVAL))
 

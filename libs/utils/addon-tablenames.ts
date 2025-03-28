@@ -1,11 +1,10 @@
-import knexCreate from './knexCreate'
+import pool from './pgClient'
 
-const knex = knexCreate()
 
-export const txsTableNames = async (): Promise<string[]> => {
-	return (await knex('information_schema.tables')
-		.select('table_name')
-		.where('table_schema', 'public')
-		// eslint-disable-next-line no-useless-escape
-		.where('table_name', 'like', '%\_txs')).map((row) => row.table_name)
+export const addonTxsTableNames = async (): Promise<string[]> => {
+	const query = 'SELECT table_name FROM information_schema.tables WHERE table_schema=\'public\' AND table_name like \'%_txs\''
+	const result = await pool.query(query)
+	console.info(addonTxsTableNames.name, result.rows.map(row => row.table_name))
+	return result.rows.map(row => row.table_name)
 }
+

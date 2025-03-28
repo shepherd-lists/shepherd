@@ -75,7 +75,7 @@ export const processFlagged = async (
 		await trx.commit()
 	} catch (err: unknown) {
 		await trx.rollback()
-		await slackLog(`FATAL ERROR ❌ in ${processFlagged.name} => ${txid}`)
+		await slackLog(`FATAL ERROR ❌ in ${processFlagged.name} ROLLBACK flagged => ${txid}`)
 		throw err // this will cause service to fatally crash!
 	}
 
