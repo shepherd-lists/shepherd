@@ -16,8 +16,8 @@ export const tablenameToOwner = (tablename: string) => {
 
 
 export const dropOwnerTables = async (owner: string) => {
-	await pool.query('DROP TABLE IF EXISTS $1', [ownerToOwnerTablename(owner)])
-	await pool.query('DROP TABLE IF EXISTS $1', [ownerToInfractionsTablename(owner)])
+	await pool.query(`DROP TABLE IF EXISTS "${[ownerToOwnerTablename(owner)]}"`)
+	await pool.query(`DROP TABLE IF EXISTS "${[ownerToInfractionsTablename(owner)]}"`)
 }
 
 export const createOwnerTable = async (owner: string) => {
