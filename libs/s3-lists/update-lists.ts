@@ -1,4 +1,4 @@
-import { s3HeadObject, s3PutObject, s3ObjectTagging, s3CheckFolderExists } from "../utils/s3-services"
+import { s3HeadObject, s3PutObject, s3ObjectTagging, s3UploadReadable } from "../utils/s3-services"
 import { slackLog } from "../utils/slackLog"
 import pool from '../utils/pgClient'
 import { performance } from 'perf_hooks'
@@ -117,9 +117,14 @@ export const updateAddresses = async () => {
 	}
 }
 
+export interface UpdateItem {
+	txid: string
+	range: ByteRange
+	op?: 'remove'
+}
 export const updateS3Lists = async (
 	listname: string,
-	records: Array<{ txid: string, range: ByteRange, op?: 'remove' }>
+	records: Array<UpdateItem> | AsyncIterable<UpdateItem>
 ) => {
 	const path = listname.endsWith('/') ? listname : listname + '/'
 
@@ -127,22 +132,28 @@ export const updateS3Lists = async (
 	const keyTxids = `${path}txids_${postfix}`
 	const keyRanges = `${path}ranges_${postfix}`
 
-	let txids = ''
-	let ranges = ''
-	for (const { txid, range, op } of records) {
+	const txids = s3UploadReadable(LISTS_BUCKET, keyTxids)
+	const ranges = s3UploadReadable(LISTS_BUCKET, keyRanges)
+
+	let count = { txids: 0, ranges: 0 }
+	for await (const { txid, range, op } of records) {
 		const remove = op ? ',remove' : ''
-		txids += `${txid}${remove}\n`
-		ranges += `${range[0]},${range[1]}${remove}\n`
+		txids.write(`${txid}${remove}\n`)
+		++count.txids
+		if (Number(range[0]) !== -1) {
+			++count.ranges
+			ranges.write(`${range[0]},${range[1]}${remove}\n`)
+		} else {
+			slackLog(listname, `:warning: skipped ${txid}`, JSON.stringify({ range }))
+		}
 	}
 
-	const [statusTxid, statusRange] = await Promise.all([
-		s3PutObject({ Bucket: LISTS_BUCKET, Key: keyTxids, text: txids }),
-		s3PutObject({ Bucket: LISTS_BUCKET, Key: keyRanges, text: ranges }),
-	])
-	if (statusTxid !== 200 || statusRange !== 200) {
-		await slackLog(postfix, 'upload failed! 💀❌')
-		throw new Error(`upload failed. ${JSON.stringify({ statusTxid, statusRange })}`)
-	}
+	txids.end()
+	ranges.end()
+	await Promise.all([txids.promise, ranges.promise])
+
+	await slackLog(listname, `created with ${count.txids} txids & ${count.ranges} ranges`, JSON.stringify({ keyTxids, keyRanges }))
+	return count //for testing
 }
 
 /** updateFullTxidsRanges.  */
