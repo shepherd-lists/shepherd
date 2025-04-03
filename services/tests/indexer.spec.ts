@@ -64,18 +64,18 @@ describe('indexer tests', ()=>{
 
 	it(`tests ${IndexBlocks.insertRecords.name} wipes byte-range columns for pass1 duplicate records`, async()=>{
 		try{
-			await knex<TxRecord>('inbox').update({ byteStart: '1', byteEnd: '2' }).where({ txid: height1record1.txid })
+			await knex<TxRecord>('inbox').update({ byte_start: '1', byte_end: '2' }).where({ txid: height1record1.txid })
 		}catch(err:unknown){
 			const e = err as Error
 			expect.fail(`knex update threw an error setting up the test: ${e.message}`)
 		}
 
 		try{
-			//this should conflict and overwrite the existing byteStart/byteEnd values
+			//this should conflict and overwrite the existing byte_start/byte_end values
 			await IndexBlocks.insertRecords([ height1record1 ], 'indexer_pass1', 'http://fake.url')
-			const [ {byteStart, byteEnd} ] = await knex<TxRecord>('inbox').select('byteStart', 'byteEnd').where({ txid: height1record1.txid })
-			expect(byteStart, 'byteStart').eq(null)
-			expect(byteEnd, 'byteEnd').eq(null)
+			const [ {byte_start, byte_end} ] = await knex<TxRecord>('inbox').select('byte_start', 'byte_end').where({ txid: height1record1.txid })
+			expect(byte_start, 'byte_start').eq(null)
+			expect(byte_end, 'byte_end').eq(null)
 
 		}catch(err:unknown){
 			const e = err as Error

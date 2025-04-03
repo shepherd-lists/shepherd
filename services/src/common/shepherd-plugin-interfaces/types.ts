@@ -31,8 +31,8 @@ export interface TxRecord extends TxScanned, TxFlaggedOptions {
 		| 'MalformedXML-data'
 		| 'unmined'
 
-	byteStart?: string	// convert to BigInt
-	byteEnd?: string		// convert to BigInt
+	byte_start?: string	// convert to BigInt
+	byte_end?: string		// convert to BigInt
 
 	last_update_date: Date
 }
