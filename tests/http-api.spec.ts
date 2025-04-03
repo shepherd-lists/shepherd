@@ -50,8 +50,8 @@ describe('http api', () => {
 		flag_type: 'classified',
 		top_score_name: 'nsfw',
 		top_score_value: 0.999,
-		byteStart: '123',
-		byteEnd: '456', // ********** test these DON'T get overwritten with either `null` or `-1`
+		byte_start: '123',
+		byte_end: '456', // ********** test these DON'T get overwritten with either `null` or `-1`
 	}
 
 	beforeEach(async () => {
@@ -116,8 +116,8 @@ describe('http api', () => {
 			...mockClassifiedRecord,
 			flagged: false, //should overwrite
 			top_score_name: undefined,
-			byteStart: undefined,
-			byteEnd: '-1',
+			byte_start: undefined,
+			byte_end: '-1',
 		}
 		delete updates.top_score_value
 
@@ -136,8 +136,8 @@ describe('http api', () => {
 		//probly more than enough
 
 		//actual tests
-		assert.equal(record.byteStart, '123')
-		assert.equal(record.byteEnd, '456')
+		assert.equal(record.byte_start, '123')
+		assert.equal(record.byte_end, '456')
 		assert.equal(record.top_score_name, null)
 		assert.equal(record.top_score_value, null)
 		assert.equal(record.flagged, false)

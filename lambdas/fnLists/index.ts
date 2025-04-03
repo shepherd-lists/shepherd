@@ -37,7 +37,7 @@ export const handler = async (event: any) => {
 
 	/** flagged streams */
 	const flaggedProcess = async () => {
-		const flaggedStream = new QueryStream('SELECT txid, "byteStart", "byteEnd" FROM txs WHERE flagged = true', [], { highWaterMark })
+		const flaggedStream = new QueryStream('SELECT txid, "byte_start", "byte_end" FROM txs WHERE flagged = true', [], { highWaterMark })
 
 		/** N.B. need to handle connections manually for pg-query-stream */
 		const cnn = await pool.connect() //using one connection per query
@@ -51,15 +51,15 @@ export const handler = async (event: any) => {
 			c++
 			s3Txids.write(`${row.txid}\n`)
 			s3TxidFlagged.write(`${row.txid}\n`)
-			if (!row.byteStart) {
+			if (!row.byte_start) {
 				slackLog(`"flagged txs" bad byte-range`, JSON.stringify(row))
 				continue;
-			} else if (row.byteStart === '-1') {
+			} else if (row.byte_start === '-1') {
 				console.info(`"flagged txs" bad byte-range`, JSON.stringify(row))
 				continue;
 			}
-			s3RangeFlagged.write(`${row.byteStart},${row.byteEnd}\n`)
-			ranges.push([+row.byteStart, +row.byteEnd])
+			s3RangeFlagged.write(`${row.byte_start},${row.byte_end}\n`)
+			ranges.push([+row.byte_start, +row.byte_end])
 		}
 		console.debug(`time to stream flagged ${(Date.now() - t).toLocaleString()}ms`)
 		s3RangeFlagged.end()

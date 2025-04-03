@@ -144,7 +144,7 @@ export const insertRecords = async (records: TxScanned[], indexName: string, gql
 
 			// console.log('pass1 inserting records', records.length, {records})
 
-			await knex<TxRecord>('inbox').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byteStart', 'byteEnd'])
+			await knex<TxRecord>('inbox').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byte_start', 'byte_end'])
 			alteredCount = records.length
 		} else {
 			/** generally speaking, it's the norm to not see updates on pass2.
@@ -169,8 +169,8 @@ export const insertRecords = async (records: TxScanned[], indexName: string, gql
 							height: r.height,
 							parent: r.parent,
 							parents: r.parents,
-							byteStart: undefined,
-							byteEnd: undefined,
+							byte_start: undefined,
+							byte_end: undefined,
 						})
 						.where('txid', r.txid)
 						.returning('txid')
