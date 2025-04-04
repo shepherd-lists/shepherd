@@ -65,11 +65,11 @@ export const getRecords = async(res: Writable, type: 'txids'|'ranges', tablename
 
 		/* ranges needs to be checked for '-1' or null */
 		let lineRange
-		if(record.byteStart && record.byteStart !== '-1'){
-			lineRange = `${record.byteStart},${record.byteEnd}\n`
+		if(record.byte_start && record.byte_start !== '-1'){
+			lineRange = `${record.byte_start},${record.byte_end}\n`
 			ranges += lineRange
 		}
-		if(!record.byteStart){
+		if(!record.byte_start){
 			/** null ranges must get populated (FYI, this code should no longer have to run) */
 			logger(getRecords.name, `no byte-range found, calculating new range for '${record.txid}'...`)
 			slackLogger(getRecords.name, `no byte-range found, calculating new range for '${record.txid}'...`)

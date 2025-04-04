@@ -133,10 +133,10 @@ describe('http-api tests', ()=>{
 
 		expect(res.status, 'http-api returned an error code').eq(200)
 		const rec = (await knex<TxRecord>('inbox').select().where({ txid: data.txid }))[0]
-		expect(rec.byteStart).to.exist
-		expect(rec.byteEnd).to.exist
-		expect(rec.byteStart).eq('140085963825398')
-		expect(rec.byteEnd).eq('140085964087542')
+		expect(rec.byte_start).to.exist
+		expect(rec.byte_end).to.exist
+		expect(rec.byte_start).eq('140085963825398')
+		expect(rec.byte_end).eq('140085964087542')
 
 	}).timeout(5000)
 

@@ -11,8 +11,8 @@ import dbConnection from '../src/common/utils/db-connection'
 const knex = dbConnection()
 
 const main = async () => {
-	// const recRead = knex<TxRecord>('txs').where({ flagged: true, byteStart: '-1' }).stream()
-	const recRead = knex<TxRecord>('txs').where('top_score_value', '>', 0.9).where({ byteStart: '-1' }).stream()
+	// const recRead = knex<TxRecord>('txs').where({ flagged: true, byte_start: '-1' }).stream()
+	const recRead = knex<TxRecord>('txs').where('top_score_value', '>', 0.9).where({ byte_start: '-1' }).stream()
 	const promises = []
 	let count = 0
 	for await (const rec of recRead){
@@ -20,7 +20,7 @@ const main = async () => {
 		promises.push((async (rec: TxRecord) => {
 			const { start, end } = await getByteRange(rec.txid, rec.parent, rec.parents)
 			console.log(rec.txid, 'byte range', start, end, `top_score_value:${rec.top_score_value}`,)
-			const checkId = await knex<TxRecord>('txs').where('txid', rec.txid).update({ byteStart: start.toString(), byteEnd: end.toString() }, ['txid'])
+			const checkId = await knex<TxRecord>('txs').where('txid', rec.txid).update({ byte_start: start.toString(), byte_end: end.toString() }, ['txid'])
 			if(checkId.length === 0 || checkId[0].txid !== rec.txid) throw new Error('error updating database')
 		})(rec))
 		if(count % 100 === 0){

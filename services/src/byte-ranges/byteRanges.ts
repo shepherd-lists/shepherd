@@ -15,8 +15,8 @@ export const byteRangesUpdateDb = async (id: string, parent: string | null, pare
 	const checkId = await updateTxsDb(
 		id,
 		{
-			byteStart: chunkRange.start.toString(),
-			byteEnd: chunkRange.end.toString(),
+			byte_start: chunkRange.start.toString(),
+			byte_end: chunkRange.end.toString(),
 		},
 		tablename,
 	)

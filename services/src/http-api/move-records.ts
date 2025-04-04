@@ -31,8 +31,8 @@ export const moveInboxToTxs = async (txids: string[]) => {
 		'top_score_name',
 		'top_score_value',
 		'parent',
-		'byteStart',
-		'byteEnd',
+		'byte_start',
+		'byte_end',
 		'parents',
 		'owner',
 	]

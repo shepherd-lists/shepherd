@@ -33,7 +33,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 				slackLogger('✅ *Test Message* ✅', JSON.stringify(body))
 			}
 
-			let byteStart, byteEnd
+			let byte_start, byte_end
 			if(
 				Number(result.top_score_value) > 0.9
 				|| result.flagged === true
@@ -50,10 +50,10 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 
 					/** calculate the byte range */
 					const { start, end } = await getByteRange(txid, record.parent, record.parents)
-					byteStart = start.toString()
-					byteEnd = end.toString()
+					byte_start = start.toString()
+					byte_end = end.toString()
 
-					console.log(txid, `calculated byte-range ${byteStart} to ${byteEnd}`)
+					console.log(txid, `calculated byte-range ${byte_start} to ${byte_end}`)
 				}catch(err:unknown){
 					const e = err as Error
 					logger(txid, `Error calculating byte-range: ${e.name}:${e.message}`, JSON.stringify(e))
@@ -67,7 +67,7 @@ export const pluginResultHandler = async(body: APIFilterResult)=>{
 				...(result.flag_type && { flag_type: result.flag_type}),
 				...(result.top_score_name && { top_score_name: result.top_score_name}),
 				...(result.top_score_value && { top_score_value: result.top_score_value}),
-				...(byteStart && { byteStart, byteEnd }),
+				...(byte_start && { byte_start, byte_end }),
 				last_update_date: new Date(),
 			})
 
