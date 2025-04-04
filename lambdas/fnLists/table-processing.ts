@@ -23,8 +23,8 @@ export const processAddonTable = async (config: {
 	const s3AddonRanges = s3UploadReadable(LISTS_BUCKET, `${prefix}/ranges.txt`)
 
 	/** set up db cnn */
-	let query = `SELECT txid, "byteStart", "byteEnd" FROM "${tablename}" WHERE flagged = true`
-	const stream: AsyncIterable<{ txid: string; byteStart: string; byteEnd: string }> = new QueryStream(query, [], { highWaterMark })
+	let query = `SELECT txid, "byte_start", "byte_end" FROM "${tablename}" WHERE flagged = true`
+	const stream: AsyncIterable<{ txid: string; byte_start: string; byte_end: string }> = new QueryStream(query, [], { highWaterMark })
 	const cnn = await pool.connect()
 	cnn.query(stream as QueryStream)
 
@@ -36,16 +36,16 @@ export const processAddonTable = async (config: {
 			// console.debug('row', row)
 			++c
 			s3AddonTxids.write(`${row.txid}\n`)
-			if (!row.byteStart) {
+			if (!row.byte_start) {
 				slackLog(tablename, `missing byte-range`, JSON.stringify(row))
 
 				continue;
-			} else if (row.byteStart === '-1') {
+			} else if (row.byte_start === '-1') {
 				console.info(`${tablename} bad byte-range`, JSON.stringify(row))
 				continue;
 			}
-			s3AddonRanges.write(`${row.byteStart},${row.byteEnd}\n`)
-			ranges.push([+row.byteStart, +row.byteEnd])
+			s3AddonRanges.write(`${row.byte_start},${row.byte_end}\n`)
+			ranges.push([+row.byte_start, +row.byte_end])
 		}
 
 	} finally {

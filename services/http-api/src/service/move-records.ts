@@ -26,8 +26,8 @@ export const mergeRulesObject = () => {
 		'top_score_name',
 		'top_score_value',
 		'parent',
-		'byteStart',
-		'byteEnd',
+		'byte_start',
+		'byte_end',
 		'parents',
 		'owner',
 	]
@@ -36,7 +36,7 @@ export const mergeRulesObject = () => {
 	const updateObject: Record<string, Knex.Raw> = {}
 
 	allTxRecordKeys.forEach(k => {
-		if (k === 'byteStart' || k === 'byteEnd') { //special cases
+		if (k === 'byte_start' || k === 'byte_end') { //special cases
 			updateObject[k] = knex.raw(
 				`CASE
 					WHEN EXCLUDED.?? IS NOT NULL AND EXCLUDED.??::bigint != -1 
