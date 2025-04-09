@@ -2,20 +2,26 @@ import 'dotenv/config'
 import assert from 'node:assert/strict'
 import { afterEach } from 'node:test'
 import { updateAddresses, UpdateItem, updateS3Lists } from '../s3-lists/update-lists'
-import pg from '../utils/pgClient'
+import pg, { batchInsert } from '../utils/pgClient'
 import { after, describe, it } from 'node:test'
 import { ByteRange } from '../s3-lists/merge-ranges'
 import { s3CheckFolderExists, s3DeleteFolder, s3GetObject, s3ListFolderObjects } from '../utils/s3-services'
 import { Readable } from 'node:stream'
+import { createOwnerTable, dropOwnerTables, ownerToOwnerTablename } from '../block-owner/owner-table-utils'
+import { initialiseList } from '../s3-lists/initial-lists'
 
 console.debug('LISTS_BUCKET', process.env.LISTS_BUCKET)
 const bucket = process.env.LISTS_BUCKET!
 
 describe('update lists', () => {
 
+	/** fake data and cleanup */
 	const testFolder = 'update-test/'
+	const testOwner = 'fake_owner_'.padEnd(43, '0')
+
 	afterEach(async () => {
 		await s3DeleteFolder(bucket, testFolder)
+		await dropOwnerTables(testOwner) //if exists
 	})
 
 	it('should be able to update addresses (not currently testing anything apart from no errors)', async () => {
@@ -76,6 +82,52 @@ describe('update lists', () => {
 		assert.equal((await s3GetObject(bucket, txidsName)).split('\n').length - 1, totalItems)
 		assert.equal((await s3GetObject(bucket, rangesName)).split('\n').length - 1, totalItems - Math.floor(totalItems / 400))
 
+	})
+
+	it('should initialise a list using the database', async () => {
+		/** create some fake table data */
+		const totalItems = 10
+		const tablename = await createOwnerTable('fake_owner_'.padEnd(43, '0'))
+		const records = Array.from({ length: totalItems }, (_, i) => ({
+			txid: crypto.randomUUID().padEnd(43, '-').substring(0, 43), //random enough 43 chars
+			byte_start: Math.floor(Math.random() * 1_000_000),
+			byte_end: Math.floor(Math.random() * 1_000_000),
+		}))
+		await batchInsert(records, tablename)
+
+		/** the test */
+		const counts = await initialiseList({ Bucket: bucket, folder: testFolder, query: `SELECT txid, byte_start, byte_end FROM ${tablename}` })
+		assert.equal(counts.ranges, totalItems)
+		assert.equal(counts.txids, totalItems)
+
+		/** examine lists */
+		const listnames = await s3ListFolderObjects(bucket, testFolder)
+		assert.equal(listnames.length, 2, `listnames.length should be 2: ${JSON.stringify(listnames)}`) //txids & ranges lists. these get cleared every test run
+
+		const txidsName = listnames.find(n => n.includes('txids')) as string //probably could do with a util for grabbing pairs of list names later
+		const rangesName = listnames.find(n => n.includes('ranges')) as string
+		assert.equal((await s3GetObject(bucket, txidsName)).split('\n').length - 1, totalItems)
+		assert.equal((await s3GetObject(bucket, rangesName)).split('\n').length - 1, totalItems)
+
+	})
+
+	it('should initialise a list with no items', async () => {
+		const tablename = await createOwnerTable('fake_owner_'.padEnd(43, '0'))
+		//dont create any records
+
+		/** the test */
+		const counts = await initialiseList({ Bucket: bucket, folder: testFolder, query: `SELECT txid, byte_start, byte_end FROM ${tablename}` })
+		assert.equal(counts.ranges, 0)
+		assert.equal(counts.txids, 0)
+
+		/** examine lists */
+		const listnames = await s3ListFolderObjects(bucket, testFolder)
+		assert.equal(listnames.length, 2, `listnames.length should be 2: ${JSON.stringify(listnames)}`) //txids & ranges lists. these get cleared every test run
+
+		const txidsName = listnames.find(n => n.includes('txids')) as string //probably could do with a util for grabbing pairs of list names later
+		const rangesName = listnames.find(n => n.includes('ranges')) as string
+		assert.equal((await s3GetObject(bucket, txidsName)).length, 0)
+		assert.equal((await s3GetObject(bucket, rangesName)).length, 0)
 	})
 
 	after(async () => {
