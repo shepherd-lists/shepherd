@@ -2,10 +2,10 @@ import 'dotenv/config'
 import assert from "node:assert/strict";
 import { after, afterEach, beforeEach, describe, it } from 'node:test'
 
-import { txidToRange } from '../byte-ranges/txidToRange/txidToRange'
-import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from '../byte-ranges/txidToRange/constants-byteRange'
-import { ans104HeaderData } from '../byte-ranges/txidToRange/ans104HeaderData'
-import { byteRange102 } from '../byte-ranges/txidToRange/byteRange102'
+import { txidToRange } from '../../libs/byte-ranges/txidToRange/txidToRange'
+import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from '../../libs/byte-ranges/txidToRange/constants-byteRange'
+import { ans104HeaderData } from '../../libs/byte-ranges/txidToRange/ans104HeaderData'
+import { byteRange102 } from '../../libs/byte-ranges/txidToRange/byteRange102'
 
 
 describe('txidToRange tests', () => {

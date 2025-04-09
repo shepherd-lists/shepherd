@@ -1,14 +1,14 @@
 import 'dotenv/config'
 import assert from 'node:assert/strict'
 import { afterEach } from 'node:test'
-import { updateAddresses, UpdateItem, updateS3Lists } from '../s3-lists/update-lists'
-import pg, { batchInsert } from '../utils/pgClient'
+import { updateAddresses, UpdateItem, updateS3Lists } from '../../libs/s3-lists/update-lists'
+import pg, { batchInsert } from '../../libs/utils/pgClient'
 import { after, describe, it } from 'node:test'
-import { ByteRange } from '../s3-lists/merge-ranges'
-import { s3CheckFolderExists, s3DeleteFolder, s3GetObject, s3ListFolderObjects } from '../utils/s3-services'
+import { ByteRange } from '../../libs/s3-lists/merge-ranges'
+import { s3CheckFolderExists, s3DeleteFolder, s3GetObject, s3ListFolderObjects } from '../../libs/utils/s3-services'
 import { Readable } from 'node:stream'
-import { createOwnerTable, dropOwnerTables, ownerToOwnerTablename } from '../block-owner/owner-table-utils'
-import { initialiseList } from '../s3-lists/initial-lists'
+import { createOwnerTable, dropOwnerTables, ownerToOwnerTablename } from '../../libs/block-owner/owner-table-utils'
+import { initialiseList } from '../../libs/s3-lists/initial-lists'
 
 console.debug('LISTS_BUCKET', process.env.LISTS_BUCKET)
 const bucket = process.env.LISTS_BUCKET!

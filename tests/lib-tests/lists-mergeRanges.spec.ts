@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import assert from "node:assert/strict";
 import { after, afterEach, beforeEach, describe, it } from 'node:test'
-import { ByteRange, mergeErlangRanges } from '../s3-lists/merge-ranges'
+import { ByteRange, mergeErlangRanges } from '../../libs/s3-lists/merge-ranges'
 import { readFileSync, writeFileSync } from 'node:fs';
 
 
@@ -21,7 +21,7 @@ const rangesSize = (ranges: Array<ByteRange>, id: string) => {
 /** load big test file of ranges */
 let temp = readFileSync(
 	new URL('./nsfw.txt', import.meta.url), 'utf-8'
-	// new URL('./s3-rangelist.txt', import.meta.url), 'utf-8'
+	// new URL('./rangelist.txt', import.meta.url), 'utf-8'
 ).split('\n')
 temp.pop() //remove last blank line
 const original = temp.map(line => line.split(',').map(Number)) as Array<ByteRange>
