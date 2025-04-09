@@ -16,10 +16,10 @@ describe('fnLists tests', () => {
 
 	it(`should test i/o to ${processAddonTable.name} function`, async () => {
 		await pg.query('DROP TABLE IF EXISTS test_txs')
-		await pg.query('CREATE TABLE test_txs (txid CHAR(43), flagged BOOLEAN, "byteStart" BIGINT, "byteEnd" BIGINT)')
+		await pg.query('CREATE TABLE test_txs (txid CHAR(43), flagged BOOLEAN, byte_start BIGINT, byte_end BIGINT)')
 		try {
 			const fakeIds = ['fake-id-1', 'fake-id-2'].map(s => s.padEnd(43, '_'))
-			await pg.query('INSERT INTO test_txs (txid, flagged, "byteStart", "byteEnd") VALUES ($1, true, 1, 2), ($2, false, 3, 4)', fakeIds)
+			await pg.query('INSERT INTO test_txs (txid, flagged, byte_start, bytes_end) VALUES ($1, true, 1, 2), ($2, false, 3, 4)', fakeIds)
 			console.debug((await pg.query('select * from test_txs')).rows)
 			const ranges: ByteRange[] = []
 
