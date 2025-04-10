@@ -8,12 +8,12 @@ import { ByteRange } from '../../libs/s3-lists/merge-ranges'
 import { s3CheckFolderExists, s3DeleteFolder, s3GetObject, s3ListFolderObjects } from '../../libs/utils/s3-services'
 import { Readable } from 'node:stream'
 import { createOwnerTable, dropOwnerTables, ownerToOwnerTablename } from '../../libs/block-owner/owner-table-utils'
-import { initialiseList } from '../../libs/s3-lists/initial-lists'
+import { initListBasic } from '../../libs/s3-lists/initial-lists'
 
 console.debug('LISTS_BUCKET', process.env.LISTS_BUCKET)
 const bucket = process.env.LISTS_BUCKET!
 
-describe('update lists', () => {
+describe('s3 lists', () => {
 
 	/** fake data and cleanup */
 	const testFolder = 'update-test/'
@@ -22,6 +22,10 @@ describe('update lists', () => {
 	afterEach(async () => {
 		await s3DeleteFolder(bucket, testFolder)
 		await dropOwnerTables(testOwner) //if exists
+	})
+
+	after(async () => {
+		await pg.end()
 	})
 
 	it('should be able to update addresses (not currently testing anything apart from no errors)', async () => {
@@ -96,7 +100,7 @@ describe('update lists', () => {
 		await batchInsert(records, tablename)
 
 		/** the test */
-		const counts = await initialiseList({ Bucket: bucket, folder: testFolder, query: `SELECT txid, byte_start, byte_end FROM ${tablename}` })
+		const counts = await initListBasic({ Bucket: bucket, folder: testFolder, query: `SELECT txid, byte_start, byte_end FROM ${tablename}` })
 		assert.equal(counts.ranges, totalItems)
 		assert.equal(counts.txids, totalItems)
 
@@ -116,7 +120,7 @@ describe('update lists', () => {
 		//dont create any records
 
 		/** the test */
-		const counts = await initialiseList({ Bucket: bucket, folder: testFolder, query: `SELECT txid, byte_start, byte_end FROM ${tablename}` })
+		const counts = await initListBasic({ Bucket: bucket, folder: testFolder, query: `SELECT txid, byte_start, byte_end FROM ${tablename}` })
 		assert.equal(counts.ranges, 0)
 		assert.equal(counts.txids, 0)
 
@@ -130,8 +134,5 @@ describe('update lists', () => {
 		assert.equal((await s3GetObject(bucket, rangesName)).length, 0)
 	})
 
-	after(async () => {
-		await pg.end()
-	})
 
 })
