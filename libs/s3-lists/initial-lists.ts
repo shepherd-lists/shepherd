@@ -11,7 +11,7 @@ import { UpdateItem, updateS3Lists } from './update-lists'
 
 
 /** export for test only */
-export const initialiseList = async ({
+export const initListBasic = async ({
 	Bucket,
 	folder,
 	query,
@@ -22,7 +22,7 @@ export const initialiseList = async ({
 }
 ) => {
 
-	console.debug(initialiseList.name, { Bucket, folder, query })
+	console.debug(initListBasic.name, { Bucket, folder, query })
 
 	interface RecordOutput { txid: string; byte_start: string; byte_end: string }
 
@@ -48,7 +48,7 @@ export const initialiseList = async ({
 	await finished(transformed)
 	cnn.release()
 
-	console.debug(initialiseList.name, folder, 'done')
+	console.debug(initListBasic.name, folder, 'done')
 	return counts //for tests
 }
 
