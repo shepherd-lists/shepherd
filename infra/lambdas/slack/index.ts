@@ -32,7 +32,7 @@ interface AlarmMessage {
 	}
 }
 
-export const handler: Handler = async (event: SNSEvent): Promise<any> => {
+export const handler: Handler = async (event: SNSEvent) => {
 	console.log('process.env.SLACK_PUBLIC', process.env.SLACK_PUBLIC)
 	console.log('event: ', JSON.stringify(event, null, 2))
 
