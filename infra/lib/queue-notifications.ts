@@ -31,7 +31,7 @@ export const inputQMetricAndNotifications = (
 
 	/** create a slack posting lambda */
 	const fnSlack = new aws_lambda_nodejs.NodejsFunction(stack, 'fnSlackInputAgeAlarm', {
-		runtime: aws_lambda.Runtime.NODEJS_18_X,
+		runtime: aws_lambda.Runtime.NODEJS_22_X,
 		architecture: aws_lambda.Architecture.X86_64,
 		handler: 'handler',
 		entry: new URL('../lambdas/slack/index.ts', import.meta.url).pathname,
