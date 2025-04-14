@@ -122,13 +122,15 @@ export interface UpdateItem {
 	range: ByteRange
 	op?: 'remove'
 }
+export const newUpdateKeyPostfix = () => new Date().toISOString().replace(/[:.]/g, '-') + '.txt'
+
 export const updateS3Lists = async (
 	listname: string,
 	records: Array<UpdateItem> | AsyncIterable<UpdateItem>
 ) => {
 	const path = listname.endsWith('/') ? listname : listname + '/'
 
-	const postfix = new Date().toISOString().replace(/[:.]/g, '-') + '.txt'
+	const postfix = newUpdateKeyPostfix()
 	const keyTxids = `${path}txids_${postfix}`
 	const keyRanges = `${path}ranges_${postfix}`
 
