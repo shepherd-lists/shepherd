@@ -7,20 +7,22 @@ import { ByteRange } from '../../libs/s3-lists/merge-ranges'
 // type WriteableWithPromise = ReturnType<typeof s3UploadReadable>
 
 
-export const processAddonTable = async (config: {
+export const processAddonTable = async ({
+	LISTS_BUCKET, tablename, highWaterMark, ranges, postfix
+}: {
 	LISTS_BUCKET: string,
 	tablename: string,
 	highWaterMark: number,
 	ranges: ByteRange[], //all get merged
+	postfix: string,
 }) => {
 
-	const { LISTS_BUCKET, tablename, highWaterMark, ranges } = config
 	const prefix = tablename.split('_')[0] //e.g. my_txs => my
 	console.info(tablename, 'stream starting')
 
 	/** open s3 upload stream */
-	const s3AddonTxids = s3UploadReadable(LISTS_BUCKET, `${prefix}/txids.txt`)
-	const s3AddonRanges = s3UploadReadable(LISTS_BUCKET, `${prefix}/ranges.txt`)
+	const s3AddonTxids = s3UploadReadable(LISTS_BUCKET, `${prefix}/txids_${postfix}`)
+	const s3AddonRanges = s3UploadReadable(LISTS_BUCKET, `${prefix}/ranges_${postfix}`)
 
 	/** set up db cnn */
 	let query = `SELECT txid, "byte_start", "byte_end" FROM "${tablename}" WHERE flagged = true`

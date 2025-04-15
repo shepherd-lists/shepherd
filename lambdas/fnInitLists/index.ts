@@ -3,6 +3,8 @@ import QueryStream from "pg-query-stream"
 import { slackLog } from '../../libs/utils/slackLog'
 import { s3UploadReadable } from '../../libs/utils/s3-services'
 import { ByteRange, mergeErlangRanges } from "../../libs/s3-lists/merge-ranges"
+import { newUpdateKeyPostfix } from '../../libs/s3-lists/update-lists'
+import { getOwnersTablenames } from '../../libs/block-owner/owner-table-utils'
 import { getAddonTablenames } from './addon-tablenames'
 import { processAddonTable } from './table-processing'
 
@@ -19,11 +21,15 @@ export const handler = async (event: any) => {
 	const t0 = Date.now()
 
 	/** prepare output streams to s3 */
-	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'blacklist.txt')
-	const s3TxidFlagged = s3UploadReadable(LISTS_BUCKET, 'txidflagged.txt')
-	const s3TxidOwners = s3UploadReadable(LISTS_BUCKET, 'txidowners.txt')
-	const s3RangeFlagged = s3UploadReadable(LISTS_BUCKET, 'rangeflagged.txt')
-	const s3RangesOwners = s3UploadReadable(LISTS_BUCKET, 'rangeowners.txt')
+
+	const postfix = newUpdateKeyPostfix() //use same for all
+
+
+	const s3Txids = s3UploadReadable(LISTS_BUCKET, `list/txids_${postfix}`)
+	const s3TxidFlagged = s3UploadReadable(LISTS_BUCKET, `flagged/txids_${postfix}`) //checks
+	const s3RangeFlagged = s3UploadReadable(LISTS_BUCKET, `flagged/ranges_${postfix}`) //shep-list
+	const s3TxidOwners = s3UploadReadable(LISTS_BUCKET, `owners/txids_${postfix}`) //checks
+	const s3RangesOwners = s3UploadReadable(LISTS_BUCKET, `owners/ranges_${postfix}`) //shep-list
 	/** addons handled differently. n.b. in the future everything will be an addon */
 	const addonTablenames = await getAddonTablenames()
 
@@ -31,7 +37,7 @@ export const handler = async (event: any) => {
 	const ranges: Array<ByteRange> = []
 
 	const t1Prep = Date.now()
-	console.info(`prepared s3 streams in ${(t1Prep - t0).toLocaleString()} ms`)
+	console.info(`prepared s3 output streams in ${(t1Prep - t0).toLocaleString()} ms`)
 
 	let count = 0 //all items
 
@@ -62,6 +68,7 @@ export const handler = async (event: any) => {
 			ranges.push([+row.byte_start, +row.byte_end])
 		}
 		console.debug(`time to stream flagged ${(Date.now() - t).toLocaleString()}ms`)
+		s3TxidFlagged.end()
 		s3RangeFlagged.end()
 		count += c
 		cnn.release() //release connection back to pool
@@ -108,7 +115,7 @@ export const handler = async (event: any) => {
 		flaggedProcess(),
 		...ownerTablenames.map(ownerProcessing),
 		...addonTablenames.map(tablename =>
-			processAddonTable({ tablename, LISTS_BUCKET, highWaterMark, ranges }).then(c => count += c)
+			processAddonTable({ tablename, LISTS_BUCKET, highWaterMark, ranges, postfix }).then(c => count += c)
 		)
 	])
 
@@ -119,7 +126,6 @@ export const handler = async (event: any) => {
 
 	/** close the output streams */
 	s3Txids.end()
-	s3TxidFlagged.end()
 	s3TxidOwners.end()
 	s3RangesOwners.end()
 	await Promise.all([
@@ -148,19 +154,3 @@ export const handler = async (event: any) => {
 }
 
 
-/** get a list of all the tables with blocked owners items.
- * - N.B. omit whitelisted owners
- */
-const getOwnersTablenames = async () => {
-
-	const { rows } = await pool.query<{ tablename: string }>(`
-		SELECT tablename FROM pg_catalog.pg_tables
-		WHERE tablename LIKE 'owner\\_%'
-		AND NOT EXISTS (
-				SELECT 1 FROM owners_whitelist
-				WHERE pg_catalog.pg_tables.tablename = 'owner_' || REPLACE(owners_whitelist.owner, '-', '~')
-		);
-	`)
-
-	return rows.map(row => row.tablename)
-}
