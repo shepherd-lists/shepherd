@@ -25,13 +25,13 @@ export const s3DeleteObject = async (Bucket: string, Key: string) => s3client.se
 
 export const s3CheckFolderExists = async (Bucket: string, folder: string) => {
 	const Prefix = folder.endsWith('/') ? folder : folder + '/'
-	try {
-		await s3client.send(new ListObjectsV2Command({ Bucket, Prefix, MaxKeys: 1 }))
-		return true
-	} catch (e) {
-		console.error(`could not find '${Prefix}' in ${Bucket}`, e)
-		return false
+	const res = await s3client.send(new ListObjectsV2Command({ Bucket, Prefix, MaxKeys: 1 }))
+	if (Number(res.KeyCount) > 0) return true;
+	if (res.KeyCount === 0) {
+		console.info(s3CheckFolderExists.name, `could not find '${Prefix}' in ${Bucket}`)
+		return false;
 	}
+	throw new Error(`could not check for folder '${Prefix}' in ${Bucket}`)
 }
 
 /** uses pagination */
