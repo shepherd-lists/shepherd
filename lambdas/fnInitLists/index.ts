@@ -26,6 +26,7 @@ export const handler = async (event: any) => {
 
 
 	const s3Txids = s3UploadReadable(LISTS_BUCKET, `list/txids_${postfix}`)
+	const s3Ranges = s3UploadReadable(LISTS_BUCKET, `list/ranges_${postfix}`)
 	const s3TxidFlagged = s3UploadReadable(LISTS_BUCKET, `flagged/txids_${postfix}`) //checks
 	const s3RangeFlagged = s3UploadReadable(LISTS_BUCKET, `flagged/ranges_${postfix}`) //shep-list
 	const s3TxidOwners = s3UploadReadable(LISTS_BUCKET, `owners/txids_${postfix}`) //checks
@@ -140,7 +141,6 @@ export const handler = async (event: any) => {
 	console.info(`time to close s3 streams ${(t3CloseS3 - t2Process).toLocaleString()} ms`)
 
 	/** process ranges and write out */
-	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
 	for await (const range of mergeErlangRanges(ranges)) {
 		s3Ranges.write(`${range[0]},${range[1]}\n`)
 	}
