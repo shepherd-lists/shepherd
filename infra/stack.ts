@@ -130,7 +130,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
 			FN_INDEXER: fnIndex.functionName,
-			FN_LISTS: fnInitLists.functionName,
+			FN_INIT_LISTS: fnInitLists.functionName,
 			LISTS_BUCKET: `shepherd-lists-${config.region}`,
 		}
 	})
@@ -247,7 +247,6 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
-			FN_LISTS: fnInitLists.functionName,
 			http_api_nodes: JSON.stringify(config.http_api_nodes), //for byte-ranges only
 			http_api_nodes_url: config.http_api_nodes_url || '', //for byte-ranges only
 		}
