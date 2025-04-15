@@ -90,7 +90,7 @@ export const createStack = async (app: App, config: Config) => {
 		},
 	})
 	/** create lambda to update s3 lists using db */
-	const fnLists = createFn('fnLists', stack, {
+	const fnInitLists = createFn('fnInitLists', stack, {
 		vpc,
 		securityGroups: [sgPgdb],
 		logGroup: logGroupServices,
@@ -130,7 +130,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
 			FN_INDEXER: fnIndex.functionName,
-			FN_LISTS: fnLists.functionName,
+			FN_LISTS: fnInitLists.functionName,
 			LISTS_BUCKET: `shepherd-lists-${config.region}`,
 		}
 	})
@@ -141,7 +141,7 @@ export const createStack = async (app: App, config: Config) => {
 		resources: [
 			fnOwnerBlocking.functionArn,
 			fnIndex.functionArn,
-			fnLists.functionArn
+			fnInitLists.functionArn
 		],
 	}))
 	taskroleIndex.addToPrincipalPolicy(new aws_iam.PolicyStatement({
@@ -247,7 +247,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
-			FN_LISTS: fnLists.functionName,
+			FN_LISTS: fnInitLists.functionName,
 			http_api_nodes: JSON.stringify(config.http_api_nodes), //for byte-ranges only
 			http_api_nodes_url: config.http_api_nodes_url || '', //for byte-ranges only
 		}
@@ -266,7 +266,7 @@ export const createStack = async (app: App, config: Config) => {
 		actions: ['lambda:InvokeFunction'],
 		resources: [
 			fnOwnerBlocking.functionArn,
-			fnLists.functionArn,
+			fnInitLists.functionArn,
 		],
 	}))
 	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
@@ -279,6 +279,6 @@ export const createStack = async (app: App, config: Config) => {
 	listsBucket.grantReadWrite(taskroleIndex)
 	listsBucket.grantReadWrite(taskRoleWeb)
 	listsBucket.grantReadWrite(taskRoleHttpApi)
-	listsBucket.grantReadWrite(fnLists.role!)
+	listsBucket.grantReadWrite(fnInitLists.role!)
 
 }
