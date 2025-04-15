@@ -33,7 +33,7 @@ const s3GetTag = async (objectKey: string, tagKey: string) => {
 		const tagging = await s3ObjectTagging(LISTS_BUCKET, objectKey)
 		return tagging.TagSet?.find(tag => tag.Key === tagKey)!.Value as string
 	} catch (e) {
-		if (['NoSuchKey', 'NotFound'].includes(((e as Error).name)))
+		if (['NoSuchKey', 'NotFound', 'MethodNotAllowed'].includes(((e as Error).name)))
 			return 'undefined'
 		await slackLog(s3GetTag.name, objectKey, tagKey, String(e))
 		throw new Error(`unexpected error`, { cause: e })
@@ -52,7 +52,7 @@ export const initLists = async () => {
 	try {
 
 		/** check if addresses.txt need to be created */
-		if (!(await keyExists('addresses.txt') || !await s3GetTag('addresses.txt', 'SHA-1'))) {
+		if (!await keyExists('addresses.txt') || !await s3GetTag('addresses.txt', 'SHA-1')) {
 			console.info(`list 'addresses.txt' or it's SHA-1 hash does not exist. creating...`)
 			console.info(
 				'addresses.txt count',
