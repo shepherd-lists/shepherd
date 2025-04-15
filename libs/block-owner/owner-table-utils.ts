@@ -43,3 +43,20 @@ export const createOwnerTable = async (owner: string) => {
 
 	return tablename
 }
+
+/** get a list of all the tables with blocked owners items.
+ * - N.B. omit whitelisted owners
+ */
+export const getOwnersTablenames = async () => {
+
+	const { rows } = await pool.query<{ tablename: string }>(`
+		SELECT tablename FROM pg_catalog.pg_tables
+		WHERE tablename LIKE 'owner\\_%'
+		AND NOT EXISTS (
+				SELECT 1 FROM owners_whitelist
+				WHERE pg_catalog.pg_tables.tablename = 'owner_' || REPLACE(owners_whitelist.owner, '-', '~')
+		);
+	`)
+
+	return rows.map(row => row.tablename)
+}
