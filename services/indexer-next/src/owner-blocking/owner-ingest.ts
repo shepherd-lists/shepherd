@@ -4,7 +4,7 @@ import pool from '../../../../libs/utils/pgClient'
 import { s3GetObject, s3HeadObject } from '../../../../libs/utils/s3-services'
 import { performance } from 'perf_hooks'
 import { slackLog } from '../../../../libs/utils/slackLog'
-import { updateFullTxidsRanges } from '../../../../libs/s3-lists/update-lists'
+
 
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
 const LISTS_BUCKET = process.env.LISTS_BUCKET!
@@ -149,7 +149,7 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 		)
 
 		/** update lists */
-		if (counts.inserts > 0) updateFullTxidsRanges()
+		// lists get updated in fnOwnerBlocking now
 
 		/** update state */
 		await pool.query(`UPDATE states SET value = $1 WHERE pname = 'owner_ingest'`, [vars.maxAt])
