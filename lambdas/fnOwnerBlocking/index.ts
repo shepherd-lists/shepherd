@@ -5,6 +5,7 @@ import { OwnerTableRecord } from '../../types'
 import { getByteRange } from '../../libs/byte-ranges/byteRanges'
 import { GQLEdgeInterface, GQLError } from 'ar-gql/dist/faces'
 import { gqlTx } from '../../libs/byte-ranges/gqlTx'
+import { updateS3Lists, UpdateItem } from '../../libs/s3-lists/update-lists'
 
 const gql = arGql({ endpointUrl: process.env.GQL_URL_SECONDARY, retries: 3 }) //defaults to goldsky
 const gqlBackup = arGql({ endpointUrl: process.env.GQL_URL, retries: 3 }) //defaults to arweave
@@ -87,16 +88,26 @@ export const handler = async (event: any) => {
 
 		/** batch insert this pages results */
 		const counts: { [owner: string]: number; total: number } = { total: 0 }
+		let listRecords: UpdateItem[] = []
 		for (const key of Object.keys(records)) {
 			const inserted = await batchInsertFnOwner(records[key], ownerToTablename(key))
+
+			/** add to lists update also */
+			const items = records[key].map<UpdateItem>(({ txid, byte_start, byte_end }) => ({
+				txid,
+				range: [Number(byte_start), Number(byte_end)],
+			}))
+			listRecords.push(...items)
 
 			if (!counts[key]) counts[key] = 0
 			counts[key] += inserted!
 			counts.total += inserted!
 		}
+		/** update s3 lists */
+		const updates = await updateS3Lists('owners/', listRecords)
 
 		//@ts-expect-error null is incorrect type, but we just want gc
-		records = null;
+		records = null; listRecords = null
 
 		console.info(`completed processing page ${inputs.pageNumber} ${JSON.stringify(counts)}`)
 
