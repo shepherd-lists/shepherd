@@ -157,7 +157,7 @@ export const updateS3Lists = async (
 			++count.ranges
 			ranges.write(`${range[0]},${range[1]}${remove}\n`)
 		} else {
-			slackLog(listname, `:warning: skipped range ${txid}`, JSON.stringify({ range }))
+			slackLog(`${path}*_${postfix} :warning: skipped range ${txid}`, JSON.stringify({ range }))
 		}
 	}
 
@@ -165,7 +165,7 @@ export const updateS3Lists = async (
 	ranges.end()
 	await Promise.all([txids.promise, ranges.promise])
 
-	await slackLog(listname, `created with ${count.txids} txids & ${count.ranges} ranges`, JSON.stringify({ keyTxids, keyRanges }))
+	await slackLog(`${path}*_${postfix} created with ${count.txids} txids & ${count.ranges} ranges`, JSON.stringify({ keyTxids, keyRanges }))
 	return count //for testing
 }
 
