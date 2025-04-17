@@ -11,21 +11,15 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
 export const ownerChecks = async () => {
-	/** restart on errors */
-	let runonce = true
 	while (true) {
 		try {
 
 			/** check if lists need to be updated */
-			//this should be in a setInterval with it's own try-catch?
-			if (
-				await checkForManuallyModifiedOwners() // returns true if whitelisted items need to be removed
-				|| await processBlockedOwnersQueue() //blocks 1 owner from queue
-			) {
-				console.info('owner modified. recreating lists') //<= this should be done internally above when updates are found or queue processed
-				const updateLists = await updateFullTxidsRanges()
-				console.info({ updateLists })
-			} else {
+
+			await checkForManuallyModifiedOwners()
+			const queueProcessing = await processBlockedOwnersQueue() //blocks 1 owner from queue. s3 updates handled internally
+
+			if (!queueProcessing) {
 				console.info(ownerChecks.name, 'nothing to do. sleeping for 50 seconds...')
 				await new Promise(resolve => setTimeout(resolve, 50_000))
 			}
