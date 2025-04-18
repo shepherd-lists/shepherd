@@ -85,7 +85,7 @@ export async function checkForManuallyModifiedOwners() {
 
 	/** this fn checks internally if it needs updating */
 	const addrUpdated = await updateAddresses()
-	console.info(checkForManuallyModifiedOwners.name, addrUpdated ? 'addresses updated' : 'addresses unchanged', addrUpdated)
+	console.info(checkForManuallyModifiedOwners.name, addrUpdated ? 'addresses updated' : 'addresses unchanged')
 
 	/** queue any new owners */
 	for (const owner of newOwners) {
