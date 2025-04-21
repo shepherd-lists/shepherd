@@ -97,14 +97,3 @@ export const updateS3Lists = async (
 	await slackLog(`${path}*_${postfix} created with ${count.txids} txids & ${count.ranges} ranges`, JSON.stringify({ keyTxids, keyRanges }))
 	return count //for testing
 }
-
-
-
-/** updateFullTxidsRanges.  */
-/** @deprecated use specific updates. this is not functional and throws error */
-export const updateFullTxidsRanges = async () => {
-	const msg = `ERROR! ${updateFullTxidsRanges.name} is deprecated and no longer functional`
-	await slackLog(msg)
-	throw new Error(msg)
-}
-
