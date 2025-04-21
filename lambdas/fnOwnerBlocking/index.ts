@@ -103,8 +103,11 @@ export const handler = async (event: any) => {
 			counts[key] += inserted!
 			counts.total += inserted!
 		}
-		/** update s3 lists */
-		const updates = await updateS3Lists('owners/', listRecords)
+		/** update s3 lists, but dont create empty files */
+		if (counts.total > 0) {
+			await updateS3Lists('owners/', listRecords)
+		}
+
 
 		//@ts-expect-error null is incorrect type, but we just want gc
 		records = null; listRecords = null
