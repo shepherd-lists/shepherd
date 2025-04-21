@@ -1,10 +1,11 @@
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import dbConnection from '../../../libs/utils/knexCreate'
 import { slackLog } from '../../../libs/utils/slackLog'
-import { ownerToInfractionsTablename, ownerToOwnerTablename } from '../../../libs/block-owner/owner-table-utils'
+import { ownerToInfractionsTablename } from '../../../libs/block-owner/owner-table-utils'
 import { infraction_limit } from '../../../libs/constants'
 import { queueBlockOwner } from '../../../libs/block-owner/owner-blocking'
-import { updateAddresses, UpdateItem, updateS3Lists } from '../../../libs/s3-lists/update-lists'
+import { UpdateItem, updateS3Lists } from '../../../libs/s3-lists/update-lists'
+import { updateAddresses } from '../../../libs/s3-lists/update-addresses'
 import { OwnersListRecord } from '../../../types'
 import { mergeRulesObject } from './service/move-records'
 
