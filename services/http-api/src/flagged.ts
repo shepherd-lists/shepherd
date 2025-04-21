@@ -4,7 +4,7 @@ import { slackLog } from '../../../libs/utils/slackLog'
 import { ownerToInfractionsTablename, ownerToOwnerTablename } from '../../../libs/block-owner/owner-table-utils'
 import { infraction_limit } from '../../../libs/constants'
 import { queueBlockOwner } from '../../../libs/block-owner/owner-blocking'
-import { updateAddresses, updateFullTxidsRanges } from '../../../libs/s3-lists/update-lists'
+import { updateAddresses, UpdateItem, updateS3Lists } from '../../../libs/s3-lists/update-lists'
 import { OwnersListRecord } from '../../../types'
 import { mergeRulesObject } from './service/move-records'
 
@@ -48,6 +48,7 @@ export const processFlagged = async (
 	*/
 
 	const owner = record.owner!
+	const completedRecord = { ...record, ...updates }
 
 
 	const trx = await knex.transaction()
@@ -63,8 +64,7 @@ export const processFlagged = async (
 
 		/** insert to txs */
 		const resInsert = await trx('txs')
-			.insert({ ...record, ...updates })
-			// .onConflict('txid').merge() this just shouldn't happen ?? why did i think this?
+			.insert(completedRecord)
 			.onConflict('txid').merge(mergeRulesObject())
 			.returning('txid')
 		const insertedId = resInsert[0]?.txid
@@ -72,6 +72,12 @@ export const processFlagged = async (
 			await slackLog(txid, 'ERROR ❌ cannot insert flagged to txs', `(${JSON.stringify(updates)}) => ${resInsert}`)
 			throw new Error(`Could not insert ${txid} into txs`) //cause a rollback
 		}
+
+		/** update s3 lists: `list/` & `flagged/` */
+		const s3Record: UpdateItem = { txid, range: [Number(completedRecord.byte_start), Number(completedRecord.byte_end)] }
+		await updateS3Lists('list/', [s3Record])
+		await updateS3Lists('flagged/', [s3Record])
+
 		await trx.commit()
 	} catch (err: unknown) {
 		await trx.rollback()
@@ -92,10 +98,6 @@ export const processFlagged = async (
 		}
 		throw e // this will cause service to fatally crash!
 	}
-
-
-	/** update s3-lists. this causes a full re-write. use sparingly */
-	await updateFullTxidsRanges()
 
 }
 
