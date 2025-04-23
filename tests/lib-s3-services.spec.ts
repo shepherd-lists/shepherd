@@ -1,9 +1,9 @@
 import 'dotenv/config'
-import { s3DeleteObject, s3HeadObject, s3GetObject, s3GetObjectWebStream, s3PutObject, s3UploadStream, s3CheckFolderExists, s3ListFolderObjects, s3DeleteFolder } from '../../libs/utils/s3-services'
+import { s3DeleteObject, s3HeadObject, s3GetObject, s3GetObjectWebStream, s3PutObject, s3UploadStream, s3CheckFolderExists, s3ListFolderObjects, s3DeleteFolder } from '../libs/utils/s3-services'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
-import { readlineWeb } from '../../libs/utils/webstream-utils'
+import { readlineWeb } from '../libs/utils/webstream-utils'
 
 console.debug(`process.env.LISTS_BUCKET = "${process.env.LISTS_BUCKET}"`)
 const Bucket = process.env.LISTS_BUCKET as string

@@ -1,5 +1,5 @@
 node_modules
 *.DS_Store
-tests/lib-tests/rangelist.txt
 services/checks/src/quicktest-rangesOverlap.ts
 compose.yml
+tests/lib-rangelist.txt
