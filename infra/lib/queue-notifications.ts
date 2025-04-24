@@ -30,7 +30,7 @@ export const inputQMetricAndNotifications = (
 	})
 
 	/** create a slack posting lambda */
-	const fnSlack = new aws_lambda_nodejs.NodejsFunction(stack, 'fnSlackInputAgeAlarm2', {
+	const fnSlack = new aws_lambda_nodejs.NodejsFunction(stack, 'fnSlackInputAgeAlarm3', {
 		runtime: aws_lambda.Runtime.NODEJS_22_X, //NOTE THE HACK BELOW OVERRIDING THIS!!!
 		architecture: aws_lambda.Architecture.X86_64,
 		handler: 'handler',
