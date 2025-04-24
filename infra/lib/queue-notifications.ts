@@ -31,7 +31,7 @@ export const inputQMetricAndNotifications = (
 
 	/** create a slack posting lambda */
 	const fnSlack = new aws_lambda_nodejs.NodejsFunction(stack, 'fnSlackInputAgeAlarm2', {
-		runtime: aws_lambda.Runtime.NODEJS_22_X,
+		runtime: aws_lambda.Runtime.NODEJS_22_X, //NOTE THE HACK BELOW OVERRIDING THIS!!!
 		architecture: aws_lambda.Architecture.X86_64,
 		handler: 'handler',
 		entry: new URL('../lambdas/slack/index.ts', import.meta.url).pathname,
@@ -45,6 +45,11 @@ export const inputQMetricAndNotifications = (
 			SLACK_PUBLIC: slackPublic,
 		}
 	})
+	//directly override the cfn, linux synths are locally stuck on earlier nodejs runtime
+	const cfnHack = fnSlack.node.defaultChild as aws_lambda.CfnFunction
+	if(cfnHack){
+		cfnHack.addPropertyOverride('Runtime', 'nodejs22.x')
+	}
 
 	/** topic is just a pipe */
 	const topic = new aws_sns.Topic(stack, 'inputAgeAlarmTopic')
