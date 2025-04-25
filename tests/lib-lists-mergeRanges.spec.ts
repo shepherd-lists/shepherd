@@ -18,17 +18,18 @@ const rangesSize = (ranges: Array<ByteRange>, id: string) => {
 	return total
 }
 
-/** load big test file of ranges */
-let temp = readFileSync(
-	new URL('./lib-nsfw.txt', import.meta.url), 'utf-8'
-	// new URL('./lib-rangelist.txt', import.meta.url), 'utf-8'
-).split('\n')
-temp.pop() //remove last blank line
-const original = temp.map(line => line.split(',').map(Number)) as Array<ByteRange>
-temp.length = 0 //release
-
+const loadRangesFromFile = () => {
+	/** load big test file of ranges */
+	let temp = readFileSync(
+		new URL('./lib-nsfw.txt', import.meta.url), 'utf-8'
+		// new URL('./lib-rangelist.txt', import.meta.url), 'utf-8'
+	).split('\n')
+	temp.pop() //remove last blank line
+	return temp.map(line => line.split(',').map(Number)) as Array<ByteRange>
+}
 
 describe('lists mergeRanges tests', () => {
+
 
 	it('should merge test data reducing number of ranges, but not total length', async () => {
 		const small: Array<ByteRange> = [
@@ -56,6 +57,8 @@ describe('lists mergeRanges tests', () => {
 
 	it('should merge real data, reducing number of ranges, but not total length', async () => {
 
+		const original = loadRangesFromFile()
+
 		const beforeSize = rangesSize(original, 'original')
 		console.debug('original: size', beforeSize.toLocaleString(), 'length', original.length)
 
@@ -75,6 +78,7 @@ describe('lists mergeRanges tests', () => {
 	it.skip('ensure that the original ranges completely overlap the merged range', async () => {
 
 		console.info('/** Warning: this test will take a while to run. */')
+		const original = loadRangesFromFile()
 
 		const merged = mergeErlangRanges(original)
 		let count = 0
@@ -87,6 +91,8 @@ describe('lists mergeRanges tests', () => {
 	})
 
 	it('checks if a specific byte is not covered in original and merged ranges', async () => {
+		const original = loadRangesFromFile()
+
 		const testByte = 79274611613942
 		let notFound = true
 		for (const range of original) {
@@ -112,15 +118,13 @@ describe('lists mergeRanges tests', () => {
 	})
 
 	it('should not mutate the input array', function () {
-		const input: ByteRange[] = [
-			[10, 20],
-			[5, 15],
-			[30, 40],
-			[25, 35],
-		]
+
+		const input: ByteRange[] = [[10, 20], [5, 15], [30, 40], [25, 35]]
+
 		mergeErlangRanges(input)
 
-		assert.deepEqual(input, [[1, 5], [6, 8]], 'Input array was mutated')
+		assert.deepEqual(input, [[10, 20], [5, 15], [30, 40], [25, 35]], 'Input array was mutated')
+
 	})
 
 })
