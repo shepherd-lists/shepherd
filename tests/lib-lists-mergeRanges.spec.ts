@@ -111,4 +111,16 @@ describe('lists mergeRanges tests', () => {
 
 	})
 
+	it('should not mutate the input array', function () {
+		const input: ByteRange[] = [
+			[10, 20],
+			[5, 15],
+			[30, 40],
+			[25, 35],
+		]
+		mergeErlangRanges(input)
+
+		assert.deepEqual(input, [[1, 5], [6, 8]], 'Input array was mutated')
+	})
+
 })
