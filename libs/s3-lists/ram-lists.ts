@@ -43,10 +43,9 @@ export const normalizedRanges = () => {
 
 		dirty = true
 
-		const updatedRanges: ByteRange[] = []
 
-		for (const range of rangesToRemove) {
-			const [removeStart, removeEnd] = range
+		for (const [removeStart, removeEnd] of rangesToRemove) {
+			const updatedRanges: ByteRange[] = []
 
 			for (const [rStart, rEnd] of ranges) {
 				if (rEnd < removeStart || rStart > removeEnd) {
@@ -62,10 +61,11 @@ export const normalizedRanges = () => {
 					}
 				}
 			}
+
+			// Update the main ranges with the modified state
+			ranges = updatedRanges
 		}
 
-		// Update the main ranges with the modified state
-		ranges = updatedRanges
 
 	}, removing)
 
