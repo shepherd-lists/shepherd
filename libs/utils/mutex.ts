@@ -28,10 +28,13 @@ export const createMutex = () => {
 		})
 	}
 
-	const runExclusive = async <T>(callback: () => Promise<T> | T): Promise<T> => {
+	const runExclusive = async <T, Args extends any[]>(
+		callback: (...args: Args) => Promise<T> | T,
+		...args: Args
+	): Promise<T> => {
 		const unlock = await lock()
 		try {
-			return await callback()
+			return await callback(...args)
 		} finally {
 			unlock()
 		}
