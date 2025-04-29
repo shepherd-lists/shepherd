@@ -28,7 +28,7 @@ export const createMutex = () => {
 		})
 	}
 
-	const runExclusive = async <T, Args extends any[]>(
+	const acquireLock = async <T, Args extends any[]>(
 		callback: (...args: Args) => Promise<T> | T,
 		...args: Args
 	): Promise<T> => {
@@ -41,6 +41,6 @@ export const createMutex = () => {
 	}
 
 	return {
-		runExclusive,
+		acquireLock,
 	}
 }
