@@ -43,7 +43,6 @@ export const normalizedRanges = () => {
 
 		dirty = true
 
-
 		for (const [removeStart, removeEnd] of rangesToRemove) {
 			const updatedRanges: ByteRange[] = []
 
