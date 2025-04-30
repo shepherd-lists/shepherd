@@ -47,10 +47,10 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 		instanceType: new aws_ec2.InstanceType('t3a.nano'), // t3a.nano is cheapest
 		machineImage: aws_ec2.MachineImage.genericLinux({
 			/** ubuntu 22.04 LTS amd64. TODO: add more regions. https://cloud-images.ubuntu.com/locator/ec2/ */
-			'eu-west-1': 'ami-0932dacac40965a65',
-			'eu-west-2': 'ami-07d20571c32ba6cdc',
-			'ap-southeast-1': 'ami-0497a974f8d5dcef8',
-			'eu-central-1': 'ami-07652eda1fbad7432',
+			'eu-west-1': 'ami-0043735dd4439caed',
+			'eu-west-2': 'ami-019a63e66799737f9',
+			'ap-southeast-1': 'ami-013d590bbcbfa9792',
+			'eu-central-1': 'ami-01179af425b2ee025',
 		}),
 		securityGroup,
 		vpcSubnets: {
