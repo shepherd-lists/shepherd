@@ -48,7 +48,7 @@ describe('s3 lists', () => {
 
 		assert.ok(await s3CheckFolderExists(bucket, testFolder))
 		const listnames = await s3ListFolderObjects(bucket, testFolder)
-		assert.equal(listnames.length, 2) //txids & ranges lists
+		assert.equal(listnames.length, 3) //txids & ranges lists + .last_update file
 	})
 
 	it('updateS3Lists should update an s3 folder using stream input', async () => {
@@ -79,7 +79,7 @@ describe('s3 lists', () => {
 		/** check the actual s3 objects */
 		assert.ok(await s3CheckFolderExists(bucket, testFolder))
 		const listnames = await s3ListFolderObjects(bucket, testFolder)
-		assert.equal(listnames.length, 2) //txids & ranges lists
+		assert.equal(listnames.length, 3) //txids & ranges lists + .last_update file
 
 		const txidsName = listnames.find(n => n.includes('txids')) as string
 		const rangesName = listnames.find(n => n.includes('ranges')) as string
@@ -107,7 +107,7 @@ describe('s3 lists', () => {
 
 		/** examine lists */
 		const listnames = await s3ListFolderObjects(bucket, testFolder)
-		assert.equal(listnames.length, 2, `listnames.length should be 2: ${JSON.stringify(listnames)}`) //txids & ranges lists. these get cleared every test run
+		assert.equal(listnames.length, 3, `listnames.length should be 3: ${JSON.stringify(listnames)}`) //txids & ranges lists + .last_update file. these get cleared every test run
 
 		const txidsName = listnames.find(n => n.includes('txids')) as string //probably could do with a util for grabbing pairs of list names later
 		const rangesName = listnames.find(n => n.includes('ranges')) as string
@@ -127,7 +127,7 @@ describe('s3 lists', () => {
 
 		/** examine lists */
 		const listnames = await s3ListFolderObjects(bucket, testFolder)
-		assert.equal(listnames.length, 2, `listnames.length should be 2: ${JSON.stringify(listnames)}`) //txids & ranges lists. these get cleared every test run
+		assert.equal(listnames.length, 3, `listnames.length should be 3: ${JSON.stringify(listnames)}`) //txids & ranges lists + .last_update file
 
 		const txidsName = listnames.find(n => n.includes('txids')) as string //probably could do with a util for grabbing pairs of list names later
 		const rangesName = listnames.find(n => n.includes('ranges')) as string
