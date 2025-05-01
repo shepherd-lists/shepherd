@@ -1,4 +1,4 @@
-import { s3UploadReadable, s3CheckFolderExists } from "../utils/s3-services"
+import { s3UploadReadable, s3CheckFolderExists, s3PutObject, s3HeadObject } from "../utils/s3-services"
 import { slackLog } from "../utils/slackLog"
 import { ByteRange } from "./merge-ranges"
 import { lambdaInvoker } from "../utils/lambda-invoker"
@@ -94,6 +94,24 @@ export const updateS3Lists = async (
 	ranges.end()
 	await Promise.all([txids.promise, ranges.promise])
 
+	/* touch .last_update file for folder after updates created */
+	await s3PutObject({ Bucket: LISTS_BUCKET, Key: `${path}.last_update`, text: '.' })
+
 	await slackLog(`${path}*_${postfix} created with ${count.txids} txids & ${count.ranges} ranges`, JSON.stringify({ keyTxids, keyRanges }))
 	return count //for testing
 }
+
+export const lastModified = async (foldername: string) => {
+	const folderPath = foldername.endsWith('/') ? foldername : `${foldername}/`
+	const key = `${folderPath}.last_update`
+	try {
+		const res = await s3HeadObject(LISTS_BUCKET, key)
+		console.debug('RES', res)
+
+		return res.LastModified!.valueOf() //msecs
+	} catch (e: unknown) {
+		await slackLog(lastModified.name, `'.last_update' not found for '${key}'`, (e as Error).name)
+		throw e
+	}
+}
+
