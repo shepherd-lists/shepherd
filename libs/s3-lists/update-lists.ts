@@ -106,9 +106,9 @@ export const lastModified = async (foldername: string) => {
 	const key = `${folderPath}.last_update`
 	try {
 		const res = await s3HeadObject(LISTS_BUCKET, key)
-		console.debug('RES', res)
-
-		return res.LastModified!.valueOf() //msecs
+		const LastModified = res.LastModified!.valueOf()
+		console.debug({ LastModified })
+		return LastModified //msecs
 	} catch (e: unknown) {
 		await slackLog(lastModified.name, `'.last_update' not found for '${key}'`, (e as Error).name)
 		throw e
