@@ -1,22 +1,24 @@
-import { s3GetObject, s3GetObjectWebStream, s3ListFolderObjects } from '../utils/s3-services'
+import { s3GetObject, s3ListFolderObjects } from '../utils/s3-services'
 import { normalizedRanges, uniqTxidArray } from './ram-lists'
 
 
 const LISTS_BUCKET = process.env.LISTS_BUCKET as string
 
+/** N.B. 
+ * we have to split up txid & range caching. they are handled in separate processes. 
+ * no, this doesn't mean the s3 files get read twice, just the folder contents list.
+ * 
+ * so remember, no "shared" data here outside of the functions.
+ */
 
-export const initRamList = async (listdir: string) => {
+export const initTxidsArray = async (listdir: string) => {
 	//1. get all file names
 	const files = await s3ListFolderObjects(LISTS_BUCKET, listdir)
 	//2. filter into 2 lists: one for txid and one for range
-	const [txidFiles, rangeFiles] = files.reduce<[string[], string[]]>((acc, s) => {
-		acc[s.includes('txid') ? 0 : 1].push(s)
-		return acc;
-	}, [[], []])
+	const txidFiles = files.filter(f => f.includes('txids'))
 
 	//3. ascending sort txids and ranges. we need to apply updates in order
 	txidFiles.sort()
-	rangeFiles.sort()
 
 	//4. read each update file and apply to txids accordingly
 	const txids = uniqTxidArray() //this is our ram cached list
@@ -37,6 +39,14 @@ export const initRamList = async (listdir: string) => {
 			}
 		}
 	}
+
+	return txids;
+}
+
+export const initRangesArray = async (listdir: string) => {
+	const files = await s3ListFolderObjects(LISTS_BUCKET, listdir)
+	const rangeFiles = files.filter(f => f.includes('ranges'))
+	rangeFiles.sort()
 
 	//5. ranges will require a more complicated add/remove logic, as they can overlap and need to be merged
 	const ranges = normalizedRanges()
@@ -61,8 +71,5 @@ export const initRamList = async (listdir: string) => {
 	}
 	await ranges.getRanges() // pre-process the ranges.
 
-	return {
-		txids,
-		ranges,
-	}
+	return ranges;
 }
