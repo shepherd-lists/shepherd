@@ -10,14 +10,14 @@ describe('mutex', () => {
 		const completed1: string[] = []
 		const completedA: string[] = []
 
-		const tasks1 = ['1', '2', '3'].map(taskId => mutex1.runExclusive(async (id: string) => {
+		const tasks1 = ['1', '2', '3'].map(taskId => mutex1.acquireLock(async (id: string) => {
 			// console.log(`Task ${id} acquired lock`)
 			await new Promise((resolve) => setTimeout(resolve, 100))
 			completed1.push(id)
 			// console.log(`Task ${id} releasing lock`)
 		}, taskId))
 
-		const tasksA = ['A', 'B', 'C'].map(taskid => mutexA.runExclusive(async (id: string) => {
+		const tasksA = ['A', 'B', 'C'].map(taskid => mutexA.acquireLock(async (id: string) => {
 			// console.log(`Task ${id} acquired lock`)
 			await new Promise((resolve) => setTimeout(resolve, 100))
 			completedA.push(id)

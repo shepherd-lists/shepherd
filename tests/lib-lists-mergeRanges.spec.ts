@@ -21,8 +21,8 @@ const rangesSize = (ranges: Array<ByteRange>, id: string) => {
 const loadRangesFromFile = () => {
 	/** load big test file of ranges */
 	let temp = readFileSync(
-		new URL('./lib-nsfw.txt', import.meta.url), 'utf-8'
-		// new URL('./lib-rangelist.txt', import.meta.url), 'utf-8'
+		new URL('./assets/lib-nsfw.txt', import.meta.url), 'utf-8'
+		// new URL('./assets/lib-rangelist.txt', import.meta.url), 'utf-8'
 	).split('\n')
 	temp.pop() //remove last blank line
 	return temp.map(line => line.split(',').map(Number)) as Array<ByteRange>
