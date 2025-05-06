@@ -11,7 +11,7 @@ const LISTS_BUCKET = process.env.LISTS_BUCKET as string
  * so remember, no "shared" data here outside of the functions.
  */
 
-export const initTxidsArray = async (listdir: string) => {
+export const initTxidsCache = async (listdir: string) => {
 	//1. get all file names
 	const files = await s3ListFolderObjects(LISTS_BUCKET, listdir)
 	//2. filter into 2 lists: one for txid and one for range
@@ -43,7 +43,7 @@ export const initTxidsArray = async (listdir: string) => {
 	return txids;
 }
 
-export const initRangesArray = async (listdir: string) => {
+export const initRangesCache = async (listdir: string) => {
 	const files = await s3ListFolderObjects(LISTS_BUCKET, listdir)
 	const rangeFiles = files.filter(f => f.includes('ranges'))
 	rangeFiles.sort()

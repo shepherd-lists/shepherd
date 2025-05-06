@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import assert from "node:assert/strict"
 import { after, afterEach, beforeEach, describe, it } from 'node:test'
-import { initTxidsArray, initRangesArray } from '../libs/s3-lists/read-lists'
+import { initTxidsCache, initRangesCache } from '../libs/s3-lists/read-lists'
 import { s3DeleteFolder } from '../libs/utils/s3-services'
 import { lastModified, UpdateItem, updateS3Lists } from '../libs/s3-lists/update-lists'
 
@@ -30,10 +30,10 @@ describe('read-lists tests', () => {
 	})
 
 	it('should apply updates in order', async () => {
-		const txids = await initTxidsArray(listname)
+		const txids = await initTxidsCache(listname)
 		assert.deepEqual(txids.txids(), ['txid01', 'txid02', 'txid04', 'txid05', 'txid06'])
 
-		const ranges = await initRangesArray(listname)
+		const ranges = await initRangesCache(listname)
 		assert.deepEqual(await ranges.getRanges(), [[50, 150], [300, 500]])
 
 		//test lastModified file
