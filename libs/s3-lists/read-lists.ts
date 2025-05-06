@@ -11,11 +11,15 @@ const LISTS_BUCKET = process.env.LISTS_BUCKET as string
  * so remember, no "shared" data here outside of the functions.
  */
 
+const lastInternal = (files: string[]) => {
+
+}
+
 export const initTxidsCache = async (listdir: string) => {
 	//1. get all file names
 	const files = await s3ListFolderObjects(LISTS_BUCKET, listdir)
 	//2. filter into 2 lists: one for txid and one for range
-	const txidFiles = files.filter(f => f.includes('txids'))
+	const txidFiles = files.filter(f => f.Key.includes('txids')).map(f => f.Key)
 
 	//3. ascending sort txids and ranges. we need to apply updates in order
 	txidFiles.sort()
@@ -45,7 +49,7 @@ export const initTxidsCache = async (listdir: string) => {
 
 export const initRangesCache = async (listdir: string) => {
 	const files = await s3ListFolderObjects(LISTS_BUCKET, listdir)
-	const rangeFiles = files.filter(f => f.includes('ranges'))
+	const rangeFiles = files.filter(f => f.Key.includes('ranges')).map(f => f.Key)
 	rangeFiles.sort()
 
 	//5. ranges will require a more complicated add/remove logic, as they can overlap and need to be merged
