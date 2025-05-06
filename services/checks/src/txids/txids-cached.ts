@@ -1,6 +1,8 @@
 import { s3GetObjectWebStream, s3HeadObject } from "../../../../libs/utils/s3-services"
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { readlineWeb } from "../../../../libs/utils/webstream-utils"
+import { FolderName } from "./types"
+import { lastModified } from "../../../../libs/s3-lists/update-lists"
 
 
 
@@ -16,7 +18,7 @@ const _txidCaches: { [key: string]: TxidCache } = {}
 
 
 
-export const getBlockedTxids = async (key: ('txidflagged.txt' | 'txidowners.txt' | `${string}/txids.txt`)) => {
+export const getBlockedTxids = async (key: FolderName) => {
 	/** create an empty entry */
 	if (!_txidCaches[key]) {
 		_txidCaches[key] = { eTag: '', ids: [], inProgress: false }

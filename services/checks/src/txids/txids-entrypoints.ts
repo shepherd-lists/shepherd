@@ -1,4 +1,5 @@
 import { checkServerTxids } from "./txids-checkHeads"
+import { FolderName } from "./types"
 
 
 /* load the access lists */
@@ -11,7 +12,7 @@ let _running: { [key: string]: boolean } = {}
 /** 
  * txid checks 
  */
-export const checkTxids = async (key: 'txidflagged.txt' | 'txidowners.txt' | `${string}/txids.txt`) => {
+export const checkTxids = async (key: FolderName) => {
 	/** short-circuit */
 	if (gwUrls.length === 0) {
 		console.info(checkTxids.name, key, 'no gw urls configured, exiting.', gwUrls)

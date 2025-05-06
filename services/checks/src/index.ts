@@ -93,10 +93,10 @@ process.on('unhandledRejection', (reason, promise) => {
 
 /** txid & alarm entrypoints after process event handlers */
 
-setInterval(() => checkTxids('txidflagged.txt'), FLAGGED_INTERVAL)
-setInterval(() => checkTxids('txidowners.txt'), OWNERS_INTERVAL)
-checkTxids('txidowners.txt') //start early
-const addonKeys = (await addonTxsTableNames()).map(t => `${t.split('_')[0]}/txids.txt`) as `${string}/txids.txt`[]
+setInterval(() => checkTxids('flagged/'), FLAGGED_INTERVAL)
+setInterval(() => checkTxids('owners/'), OWNERS_INTERVAL)
+checkTxids('owners/') //start early
+const addonKeys = (await addonTxsTableNames()).map(t => `${t.split('_')[0]}/`) as `${string}/`[]
 console.info(JSON.stringify({ addonKeys }))
 addonKeys.map(key => setInterval(() => checkTxids(key), DNSR_INTERVAL))
 

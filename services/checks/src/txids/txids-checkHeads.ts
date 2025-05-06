@@ -6,6 +6,7 @@ import { performance } from 'perf_hooks'
 import { checkReachable } from "../checkReachable"
 import { getServerAlarms, setAlertState } from "../event-tracking"
 import { setUnreachable, unreachableTimedout } from '../event-unreachable'
+import { FolderName } from "./types"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -121,7 +122,7 @@ const alarmOkHandler = async (session: ClientHttp2Session, gw_url: string, txid:
 }
 
 let _sliceStart: { [key: string]: number } = {} // just keep going around even after errors
-export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt' | `${string}/txids.txt`)) => {
+export const checkServerTxids = async (gw_url: string, key: FolderName) => {
 	//sanity
 	if (!gw_url.startsWith('https://')) throw new Error(`invalid format. gw_url must start with https:// => ${gw_url}`)
 
