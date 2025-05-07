@@ -81,8 +81,8 @@ describe('s3 lists', () => {
 		const listnames = await s3ListFolderObjects(bucket, testFolder)
 		assert.equal(listnames.length, 3) //txids & ranges lists + .last_update file
 
-		const txidsName = listnames.find(n => n.Key.includes('txids'))!.Key
-		const rangesName = listnames.find(n => n.Key.includes('ranges'))!.Key
+		const txidsName = listnames.find(n => n.includes('txids'))!
+		const rangesName = listnames.find(n => n.includes('ranges'))!
 
 		assert.equal((await s3GetObject(bucket, txidsName)).split('\n').length - 1, totalItems)
 		assert.equal((await s3GetObject(bucket, rangesName)).split('\n').length - 1, totalItems - Math.floor(totalItems / 400))
@@ -109,8 +109,8 @@ describe('s3 lists', () => {
 		const listnames = await s3ListFolderObjects(bucket, testFolder)
 		assert.equal(listnames.length, 3, `listnames.length should be 3: ${JSON.stringify(listnames)}`) //txids & ranges lists + .last_update file. these get cleared every test run
 
-		const txidsName = listnames.find(n => n.Key.includes('txids'))!.Key //probably could do with a util for grabbing pairs of list names later
-		const rangesName = listnames.find(n => n.Key.includes('ranges'))!.Key
+		const txidsName = listnames.find(n => n.includes('txids'))!
+		const rangesName = listnames.find(n => n.includes('ranges'))!
 		assert.equal((await s3GetObject(bucket, txidsName)).split('\n').length - 1, totalItems)
 		assert.equal((await s3GetObject(bucket, rangesName)).split('\n').length - 1, totalItems)
 
@@ -129,8 +129,8 @@ describe('s3 lists', () => {
 		const listnames = await s3ListFolderObjects(bucket, testFolder)
 		assert.equal(listnames.length, 3, `listnames.length should be 3: ${JSON.stringify(listnames)}`) //txids & ranges lists + .last_update file
 
-		const txidsName = listnames.find(n => n.Key.includes('txids'))!.Key //probably could do with a util for grabbing pairs of list names later
-		const rangesName = listnames.find(n => n.Key.includes('ranges'))!.Key
+		const txidsName = listnames.find(n => n.includes('txids'))!
+		const rangesName = listnames.find(n => n.includes('ranges'))!
 		assert.equal((await s3GetObject(bucket, txidsName)).length, 0)
 		assert.equal((await s3GetObject(bucket, rangesName)).length, 0)
 	})

@@ -56,10 +56,7 @@ export const s3ListFolderObjects = async (Bucket: string, folder: string) => {
 		continuationToken = NextContinuationToken
 	} while (continuationToken)
 
-	return contents.map(item => ({
-		Key: item.Key as string,
-		LastModified: item.LastModified as Date,
-	}))
+	return contents.map(item => item.Key as string)
 }
 
 export const s3DeleteFolder = async (Bucket: string, folder: string) => {
