@@ -19,9 +19,9 @@ export const uniqTxidArray = () => {
 			itemSet.delete(item)
 		}
 	}
-	const txids = () => items
+	const getTxids = () => items
 
-	return { add, remove, txids }
+	return { add, remove, getTxids }
 }
 export type UniqTxidArray = ReturnType<typeof uniqTxidArray>
 
