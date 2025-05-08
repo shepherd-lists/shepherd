@@ -66,7 +66,7 @@ export const processAddonTable = async ({
 		}))
 
 		/* touch .last_update file for folder after updates created */
-		await s3PutObject({ Bucket: LISTS_BUCKET, Key: `${prefix}.last_update`, text: `${now.valueOf()}` })
+		await s3PutObject({ Bucket: LISTS_BUCKET, Key: `${prefix}/.last_update`, text: `${now.valueOf()}` })
 
 		/** return count */
 		console.info(`${tablename}  stream done. ${c} items in ${(Date.now() - t).toLocaleString()}ms`)
