@@ -27,7 +27,7 @@ describe('fnInitLists tests', () => {
 				highWaterMark: 200,
 				ranges,
 				LISTS_BUCKET: process.env.LISTS_BUCKET!,
-				postfix: 'postfix/',
+				now: new Date(),
 			})
 
 			// console.debug({ ranges })
