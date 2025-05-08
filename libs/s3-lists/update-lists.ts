@@ -1,4 +1,4 @@
-import { s3UploadReadable, s3CheckFolderExists, s3PutObject, s3HeadObject } from "../utils/s3-services"
+import { s3UploadReadable, s3CheckFolderExists, s3PutObject, s3GetObject } from "../utils/s3-services"
 import { slackLog } from "../utils/slackLog"
 import { ByteRange } from "./merge-ranges"
 import { lambdaInvoker } from "../utils/lambda-invoker"
@@ -62,7 +62,7 @@ export interface UpdateItem {
 	range: ByteRange
 	op?: 'remove'
 }
-export const newUpdateKeyPostfix = () => new Date().toISOString().replace(/[:.]/g, '-') + '.txt'
+export const newUpdateKeyPostfix = (d: Date) => d.toISOString().replace(/[:.]/g, '-') + '.' + d.valueOf() + '.txt'
 
 export const updateS3Lists = async (
 	listname: string,
@@ -70,7 +70,8 @@ export const updateS3Lists = async (
 ) => {
 	const path = listname.endsWith('/') ? listname : listname + '/'
 
-	const postfix = newUpdateKeyPostfix()
+	const now = new Date()
+	const postfix = newUpdateKeyPostfix(now)
 	const keyTxids = `${path}txids_${postfix}`
 	const keyRanges = `${path}ranges_${postfix}`
 
@@ -95,22 +96,22 @@ export const updateS3Lists = async (
 	await Promise.all([txids.promise, ranges.promise])
 
 	/* touch .last_update file for folder after updates created */
-	await s3PutObject({ Bucket: LISTS_BUCKET, Key: `${path}.last_update`, text: '.' })
+	await s3PutObject({ Bucket: LISTS_BUCKET, Key: `${path}.last_update`, text: `${now.valueOf()}` })
 
 	await slackLog(`${path}*_${postfix} created with ${count.txids} txids & ${count.ranges} ranges`, JSON.stringify({ keyTxids, keyRanges }))
 	return count //for testing
 }
 
-export const lastModified = async (foldername: string) => {
+export const getLastModified = async (foldername: string) => {
 	const folderPath = foldername.endsWith('/') ? foldername : `${foldername}/`
 	const key = `${folderPath}.last_update`
 	try {
-		const res = await s3HeadObject(LISTS_BUCKET, key)
-		const LastModified = res.LastModified!.valueOf()
-		console.debug({ LastModified })
+		const res = await s3GetObject(LISTS_BUCKET, key)
+		const LastModified = Number(res)
+		// console.debug({ LastModified })
 		return LastModified //msecs
 	} catch (e: unknown) {
-		await slackLog(lastModified.name, `'.last_update' not found for '${key}'`, (e as Error).name)
+		await slackLog(getLastModified.name, `error for '${key}'`, (e as Error).name)
 		throw e
 	}
 }
