@@ -23,6 +23,7 @@ export const uniqTxidArray = () => {
 
 	return { add, remove, txids }
 }
+export type UniqTxidArray = ReturnType<typeof uniqTxidArray>
 
 
 /** we've got to be careful that the output state represents the merged ranges in order of adding/removal */
@@ -84,3 +85,5 @@ export const normalizedRanges = () => {
 		getRanges,
 	}
 }
+export type NormalizedRanges = ReturnType<typeof normalizedRanges>
+
