@@ -193,7 +193,10 @@ export const createStack = async (app: App, config: Config) => {
 	const taskRoleWeb = webserver.taskDefinition.taskRole!
 	taskRoleWeb.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['s3:*'],
-		resources: [listsBucket.bucketArn + '/*'],
+		resources: [
+			listsBucket.bucketArn + '/*',
+			listsBucket.bucketArn,
+		],
 	}))
 	taskRoleWeb.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['ssm:GetParameter'],
@@ -223,7 +226,10 @@ export const createStack = async (app: App, config: Config) => {
 		const taskRoleChecks = checks.taskDefinition.taskRole!
 		taskRoleChecks.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 			actions: ['s3:*'],
-			resources: [listsBucket.bucketArn + '/*'],
+			resources: [
+				listsBucket.bucketArn + '/*',
+				listsBucket.bucketArn,
+			],
 		}))
 		taskRoleChecks.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 			actions: ['ssm:GetParameter'],
