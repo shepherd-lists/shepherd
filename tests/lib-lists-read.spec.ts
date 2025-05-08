@@ -31,7 +31,7 @@ describe('read-lists tests', () => {
 
 	it('should apply updates in order', async () => {
 		const resTxids = await initTxidsCache(listname)
-		assert.deepEqual(resTxids.txids.txids(), ['txid01', 'txid02', 'txid04', 'txid05', 'txid06'])
+		assert.deepEqual(resTxids.txids.getTxids(), ['txid01', 'txid02', 'txid04', 'txid05', 'txid06'])
 
 		const resRanges = await initRangesCache(listname)
 		assert.deepEqual(await resRanges.ranges.getRanges(), [[50, 150], [300, 500]])

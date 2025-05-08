@@ -11,31 +11,31 @@ describe('uniqTxidArray', () => {
 		const txids = uniqTxidArray()
 		txids.add('item1')
 		txids.add('item2')
-		assert.deepStrictEqual(txids.txids(), ['item1', 'item2'])
+		assert.deepStrictEqual(txids.getTxids(), ['item1', 'item2'])
 	})
 
 	it('should not add duplicate items to the array', () => {
 		const txids = uniqTxidArray()
 		txids.add('item1')
 		txids.add('item1')
-		assert.deepStrictEqual(txids.txids(), ['item1'])
+		assert.deepStrictEqual(txids.getTxids(), ['item1'])
 	})
 
 	it('should remove items from the array', () => {
 		const txids = uniqTxidArray()
 		txids.add('item1')
 		txids.remove('item1')
-		assert.deepStrictEqual(txids.txids(), [])
+		assert.deepStrictEqual(txids.getTxids(), [])
 	})
 
 	it('should not throw an error when removing a non-existent item', () => {
 		const txids = uniqTxidArray()
 		txids.remove('item1')
-		assert.deepStrictEqual(txids.txids(), [])
+		assert.deepStrictEqual(txids.getTxids(), [])
 	})
 	it('should return an empty array when no items are added', () => {
 		const txids = uniqTxidArray()
-		assert.deepStrictEqual(txids.txids(), [])
+		assert.deepStrictEqual(txids.getTxids(), [])
 	})
 })
 
