@@ -1,7 +1,7 @@
 import pool from '../../libs/utils/pgClient'
 import QueryStream from "pg-query-stream"
 import { slackLog } from '../../libs/utils/slackLog'
-import { s3UploadReadable } from '../../libs/utils/s3-services'
+import { s3PutObject, s3UploadReadable } from '../../libs/utils/s3-services'
 import { ByteRange, mergeErlangRanges } from "../../libs/s3-lists/merge-ranges"
 import { newUpdateKeyPostfix } from '../../libs/s3-lists/update-lists'
 import { getOwnersTablenames } from '../../libs/block-owner/owner-table-utils'
@@ -21,8 +21,8 @@ export const handler = async (event: any) => {
 	const t0 = Date.now()
 
 	/** prepare output streams to s3 */
-
-	const postfix = newUpdateKeyPostfix() //use same for all
+	const now = new Date()
+	const postfix = newUpdateKeyPostfix(now) //use same for all
 
 
 	const s3Txids = s3UploadReadable(LISTS_BUCKET, `list/txids_${postfix}`)
@@ -116,7 +116,7 @@ export const handler = async (event: any) => {
 		flaggedProcess(),
 		...ownerTablenames.map(ownerProcessing),
 		...addonTablenames.map(tablename =>
-			processAddonTable({ tablename, LISTS_BUCKET, highWaterMark, ranges, postfix }).then(c => count += c)
+			processAddonTable({ tablename, LISTS_BUCKET, highWaterMark, ranges, now }).then(c => count += c)
 		)
 	])
 
@@ -149,6 +149,11 @@ export const handler = async (event: any) => {
 	await s3Ranges.promise
 
 	console.info(`merge and close ranges in ${(Date.now() - t3CloseS3).toLocaleString()} ms`)
+
+	/* touch .last_update file for folder after updates created */
+	await Promise.all(['list/', 'flagged/', 'owners/'].map(path =>
+		s3PutObject({ Bucket: LISTS_BUCKET, Key: `${path}.last_update`, text: `${now.valueOf()}` }))
+	)
 
 	return count
 }
