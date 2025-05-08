@@ -1,5 +1,6 @@
 import { s3GetObject, s3ListFolderObjects } from '../utils/s3-services'
-import { normalizedRanges, uniqTxidArray } from './ram-lists'
+import { normalizedRanges, UniqTxidArray, uniqTxidArray } from './ram-lists'
+import { getLastModified } from './update-lists';
 
 
 const LISTS_BUCKET = process.env.LISTS_BUCKET as string
@@ -11,22 +12,20 @@ const LISTS_BUCKET = process.env.LISTS_BUCKET as string
  * so remember, no "shared" data here outside of the functions.
  */
 
-const lastInternal = (files: string[]) => {
-
-}
 
 export const initTxidsCache = async (listdir: string) => {
-	//1. get all file names
+	//get all file names
 	const files = await s3ListFolderObjects(LISTS_BUCKET, listdir)
-	//2. filter into 2 lists: one for txid and one for range
-	const txidFiles = files.filter(f => f.Key.includes('txids')).map(f => f.Key)
+	const lastModified = await getLastModified(listdir)
+	//filter for txids
+	const txidFiles = files.filter(f => f.includes('txids'))
 
-	//3. ascending sort txids and ranges. we need to apply updates in order
+	//ascending sort, we need to apply updates in order
 	txidFiles.sort()
 
-	//4. read each update file and apply to txids accordingly
 	const txids = uniqTxidArray() //this is our ram cached list
 
+	//read each update file and apply to txids accordingly
 	for (const filename of txidFiles) {
 		const lines = (await s3GetObject(LISTS_BUCKET, filename)).split('\n')
 		lines.pop()
@@ -44,12 +43,51 @@ export const initTxidsCache = async (listdir: string) => {
 		}
 	}
 
-	return txids;
+	return {
+		txids,
+		lastModified,
+	};
+}
+
+export const updateTxidsCache = async ({
+	txidsCache, previousModified, listdir
+}: {
+	txidsCache: UniqTxidArray
+	listdir: string
+	previousModified: number
+}) => {
+	const files = await s3ListFolderObjects(LISTS_BUCKET, listdir)
+	const lastModified = await getLastModified(listdir)
+
+	//filenames are of form: `txids_<date-string>.<timestamp>.txt`
+	const newFiles = files.filter(f => f.includes('txids') && Number(f.split('.')[1]) > previousModified)
+
+	newFiles.sort()
+	for (const file of newFiles) {
+		const lines = (await s3GetObject(LISTS_BUCKET, file)).split('\n')
+		lines.pop()
+		for (const line of lines) {
+			const split = line.split(',')
+			const txid = split[0]
+			const remove = split.length === 2
+			if (remove) {
+				txidsCache.remove(txid) //splice - retry on error higher up
+			} else {
+				txidsCache.add(txid) //push
+			}
+		}
+	}
+	//return last modified only, we're directly modifying the cache in place
+	return {
+		lastModified,
+	}
 }
 
 export const initRangesCache = async (listdir: string) => {
 	const files = await s3ListFolderObjects(LISTS_BUCKET, listdir)
-	const rangeFiles = files.filter(f => f.Key.includes('ranges')).map(f => f.Key)
+	const lastModified = await getLastModified(listdir)
+
+	const rangeFiles = files.filter(f => f.includes('ranges'))
 	rangeFiles.sort()
 
 	//5. ranges will require a more complicated add/remove logic, as they can overlap and need to be merged
@@ -75,5 +113,10 @@ export const initRangesCache = async (listdir: string) => {
 	}
 	await ranges.getRanges() // pre-process the ranges.
 
-	return ranges;
+	return {
+		ranges,
+		lastModified,
+	};
 }
+
+//TODO: updateRangesCache function
