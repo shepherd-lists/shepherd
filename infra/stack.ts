@@ -178,7 +178,6 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
 			RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
-			GW_URLS: JSON.stringify(config.gw_urls) || '',
 			http_api_nodes: JSON.stringify(config.http_api_nodes), //used in byte-ranges only
 			http_api_nodes_url: config.http_api_nodes_url || '', //byte-ranges and allowed list
 		}
