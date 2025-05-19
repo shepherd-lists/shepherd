@@ -6,12 +6,14 @@ import { performance } from 'perf_hooks'
 import { checkReachable } from "../checkReachable"
 import { getServerAlarms, setAlertState } from "../event-tracking"
 import { setUnreachable, unreachableTimedout } from '../event-unreachable'
+import { slackLog } from "../../../../libs/utils/slackLog"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
 const maxConcurrentRequests = 150 //adjust this
-const checksPerPeriod = 5_000 //adjust according to rate-limiting perceived
+const checksPerPeriod = 5_000 //adjust?
+const avoidRatelimit = 60_000 //you probably want this
 const requestTimeout = 30_000 //ms. this too
 const semaphore = new Semaphore(maxConcurrentRequests)
 const rejectTimedoutMsg = `timed-out ${requestTimeout}ms`
@@ -40,6 +42,9 @@ const headRequest = async (session: ClientHttp2Session, txid: string, reqId: num
 		})
 
 		req.on('response', (headers, flags) => {
+			// if (Number(headers[':status']) === 429) {
+			// 	console.debug('DEBUG!', Object.entries(headers))
+			// }
 			resolve({
 				status: +headers[':status']!,
 				xtrace: headers['x-trace'] as string,
@@ -71,6 +76,11 @@ const newAlarmHandler = async (session: ClientHttp2Session, gw_url: string, txid
 
 		if (status >= 500)
 			throw new Error(`${headRequest.name}, ${gw_url} returned ${status} for ${txid}. ignoring..`, { cause: { status } })
+
+		if (status === 429) {
+			await slackLog('DEBUG! 429', JSON.stringify({ status, gw_url, avoidRatelimit }))
+			throw new Error(`${headRequest.name}, ${gw_url} returned 429 for ${txid}. ignoring..`, { cause: { status } })
+		}
 
 		if (status !== 404) {
 			setAlertState({
@@ -221,7 +231,7 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 		blocked = blockedTxids.slice(_sliceStart[key], _sliceStart[key] + checksPerPeriod)
 
 		if (blocked.length > 0) {
-			const waitTime = Math.floor(30_000 - (performance.now() - p0))
+			const waitTime = Math.max(0, Math.floor(avoidRatelimit - (performance.now() - p0)))
 			console.info(checkServerTxids.name, gw_url, key, `pausing for ${waitTime}ms to avoid rate-limiting`)
 			await sleep(waitTime)
 		} else {
