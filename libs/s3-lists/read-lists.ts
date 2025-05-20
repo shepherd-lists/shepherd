@@ -1,5 +1,6 @@
 import { s3GetObject, s3ListFolderObjects } from '../utils/s3-services'
-import { normalizedRanges, UniqTxidArray, uniqTxidArray } from './ram-lists'
+import { ByteRange } from './merge-ranges';
+import { normalizedRanges, NormalizedRanges, UniqTxidArray, uniqTxidArray } from './ram-lists'
 import { getLastModified } from './update-lists';
 
 
@@ -119,4 +120,36 @@ export const initRangesCache = async (listdir: string) => {
 	};
 }
 
-//TODO: updateRangesCache function
+export const updateRangesCache = async ({
+	listdir, rangesCache, previousModified
+}: {
+	listdir: string,
+	rangesCache: NormalizedRanges,
+	previousModified: number
+}) => {
+	const files = await s3ListFolderObjects(LISTS_BUCKET, listdir)
+	const lastModified = await getLastModified(listdir)
+
+	const newFiles = files.filter(f =>
+		f.includes('ranges')
+		&& Number(f.split('.')[1]) > previousModified
+	)
+	newFiles.sort()
+	for (const file of newFiles) {
+		const lines = (await s3GetObject(LISTS_BUCKET, file)).split('\n')
+		lines.pop()
+		for (const line of lines) {
+			const split = line.split(',')
+			const range: ByteRange = [parseInt(split[0]), parseInt(split[1])]
+			const remove = split.length === 3
+			if (remove)
+				rangesCache.remove([range])
+			else
+				rangesCache.add([range])
+		}
+	}
+	return {
+		lastModified,
+	}
+}
+
