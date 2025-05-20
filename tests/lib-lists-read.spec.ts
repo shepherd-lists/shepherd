@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import assert from "node:assert/strict"
 import { after, afterEach, beforeEach, describe, it } from 'node:test'
-import { initTxidsCache, initRangesCache, updateTxidsCache } from '../libs/s3-lists/read-lists'
+import { initTxidsCache, initRangesCache, updateTxidsCache, updateRangesCache } from '../libs/s3-lists/read-lists'
 import { s3DeleteFolder } from '../libs/utils/s3-services'
 import { getLastModified, UpdateItem, updateS3Lists } from '../libs/s3-lists/update-lists'
 
@@ -22,7 +22,7 @@ describe('read-lists tests', () => {
 	]
 	const testRecords3: UpdateItem[] = [
 		{ txid: 'txid07', range: [500, 600] },
-		{ txid: 'txid08', range: [450, 550] },
+		{ txid: 'txid08', range: [800, 850] },
 	]
 
 	beforeEach(async () => {
@@ -64,11 +64,14 @@ describe('read-lists tests', () => {
 		assert.notEqual(resUpdateTxids.lastModified, resTxids.lastModified)
 		assert.equal(resTxids.txids.getTxids().length, 7)
 
-
-
-		//TODO: implement this function & test
-		// updateRangesCache({})
-
+		const resUpdateRanges = await updateRangesCache({
+			listdir: listname,
+			rangesCache: resRanges.ranges,
+			previousModified: resRanges.lastModified,
+		})
+		assert.notEqual(resUpdateRanges.lastModified, resRanges.lastModified)
+		console.debug('DEBUG', (await resRanges.ranges.getRanges()).entries())
+		assert.equal((await resRanges.ranges.getRanges()).length, 3)
 
 	})
 
