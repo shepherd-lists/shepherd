@@ -14,7 +14,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const maxConcurrentRequests = 150 //adjust this
 const checksPerPeriod = 5_000 //adjust?
-const avoidRatelimit = 60_000 //you probably want this
+const avoidRatelimit = 30_000 //sorta same as above 
 const requestTimeout = 30_000 //ms. this too
 const semaphore = new Semaphore(maxConcurrentRequests)
 const rejectTimedoutMsg = `timed-out ${requestTimeout}ms`
