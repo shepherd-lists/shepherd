@@ -18,7 +18,23 @@ interface TxidCache {
 }
 const _txidCaches: { [key: string]: TxidCache } = {}
 
+/** setInterval callback to check for list updates */
+export const updateTxidsCacheInterval = async (folder: FolderName) => {
+	const lastModified = await getLastModified(folder)
+	const current = _txidCaches[folder].lastModified
 
+	if (lastModified > current) {
+		console.info(updateTxidsCacheInterval.name, folder, 'updating cache...', JSON.stringify({ lastModified, current }))
+		const latest = await updateTxidsCache({
+			listdir: folder,
+			previousModified: _txidCaches[folder].lastModified,
+			txidsCache: _txidCaches[folder].txids!,
+		})
+		_txidCaches[folder].lastModified = latest.lastModified
+	} else {
+		console.debug('DEBUG', updateTxidsCacheInterval.name, folder, 'skipping cache update...', JSON.stringify({ lastModified, current }))
+	}
+}
 
 export const getBlockedTxids = async (folder: FolderName) => {
 
@@ -56,6 +72,7 @@ export const getBlockedTxids = async (folder: FolderName) => {
 		//run init txids
 		const { txids, lastModified } = await initTxidsCache(folder)
 		_txidCaches[folder] = { txids, lastModified, inProgress: false }
+		setInterval(() => updateTxidsCacheInterval(folder), 10_000)
 	} else {
 		//run update on existing UniqTxidArray
 		const { lastModified } = await updateTxidsCache({
@@ -74,5 +91,5 @@ export const getBlockedTxids = async (folder: FolderName) => {
 	return _txidCaches[folder].txids
 }
 
-// getBlockedTxids('txidflagged.txt')
-// getBlockedTxids('txidowners.txt')
+// getBlockedTxids('flagged/')
+// getBlockedTxids('owners/')
