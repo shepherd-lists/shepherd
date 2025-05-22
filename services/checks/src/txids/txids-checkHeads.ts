@@ -6,7 +6,7 @@ import { performance } from 'perf_hooks'
 import { checkReachable } from "../checkReachable"
 import { getServerAlarms, setAlertState } from "../event-tracking"
 import { setUnreachable, unreachableTimedout } from '../event-unreachable'
-import { FolderName } from "./types"
+import { FolderName } from "../types"
 import { slackLog } from "../../../../libs/utils/slackLog"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

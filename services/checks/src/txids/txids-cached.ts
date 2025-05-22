@@ -3,7 +3,7 @@ import { UniqTxidArray } from '../../../../libs/s3-lists/ram-lists'
 import { s3GetObjectWebStream, s3HeadObject } from "../../../../libs/utils/s3-services"
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { readlineWeb } from "../../../../libs/utils/webstream-utils"
-import { FolderName } from "./types"
+import { FolderName } from "../types"
 import { getLastModified } from "../../../../libs/s3-lists/update-lists"
 
 

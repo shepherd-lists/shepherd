@@ -1,5 +1,5 @@
 import { checkServerTxids } from "./txids-checkHeads"
-import { FolderName } from "./types"
+import { FolderName } from "../types"
 
 
 /* load the access lists */
