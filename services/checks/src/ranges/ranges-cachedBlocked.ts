@@ -73,3 +73,5 @@ export const getBlockedRanges = async (listdir: FolderName) => {
 
 	return _rangeCache[listdir].ranges
 }
+
+// setInterval(() => getBlockedRanges('list/'), 5_000)
