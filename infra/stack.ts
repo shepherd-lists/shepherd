@@ -103,6 +103,18 @@ export const createStack = async (app: App, config: Config) => {
 			LISTS_BUCKET: `shepherd-lists-${config.region}`,
 		}
 	})
+	const fnTemp = createFn('fnTemp', stack, {
+		vpc,
+		securityGroups: [sgPgdb],
+		logGroup: logGroupServices,
+		memorySize: 2048, // try boosting this for performance increase
+		timeout: Duration.minutes(5), //lower later, needs to be much faster than this!
+		environment: {
+			DB_HOST: rdsEndpoint,
+			SLACK_WEBHOOK: config.slack_webhook!,
+			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+		}
+	})
 
 	/** create s3 for lists */
 	const listsBucket = buildListsBucket(stack, {
@@ -133,6 +145,7 @@ export const createStack = async (app: App, config: Config) => {
 			FN_INDEXER: fnIndex.functionName,
 			FN_INIT_LISTS: fnInitLists.functionName,
 			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+			FN_TEMP: fnInitLists.functionName,
 		}
 	})
 	/* allow indexerNext to invoke various lambdas */
@@ -142,7 +155,8 @@ export const createStack = async (app: App, config: Config) => {
 		resources: [
 			fnOwnerBlocking.functionArn,
 			fnIndex.functionArn,
-			fnInitLists.functionArn
+			fnInitLists.functionArn,
+			fnTemp.functionArn,
 		],
 	}))
 	taskroleIndex.addToPrincipalPolicy(new aws_iam.PolicyStatement({
@@ -255,6 +269,7 @@ export const createStack = async (app: App, config: Config) => {
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
 			http_api_nodes: JSON.stringify(config.http_api_nodes), //for byte-ranges only
 			http_api_nodes_url: config.http_api_nodes_url || '', //for byte-ranges only
+			FN_TEMP: fnTemp.functionName,
 		}
 	})
 	httpApi.connections.securityGroups[0].addIngressRule(
@@ -272,6 +287,7 @@ export const createStack = async (app: App, config: Config) => {
 		resources: [
 			fnOwnerBlocking.functionArn,
 			fnInitLists.functionArn,
+			fnTemp.functionArn,
 		],
 	}))
 	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
@@ -286,5 +302,6 @@ export const createStack = async (app: App, config: Config) => {
 	listsBucket.grantReadWrite(taskRoleHttpApi)
 	listsBucket.grantReadWrite(fnInitLists.role!)
 	listsBucket.grantReadWrite(fnOwnerBlocking.role!)
+	listsBucket.grantReadWrite(fnTemp.role!)
 
 }

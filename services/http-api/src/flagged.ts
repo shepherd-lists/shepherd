@@ -8,6 +8,7 @@ import { UpdateItem, updateS3Lists } from '../../../libs/s3-lists/update-lists'
 import { updateAddresses } from '../../../libs/s3-lists/update-addresses'
 import { OwnersListRecord } from '../../../types'
 import { mergeRulesObject } from './service/move-records'
+import { lambdaInvoker } from '../../../libs/utils/lambda-invoker'
 
 
 const knex = dbConnection()
@@ -78,6 +79,9 @@ export const processFlagged = async (
 		const s3Record: UpdateItem = { txid, range: [Number(completedRecord.byte_start), Number(completedRecord.byte_end)] }
 		await updateS3Lists('list/', [s3Record])
 		await updateS3Lists('flagged/', [s3Record])
+
+		/** TEMPORARY UNTIL LIST MIGRATION IS COMPLETE */
+		await lambdaInvoker(process.env.FN_TEMP!, {})
 
 		await trx.commit()
 	} catch (err: unknown) {

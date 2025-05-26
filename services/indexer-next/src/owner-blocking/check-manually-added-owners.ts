@@ -92,4 +92,7 @@ export async function checkForManuallyModifiedOwners() {
 	for (const owner of newOwners) {
 		await queueBlockOwner(owner, 'manual')
 	}
+
+	//TEMP, return true to run fnTemp
+	return newWhitelistedOwnersCount > 0 //it's just this, nothing else run here
 }
