@@ -145,7 +145,7 @@ export const createStack = async (app: App, config: Config) => {
 			FN_INDEXER: fnIndex.functionName,
 			FN_INIT_LISTS: fnInitLists.functionName,
 			LISTS_BUCKET: `shepherd-lists-${config.region}`,
-			FN_TEMP: fnInitLists.functionName,
+			FN_TEMP: fnTemp.functionName,
 		}
 	})
 	/* allow indexerNext to invoke various lambdas */
