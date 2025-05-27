@@ -61,7 +61,7 @@ for (const c of children) {
 }
 
 const cleanUpAndExit = async () => {
-	await slackLog('killing all child processes')
+	await slackLog('💀 [checks-service] killing all child processes ❌')
 	children.forEach(child => child.kill())
 	process.exit(1)
 }
