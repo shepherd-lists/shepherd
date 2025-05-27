@@ -105,7 +105,10 @@ export const handler = async (event: any) => {
 		}
 		/** update s3 lists, but dont create empty files */
 		if (counts.total > 0) {
-			await updateS3Lists('owners/', listRecords)
+			await Promise.all([
+				updateS3Lists('owners/', listRecords),
+				updateS3Lists('list/', listRecords),
+			])
 		}
 
 

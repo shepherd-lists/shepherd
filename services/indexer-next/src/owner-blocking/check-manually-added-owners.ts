@@ -1,4 +1,4 @@
-import { Transform } from 'node:stream'
+import { PassThrough, Transform } from 'node:stream'
 import { queueBlockOwner } from '../../../../libs/block-owner/owner-blocking'
 import { ownerToOwnerTablename } from '../../../../libs/block-owner/owner-table-utils'
 import { UpdateItem, updateS3Lists } from '../../../../libs/s3-lists/update-lists'
@@ -70,11 +70,29 @@ export async function checkForManuallyModifiedOwners() {
 					callback()
 				}
 			})
+
+			/** tee for owners/ and list/ */
+			const tee1 = new PassThrough({ objectMode: true })
+			const tee2 = new PassThrough({ objectMode: true })
+			transformed.pipe(tee1)
+			transformed.pipe(tee2)
+
+			/** prepare update streams */
+			const uploadPromises = [
+				updateS3Lists('list/', tee1),
+				updateS3Lists('owners/', tee2)
+			]
+
+			/** pipe source stream in */
 			stream.pipe(transformed)
 
-			await updateS3Lists('owners/', transformed)
-			transformed.end()
-			await finished(transformed)
+			/** wait for streams to complete */
+			await Promise.all([
+				...uploadPromises,
+				finished(transformed)
+			])
+
+
 			cnn.release()
 
 			/** delete the whitelisted table when done */
