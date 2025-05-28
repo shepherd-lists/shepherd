@@ -30,7 +30,7 @@ export const updateTxidsCacheInterval = async (folder: FolderName) => {
 		if (_txidCaches[folder].inProgress) return console.info(updateTxidsCacheInterval.name, folder, 'update already in progress');
 		_txidCaches[folder].inProgress = true
 
-		console.info(updateTxidsCacheInterval.name, folder, 'updating cache...', JSON.stringify({ lastModified, current }))
+		//keep this log
 		console.info('DEBUG', updateTxidsCacheInterval.name, folder, 'updating cache...', JSON.stringify({ lastModified, current }))
 		const latest = await updateTxidsCache({
 			listdir: folder,
@@ -88,7 +88,7 @@ export const getBlockedTxids = async (folder: FolderName) => {
 		const { lastModified } = await updateTxidsCache({
 			txidsCache: _txidCaches[folder].txids,
 			listdir: folder,
-			previousModified: thisModified,
+			previousModified: _txidCaches[folder].lastModified,
 		})
 		_txidCaches[folder].lastModified = lastModified
 	}
