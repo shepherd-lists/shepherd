@@ -37,7 +37,9 @@ export const updateInboxDb = async (txid: string, updates: Partial<TxRecord>) =>
 				await knex<TxRecord>('inbox').where({ txid }).del('txid')
 				return checkId2[0]?.txid
 			} else {
-				slackLog(txid, 'ERROR UPDATING inbox DATABASE!', `(${JSON.stringify(updates)}) => "${checkId}"`)
+				const msg = `${txid} ERROR UPDATING inbox DATABASE! (${JSON.stringify(updates)}) => "${checkId}"`
+				await slackLog(msg)
+				throw new Error(msg)
 			}
 		}
 		return retTxid

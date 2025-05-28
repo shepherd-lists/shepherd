@@ -4,6 +4,7 @@ import { ownerBlockingEvent, ownerBlockingEventOwners } from './assets/fnOwner-p
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it, mock } from 'node:test'
 import { dropOwnerTables, createOwnerTable } from '../libs/block-owner/owner-table-utils'
+import pool from '../libs/utils/pgClient'
 
 
 describe('fnOwnerBlocking tests', () => {
@@ -18,6 +19,7 @@ describe('fnOwnerBlocking tests', () => {
 		await Promise.all(
 			ownerBlockingEventOwners.map(o => dropOwnerTables(o))
 		)
+		await pool.end()
 	})
 
 	it('should process a page of results', async () => {

@@ -4,7 +4,9 @@ export type ByteRange = [number, number]
 
 
 /** this merges **erlang data format** ranges */
-export const mergeErlangRanges = (ranges: Array<ByteRange>) => {
+export const mergeErlangRanges = (input: Array<ByteRange>) => {
+
+	const ranges = [...input] //dont mutate input
 
 	/** DEBUG / Sanity */
 	const originalSize = rangesSize(ranges, 'original')
@@ -22,7 +24,7 @@ export const mergeErlangRanges = (ranges: Array<ByteRange>) => {
 		console.debug('highest', ranges[ranges.length - 1])
 
 		// Step 2: Initialize the first range as the current range to compare with others
-		let currentRange = ranges[0]
+		let currentRange: ByteRange = [...ranges[0]] //copy avoids side-effects
 		mergedRanges.push(currentRange)
 
 		// Step 3: Iterate through the ranges, starting from the second range
@@ -41,8 +43,6 @@ export const mergeErlangRanges = (ranges: Array<ByteRange>) => {
 			}
 		})
 	}
-	/** w/o copy at this point `ranges` is totally messed up */
-	// ranges.length = 0 // clear it, so it throws error on accidental reuse?
 
 	console.info(mergeErlangRanges.name, `examined, sorted & merged ${ranges.length} ranges to ${mergedRanges.length} ranges in ${(performance.now() - t0).toFixed(0)}ms.`)
 

@@ -1,6 +1,6 @@
 import { slackLog } from '../../../libs/utils/slackLog'
 import knexCreate from '../../../libs/utils/knexCreate'
-import { assertLists } from '../../../libs/s3-lists/update-lists'
+import { initLists } from '../../../libs/s3-lists/update-lists'
 import { ownerIngestLoop } from './owner-blocking/owner-ingest'
 import { tipLoop } from './index-by-height'
 import { ingestLoop } from './index-by-ingested_at'
@@ -48,7 +48,7 @@ while (true) {
 		}
 
 		/** initialise lists if necessary */
-		await assertLists()
+		await initLists()
 
 		/** start ingest loops. n.b. never return, have own catch loops */
 		ownerIngestLoop()

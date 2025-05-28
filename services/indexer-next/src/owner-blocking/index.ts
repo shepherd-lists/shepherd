@@ -1,7 +1,7 @@
 import { slackLog } from '../../../../libs/utils/slackLog'
 import { checkForManuallyModifiedOwners } from './check-manually-added-owners'
-import { updateFullTxidsRanges } from '../../../../libs/s3-lists/update-lists'
 import { processBlockedOwnersQueue } from '../../../../libs/block-owner/owner-blocking'
+import { lambdaInvoker } from '../../../../libs/utils/lambda-invoker'
 
 
 if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var, FN_OWNER_BLOCKING')
@@ -11,21 +11,20 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
 export const ownerChecks = async () => {
-	/** restart on errors */
-	let runonce = true
 	while (true) {
 		try {
 
 			/** check if lists need to be updated */
-			//this should be in a setInterval with it's own try-catch?
-			if (
-				await checkForManuallyModifiedOwners() // returns true if whitelisted items need to be removed
-				|| await processBlockedOwnersQueue() //blocks 1 owner from queue
-			) {
-				console.info('owner modified. recreating lists') //<= this should be done internally above when updates are found or queue processed
-				const updateLists = await updateFullTxidsRanges()
-				console.info({ updateLists })
-			} else {
+
+			const tempWhitelisted = await checkForManuallyModifiedOwners()
+			const queueProcessing = await processBlockedOwnersQueue() //blocks 1 owner from queue. s3 updates handled internally
+
+			/** TEMPORARY UNTIL LIST MIGRATION IS COMPLETE */
+			if (queueProcessing || tempWhitelisted) {
+				await lambdaInvoker(process.env.FN_TEMP!, {})
+			}
+
+			if (!queueProcessing) {
 				console.info(ownerChecks.name, 'nothing to do. sleeping for 50 seconds...')
 				await new Promise(resolve => setTimeout(resolve, 50_000))
 			}

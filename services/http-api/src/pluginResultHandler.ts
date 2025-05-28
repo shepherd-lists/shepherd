@@ -82,14 +82,7 @@ export const pluginResultHandler = async (body: APIFilterResult) => {
 				return processFlagged(txid, record!, updates)
 
 			} else {//flagged===false
-				const res = await updateInboxDb(txid, updates)
-
-				/** this check should either occur here or in the updateDb function, not both */
-				if (res !== txid) {
-					slackLog('Fatal error', `Could not update database. "${res} !== ${txid}"`)
-					throw new Error('Could not update database')
-				}
-
+				await updateInboxDb(txid, updates)
 			}
 
 		} else if (result.data_reason === undefined) {

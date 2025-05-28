@@ -1,6 +1,10 @@
+import { initTxidsCache, updateTxidsCache } from "../../../../libs/s3-lists/read-lists"
+import { UniqTxidArray } from '../../../../libs/s3-lists/ram-lists'
 import { s3GetObjectWebStream, s3HeadObject } from "../../../../libs/utils/s3-services"
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { readlineWeb } from "../../../../libs/utils/webstream-utils"
+import { FolderName } from "../types"
+import { getLastModified } from "../../../../libs/s3-lists/update-lists"
 
 
 
@@ -8,66 +12,94 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
 interface TxidCache {
-	eTag: string
-	ids: Array<string>
+	lastModified: number
+	txids: UniqTxidArray | undefined
 	inProgress: boolean
 }
 const _txidCaches: { [key: string]: TxidCache } = {}
 
+/** setInterval callback to check for list updates */
+export const updateTxidsCacheInterval = async (folder: FolderName) => {
 
+	if (_txidCaches[folder].inProgress) return console.info(updateTxidsCacheInterval.name, folder, 'update already in progress');
 
-export const getBlockedTxids = async (key: ('txidflagged.txt' | 'txidowners.txt' | `${string}/txids.txt`)) => {
-	/** create an empty entry */
-	if (!_txidCaches[key]) {
-		_txidCaches[key] = { eTag: '', ids: [], inProgress: false }
+	const lastModified = await getLastModified(folder)
+	const current = _txidCaches[folder].lastModified
+
+	if (lastModified > current) {
+		if (_txidCaches[folder].inProgress) return console.info(updateTxidsCacheInterval.name, folder, 'update already in progress');
+		_txidCaches[folder].inProgress = true
+
+		//keep this log
+		console.info('DEBUG', updateTxidsCacheInterval.name, folder, 'updating cache...', JSON.stringify({ lastModified, current }))
+		const latest = await updateTxidsCache({
+			listdir: folder,
+			previousModified: _txidCaches[folder].lastModified,
+			txidsCache: _txidCaches[folder].txids!,
+		})
+		_txidCaches[folder].lastModified = latest.lastModified
+
+		_txidCaches[folder].inProgress = false
+	} else {
+		console.debug('DEBUG', updateTxidsCacheInterval.name, folder, 'no new updates.', JSON.stringify({ lastModified, current }))
+	}
+}
+
+export const getBlockedTxids = async (folder: FolderName) => {
+
+	const thisModified = await getLastModified(folder)
+	console.debug(getBlockedTxids.name, JSON.stringify({ folder, last_modified: thisModified }))
+
+	/** init empty */
+	if (!_txidCaches[folder]) {
+		_txidCaches[folder] = { lastModified: 0, txids: undefined, inProgress: false }
 	}
 
-	const eTag = (await s3HeadObject(process.env.LISTS_BUCKET!, key)).ETag!
-	console.debug(getBlockedTxids.name, key, 'eTag', eTag)
-
 	/** short-circuit */
-	if (eTag === _txidCaches[key].eTag) {
-		console.info(getBlockedTxids.name, key, 'returning cache')
-		return _txidCaches[key].ids
+	if (thisModified === _txidCaches[folder].lastModified) {
+		console.info(getBlockedTxids.name, folder, 'returning cache')
+		return _txidCaches[folder].txids
 	}
 
 	/** just one running update is allowed/required */
-	if (_txidCaches[key].inProgress) {
-		console.info(getBlockedTxids.name, key, 'waiting for cache update as inProgress')
-		while (_txidCaches[key].inProgress) {
+	if (_txidCaches[folder].inProgress) {
+		console.info(getBlockedTxids.name, folder, 'waiting for cache update as inProgress')
+		while (_txidCaches[folder].inProgress) {
 			await sleep(100) //wait for new cache
 		}
-		console.info(getBlockedTxids.name, key, 'returning cache')
-		return _txidCaches[key].ids
+		console.info(getBlockedTxids.name, folder, 'returning cache')
+		return _txidCaches[folder].txids
 	}
-	_txidCaches[key].inProgress = true
+	_txidCaches[folder].inProgress = true
 
-	/** fetch blacklist.txt */
-
-	console.info(getBlockedTxids.name, `fetching & processing new ${key} cache...`)
+	/** create/update cache */
 	const t0 = performance.now()
 
-	const stream = await s3GetObjectWebStream(process.env.LISTS_BUCKET!, key)
-	const ids: string[] = []
 
-	for await (const txid of readlineWeb(stream)) {
-		//debug/sanity check (older code suggested possible empty lines?)
-		if (txid.length !== 43) {
-			slackLog(getBlockedTxids.name, key, `WARNING! skipping invalid txid '${txid}'`)
-			continue;
-		}
-
-		ids.push(txid)
+	if (_txidCaches[folder].txids === undefined) {
+		console.info(getBlockedTxids.name, folder, 'create new cache...')
+		//run init txids
+		const { txids, lastModified } = await initTxidsCache(folder)
+		_txidCaches[folder] = { txids, lastModified, inProgress: false }
+		setInterval(() => updateTxidsCacheInterval(folder), 10_000)
+	} else {
+		//run update on existing UniqTxidArray
+		console.info(getBlockedTxids.name, folder, 'update cache...')
+		const { lastModified } = await updateTxidsCache({
+			txidsCache: _txidCaches[folder].txids,
+			listdir: folder,
+			previousModified: _txidCaches[folder].lastModified,
+		})
+		_txidCaches[folder].lastModified = lastModified
 	}
 
-	const t1 = performance.now()
-	console.info(getBlockedTxids.name, key, `fetched ${ids.length} txids in ${(t1 - t0).toFixed(0)}ms. returning new cache`)
 
-	_txidCaches[key].ids = ids
-	_txidCaches[key].eTag = eTag
-	_txidCaches[key].inProgress = false
-	return ids
+	const t1 = performance.now()
+	console.info(getBlockedTxids.name, folder, `fetched latest cached txids in ${(t1 - t0).toFixed(0)}ms.`)
+
+	_txidCaches[folder].inProgress = false
+	return _txidCaches[folder].txids
 }
 
-// getBlockedTxids('txidflagged.txt')
-// getBlockedTxids('txidowners.txt')
+// getBlockedTxids('flagged/')
+// getBlockedTxids('owners/')

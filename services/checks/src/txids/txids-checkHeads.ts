@@ -6,6 +6,7 @@ import { performance } from 'perf_hooks'
 import { checkReachable } from "../checkReachable"
 import { getServerAlarms, setAlertState } from "../event-tracking"
 import { setUnreachable, unreachableTimedout } from '../event-unreachable'
+import { FolderName } from "../types"
 import { slackLog } from "../../../../libs/utils/slackLog"
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -14,7 +15,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const maxConcurrentRequests = 150 //adjust this
 const checksPerPeriod = 5_000 //adjust?
 const avoidRatelimit = 30_000 //sorta same as above 
-const requestTimeout = 30_000 //ms. this too
+const requestTimeout = 45_000 //ms. this too
 const semaphore = new Semaphore(maxConcurrentRequests)
 const rejectTimedoutMsg = `timed-out ${requestTimeout}ms`
 
@@ -131,7 +132,7 @@ const alarmOkHandler = async (session: ClientHttp2Session, gw_url: string, txid:
 }
 
 let _sliceStart: { [key: string]: number } = {} // just keep going around even after errors
-export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' | 'txidowners.txt' | `${string}/txids.txt`)) => {
+export const checkServerTxids = async (gw_url: string, key: FolderName) => {
 	//sanity
 	if (!gw_url.startsWith('https://')) throw new Error(`invalid format. gw_url must start with https:// => ${gw_url}`)
 
@@ -167,83 +168,95 @@ export const checkServerTxids = async (gw_url: string, key: ('txidflagged.txt' |
 		return sesh;
 	}
 
-	const blockedTxids = await getBlockedTxids(key)
-	const t0 = performance.now() // strang behaviour: t0 initialized on all sessions, and all await error on any single other session
-	let blocked = blockedTxids.slice(_sliceStart[key], checksPerPeriod)
-	let countChecks = _sliceStart[key]
-	do {
-		/** new session for each round */
-		const session = newSession()
-		const p0 = performance.now()
-		try {
-			/** check current alarms every time */
-			const alarms = getServerAlarms(gw_url)
-			let countAlarms = 0
-			const inAlarms = await Promise.all(Object.keys(alarms).map(async txid => {
-				if (alarms[txid].status === 'alarm') {
-					return alarmOkHandler(session, gw_url, txid, countAlarms++)
+	try {
+		const blockedTxids = await getBlockedTxids(key)
+		const t0 = performance.now() // strang behaviour: t0 initialized on all sessions, and all await error on any single other session
+
+		const debugTxids = blockedTxids!.getTxids()
+		console.debug('DEBUG', `txids init ${key} ${debugTxids.length}`)
+
+		let blocked = blockedTxids!.getTxids().slice(_sliceStart[key], checksPerPeriod)
+		let countChecks = _sliceStart[key]
+		do {
+			/** new session for each round */
+			const session = newSession()
+			const p0 = performance.now()
+			try {
+				/** check current alarms every time */
+				const alarms = getServerAlarms(gw_url)
+				let countAlarms = 0
+				const inAlarms = await Promise.all(Object.keys(alarms).map(async txid => {
+					if (alarms[txid].status === 'alarm') {
+						return alarmOkHandler(session, gw_url, txid, countAlarms++)
+					}
+				}))
+				const serverInAlarm = inAlarms.reduce((acc, cur) => acc || !!cur, false)
+
+				console.info(checkServerTxids.name, gw_url, key, `checked ${inAlarms.length} existing alarms, serverInAlarm=${serverInAlarm}`)
+
+				if (serverInAlarm) {
+					/** abort further checks */
+					break;
 				}
-			}))
-			const serverInAlarm = inAlarms.reduce((acc, cur) => acc || !!cur, false)
 
-			console.info(checkServerTxids.name, gw_url, key, `checked ${inAlarms.length} existing alarms, serverInAlarm=${serverInAlarm}`)
+				/** check blocked */
 
-			if (serverInAlarm) {
-				/** abort further checks */
-				break;
-			}
+				let promises: Promise<void>[] = []
+				for (const txid of blocked) {
+					promises.push(newAlarmHandler(session, gw_url, txid, countChecks++))
 
-			/** check blocked */
+					if (promises.length > maxConcurrentRequests) {
+						//let at least one resolve
+						await Promise.race(promises)
+						//remove resolved
+						promises = await filterPendingOnly(promises)
 
-			let promises: Promise<void>[] = []
-			for (const txid of blocked) {
-				promises.push(newAlarmHandler(session, gw_url, txid, countChecks++))
-
-				if (promises.length > maxConcurrentRequests) {
-					//let at least one resolve
-					await Promise.race(promises)
-					//remove resolved
-					promises = await filterPendingOnly(promises)
-
-					//TODO: retry rejected
+						//TODO: retry rejected
+					}
+					if (countChecks % 1_000 === 0) console.log(
+						checkServerTxids.name, gw_url, key, `${countChecks} items dispatched in ${(performance.now() - t0).toFixed(0)}ms`,
+						'outboundQueueSize', session.state.outboundQueueSize
+					)
 				}
-				if (countChecks % 1_000 === 0) console.log(
-					checkServerTxids.name, gw_url, key, `${countChecks} items dispatched in ${(performance.now() - t0).toFixed(0)}ms`,
-					'outboundQueueSize', session.state.outboundQueueSize
-				)
+				await Promise.all(promises)
+
+			} catch (err: unknown) {
+				const { message, code, cause } = err as NodeJS.ErrnoException
+				console.error('outer catch', gw_url, key, JSON.stringify({ message, code, cause }))
+				if (message === rejectTimedoutMsg) {
+					console.info(checkServerTxids.name, gw_url, key, 'set unreachable mid-session')
+					setUnreachable({ name: gw_url, server: gw_url })
+				}
+				break; //do-while
+			} finally {
+				session.close()
 			}
-			await Promise.all(promises)
 
-		} catch (err: unknown) {
-			const { message, code, cause } = err as NodeJS.ErrnoException
-			console.error('outer catch', gw_url, key, JSON.stringify({ message, code, cause }))
-			if (message === rejectTimedoutMsg) {
-				console.info(checkServerTxids.name, gw_url, key, 'set unreachable mid-session')
-				setUnreachable({ name: gw_url, server: gw_url })
+			/* prepare for next run */
+			_sliceStart[key] += checksPerPeriod
+
+			const debugTxids = blockedTxids!.getTxids()
+			console.debug('DEBUG', `txids slice ${key} ${debugTxids.length}`)
+
+			blocked = blockedTxids!.getTxids().slice(_sliceStart[key], _sliceStart[key] + checksPerPeriod)
+
+			if (blocked.length > 0) {
+				const waitTime = Math.max(0, Math.floor(avoidRatelimit - (performance.now() - p0)))
+				console.info(checkServerTxids.name, gw_url, key, `pausing for ${waitTime}ms to avoid rate-limiting`)
+				await sleep(waitTime)
+			} else {
+				console.info(checkServerTxids.name, gw_url, key, `no more blocked slices ${blocked.length}`)
+				_sliceStart[key] = 0 //reset
 			}
-			break; //do-while
-		} finally {
-			session.close()
-		}
-
-		/* prepare for next run */
-		_sliceStart[key] += checksPerPeriod
-		blocked = blockedTxids.slice(_sliceStart[key], _sliceStart[key] + checksPerPeriod)
-
-		if (blocked.length > 0) {
-			const waitTime = Math.max(0, Math.floor(avoidRatelimit - (performance.now() - p0)))
-			console.info(checkServerTxids.name, gw_url, key, `pausing for ${waitTime}ms to avoid rate-limiting`)
-			await sleep(waitTime)
-		} else {
-			console.info(checkServerTxids.name, gw_url, key, `no more blocked slices ${blocked.length}`)
-			_sliceStart[key] = 0 //reset
-		}
-	} while (blocked.length > 0)
+		} while (blocked.length > 0)
 
 
 
-	console.info(checkServerTxids.name, gw_url, key, `completed ${countChecks} checks in ${Math.floor(performance.now() - t0)}ms`)
-
+		console.info(checkServerTxids.name, gw_url, key, `completed ${countChecks} checks in ${Math.floor(performance.now() - t0)}ms`)
+	} catch (e) {
+		await slackLog(checkServerTxids.name, gw_url, key, `UNHANDLED error ${(e as Error).message}`, e)
+		throw e
+	}
 }
 
 

@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import assert from "node:assert/strict";
 import { after, afterEach, beforeEach, describe, it } from 'node:test'
-import { ByteRange, mergeErlangRanges } from '../s3-lists/merge-ranges'
+import { ByteRange, mergeErlangRanges } from '../libs/s3-lists/merge-ranges'
 import { readFileSync, writeFileSync } from 'node:fs';
 
 
@@ -18,17 +18,18 @@ const rangesSize = (ranges: Array<ByteRange>, id: string) => {
 	return total
 }
 
-/** load big test file of ranges */
-let temp = readFileSync(
-	new URL('./nsfw.txt', import.meta.url), 'utf-8'
-	// new URL('./s3-rangelist.txt', import.meta.url), 'utf-8'
-).split('\n')
-temp.pop() //remove last blank line
-const original = temp.map(line => line.split(',').map(Number)) as Array<ByteRange>
-temp.length = 0 //release
-
+const loadRangesFromFile = () => {
+	/** load big test file of ranges */
+	let temp = readFileSync(
+		new URL('./assets/lib-nsfw.txt', import.meta.url), 'utf-8'
+		// new URL('./assets/lib-rangelist.txt', import.meta.url), 'utf-8'
+	).split('\n')
+	temp.pop() //remove last blank line
+	return temp.map(line => line.split(',').map(Number)) as Array<ByteRange>
+}
 
 describe('lists mergeRanges tests', () => {
+
 
 	it('should merge test data reducing number of ranges, but not total length', async () => {
 		const small: Array<ByteRange> = [
@@ -56,6 +57,8 @@ describe('lists mergeRanges tests', () => {
 
 	it('should merge real data, reducing number of ranges, but not total length', async () => {
 
+		const original = loadRangesFromFile()
+
 		const beforeSize = rangesSize(original, 'original')
 		console.debug('original: size', beforeSize.toLocaleString(), 'length', original.length)
 
@@ -75,6 +78,7 @@ describe('lists mergeRanges tests', () => {
 	it.skip('ensure that the original ranges completely overlap the merged range', async () => {
 
 		console.info('/** Warning: this test will take a while to run. */')
+		const original = loadRangesFromFile()
 
 		const merged = mergeErlangRanges(original)
 		let count = 0
@@ -87,6 +91,8 @@ describe('lists mergeRanges tests', () => {
 	})
 
 	it('checks if a specific byte is not covered in original and merged ranges', async () => {
+		const original = loadRangesFromFile()
+
 		const testByte = 79274611613942
 		let notFound = true
 		for (const range of original) {
@@ -108,6 +114,16 @@ describe('lists mergeRanges tests', () => {
 			}
 		}
 		assert(notFound, 'test byte not found')
+
+	})
+
+	it('should not mutate the input array', function () {
+
+		const input: ByteRange[] = [[10, 20], [5, 15], [30, 40], [25, 35]]
+
+		mergeErlangRanges(input)
+
+		assert.deepEqual(input, [[10, 20], [5, 15], [30, 40], [25, 35]], 'Input array was mutated')
 
 	})
 

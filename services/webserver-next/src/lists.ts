@@ -1,7 +1,7 @@
 import { PassThrough, Writable } from 'stream'
 import { s3GetObjectWebStream, s3HeadObject } from '../../../libs/utils/s3-services'
 import { readlineWeb } from '../../../libs/utils/webstream-utils'
-import { txsTableNames } from '../../../libs/utils/addon-tablenames'
+import { addonTxsTableNames } from '../../../libs/utils/addon-tablenames'
 
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
 console.debug('LISTS_BUCKET', process.env.LISTS_BUCKET)
@@ -116,7 +116,7 @@ export const getList = async (response: Writable, path: GetListPath) => {
 export const prefetchLists = async () => {
 	console.info('prefetching lists...')
 	const routes = ['/addresses.txt', '/blacklist.txt', '/rangelist.txt']
-	const addonPaths = (await txsTableNames()).map(tablename => tablename.replace('_txs', ''))
+	const addonPaths = (await addonTxsTableNames()).map(tablename => tablename.replace('_txs', ''))
 	addonPaths.map(addonPath => {
 		routes.push(`/${addonPath}/txids.txt`)
 		routes.push(`/${addonPath}/ranges.txt`)

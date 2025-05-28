@@ -1,7 +1,4 @@
-import { Knex } from 'knex'
-import knexCreate from '../utils/knexCreate'
-
-const _knex = knexCreate()
+import pool from '../utils/pgClient'
 
 /** we can't use `-` in postgres table names, and usual starting character rules + 63 char limit */
 export const ownerToOwnerTablename = (owner: string) => `owner_${owner.replace(/-/g, '~')}` // ref fnOwnerTable
@@ -16,39 +13,50 @@ export const tablenameToOwner = (tablename: string) => {
 
 // /** N.B. this has been moved to http-flagged */
 // export const createInfractionsTable = async (owner: string, trx?: Knex.Transaction) => {
-// 	/** use trx if pased to function */
-// 	let knex = trx || _knex
-// 	const tablename = ownerToInfractionsTablename(owner)
 
-// 	if (await knex.schema.hasTable(tablename)) return tablename
 
-// 	await _knex.schema.createTable(tablename, table => {
-// 		table.specificType('txid', 'char(43)').primary()
-// 		table.dateTime('last_update').defaultTo(_knex.fn.now())
-// 	})
-// 	return tablename
-// }
-
-/** might use this if owner gets whitelisted or for tests */
 export const dropOwnerTables = async (owner: string) => {
-	await _knex.schema.dropTableIfExists(ownerToOwnerTablename(owner))
-	await _knex.schema.dropTableIfExists(ownerToInfractionsTablename(owner))
+	await pool.query(`DROP TABLE IF EXISTS "${[ownerToOwnerTablename(owner)]}"`)
+	await pool.query(`DROP TABLE IF EXISTS "${[ownerToInfractionsTablename(owner)]}"`)
 }
 
-export const createOwnerTable = async (owner: string, trx?: Knex.Transaction) => {
-	let knex = trx || _knex
+export const createOwnerTable = async (owner: string) => {
 	const tablename = ownerToOwnerTablename(owner)
 
-	if (await knex.schema.hasTable(tablename)) return tablename
+	const tableExists = await pool.query<{ exists: boolean }>(
+		'SELECT EXISTS (SELECT FROM pg_tables WHERE tablename = $1)',
+		[tablename]
+	)
+	if (tableExists.rows[0].exists) return tablename
 
-	await knex.schema.createTable(tablename, table => {
-		table.specificType('txid', 'char(43)').primary()
-		table.specificType('parent', 'char(43)')
-		table.specificType('parents', 'char(43) ARRAY')
-		table.bigInteger('byte_start')
-		table.bigInteger('byte_end')
-		table.dateTime('last_update').defaultTo(knex.fn.now())
-	})
+	await pool.query(`
+		CREATE TABLE "${tablename}" (
+			txid CHAR(43),
+			parent CHAR(43),
+			parents CHAR(43)[],
+			byte_start BIGINT,
+			byte_end BIGINT,
+			last_update TIMESTAMP with time zone DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (txid)
+		);	
+	`)
 
 	return tablename
+}
+
+/** get a list of all the tables with blocked owners items.
+ * - N.B. omit whitelisted owners
+ */
+export const getOwnersTablenames = async () => {
+
+	const { rows } = await pool.query<{ tablename: string }>(`
+		SELECT tablename FROM pg_catalog.pg_tables
+		WHERE tablename LIKE 'owner\\_%'
+		AND NOT EXISTS (
+				SELECT 1 FROM owners_whitelist
+				WHERE pg_catalog.pg_tables.tablename = 'owner_' || REPLACE(owners_whitelist.owner, '-', '~')
+		);
+	`)
+
+	return rows.map(row => row.tablename)
 }
