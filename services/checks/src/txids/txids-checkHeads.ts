@@ -171,6 +171,10 @@ export const checkServerTxids = async (gw_url: string, key: FolderName) => {
 	try {
 		const blockedTxids = await getBlockedTxids(key)
 		const t0 = performance.now() // strang behaviour: t0 initialized on all sessions, and all await error on any single other session
+
+		const debugTxids = blockedTxids!.getTxids()
+		console.debug('DEBUG', `txids init ${key} ${debugTxids.length}`)
+
 		let blocked = blockedTxids!.getTxids().slice(_sliceStart[key], checksPerPeriod)
 		let countChecks = _sliceStart[key]
 		do {
@@ -230,6 +234,10 @@ export const checkServerTxids = async (gw_url: string, key: FolderName) => {
 
 			/* prepare for next run */
 			_sliceStart[key] += checksPerPeriod
+
+			const debugTxids = blockedTxids!.getTxids()
+			console.debug('DEBUG', `txids slice ${key} ${debugTxids.length}`)
+
 			blocked = blockedTxids!.getTxids().slice(_sliceStart[key], _sliceStart[key] + checksPerPeriod)
 
 			if (blocked.length > 0) {

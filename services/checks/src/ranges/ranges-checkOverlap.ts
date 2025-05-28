@@ -50,6 +50,7 @@ export const checkServerRanges = async (item: Http_Api_Node, listdir: FolderName
 
 		/** get blocked ranges */
 		const blockedRanges = await getBlockedRanges(listdir)
+		console.debug('DEBUG', `number of ranges ${((await blockedRanges!.getRanges()).length)}`)
 
 		/* check existing alarms */
 		console.info(checkServerRanges.name, item.name, 'begin check existing alarms...')
