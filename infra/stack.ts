@@ -174,8 +174,8 @@ export const createStack = async (app: App, config: Config) => {
 		logGroup: logGroupServices,
 		cloudMapNamespace,
 		resources: {
-			cpu: 256,
-			memoryLimitMiB: 2048,
+			cpu: 512,
+			memoryLimitMiB: 3072,
 		},
 		/* quicker dev deployments */
 		...(config.region !== 'ap-southeast-1' && {
