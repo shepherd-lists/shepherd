@@ -46,7 +46,7 @@ export const initLists = async () => {
 		if (exists.every(exist => exist === false)) {
 			console.info('s3 folders do not exist. initialising all lists...')
 			//call the fnInitLists invoker 
-			count = await lambdaInvoker(FN_INIT_LISTS, {}, 3)
+			count = await lambdaInvoker(FN_INIT_LISTS, {}, 0) //no retries, it's "pass" or "fail" and needs to be cleaned up
 		}
 
 	} finally {
