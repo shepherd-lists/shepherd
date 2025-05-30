@@ -95,8 +95,8 @@ export const createStack = async (app: App, config: Config) => {
 		vpc,
 		securityGroups: [sgPgdb],
 		logGroup: logGroupServices,
-		memorySize: 2048, // try boosting this for performance increase
-		timeout: Duration.minutes(5), //lower later, needs to be much faster than this!
+		memorySize: 4096, // try boosting this for performance increase
+		timeout: Duration.minutes(10), //this is a one-off lambda
 		environment: {
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: config.slack_webhook!,
