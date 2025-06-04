@@ -28,7 +28,7 @@ export const lambdaInvoker = async (FunctionName: string, payload: object, retri
 			const e = err as Error
 
 			if (retries !== undefined && --retries <= 0) {
-				throw new Error(`${FunctionName} failed after retries. Last error: ${e.message}`)
+				throw new Error(`${FunctionName} failed after ${retries} retries. Last error: ${e.message}`)
 			}
 
 			slackLog(FunctionName, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, e)

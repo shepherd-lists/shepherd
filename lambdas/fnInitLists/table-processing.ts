@@ -43,7 +43,7 @@ export const processAddonTable = async ({
 			++c
 			s3AddonTxids.write(`${row.txid}\n`)
 			if (!row.byte_start) {
-				slackLog(tablename, `missing byte-range`, JSON.stringify(row))
+				await slackLog(tablename, `missing byte-range`, JSON.stringify(row))
 
 				continue;
 			} else if (row.byte_start === '-1') {
@@ -65,11 +65,12 @@ export const processAddonTable = async ({
 			await s.promise
 		}))
 
-		/* touch .last_update file for folder after updates created */
-		await s3PutObject({ Bucket: LISTS_BUCKET, Key: `${prefix}/.last_update`, text: `${now.valueOf()}` })
-
-		/** return count */
-		console.info(`${tablename}  stream done. ${c} items in ${(Date.now() - t).toLocaleString()}ms`)
-		return c;
 	}
+
+	/* touch .last_update file for folder after updates created */
+	await s3PutObject({ Bucket: LISTS_BUCKET, Key: `${prefix}/.last_update`, text: `${now.valueOf()}` })
+
+	/** return count */
+	console.info(`${tablename}  stream done. ${c} items in ${(Date.now() - t).toLocaleString()}ms`)
+	return c;
 }
