@@ -98,7 +98,7 @@ export const updateS3Lists = async (
 	/* touch .last_update file for folder after updates created */
 	await s3PutObject({ Bucket: LISTS_BUCKET, Key: `${path}.last_update`, text: `${now.valueOf()}` })
 
-	await slackLog(`${path}*_${postfix} created with ${count.txids} txids & ${count.ranges} ranges`, JSON.stringify({ keyTxids, keyRanges }))
+	console.info(`${path}*_${postfix} created with ${count.txids} txids & ${count.ranges} ranges`, JSON.stringify({ keyTxids, keyRanges }))
 	return count //for testing
 }
 
