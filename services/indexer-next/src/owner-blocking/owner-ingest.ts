@@ -151,7 +151,9 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 
 		// lists get updated in fnOwnerBlocking now
 		/** TEMPORARY UNTIL LIST MIGRATION IS COMPLETE */
-		await lambdaInvoker(process.env.FN_TEMP!, {})
+		if (counts.inserts > 0) {
+			await lambdaInvoker(process.env.FN_TEMP!, {})
+		}
 
 		/** update state */
 		await pool.query(`UPDATE states SET value = $1 WHERE pname = 'owner_ingest'`, [vars.maxAt])
