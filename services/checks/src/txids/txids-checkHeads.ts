@@ -62,7 +62,10 @@ const newAlarmHandler = async (gw_domain: string, ids: TxidItem, reqId: number) 
 	try {
 		const { status, age, xtrace, contentLength } = await headRequest(gw_domain, ids, reqId)
 
-
+		if (status === 404) {
+			//this is what we want
+			return;
+		}
 
 		if (status >= 500)
 			throw new Error(`${headRequest.name}, ${gw_domain} returned ${status} for ${ids.id}. ignoring..`, { cause: { status } })
