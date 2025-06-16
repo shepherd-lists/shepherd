@@ -94,12 +94,14 @@ export const initRangesCache = async (listdir: string) => {
 	//5. ranges will require a more complicated add/remove logic, as they can overlap and need to be merged
 	const ranges = normalizedRanges()
 
+	let rangesCount = 0
 	for (const filename of rangeFiles) {
 		const lines = (await s3GetObject(LISTS_BUCKET, filename)).split('\n')
 		lines.pop()
 
 		//i feel like we could do better than processing 1 range at a time
 		for (const line of lines) {
+			rangesCount++
 			//line is either `start,end` or `start,end,remove`
 			const split = line.split(',')
 			const start = parseInt(split[0])
@@ -110,9 +112,14 @@ export const initRangesCache = async (listdir: string) => {
 			} else {
 				ranges.remove([[start, end]]) //ditto
 			}
+			if (rangesCount % 100_000 === 0) {
+				console.info(initRangesCache.name, `inputted ${rangesCount} total ranges. merging...`)
+				await ranges.getRanges() //does a merge to keep ram down
+			}
 		}
+		//@ts-expect-error
+		lines = null
 	}
-	await ranges.getRanges() // pre-process the ranges.
 
 	return {
 		ranges,

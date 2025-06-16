@@ -74,7 +74,7 @@ const checkRanges = async () => {
 		return
 	}
 
-	if (_running['rangechecks']) {
+	if (_running['rangechecks'] === true) {
 		console.info(checkRanges.name, `already running. exiting.`)
 		return
 	}
