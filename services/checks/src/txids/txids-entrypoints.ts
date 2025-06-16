@@ -3,8 +3,8 @@ import { FolderName } from "../types"
 
 
 /* load the access lists */
-const gwUrls: string[] = JSON.parse(process.env.GW_URLS || '[]')
-console.info({ gwUrls })
+const gwDomains: string[] = JSON.parse(process.env.GW_DOMAINS || '[]')
+console.info({ gwDomains })
 
 /* semaphore to prevent overlapping runs */
 let _running: { [key: string]: boolean } = {}
@@ -14,8 +14,8 @@ let _running: { [key: string]: boolean } = {}
  */
 export const checkTxids = async (key: FolderName) => {
 	/** short-circuit */
-	if (gwUrls.length === 0) {
-		console.info(checkTxids.name, key, 'no gw urls configured, exiting.', gwUrls)
+	if (gwDomains.length === 0) {
+		console.info(checkTxids.name, key, 'no gw domains configured, exiting.', gwDomains)
 		return
 	}
 	/** no overlapping runs */
@@ -24,10 +24,10 @@ export const checkTxids = async (key: FolderName) => {
 		return
 	}
 	_running[key] = true
-	console.info(checkTxids.name, key, `starting cronjob...`, JSON.stringify({ gwUrls, _running }))
+	console.info(checkTxids.name, key, `starting cronjob...`, JSON.stringify({ gwDomains, _running }))
 	try {
 
-		await Promise.all(gwUrls.map(async (gwUrl) => checkServerTxids(gwUrl, key)))
+		await Promise.all(gwDomains.map(async (gwDomain) => checkServerTxids(gwDomain, key)))
 
 		//TODO: might be timeouts to catch here?
 
