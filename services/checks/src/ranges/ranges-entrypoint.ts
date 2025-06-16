@@ -11,7 +11,7 @@ import { rangeAllowed } from "../../../../libs/utils/update-range-nodes"
 process.on('uncaughtException', (e, origin) => {
 	console.error('[ranges] uncaughtException', e)
 	process.send!(<MessageType>{ type: 'uncaughtException' })
-	process.exit(1)
+	// process.exit(1)
 })
 process.on('unhandledRejection', (e, origin) => {
 	console.error('[ranges] unhandledRejection (this could be handled and process continue)', e, origin)
@@ -30,7 +30,7 @@ process.on('exit', (code: number) => {
 	console.info('[ranges] exit', code)
 	process.send!(<MessageType>{ type: 'uncaughtException' }) //just send this for every shutdown
 	slackLog('[ranges] exit', code)
-	process.exit(code)
+	// process.exit(code)
 })
 
 type PendingRequest = {

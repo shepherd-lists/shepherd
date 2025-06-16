@@ -58,6 +58,10 @@ for (const c of children) {
 			c.send(returnAlarms)
 		}
 	})
+	c.on('exit', (code, signal) => {
+		console.log(`child process ${c.pid} exited with code ${code} and signal ${signal}`)
+		cleanUpAndExit()
+	})
 }
 
 const cleanUpAndExit = async () => {
