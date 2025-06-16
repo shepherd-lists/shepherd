@@ -10,6 +10,7 @@ interface NotBlockEventDetails {
 	status: ('alarm' | 'ok')
 	endpointType: '/TXID' | '/chunk'
 	/** below irrelevent for dsr range checks */
+	base32?: string
 	xtrace?: string
 	age?: string
 	contentLength?: string

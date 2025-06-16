@@ -4,8 +4,12 @@ import { idToBase32 } from '../utils/id-to-base32'
 
 
 /** txids are pretty basic */
+export interface TxidItem {
+	id: string
+	base32: string
+}
 export const uniqTxidArray = () => {
-	const items: { id: string; base32: string }[] = []
+	const items: TxidItem[] = []
 	const itemSet = new Set<string>() //faster checks
 
 	const add = (id: string) => {
