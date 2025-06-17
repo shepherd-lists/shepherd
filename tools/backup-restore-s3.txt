@@ -1,0 +1,11 @@
+
+# create a temp s3
+aws s3 mb s3://temp-$(date +%Y%m%d-%H%M%S)
+# name gets printed here
+
+# backup
+aws s3 sync s3://$LISTS_BUCKET s3://temp-20250617-215738
+
+# do whatever, empty, delete, recreate LISTS_BUCKET?
+# restore
+aws s3 sync s3://temp-20250617-215738 s3://$LISTS_BUCKET 
