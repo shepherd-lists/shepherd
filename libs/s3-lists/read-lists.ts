@@ -96,7 +96,7 @@ export const initRangesCache = async (listdir: string) => {
 
 	let rangesCount = 0
 	for (const filename of rangeFiles) {
-		const lines = (await s3GetObject(LISTS_BUCKET, filename)).split('\n')
+		let lines: string[] | null = (await s3GetObject(LISTS_BUCKET, filename)).split('\n')
 		lines.pop()
 
 		//i feel like we could do better than processing 1 range at a time
@@ -117,7 +117,7 @@ export const initRangesCache = async (listdir: string) => {
 				await ranges.getRanges() //does a merge to keep ram down
 			}
 		}
-		//@ts-expect-error
+		//free heap
 		lines = null
 	}
 
