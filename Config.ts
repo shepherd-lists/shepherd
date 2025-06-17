@@ -29,7 +29,7 @@ export type Config = {
 	http_api_nodes: Array<{ name: string, server: string }>
 
 	/* gateways to check for blocked data */
-	gw_urls?: Array<string>
+	gw_domains?: Array<string>
 
 	/** disable core services */
 	services: {

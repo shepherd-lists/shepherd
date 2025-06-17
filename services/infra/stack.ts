@@ -164,7 +164,7 @@ export class ServicesStack extends cdk.Stack {
 				GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 				BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
 				RANGELIST_ALLOWED: JSON.stringify(config.ranges_whitelist) || '',
-				GW_URLS: JSON.stringify(config.gw_urls) || '',
+				GW_URLS: JSON.stringify(config.gw_domains) || '',
 			})
 			webserver.taskDefinition.defaultContainer?.addPortMappings({
 				containerPort: 80,

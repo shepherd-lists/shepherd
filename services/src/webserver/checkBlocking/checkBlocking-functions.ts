@@ -27,13 +27,13 @@ const rangeItems: RangelistAllowedItem[] = JSON.parse(process.env.RANGELIST_ALLO
 // accessRangelist.shift() // pop off first IP. this should always be a test IP
 logger(prefix, 'parse(RANGELIST_ALLOWED)', rangeItems)
 
-const gwUrls: string[] = JSON.parse(process.env.GW_URLS || '[]')
-logger(prefix, 'gwUrls', gwUrls)
+const gwDomains: string[] = JSON.parse(process.env.GW_URLS || '[]')
+logger(prefix, 'gwDomains', gwDomains)
 
 let _running = false
 export const checkBlockedCronjob = async () => {
 
-	logger(prefix, `starting ${checkBlockedCronjob.name}() cronjob...`, { rangeItems, gwUrls, _running })
+	logger(prefix, `starting ${checkBlockedCronjob.name}() cronjob...`, { rangeItems, gwDomains, _running })
 	if(_running){
 		logger(prefix, `${checkBlockedCronjob.name}() already running. exiting...`)
 		return
@@ -45,8 +45,8 @@ export const checkBlockedCronjob = async () => {
 
 		/* check all blacklist txids against GWs */
 
-		if(gwUrls.length === 0){
-			logger(prefix, 'gwUrls empty. nothing to check txids against.')
+		if(gwDomains.length === 0){
+			logger(prefix, 'gwDomains empty. nothing to check txids against.')
 		}else{
 			// we're reusing the server's streaming function
 			const rwBlack = new PassThrough()
@@ -57,10 +57,10 @@ export const checkBlockedCronjob = async () => {
 			for await (const txid of txids){
 				(process.env.NODE_ENV === 'test') && console.log('readline txid', txid)
 
-				await Promise.all(gwUrls.map(async gw => {
+				await Promise.all(gwDomains.map(async gw => {
 					try{
 						if(!isUnreachable(gw) || unreachableTimedout(gw)){
-							await checkBlocked(`${gw}/${txid}`, txid, {name: gw, server: gw})
+							await checkBlocked(`https://${gw}/${txid}`, txid, {name: gw, server: gw})
 							//if didn't throw error, then it's reachable
 							deleteUnreachable(gw)
 						}
@@ -76,8 +76,8 @@ export const checkBlockedCronjob = async () => {
 
 		/* check all ranges against nodes (and GWs too?) */
 
-		if(gwUrls.length === 0 && rangeItems.length === 0){
-			logger(prefix, 'gwUrls & accessRangelist empty. nothing to check byteranges against.')
+		if(gwDomains.length === 0 && rangeItems.length === 0){
+			logger(prefix, 'gwDomains & accessRangelist empty. nothing to check byteranges against.')
 
 		}else{
 			const rwRange = new PassThrough()
@@ -89,7 +89,7 @@ export const checkBlockedCronjob = async () => {
 
 				const [range1, range2] = range.split(',')
 
-				await Promise.all(gwUrls.map(async gw => {
+				await Promise.all(gwDomains.map(async gw => {
 					try{
 						if(!isUnreachable(gw) || unreachableTimedout(gw)){
 							await checkBlocked(`${gw}/chunk/${+range1 + 1}`, range, {name: gw, server: gw})
@@ -158,7 +158,7 @@ export const checkBlocked = async (url: string, item: string, server: RangelistA
 				status: 'alarm',
 				details: {
 					xtrace: headers.get('x-trace') || 'null',
-					age: headers.get('age') || 'null',
+					age: headers.get('age') || headers.get('x-77-age') || 'null',
 					contentLength: headers.get('content-length') || 'null',
 					httpStatus: status,
 					endpointType: item.length === 43 ? '/TXID' : '/chunk',
