@@ -23,6 +23,7 @@ interface HeadRequestReturn {
 	xtrace: string
 	age?: string
 	contentLength?: string
+	ageHeaders: { [key: string]: string }
 }
 
 const headRequest = async (domain: string, ids: TxidItem, reqId: number) => {
@@ -39,11 +40,11 @@ const headRequest = async (domain: string, ids: TxidItem, reqId: number) => {
 			},
 		})
 
+
+
 		return {
 			status: response.status,
-			xtrace: response.headers.get('x-trace') || '',
-			age: response.headers.get('age') || undefined,
-			contentLength: response.headers.get('content-length') || undefined,
+			headers: response.headers,
 		}
 	} catch (error) {
 		const { name, code, message, cause } = error as NodeJS.ErrnoException
@@ -60,18 +61,31 @@ const headRequest = async (domain: string, ids: TxidItem, reqId: number) => {
 
 const newAlarmHandler = async (gw_domain: string, ids: TxidItem, reqId: number) => {
 	try {
-		const { status, age, xtrace, contentLength } = await headRequest(gw_domain, ids, reqId)
+		const { status, headers } = await headRequest(gw_domain, ids, reqId)
 
 		if (status === 404) {
 			//this is what we want
 			return;
 		}
 
+		// get age and trace headers
+		const ageHeaders: string[] = []
+		const traceHeaders: string[] = []
+		headers.forEach((value, key) => {
+			if (key.includes('age')) {
+				ageHeaders.push(`${key}=${value}`)
+			} else if (key.includes('trace')) {
+				traceHeaders.push(`${key}=${value}`)
+			}
+		})
+		const arrayHeaders = Array.from(headers.entries())
+		console.info(headRequest.name, 'INFO', JSON.stringify({ headers: arrayHeaders }))
+
 		if (status >= 500)
-			throw new Error(`${headRequest.name}, ${gw_domain} returned ${status} for ${ids.id}. ignoring..`, { cause: { status } })
+			throw new Error(`${headRequest.name}, ${gw_domain} returned ${status} for ${ids.id}. ignoring..`, { cause: { arrayHeaders } })
 
 		if (status >= 400) {
-			await slackLog(headRequest.name, 'ERROR!', JSON.stringify({ status, gw_domain, avoidRatelimit }))
+			await slackLog(headRequest.name, 'ERROR!', JSON.stringify({ status, gw_domain, avoidRatelimit, headers: arrayHeaders }))
 			throw new Error(`${headRequest.name}, ${gw_domain} returned 429 for ${ids.id}. ignoring..`, { cause: { status } })
 		}
 
@@ -84,9 +98,9 @@ const newAlarmHandler = async (gw_domain: string, ids: TxidItem, reqId: number) 
 					line: ids.id,
 					base32: ids.base32,
 					endpointType: '/TXID',
-					xtrace,
-					age,
-					contentLength,
+					xtrace: traceHeaders,
+					age: ageHeaders,
+					contentLength: headers.get('content-length') || undefined,
 					httpStatus: status,
 				},
 			})
@@ -100,7 +114,7 @@ const newAlarmHandler = async (gw_domain: string, ids: TxidItem, reqId: number) 
 
 const alarmOkHandler = async (gw_domain: string, ids: TxidItem, reqId: number) => {
 	try {
-		const { status, contentLength } = await headRequest(gw_domain, ids, reqId)
+		const { status } = await headRequest(gw_domain, ids, reqId)
 
 		if (status === 404) {
 			setAlertState({
@@ -111,7 +125,6 @@ const alarmOkHandler = async (gw_domain: string, ids: TxidItem, reqId: number) =
 					line: ids.id,
 					endpointType: '/TXID',
 					httpStatus: 404,
-					contentLength,
 				}
 			})
 			return false
@@ -226,7 +239,7 @@ export const checkServerTxids = async (gw_domain: string, key: FolderName) => {
 }
 
 // setInterval(alertStateCronjob, 10_000)
-// checkServerBlockingTxids('https://arweave.net', 'txidflagged.txt')
+checkServerTxids('arweave.net', 'flagged/')
 // checkServerBlockingTxids('https://arweave.net', 'txidowners.txt')
 // checkServerBlockingTxids('https://arweave.dev', 'txidowners.txt')
 // checkServerBlockingTxids('https://18.1.1.1', 'txidflagged.txt')
