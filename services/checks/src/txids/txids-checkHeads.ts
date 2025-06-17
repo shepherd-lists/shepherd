@@ -40,7 +40,10 @@ const headRequest = async (domain: string, ids: TxidItem, reqId: number) => {
 			},
 		})
 
-
+		/** use up body to prevent memory leaks */
+		if (response.body) {
+			await response.body.cancel()
+		}
 
 		return {
 			status: response.status,
