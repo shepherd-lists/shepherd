@@ -79,7 +79,7 @@ const newAlarmHandler = async (gw_domain: string, ids: TxidItem, reqId: number) 
 			}
 		})
 		const arrayHeaders = Array.from(headers.entries())
-		console.info(headRequest.name, 'INFO', JSON.stringify({ headers: arrayHeaders }))
+		console.info(headRequest.name, `STATUS ${status}, ${gw_domain} ${ids.id}`, JSON.stringify({ headers: arrayHeaders }))
 
 		if (status >= 500)
 			throw new Error(`${headRequest.name}, ${gw_domain} returned ${status} for ${ids.id}. ignoring..`, { cause: { arrayHeaders } })
