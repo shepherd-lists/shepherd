@@ -44,6 +44,7 @@ RUN npx tsc --noEmit
 ENTRYPOINT npx tsx ./src/index.ts
 
 FROM base AS checks
+ENV NODE_OPTIONS="--max-old-space-size=3072 --expose-gc"
 ARG targetArg 
 WORKDIR /app/services/${targetArg}
 COPY services/${targetArg}/package*.json ./
