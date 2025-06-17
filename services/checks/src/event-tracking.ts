@@ -10,8 +10,9 @@ interface NotBlockEventDetails {
 	status: ('alarm' | 'ok')
 	endpointType: '/TXID' | '/chunk'
 	/** below irrelevent for dsr range checks */
-	xtrace?: string
-	age?: string
+	base32?: string
+	xtrace?: string[]
+	age?: string[]
 	contentLength?: string
 	httpStatus?: number
 }
@@ -140,7 +141,7 @@ export const alertStateCronjob = () => {
 				} else { /* status === 'alarm */
 					serverLine += `🔴 ALARM. \`${endpointType}\` start:"${startDatestring}".`
 				}
-				if (details.contentLength || details.xtrace) {
+				if (details.contentLength || details.xtrace || details.age) {
 					const { xtrace, age, httpStatus, contentLength } = details
 					serverLine += ' ' + JSON.stringify({ xtrace, age, httpStatus, contentLength })
 				}

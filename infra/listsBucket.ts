@@ -18,7 +18,7 @@ export const buildListsBucket = (
 
 	const listsBucket = new aws_s3.Bucket(stack, 'listsBucket', {
 		bucketName: `shepherd-lists-${config.region}`,
-		removalPolicy: config.region === 'ap-southeast-1' ? RemovalPolicy.DESTROY : RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
+		removalPolicy: RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
 
 		objectOwnership: aws_s3.ObjectOwnership.BUCKET_OWNER_ENFORCED,
 		accessControl: aws_s3.BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,

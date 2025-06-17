@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 import { after, afterEach, beforeEach, describe, it } from 'node:test'
 import { ByteRange } from '../libs/s3-lists/merge-ranges'
 import { uniqTxidArray, normalizedRanges } from '../libs/s3-lists/ram-lists'
+import { idToBase32 } from '../libs/utils/id-to-base32'
 
 
 
@@ -11,14 +12,17 @@ describe('uniqTxidArray', () => {
 		const txids = uniqTxidArray()
 		txids.add('item1')
 		txids.add('item2')
-		assert.deepStrictEqual(txids.getTxids(), ['item1', 'item2'])
+		assert.deepStrictEqual(txids.getTxids(), [
+			{ id: 'item1', base32: idToBase32('item1') },
+			{ id: 'item2', base32: idToBase32('item2') },
+		])
 	})
 
 	it('should not add duplicate items to the array', () => {
 		const txids = uniqTxidArray()
 		txids.add('item1')
 		txids.add('item1')
-		assert.deepStrictEqual(txids.getTxids(), ['item1'])
+		assert.deepStrictEqual(txids.getTxids(), [{ id: 'item1', base32: idToBase32('item1') }])
 	})
 
 	it('should remove items from the array', () => {

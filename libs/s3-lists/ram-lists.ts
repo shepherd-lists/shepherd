@@ -1,22 +1,27 @@
 import { createMutex } from '../utils/mutex'
 import { ByteRange, mergeErlangRanges } from './merge-ranges'
+import { idToBase32 } from '../utils/id-to-base32'
 
 
 /** txids are pretty basic */
+export interface TxidItem {
+	id: string
+	base32: string
+}
 export const uniqTxidArray = () => {
-	const items: string[] = []
+	const items: TxidItem[] = []
 	const itemSet = new Set<string>() //faster checks
 
-	const add = (item: string) => {
-		if (!itemSet.has(item)) {
-			items.push(item)
-			itemSet.add(item)
+	const add = (id: string) => {
+		if (!itemSet.has(id)) {
+			items.push({ id, base32: idToBase32(id) })
+			itemSet.add(id)
 		}
 	}
-	const remove = (item: string) => {
-		if (itemSet.has(item)) {
-			items.splice(items.indexOf(item), 1)
-			itemSet.delete(item)
+	const remove = (id: string) => {
+		if (itemSet.has(id)) {
+			items.splice(items.findIndex(item => item.id === id), 1)
+			itemSet.delete(id)
 		}
 	}
 	const getTxids = () => items
