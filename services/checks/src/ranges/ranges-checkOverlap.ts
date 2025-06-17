@@ -37,6 +37,7 @@ export const checkServerRanges = async (item: Http_Api_Node, listdir: FolderName
 			headers: { 'Content-Type': 'application/json' },
 		})
 		if (!res.ok && res.headers.get('Content-Type') !== 'application/json') {
+			await res.body?.cancel()
 			throw new Error(`could not retrieve dsr. status:${res.status}, content-type:${res.headers.get('Content-Type')}`)
 		}
 		const dsrJson = await res.json()
