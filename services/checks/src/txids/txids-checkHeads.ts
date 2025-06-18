@@ -239,9 +239,9 @@ export const checkServerTxids = async (gw_domain: string, key: FolderName) => {
 				_sliceStart[key] = 0 //reset
 			}
 
-			if (global.gc) {
-				global.gc()
-			}
+			//@ts-ignore
+			if (global.gc) global.gc()
+
 		} while (blocked.length > 0)
 
 		console.info(checkServerTxids.name, gw_domain, key, `completed ${countChecks} checks in ${Math.floor(performance.now() - t0)}ms`)
