@@ -11,6 +11,7 @@ import { TxidItem } from '../../../../libs/s3-lists/ram-lists'
 import { Agent, request } from 'https'
 
 
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 const maxConcurrentRequests = 100 //adjust this
@@ -20,58 +21,52 @@ const requestTimeout = 45_000 //ms. this too
 const semaphore = new Semaphore(maxConcurrentRequests)
 const rejectTimedoutMsg = `timed-out ${requestTimeout}ms`
 
-interface HeadRequestReturn {
-	status: number
-	xtrace: string
-	age?: string
-	contentLength?: string
-	ageHeaders: { [key: string]: string }
-}
+const agent = new Agent({
+	keepAlive: true,
+	// keepAliveMsecs: 1000,
+	// timeout: 1000,	
+	maxSockets: maxConcurrentRequests,
+	maxFreeSockets: 10,
+	timeout: requestTimeout,
+})
 
 const headRequest = async (domain: string, ids: TxidItem, reqId: number) => {
 	const release = await semaphore.acquire()
-	const controller = new AbortController()
-	const timeoutId = setTimeout(() => controller.abort(), requestTimeout)
+	const url = `https://${ids.base32}.${domain}/${ids.id}`
 
-	try {
-		const res = await fetch(`https://${ids.base32}.${domain}/${ids.id}`, {
-			method: 'HEAD',
-			signal: controller.signal,
-			keepalive: true,
-			// agent, doesn't exist on fetch
-			headers: {
-				'User-Agent': 'Shepherd/1.0',
+	return new Promise<{ status: number, headers: any }>((resolve, reject) => {
+		const req = request(
+			url,
+			{
+				method: 'HEAD',
+				agent,
+				headers: {
+					'User-Agent': 'Shepherd/1.0',
+				},
+				timeout: requestTimeout,
 			},
-		})
-
-		/** use up body to prevent memory leaks */
-		try {
-			if (res.body) {
-				const reader = res.body.getReader()
-				await reader.cancel()
+			(res) => {
+				// Consume response data to free up memory
+				res.resume()
+				res.on('end', () => {
+					resolve({
+						status: res.statusCode || 0,
+						headers: res.headers,
+					})
+				})
 			}
-		} catch (e) {
-			console.error('error while cancelling body reponse', e)
-		} finally {
-			if (res.body)
-				await res.body?.cancel()
-		}
+		)
 
-		return {
-			status: res.status,
-			headers: res.headers,
-		}
-	} catch (error) {
-		const { name, code, message, cause } = error as NodeJS.ErrnoException
-		console.error(headRequest.name, JSON.stringify({
-			name, code, message, reqId, txid: ids.id, cause,
-			causeCode: (cause as { code: string })?.code
-		}))
-		throw error
-	} finally {
-		clearTimeout(timeoutId)
+		req.on('timeout', () => {
+			req.destroy(new Error('Request timed out'))
+		})
+		req.on('error', (err) => {
+			reject(err)
+		})
+		req.end()
+	}).finally(() => {
 		release()
-	}
+	})
 }
 
 const newAlarmHandler = async (gw_domain: string, ids: TxidItem, reqId: number) => {
@@ -86,21 +81,20 @@ const newAlarmHandler = async (gw_domain: string, ids: TxidItem, reqId: number) 
 		// get age and trace headers
 		const ageHeaders: string[] = []
 		const traceHeaders: string[] = []
-		headers.forEach((value, key) => {
+		Object.entries(headers).forEach(([key, value]) => {
 			if (key.includes('age')) {
 				ageHeaders.push(`${key}=${value}`)
 			} else if (key.includes('trace')) {
 				traceHeaders.push(`${key}=${value}`)
 			}
 		})
-		const arrayHeaders = Array.from(headers.entries())
-		console.info(headRequest.name, `STATUS ${status}, ${gw_domain} ${ids.id}`, JSON.stringify({ headers: arrayHeaders }))
+		console.info(headRequest.name, `STATUS ${status}, ${gw_domain} ${ids.id}`, JSON.stringify({ headers }))
 
 		if (status >= 500)
-			throw new Error(`${headRequest.name}, ${gw_domain} returned ${status} for ${ids.id}. ignoring..`, { cause: { arrayHeaders } })
+			throw new Error(`${headRequest.name}, ${gw_domain} returned ${status} for ${ids.id}. ignoring..`, { cause: { headers } })
 
 		if (status >= 400) {
-			await slackLog(headRequest.name, 'ERROR!', JSON.stringify({ status, gw_domain, avoidRatelimit, headers: arrayHeaders }))
+			await slackLog(headRequest.name, 'ERROR!', JSON.stringify({ status, gw_domain, avoidRatelimit, headers }))
 			throw new Error(`${headRequest.name}, ${gw_domain} returned 429 for ${ids.id}. ignoring..`, { cause: { status } })
 		}
 
@@ -115,7 +109,7 @@ const newAlarmHandler = async (gw_domain: string, ids: TxidItem, reqId: number) 
 					endpointType: '/TXID',
 					xtrace: traceHeaders,
 					age: ageHeaders,
-					contentLength: headers.get('content-length') || undefined,
+					contentLength: headers['content-length'] || undefined,
 					httpStatus: status,
 				},
 			})
@@ -244,6 +238,10 @@ export const checkServerTxids = async (gw_domain: string, key: FolderName) => {
 				console.info(checkServerTxids.name, gw_domain, key, `no more blocked slices ${blocked.length}`)
 				_sliceStart[key] = 0 //reset
 			}
+
+			if (global.gc) {
+				global.gc()
+			}
 		} while (blocked.length > 0)
 
 		console.info(checkServerTxids.name, gw_domain, key, `completed ${countChecks} checks in ${Math.floor(performance.now() - t0)}ms`)
@@ -254,7 +252,7 @@ export const checkServerTxids = async (gw_domain: string, key: FolderName) => {
 }
 
 // setInterval(alertStateCronjob, 10_000)
-checkServerTxids('arweave.net', 'flagged/')
+// checkServerTxids('arweave.net', 'dnsr/')
 // checkServerBlockingTxids('https://arweave.net', 'txidowners.txt')
 // checkServerBlockingTxids('https://arweave.dev', 'txidowners.txt')
 // checkServerBlockingTxids('https://18.1.1.1', 'txidflagged.txt')
