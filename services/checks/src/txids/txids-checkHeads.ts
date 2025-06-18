@@ -58,7 +58,7 @@ const headRequest = async (domain: string, ids: TxidItem, reqId: number) => {
 		)
 
 		req.on('timeout', () => {
-			req.destroy(new Error('Request timed out'))
+			req.destroy(new Error(rejectTimedoutMsg))
 		})
 		req.on('error', (err) => {
 			reject(err)
@@ -215,8 +215,8 @@ export const checkServerTxids = async (gw_domain: string, key: FolderName) => {
 			} catch (err: unknown) {
 				const { message, code, cause } = err as NodeJS.ErrnoException
 				console.error('outer catch', gw_domain, key, JSON.stringify({ message, code, cause }))
-				if (message === rejectTimedoutMsg) {
-					console.info(checkServerTxids.name, gw_domain, key, 'set unreachable mid-session')
+				if (code === 'ETIMEDOUT' || message === rejectTimedoutMsg) {
+					console.info(checkServerTxids.name, gw_domain, key, 'set unreachable mid-session due to timeout')
 					setUnreachable({ name: gw_domain, server: gw_domain })
 				}
 				break; //do-while
