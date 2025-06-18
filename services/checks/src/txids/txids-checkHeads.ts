@@ -8,10 +8,12 @@ import { setUnreachable, unreachableTimedout } from '../event-unreachable'
 import { FolderName } from "../types"
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { TxidItem } from '../../../../libs/s3-lists/ram-lists'
+import { Agent, request } from 'https'
+
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const maxConcurrentRequests = 150 //adjust this
+const maxConcurrentRequests = 100 //adjust this
 const checksPerPeriod = 5_000 //adjust?
 const avoidRatelimit = 30_000 //sorta same as above 
 const requestTimeout = 45_000 //ms. this too
@@ -32,20 +34,32 @@ const headRequest = async (domain: string, ids: TxidItem, reqId: number) => {
 	const timeoutId = setTimeout(() => controller.abort(), requestTimeout)
 
 	try {
-		const response = await fetch(`https://${ids.base32}.${domain}/${ids.id}`, {
+		const res = await fetch(`https://${ids.base32}.${domain}/${ids.id}`, {
 			method: 'HEAD',
 			signal: controller.signal,
+			keepalive: true,
+			// agent, doesn't exist on fetch
 			headers: {
 				'User-Agent': 'Shepherd/1.0',
 			},
 		})
 
 		/** use up body to prevent memory leaks */
-		await response.body?.cancel()
+		try {
+			if (res.body) {
+				const reader = res.body.getReader()
+				await reader.cancel()
+			}
+		} catch (e) {
+			console.error('error while cancelling body reponse', e)
+		} finally {
+			if (res.body)
+				await res.body?.cancel()
+		}
 
 		return {
-			status: response.status,
-			headers: response.headers,
+			status: res.status,
+			headers: res.headers,
 		}
 	} catch (error) {
 		const { name, code, message, cause } = error as NodeJS.ErrnoException
