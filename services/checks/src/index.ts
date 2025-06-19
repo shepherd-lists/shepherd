@@ -81,7 +81,7 @@ process.on('SIGTERM', () => {
 
 /** ensure no orphans are created */
 process.on('exit', (code) => {
-	console.log(`exiting with code ${code}`)
+	console.log(`[main] exiting with code ${code}`)
 	cleanUpAndExit()
 })
 process.on('uncaughtException', (e, origin) => {
@@ -90,7 +90,7 @@ process.on('uncaughtException', (e, origin) => {
 	cleanUpAndExit()
 })
 process.on('unhandledRejection', (reason, promise) => {
-	slackLog('unhandled rejection at:', JSON.stringify({ promise, reason }))
+	slackLog('[main] unhandled rejection at:', JSON.stringify({ promise, reason }))
 	cleanUpAndExit()
 })
 
