@@ -3,12 +3,13 @@ import { Semaphore } from 'await-semaphore'
 import { filterPendingOnly } from "../pending-promises"
 import { performance } from 'perf_hooks'
 import { checkReachable } from "../checkReachable"
-import { getServerAlarms, setAlertState } from "../event-tracking"
 import { setUnreachable, unreachableTimedout } from '../event-unreachable'
 import { FolderName } from "../types"
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { TxidItem } from '../../../../libs/s3-lists/ram-lists'
 import { Agent, request } from 'https'
+import { MessageType } from ".."
+import { getServerAlarmsIPC } from "../ipc-getAlarms"
 
 
 
@@ -99,19 +100,22 @@ const newAlarmHandler = async (gw_domain: string, ids: TxidItem, reqId: number) 
 		}
 
 		if (status !== 404) {
-			setAlertState({
-				server: gw_domain,
-				serverType: 'gw',
-				details: {
-					status: 'alarm',
-					line: ids.id,
-					base32: ids.base32,
-					endpointType: '/TXID',
-					xtrace: traceHeaders,
-					age: ageHeaders,
-					contentLength: headers['content-length'] || undefined,
-					httpStatus: status,
-				},
+			process.send!(<MessageType>{
+				type: "setState",
+				newState: {
+					server: gw_domain,
+					serverType: 'gw',
+					details: {
+						status: 'alarm',
+						line: ids.id,
+						base32: ids.base32,
+						endpointType: '/TXID',
+						xtrace: traceHeaders,
+						age: ageHeaders,
+						contentLength: headers['content-length'] || undefined,
+						httpStatus: status,
+					}
+				}
 			})
 		}
 	} catch (e) {
@@ -126,14 +130,17 @@ const alarmOkHandler = async (gw_domain: string, ids: TxidItem, reqId: number) =
 		const { status } = await headRequest(gw_domain, ids, reqId)
 
 		if (status === 404) {
-			setAlertState({
-				server: gw_domain,
-				serverType: 'gw',
-				details: {
-					status: 'ok',
-					line: ids.id,
-					endpointType: '/TXID',
-					httpStatus: 404,
+			process.send!(<MessageType>{
+				type: 'setState',
+				newState: {
+					server: gw_domain,
+					serverType: 'gw',
+					details: {
+						status: 'ok',
+						line: ids.id,
+						endpointType: '/TXID',
+						httpStatus: 404,
+					}
 				}
 			})
 			return false
@@ -179,7 +186,7 @@ export const checkServerTxids = async (gw_domain: string, key: FolderName) => {
 			const p0 = performance.now()
 			try {
 				/** check current alarms every time */
-				const alarms = getServerAlarms(gw_domain)
+				const alarms = await getServerAlarmsIPC(gw_domain)
 				let countAlarms = 0
 				const inAlarms = await Promise.all(Object.keys(alarms).map(async txid => {
 					if (alarms[txid].status === 'alarm') {

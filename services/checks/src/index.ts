@@ -7,15 +7,7 @@
 import { ChildProcess, fork } from 'child_process'
 import { NotBlockStateDetails, alertStateCronjob, getServerAlarms } from './event-tracking'
 import { NotBlockEvent, setAlertState } from './event-tracking'
-import { checkTxids } from './txids/txids-entrypoints'
 import { slackLog } from '../../../libs/utils/slackLog'
-import { addonTxsTableNames } from '../../../libs/utils/addon-tablenames'
-
-
-const FLAGGED_INTERVAL = 30_000 // 30 secs 
-const OWNERS_INTERVAL = 300_000 // 5 mins N.B. owners will be large and take hours to complete
-const DNSR_INTERVAL = 600_000 // 10 mins
-
 
 
 
@@ -24,14 +16,17 @@ const DNSR_INTERVAL = 600_000 // 10 mins
 
 const children: ChildProcess[] = []
 
-const rangesProcess = () => {
-	const worker = fork(
-		new URL('./ranges/ranges-entrypoint.ts', import.meta.url).pathname,
-		{ stdio: 'inherit' }
-	)
-	return worker
-}
-children.push(rangesProcess())
+
+children.push(fork(
+	new URL('./ranges/ranges-entrypoint.ts', import.meta.url).pathname,
+	{ stdio: 'inherit' }
+))
+children.push(fork(
+	new URL('./txids/txids-entrypoints.ts', import.meta.url).pathname,
+	{ stdio: 'inherit' }
+))
+
+
 
 /** wire up child messages for state changes and unhandled errors */
 export type MessageType =
@@ -95,15 +90,9 @@ process.on('unhandledRejection', (reason, promise) => {
 })
 
 
-/** txid & alarm entrypoints after process event handlers */
 
-setInterval(() => checkTxids('flagged/'), FLAGGED_INTERVAL)
-setInterval(() => checkTxids('owners/'), OWNERS_INTERVAL)
-checkTxids('owners/') //start early
-const addonKeys = (await addonTxsTableNames()).map(t => `${t.split('_')[0]}/`) as `${string}/`[]
-console.info(JSON.stringify({ addonKeys }))
-addonKeys.map(key => setInterval(() => checkTxids(key), DNSR_INTERVAL))
+/** [main entry] cron for alarm state */
+
+setInterval(alertStateCronjob, 10_000)
 
 
-/** cron for alarm state */
-setInterval(alertStateCronjob, 10_000) 
