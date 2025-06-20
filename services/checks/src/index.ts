@@ -7,15 +7,7 @@
 import { ChildProcess, fork } from 'child_process'
 import { NotBlockStateDetails, alertStateCronjob, getServerAlarms } from './event-tracking'
 import { NotBlockEvent, setAlertState } from './event-tracking'
-import { checkTxids } from './txids/txids-entrypoints'
 import { slackLog } from '../../../libs/utils/slackLog'
-import { addonTxsTableNames } from '../../../libs/utils/addon-tablenames'
-
-
-const FLAGGED_INTERVAL = 30_000 // 30 secs 
-const OWNERS_INTERVAL = 300_000 // 5 mins N.B. owners will be large and take hours to complete
-const DNSR_INTERVAL = 600_000 // 10 mins
-
 
 
 
@@ -24,14 +16,30 @@ const DNSR_INTERVAL = 600_000 // 10 mins
 
 const children: ChildProcess[] = []
 
-const rangesProcess = () => {
-	const worker = fork(
-		new URL('./ranges/ranges-entrypoint.ts', import.meta.url).pathname,
-		{ stdio: 'inherit' }
-	)
-	return worker
+// Add memory monitoring
+const logMemoryUsage = () => {
+	const memUsage = process.memoryUsage()
+	console.log('[main] Memory usage:', JSON.stringify({
+		rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
+		heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+		heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+		external: `${Math.round(memUsage.external / 1024 / 1024)}MB`
+	}))
 }
-children.push(rangesProcess())
+
+// Monitor memory every 30 seconds
+setInterval(logMemoryUsage, 60000)
+
+children.push(fork(
+	new URL('./ranges/ranges-entrypoint.ts', import.meta.url).pathname,
+	{ stdio: 'inherit' }
+))
+children.push(fork(
+	new URL('./txids/txids-entrypoints.ts', import.meta.url).pathname,
+	{ stdio: 'inherit' }
+))
+
+
 
 /** wire up child messages for state changes and unhandled errors */
 export type MessageType =
@@ -60,12 +68,12 @@ for (const c of children) {
 	})
 	c.on('exit', (code, signal) => {
 		console.log(`child process ${c.pid} exited with code ${code} and signal ${signal}`)
-		cleanUpAndExit()
+		cleanUpAndExit(`child process ${c.pid} exited with code ${code} and signal ${signal}`)
 	})
 }
 
-const cleanUpAndExit = async () => {
-	await slackLog('💀 [checks-service] killing all child processes ❌')
+const cleanUpAndExit = async (msg?: string) => {
+	await slackLog('💀 [checks-service] killing all child processes ❌', msg)
 	children.forEach(child => child.kill())
 	process.exit(1)
 }
@@ -81,7 +89,7 @@ process.on('SIGTERM', () => {
 
 /** ensure no orphans are created */
 process.on('exit', (code) => {
-	console.log(`exiting with code ${code}`)
+	console.log(`[main] exiting with code ${code}`)
 	cleanUpAndExit()
 })
 process.on('uncaughtException', (e, origin) => {
@@ -90,20 +98,14 @@ process.on('uncaughtException', (e, origin) => {
 	cleanUpAndExit()
 })
 process.on('unhandledRejection', (reason, promise) => {
-	slackLog('unhandled rejection at:', JSON.stringify({ promise, reason }))
+	slackLog('[main] unhandled rejection at:', JSON.stringify({ promise, reason }))
 	cleanUpAndExit()
 })
 
 
-/** txid & alarm entrypoints after process event handlers */
 
-setInterval(() => checkTxids('flagged/'), FLAGGED_INTERVAL)
-setInterval(() => checkTxids('owners/'), OWNERS_INTERVAL)
-checkTxids('owners/') //start early
-const addonKeys = (await addonTxsTableNames()).map(t => `${t.split('_')[0]}/`) as `${string}/`[]
-console.info(JSON.stringify({ addonKeys }))
-addonKeys.map(key => setInterval(() => checkTxids(key), DNSR_INTERVAL))
+/** [main entry] cron for alarm state */
+
+setInterval(alertStateCronjob, 10_000)
 
 
-/** cron for alarm state */
-setInterval(alertStateCronjob, 10_000) 

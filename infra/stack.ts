@@ -223,7 +223,7 @@ export const createStack = async (app: App, config: Config) => {
 			cloudMapNamespace,
 			resources: {
 				cpu: 2048,
-				memoryLimitMiB: 4096,
+				memoryLimitMiB: 5120,
 			},
 			environment: {
 				LISTS_BUCKET: `shepherd-lists-${config.region}`,

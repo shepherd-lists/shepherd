@@ -4,7 +4,7 @@ import { checkReachable } from '../checkReachable'
 import { unreachableTimedout, setUnreachable } from '../event-unreachable'
 import { Http_Api_Node } from '../../../../libs/utils/update-range-nodes'
 import { MessageType } from '..'
-import { getServerAlarmsIPC } from './ranges-entrypoint'
+import { getServerAlarmsIPC } from '../ipc-getAlarms'
 import { FolderName } from '../types'
 
 
