@@ -3,7 +3,19 @@ import { MessageType } from '..'
 import { slackLog } from "../../../../libs/utils/slackLog"
 import { rangeAllowed } from "../../../../libs/utils/update-range-nodes"
 
+// Add memory monitoring
+const logMemoryUsage = () => {
+	const memUsage = process.memoryUsage()
+	console.log('[ranges] Memory usage:', JSON.stringify({
+		rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
+		heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+		heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+		external: `${Math.round(memUsage.external / 1024 / 1024)}MB`
+	}))
+}
 
+// Monitor memory every 60 seconds
+setInterval(logMemoryUsage, 60000)
 
 /** let the main thread know there's a problem */
 process.on('uncaughtException', (e, origin) => {

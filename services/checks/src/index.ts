@@ -16,6 +16,19 @@ import { slackLog } from '../../../libs/utils/slackLog'
 
 const children: ChildProcess[] = []
 
+// Add memory monitoring
+const logMemoryUsage = () => {
+	const memUsage = process.memoryUsage()
+	console.log('[main] Memory usage:', JSON.stringify({
+		rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
+		heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+		heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+		external: `${Math.round(memUsage.external / 1024 / 1024)}MB`
+	}))
+}
+
+// Monitor memory every 30 seconds
+setInterval(logMemoryUsage, 60000)
 
 children.push(fork(
 	new URL('./ranges/ranges-entrypoint.ts', import.meta.url).pathname,
@@ -55,12 +68,12 @@ for (const c of children) {
 	})
 	c.on('exit', (code, signal) => {
 		console.log(`child process ${c.pid} exited with code ${code} and signal ${signal}`)
-		cleanUpAndExit()
+		cleanUpAndExit(`child process ${c.pid} exited with code ${code} and signal ${signal}`)
 	})
 }
 
-const cleanUpAndExit = async () => {
-	await slackLog('💀 [checks-service] killing all child processes ❌')
+const cleanUpAndExit = async (msg?: string) => {
+	await slackLog('💀 [checks-service] killing all child processes ❌', msg)
 	children.forEach(child => child.kill())
 	process.exit(1)
 }
