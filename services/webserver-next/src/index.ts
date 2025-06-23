@@ -9,6 +9,7 @@ import { network_EXXX_codes } from '../../../libs/constants'
 import { Socket } from 'net'
 import { addonTxsTableNames } from '../../../libs/utils/addon-tablenames'
 import { GetListPath, getETag, getList, prefetchLists } from './lists'
+import { networkInterfaces } from 'os'
 
 
 const prefix = 'webserver'
@@ -149,15 +150,59 @@ app.get(/^\/range(flagged|owners).txt$/, ipAllowMiddleware('ranges'), async (req
 
 const server = app.listen(port, () => console.info(`webserver started on http://localhost:${port}`))
 
+
+/**
+ *  
+ * error logging 
+ * 
+ * */
+
+const webserverPrivateIPs = () => {
+	const ips: string[] = []
+	const nets = networkInterfaces()
+	for (const name of Object.keys(nets)) {
+		for (const net of nets[name]!) {
+			// Skip internal (i.e. 127.0.0.1) and non-ipv4 addresses
+			if (net.family === 'IPv4' && !net.internal) {
+				ips.push(net.address)
+			}
+		}
+	}
+	return ips.length ? ips.join(', ') : 'unknown'
+}
+const targetIPs = webserverPrivateIPs()
+
+/** track connections as they're established */
+const connectionIPs = new Map<Socket, string>()
+
+server.on('connection', (socket: Socket) => {
+	const clientIP = socket.remoteAddress || 'unknown'
+	connectionIPs.set(socket, clientIP)
+
+	// Clean up when socket closes
+	socket.on('close', () => {
+		connectionIPs.delete(socket)
+	})
+})
+
 /**
  * catch malformed client requests.
  * useful for testing: curl -v -X POST -H 'content-length: 3' --data-raw 'aaaa' http://localhost
  */
 server.on('clientError', (e: Error & { code: string }, socket: Socket) => {
+	const loadBalancerIP = connectionIPs.get(socket) || socket.remoteAddress || 'unknown'
 
-	slackLog(prefix, 'express-clientError', `${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
-	//debug
-	console.log('Socket:', {
+
+	slackLog(prefix, 'clientError', `ALB: ${loadBalancerIP} - ${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
+	//write object for CW querying
+	console.log(JSON.stringify({
+		eventType: 'clientError',
+		timestamp: new Date().toISOString(),
+		loadBalancerIP,
+		targetIPs,
+		code: e.code,
+		message: e.message,
+		stack: e.stack,
 		timeout: socket.timeout,
 		allowHalfOpen: socket.allowHalfOpen,
 		destroyed: socket.destroyed,
@@ -173,7 +218,7 @@ server.on('clientError', (e: Error & { code: string }, socket: Socket) => {
 		pending: socket.pending,
 		readable: socket.readable,
 		writable: socket.writable,
-	})
+	}))
 
 	if (e.code === 'HPE_INVALID_METHOD' || e.code === 'HPE_INVALID_HEADER_TOKEN') {
 		console.error('express-clientError', `malformed request. ${e.name} (${e.code}) : ${e.message}. Closing the socket with HTTP/1.1 400 Bad Request.`)
