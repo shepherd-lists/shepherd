@@ -172,12 +172,25 @@ const webserverPrivateIPs = () => {
 }
 const targetIPs = webserverPrivateIPs()
 
+/** track connections as they're established */
+const connectionIPs = new Map<Socket, string>()
+
+server.on('connection', (socket: Socket) => {
+	const clientIP = socket.remoteAddress || 'unknown'
+	connectionIPs.set(socket, clientIP)
+
+	// Clean up when socket closes
+	socket.on('close', () => {
+		connectionIPs.delete(socket)
+	})
+})
+
 /**
  * catch malformed client requests.
  * useful for testing: curl -v -X POST -H 'content-length: 3' --data-raw 'aaaa' http://localhost
  */
 server.on('clientError', (e: Error & { code: string }, socket: Socket) => {
-	const loadBalancerIP = socket.remoteAddress || 'unknown'
+	const loadBalancerIP = connectionIPs.get(socket) || socket.remoteAddress || 'unknown'
 
 
 	slackLog(prefix, 'clientError', `ALB: ${loadBalancerIP} - ${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
