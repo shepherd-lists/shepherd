@@ -23,16 +23,37 @@ const port = 80
 // 		//nothing to do. parser will throw on parse error apparently
 // 	},
 // }))
-// app.use(((err, req, res, next) => {
-// 	const ip = req.headers['x-forwarded-for']
 
-// 	// if (err.code) {
-// 	slackLog(prefix, `parser error from ip: ${ip}, ${err.name}:${err.message}`)
-// 	console.error('parser', err)
-// 	return res.status(456).send('Bad Request?')
-// 	// }
-// 	// next(err)
-// }) as ErrorRequestHandler)
+/** track connections with both ALB IP and real client IP */
+const connectionIPs = new Map<Socket, {
+	alb: string
+	forwarded: string | null
+}>()
+
+// Middleware to capture real client IP from x-forwarded-for
+app.use((req, res, next) => {
+	const forwarded = req.headers['x-forwarded-for'] as string || 'unknown'
+	const socket = req.socket
+
+	// Update our connection tracking with the real client IP
+	if (socket && connectionIPs.has(socket)) {
+		const cnnIPs = connectionIPs.get(socket)!
+		cnnIPs.forwarded = forwarded
+	}
+
+	console.log(JSON.stringify({
+		eventType: 'request',
+		timestamp: new Date().toISOString(),
+		alb: connectionIPs.get(socket)?.alb || 'unknown',
+		forwarded,
+		path: req.path,
+		method: req.method
+	}))
+
+	next()
+})
+
+
 
 prefetchLists()
 
@@ -172,15 +193,18 @@ const webserverPrivateIPs = () => {
 }
 const targetIPs = webserverPrivateIPs()
 
-/** track connections as they're established */
-const connectionIPs = new Map<Socket, string>()
-
 server.on('connection', (socket: Socket) => {
-	const clientIP = socket.remoteAddress || 'unknown'
-	connectionIPs.set(socket, clientIP)
+	const alb = socket.remoteAddress || 'unknown'
+	connectionIPs.set(socket, {
+		alb,
+		forwarded: null // Will be updated when we get x-forwarded-for
+	})
 
 	// Clean up when socket closes
 	socket.on('close', () => {
+		connectionIPs.delete(socket)
+	})
+	socket.on('error', (e: Error) => {
 		connectionIPs.delete(socket)
 	})
 })
@@ -190,15 +214,18 @@ server.on('connection', (socket: Socket) => {
  * useful for testing: curl -v -X POST -H 'content-length: 3' --data-raw 'aaaa' http://localhost
  */
 server.on('clientError', (e: Error & { code: string }, socket: Socket) => {
-	const loadBalancerIP = connectionIPs.get(socket) || socket.remoteAddress || 'unknown'
+	const cnnIPs = connectionIPs.get(socket)
+	const alb = cnnIPs?.alb || socket.remoteAddress || 'unknown'
+	const forwarded = cnnIPs?.forwarded || 'unknown'
 
+	slackLog(prefix, 'clientError', `ALB: ${alb} → Real Client: ${forwarded} → Webserver: ${targetIPs} - ${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
 
-	slackLog(prefix, 'clientError', `ALB: ${loadBalancerIP} - ${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
 	//write object for CW querying
 	console.log(JSON.stringify({
 		eventType: 'clientError',
 		timestamp: new Date().toISOString(),
-		loadBalancerIP,
+		alb,
+		forwarded,
 		targetIPs,
 		code: e.code,
 		message: e.message,
