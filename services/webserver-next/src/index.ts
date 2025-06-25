@@ -16,13 +16,10 @@ const prefix = 'webserver'
 const app = express()
 const port = 80
 
+prefetchLists()
+
 // app.use(cors())
-// app.use(express.raw({
-// 	type: '*/*',
-// 	verify(req, res, buf, encoding) {
-// 		//nothing to do. parser will throw on parse error apparently
-// 	},
-// }))
+
 
 /** track connections with both ALB IP and real client IP */
 const connectionIPs = new Map<Socket, {
@@ -53,9 +50,11 @@ app.use((req, res, next) => {
 	next()
 })
 
+app.get('/robots.txt', (req, res) => {
+	res.type('text/plain')
+	res.send('User-agent: *\nDisallow: /\n')
+})
 
-
-prefetchLists()
 
 app.get('/', async (req, res) => {
 	res.setHeader('Content-Type', 'text/plain')
