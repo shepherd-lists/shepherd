@@ -4,6 +4,7 @@ import { slackLog } from '../../../libs/utils/slackLog'
 import { network_EXXX_codes } from '../../../libs/constants'
 import { pluginResultHandler } from './pluginResultHandler'
 import './service/inbox2txs' //self starting
+import { addonHandler } from './addonHandler'
 
 
 const prefix = 'http-api'
@@ -13,12 +14,27 @@ const port = 84
 app.use(express.json())
 
 app.get('/', (req, res) => {
-	res.status(200).send('API listener operational.\n')
+	res.send('API listener operational.\n')
+})
+
+app.post('/addon-update', async (req, res) => {
+	const body = req.body
+	console.log(body)
+	try {
+
+		const ref = await addonHandler(body)
+
+		console.log(`${addonHandler.name} returned ${ref}, responding 200 OK`)
+		return res.sendStatus(200)
+	} catch (err: unknown) {
+		slackLog(prefix, '/addon-update', body?.txid, String(err))
+		console.error(err)
+		res.sendStatus(500)
+	}
 })
 
 
 app.post('/postupdate', async (req, res) => {
-	req.resume()
 	const body = req.body
 	try {
 
