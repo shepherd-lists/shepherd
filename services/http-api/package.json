@@ -14,6 +14,7 @@
     "pg-query-stream": "^4.8.0",
     "shepherd-plugin-interfaces": "^1.0.0",
     "tsx": "^4.7.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "zod": "^3.25.67"
   }
 }
