@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import assert from "node:assert/strict";
-import { after, afterEach, beforeEach, describe, it } from 'node:test'
+import { after, afterEach, before, beforeEach, describe, it } from 'node:test'
 import { addonHandler } from '../services/http-api/src/addonHandler'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import knexCreate from '../libs/utils/knexCreate';
@@ -27,12 +27,17 @@ describe('addonHandler', () => {
 		// top_score_value: undefined
 	}
 
+	before(async () => {
+		await knex.raw('CREATE TABLE IF NOT EXISTS tests_txs (txid VARCHAR(43) PRIMARY KEY, content_type VARCHAR(255) NOT NULL, content_size INT NOT NULL, height INT NOT NULL, flagged BOOLEAN, valid_data BOOLEAN, data_reason VARCHAR(255), byte_start VARCHAR(255), byte_end VARCHAR(255), last_update_date TIMESTAMP, flag_type VARCHAR(255), top_score_name VARCHAR(255), top_score_value FLOAT)')
+	})
+
 	after(async () => {
+		await knex.raw('DROP TABLE IF EXISTS tests_txs')
 		await knex.destroy()
 	})
 
-	it('should validate input correctly', async () => {
-		// Test empty addonPrefix
+	it('should invalidate incorrect input', async () => {
+		//test empty addonPrefix
 		try {
 			await addonHandler({
 				addonPrefix: '',
@@ -44,11 +49,11 @@ describe('addonHandler', () => {
 			assert.ok(e.message.includes('addonPrefix'))
 		}
 
-		// Test too many records
+		//test too many records
 		const manyRecords = Array(101).fill(mockRecord)
 		try {
 			await addonHandler({
-				addonPrefix: 'test',
+				addonPrefix: 'tests',
 				records: manyRecords
 			})
 			assert.fail('Should have thrown error for too many records')
@@ -57,7 +62,7 @@ describe('addonHandler', () => {
 			assert.ok(e.message.includes('Maximum 100 records'))
 		}
 
-		// Test bad record (missing required fields)
+		//test bad record (missing required content fields)
 		try {
 			await addonHandler({
 				addonPrefix: 'test',
@@ -71,13 +76,13 @@ describe('addonHandler', () => {
 	})
 
 
-	it('should validate correct input', async () => {
-		//PLACEHOLDER
-		const result = await addonHandler({
-			addonPrefix: 'test',
+	it('should process correct input', async () => {
+		const insertCount = await addonHandler({
+			addonPrefix: 'tests',
 			records: [mockRecord as TxRecord]
-		})
-		assert.strictEqual(result, undefined)
+		}, async (txid, parent, parents) => ({ start: 1n, end: 2n })
+		)
+		assert.equal(insertCount, 1)
 	})
 
 
