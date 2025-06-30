@@ -4,10 +4,14 @@ import { after, afterEach, before, beforeEach, describe, it } from 'node:test'
 import { addonHandler } from '../services/http-api/src/addonHandler'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import knexCreate from '../libs/utils/knexCreate';
+import { s3DeleteFolder } from '../libs/utils/s3-services';
 
 const knex = knexCreate()
 
 describe('addonHandler', () => {
+
+	const addonPrefix = 'tests'
+
 	const mockRecord: Partial<TxRecord> = {
 		txid: 'test-txid'.padEnd(43, '-'),
 		content_type: 'text/plain',
@@ -28,12 +32,13 @@ describe('addonHandler', () => {
 	}
 
 	before(async () => {
-		await knex.raw('CREATE TABLE IF NOT EXISTS tests_txs (txid VARCHAR(43) PRIMARY KEY, content_type VARCHAR(255) NOT NULL, content_size INT NOT NULL, height INT NOT NULL, flagged BOOLEAN, valid_data BOOLEAN, data_reason VARCHAR(255), byte_start VARCHAR(255), byte_end VARCHAR(255), last_update_date TIMESTAMP, flag_type VARCHAR(255), top_score_name VARCHAR(255), top_score_value FLOAT)')
+		await knex.raw(`CREATE TABLE IF NOT EXISTS ${addonPrefix}_txs (txid VARCHAR(43) PRIMARY KEY, content_type VARCHAR(255) NOT NULL, content_size INT NOT NULL, height INT NOT NULL, flagged BOOLEAN, valid_data BOOLEAN, data_reason VARCHAR(255), byte_start VARCHAR(255), byte_end VARCHAR(255), last_update_date TIMESTAMP, flag_type VARCHAR(255), top_score_name VARCHAR(255), top_score_value FLOAT)`)
 	})
 
 	after(async () => {
-		await knex.raw('DROP TABLE IF EXISTS tests_txs')
+		await knex.raw(`DROP TABLE IF EXISTS ${addonPrefix}_txs`)
 		await knex.destroy()
+		await s3DeleteFolder(process.env.LISTS_BUCKET!, `${addonPrefix}/`)
 	})
 
 	it('should invalidate incorrect input', async () => {
@@ -53,7 +58,7 @@ describe('addonHandler', () => {
 		const manyRecords = Array(101).fill(mockRecord)
 		try {
 			await addonHandler({
-				addonPrefix: 'tests',
+				addonPrefix,
 				records: manyRecords
 			})
 			assert.fail('Should have thrown error for too many records')
@@ -65,7 +70,7 @@ describe('addonHandler', () => {
 		//test bad record (missing required content fields)
 		try {
 			await addonHandler({
-				addonPrefix: 'test',
+				addonPrefix,
 				records: [{ txid: 'test-txid-bad-record'.padEnd(43, '-') } as TxRecord]
 			})
 			assert.fail('Should have thrown error for bad record')
@@ -78,11 +83,32 @@ describe('addonHandler', () => {
 
 	it('should process correct input', async () => {
 		const insertCount = await addonHandler({
-			addonPrefix: 'tests',
+			addonPrefix,
+			records: [mockRecord as TxRecord]
+		}, async (txid, parent, parents) => ({ start: -1n, end: -1n })
+		)
+		assert.equal(insertCount, 1)
+
+		// Debug: Check what was stored after first call
+		const firstRecord = await knex<TxRecord>(`${addonPrefix}_txs`).where('txid', mockRecord.txid).first()
+		console.log('After first call:', { byte_start: firstRecord?.byte_start, byte_end: firstRecord?.byte_end })
+
+		/** test for existing record, let's use same record above, but with valid byte-range */
+		const insertCount2 = await addonHandler({
+			addonPrefix,
 			records: [mockRecord as TxRecord]
 		}, async (txid, parent, parents) => ({ start: 1n, end: 2n })
 		)
-		assert.equal(insertCount, 1)
+		assert.equal(insertCount2, 1)
+		const updatedRecord = await knex<TxRecord>(`${addonPrefix}_txs`).where('txid', mockRecord.txid).first()
+
+		// Debug: Check what was stored after second call
+		console.log('After second call:', { byte_start: updatedRecord?.byte_start, byte_end: updatedRecord?.byte_end })
+
+		assert(updatedRecord)
+		assert.equal(updatedRecord?.byte_start, '1')
+		assert.equal(updatedRecord?.byte_end, '2')
+
 	})
 
 
