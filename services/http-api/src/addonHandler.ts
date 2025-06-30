@@ -4,6 +4,8 @@ import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { z } from 'zod'
 import isEqual from 'lodash/isEqual'
 import { getByteRange as getByteRangeOriginal } from '../../../libs/byte-ranges/byteRanges'
+import { updateS3Lists } from '../../../libs/s3-lists/update-lists'
+import { slackLog } from '../../../libs/utils/slackLog'
 
 const knex = knexCreate()
 
@@ -79,16 +81,16 @@ export const addonHandler = async (
 		 * byte-range (expensive)
 		 * other fields
 		 */
+		const validByteRange = hasValidByteRanges(existingRecord)
+		const fieldsMatch = otherFieldsMatch(existingRecord, record)
 
-		const needsByteRangeCalc = hasValidByteRanges(existingRecord)
-		const needsOtherFieldsUpdated = otherFieldsMatch(existingRecord, record)
 
 		/** short-circuit for no changes */
-		if (!needsByteRangeCalc && !needsOtherFieldsUpdated) {
+		if (validByteRange && fieldsMatch) {
 			return undefined; //not updated
 		}
 
-		if (needsByteRangeCalc) {
+		if (!validByteRange) {
 			const { txid, parent, parents } = record
 			const { start, end } = await getByteRange(txid, parent, parents)
 			record.byte_start = start.toString()
@@ -110,13 +112,23 @@ export const addonHandler = async (
 	const updatedRecords = updates.filter(r => r !== undefined)
 
 	/** update db */
-	const inserts = await knex<TxRecord>(`${addonPrefix}_txs`).insert(updatedRecords).onConflict('txid').merge()
+	const inserts = await knex<TxRecord>(`${addonPrefix}_txs`).insert(updatedRecords).onConflict('txid').merge().returning('txid')
 	console.info(addonHandler.name, `inserted ${inserts.length}/${records.length} records`)
 
-	/** run updateS3Lists */
-	// await updateS3Lists(filteredResults)
+	/** run updateS3Lists. !!only flagged records!! */
+	const flagged = updatedRecords.filter(r => r.flagged === true)
+	if (flagged.length > 0) {
+		const counts = await updateS3Lists(addonPrefix, updatedRecords.map(r => ({
+			txid: r.txid,
+			range: [Number(r.byte_start), Number(r.byte_end)],
+		})))
+		if (inserts.length !== counts.txids) {
+			slackLog(addonHandler.name, `${flagged.length} flagged records, but only added ${counts.txids} records to the s3-list ${addonPrefix}/txids_*`)
+			throw new Error(`${flagged.length} flagged records, but only added ${counts.txids} records to the s3-list ${addonPrefix}/txids_*`)
+		}
+	}
 
-	return (inserts as any).rowCount
+	return inserts.length
 }
 
 /** helper functions */
