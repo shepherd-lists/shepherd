@@ -2,6 +2,8 @@ import { APIFilterResult } from 'shepherd-plugin-interfaces'
 import knexCreate from '../../../libs/utils/knexCreate'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { z } from 'zod'
+import isEqual from 'lodash/isEqual'
+import { getByteRange as getByteRangeOriginal } from '../../../libs/byte-ranges/byteRanges'
 
 const knex = knexCreate()
 
@@ -32,7 +34,11 @@ const AddonHandlerArgsSchema = z.object({
 	records: RecordsArraySchema
 })
 
-export const addonHandler = async ({ addonPrefix, records }: { addonPrefix: string, records: TxRecord[] }) => {
+export const addonHandler = async (
+	{ addonPrefix, records }: { addonPrefix: string, records: TxRecord[] },
+	//dependency injection for testing
+	getByteRange = getByteRangeOriginal,
+) => {
 
 	/** use zod to check type of records is correct */
 	try {
@@ -45,22 +51,89 @@ export const addonHandler = async ({ addonPrefix, records }: { addonPrefix: stri
 	}
 
 	/** plan:
-	 * just take the result
-	 * add byte-ranges
+	 * just take the record
 	 * check if db needs updating
+	 * calc byte-ranges if needed
 	 * run updateS3Lists
-	 * i think that's it?
 	 */
 
-	return
-	// Process each record in the array
-	for (const record of records) {
-		const existingRecord = await knex<TxRecord>(`${addonPrefix}_txs`).where({ txid: record.txid }).first()
-		const updatedRecord = { ...(existingRecord || {}) }
+	/** pre-process records */
+	const existingRecords = await knex<TxRecord>(`${addonPrefix}_txs`).whereIn('txid', records.map(r => r.txid))
 
-		// TODO: Implement the rest of the logic based on the plan
-		// - add byte-ranges
-		// - check if db needs updating
-		// - run updateS3Lists
-	}
+	const updates = await Promise.all(records.map(async (record) => {
+
+		const existingRecord = existingRecords.find(r => r.txid === record.txid)
+
+		/** new record. most likely and basic event */
+		if (!existingRecord) {
+			const { txid, parent, parents } = record
+			const { start, end } = await getByteRange(txid, parent, parents)
+			record.byte_start = start.toString()
+			record.byte_end = end.toString()
+			record.last_update_date = new Date()
+			return record; //updated
+		}
+
+		/** check what updates are needed, options:
+		 * none
+		 * byte-range (expensive)
+		 * other fields
+		 */
+
+		const needsByteRangeCalc = hasValidByteRanges(existingRecord)
+		const needsOtherFieldsUpdated = otherFieldsMatch(existingRecord, record)
+
+		/** short-circuit for no changes */
+		if (!needsByteRangeCalc && !needsOtherFieldsUpdated) {
+			return undefined; //not updated
+		}
+
+		if (needsByteRangeCalc) {
+			const { txid, parent, parents } = record
+			const { start, end } = await getByteRange(txid, parent, parents)
+			record.byte_start = start.toString()
+			record.byte_end = end.toString()
+		} else {
+			//overkill?
+			delete record.byte_start
+			delete record.byte_end
+		}
+
+		record.last_update_date = new Date()
+
+		/** `record` contains all the updates */
+		return { ...existingRecord, ...record }
+
+	}))
+
+	/** remove undefined records */
+	const updatedRecords = updates.filter(r => r !== undefined)
+
+	/** update db */
+	const inserts = await knex<TxRecord>(`${addonPrefix}_txs`).insert(updatedRecords).onConflict('txid').merge()
+	console.info(addonHandler.name, `inserted ${inserts.length}/${records.length} records`)
+
+	/** run updateS3Lists */
+	// await updateS3Lists(filteredResults)
+
+	return (inserts as any).rowCount
 }
+
+/** helper functions */
+const hasValidByteRanges = (record: TxRecord) => {
+	//testing start of byte-range is enough
+	return !!record.byte_start && record.byte_start !== '-1'
+}
+
+const otherFieldsMatch = (existing: TxRecord, incoming: TxRecord) => {
+	for (const key in incoming) {
+		if (['last_update_date', 'byte_start', 'byte_end'].includes(key))
+			continue; //skip these fields
+		if (!isEqual(incoming[key as keyof TxRecord], existing[key as keyof TxRecord]))
+			return false; //we found an updated value
+	}
+	return true;
+}
+
+
+
