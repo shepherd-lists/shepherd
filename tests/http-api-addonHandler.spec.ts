@@ -88,31 +88,38 @@ describe('addonHandler', () => {
 		}, async (txid, parent, parents) => ({ start: -1n, end: -1n })
 		)
 		assert.equal(insertCount, 1)
-
-		// Debug: Check what was stored after first call
 		const firstRecord = await knex<TxRecord>(`${addonPrefix}_txs`).where('txid', mockRecord.txid).first()
-		console.log('After first call:', { byte_start: firstRecord?.byte_start, byte_end: firstRecord?.byte_end })
+		assert(firstRecord)
+		assert.equal(firstRecord.byte_start, '-1')
+		assert.equal(firstRecord.byte_end, '-1')
+		assert.equal(firstRecord.flagged, true)
 
 		/** test for existing record, let's use same record above, but with valid byte-range */
 		const insertCount2 = await addonHandler({
 			addonPrefix,
-			records: [mockRecord as TxRecord]
+			records: [{ ...mockRecord, data_reason: 'negligible-data' } as TxRecord]
 		}, async (txid, parent, parents) => ({ start: 1n, end: 2n })
 		)
 		assert.equal(insertCount2, 1)
 		const updatedRecord = await knex<TxRecord>(`${addonPrefix}_txs`).where('txid', mockRecord.txid).first()
 
-		// Debug: Check what was stored after second call
-		console.log('After second call:', { byte_start: updatedRecord?.byte_start, byte_end: updatedRecord?.byte_end })
-
 		assert(updatedRecord)
-		assert.equal(updatedRecord?.byte_start, '1')
-		assert.equal(updatedRecord?.byte_end, '2')
+		assert.equal(updatedRecord.byte_start, '1')
+		assert.equal(updatedRecord.byte_end, '2')
+		assert.equal(updatedRecord.data_reason, 'negligible-data')
 
+		/** N.B. this is a temporary check to ensure we don't update a flagged record to unflagged */
+		try {
+			await addonHandler({
+				addonPrefix,
+				records: [{ ...mockRecord, flagged: false } as TxRecord]
+			})
+			assert.fail('Should have thrown error for updating a flagged record to unflagged')
+		} catch (e) {
+			assert.ok(e instanceof Error)
+			assert.ok(e.message.includes('Cannot update a flagged record to unflagged'))
+		}
 	})
 
-
-
 })
-
 
