@@ -36,6 +36,15 @@ const AddonHandlerArgsSchema = z.object({
 	records: RecordsArraySchema
 })
 
+/** addonHandler
+ * @description - generic handler for adding/updating txs in the db and s3-lists
+ * 		- *** N.B. consideration for removing records from s3-lists is not implemented here ***
+ * 		- why? e.g. an addon could mistakenly unflag a record that is 404.
+ * 		- solution pending. suggest using manual removal method.
+ * @param {Object} input - {addonPrefix: string; records: TxRecord[]}
+ * @param {Function} getByteRange - dependency injection for testing
+ * @returns {Promise<number>} - number of records inserted
+ */
 export const addonHandler = async (
 	{ addonPrefix, records }: { addonPrefix: string, records: TxRecord[] },
 	//dependency injection for testing
@@ -59,12 +68,19 @@ export const addonHandler = async (
 	 * run updateS3Lists
 	 */
 
-	/** pre-process records */
+	/** pre-process input records */
 	const existingRecords = await knex<TxRecord>(`${addonPrefix}_txs`).whereIn('txid', records.map(r => r.txid))
 
 	const updates = await Promise.all(records.map(async (record) => {
 
 		const existingRecord = existingRecords.find(r => r.txid === record.txid)
+
+		//adding this temporary check in case we use this handler incorrectly in the future
+		if (existingRecord?.flagged === true && record.flagged === false) {
+			const msg = `Cannot update a flagged record to unflagged: '${record.txid} ${existingRecord.flagged}' => '${record.flagged}'`
+			slackLog(addonHandler.name, msg, JSON.stringify(record))
+			throw new Error(msg)
+		}
 
 		/** new record. most likely and basic event */
 		if (!existingRecord) {
