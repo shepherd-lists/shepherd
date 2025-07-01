@@ -26,9 +26,26 @@ app.post('/addon-update', async (req, res) => {
 
 		console.log(`${addonHandler.name} returned ${ref}, responding 200 OK`)
 		return res.sendStatus(200)
-	} catch (err: unknown) {
-		slackLog(prefix, '/addon-update', body?.txid, String(err))
-		console.error(err)
+	} catch (e: unknown) {
+		console.debug(e)
+		if (e instanceof Error) {
+			if (e.message.startsWith('Invalid arguments')) {
+				slackLog(prefix, '/addon-update', body?.txid, e.message)
+				res.setHeader('Content-Type', 'text/plain')
+				res.status(400).send(e.message)
+				return
+			}
+			if (e.message === 'Could not update database') {
+				slackLog(prefix, '/addon-update', body?.txid, e.message)
+				res.setHeader('Content-Type', 'text/plain')
+				res.status(406).send(e.message) //not sure if this is the best status code for this
+				return
+			}
+		}
+		slackLog(prefix, '/addon-update', body?.txid, String(e))
+		res.setHeader('Content-Type', 'text/plain')
+		res.status(500).send(String(e))
+		console.error(e)
 		res.sendStatus(500)
 	}
 })
