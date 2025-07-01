@@ -76,7 +76,7 @@ export const addonHandler = async (
 		const existingRecord = existingRecords.find(r => r.txid === record.txid)
 
 		//adding this temporary check in case we use this handler incorrectly in the future
-		if (existingRecord?.flagged === true && record.flagged === false) {
+		if (existingRecord?.flagged === true && (record.flagged === false || record.flagged === undefined)) {
 			const msg = `Cannot update a flagged record to unflagged: '${record.txid} ${existingRecord.flagged}' => '${record.flagged}'`
 			slackLog(addonHandler.name, msg, JSON.stringify(record))
 			throw new Error(msg)
