@@ -138,13 +138,16 @@ export const addonHandler = async (
 			txid: r.txid,
 			range: [Number(r.byte_start), Number(r.byte_end)],
 		})))
-		if (inserts.length !== counts.txids) {
+		if (flagged.length !== counts.txids) {
 			slackLog(addonHandler.name, `${flagged.length} flagged records, but only added ${counts.txids} records to the s3-list ${addonPrefix}/txids_*`)
 			throw new Error(`${flagged.length} flagged records, but only added ${counts.txids} records to the s3-list ${addonPrefix}/txids_*`)
 		}
 	}
 
-	return inserts.length
+	return {
+		inserted: inserts.length,
+		flagged: flagged.length,
+	}
 }
 
 /** helper functions */
