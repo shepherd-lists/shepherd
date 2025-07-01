@@ -29,7 +29,7 @@ const TxRecordSchema = z.object({
 	top_score_value: z.number().optional().nullable()
 })
 
-const RecordsArraySchema = z.array(TxRecordSchema).max(100, 'Maximum 100 records allowed per request')
+const RecordsArraySchema = z.array(TxRecordSchema).min(1, 'At least one record is required').max(100, 'Maximum 100 records allowed per request')
 
 const AddonHandlerArgsSchema = z.object({
 	addonPrefix: z.string().min(1, 'Addon prefix is required'),
@@ -43,7 +43,7 @@ const AddonHandlerArgsSchema = z.object({
  * 		- solution pending. suggest using manual removal method.
  * @param {Object} input - {addonPrefix: string; records: TxRecord[]}
  * @param {Function} getByteRange - dependency injection for testing
- * @returns {Promise<number>} - number of records inserted
+ * @returns {Promise<counts:{inserted:number, flagged:number}>} - number of records inserted and flagged
  */
 export const addonHandler = async (
 	{ addonPrefix, records }: { addonPrefix: string, records: TxRecord[] },
