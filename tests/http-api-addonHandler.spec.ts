@@ -108,7 +108,31 @@ describe('addonHandler', () => {
 		assert.equal(updatedRecord.byte_end, '2')
 		assert.equal(updatedRecord.data_reason, 'negligible-data')
 
-		/** N.B. this is a temporary check to ensure we don't update a flagged record to unflagged */
+	})
+
+	it('should throw error for invalid flagged transition', async () => {
+		/** intial record */
+		await addonHandler({
+			addonPrefix,
+			records: [mockRecord as TxRecord]
+		})
+		const mockRecordWithoutFlagged = { ...mockRecord } as TxRecord
+		//@ts-ignore
+		delete mockRecordWithoutFlagged.flagged
+
+		/** invalid true => undefined */
+		try {
+			await addonHandler({
+				addonPrefix,
+				records: [mockRecordWithoutFlagged]
+			})
+			assert.fail('Should have thrown error for invalid flagged transition')
+		} catch (e) {
+			assert.ok(e instanceof Error)
+			assert.ok(e.message.includes('Cannot update a flagged record to unflagged'))
+		}
+
+		/** invalid true => false */
 		try {
 			await addonHandler({
 				addonPrefix,
