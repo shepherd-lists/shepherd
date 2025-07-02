@@ -1,6 +1,6 @@
-import { APIFilterResult } from 'shepherd-plugin-interfaces'
 import knexCreate from '../../../libs/utils/knexCreate'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
+import { APIAddonUpdateInput, APIAddonUpdateOutputCounts } from 'shepherd-plugin-interfaces'
 import { z } from 'zod'
 import isEqual from 'lodash/isEqual'
 import { getByteRange as getByteRangeOriginal } from '../../../libs/byte-ranges/byteRanges'
@@ -46,10 +46,10 @@ const AddonHandlerArgsSchema = z.object({
  * @returns {Promise<counts:{inserted:number, flagged:number}>} - number of records inserted and flagged
  */
 export const addonHandler = async (
-	{ addonPrefix, records }: { addonPrefix: string, records: TxRecord[] },
+	{ addonPrefix, records }: APIAddonUpdateInput,
 	//dependency injection for testing
 	getByteRange = getByteRangeOriginal,
-) => {
+): Promise<APIAddonUpdateOutputCounts> => {
 
 	/** use zod to check type of records is correct */
 	try {
