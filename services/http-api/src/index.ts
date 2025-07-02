@@ -19,7 +19,7 @@ app.get('/', (req, res) => {
 
 app.post('/addon-update', async (req, res) => {
 	const body = req.body
-	console.log(body)
+	console.debug({ body: JSON.stringify(body) })
 	try {
 
 		const counts = await addonHandler(body)
@@ -43,11 +43,10 @@ app.post('/addon-update', async (req, res) => {
 				return
 			}
 		}
+		console.error(e)
 		slackLog(prefix, '/addon-update', body?.txid, String(e))
 		res.setHeader('Content-Type', 'text/plain')
 		res.status(500).send(String(e))
-		console.error(e)
-		res.sendStatus(500)
 	}
 })
 
