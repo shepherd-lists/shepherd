@@ -14,7 +14,7 @@ const TxRecordSchema = z.object({
 	txid: z.string(),
 	content_type: z.string(),
 	content_size: z.string(),
-	height: z.number(),
+	height: z.number().optional(), //optional for data that isn't mined. relevance: dnsr unmined data ref
 	flagged: z.boolean().optional().nullable(),
 	valid_data: z.boolean().optional().nullable(),
 	parent: z.string().optional().nullable(),
@@ -23,7 +23,12 @@ const TxRecordSchema = z.object({
 	data_reason: z.string().optional().nullable(),
 	byte_start: z.string().optional().nullable(),
 	byte_end: z.string().optional().nullable(),
-	last_update_date: z.date().optional().nullable(),
+	last_update_date: z.union([z.string(), z.date()]).optional().nullable().transform((val) => {
+		if (typeof val === 'string') {
+			return new Date(val)
+		}
+		return val
+	}),
 	flag_type: z.enum(['test', 'matched', 'classified']).optional().nullable(),
 	top_score_name: z.string().optional().nullable(),
 	top_score_value: z.number().optional().nullable()
@@ -75,7 +80,7 @@ export const addonHandler = async (
 
 		const existingRecord = existingRecords.find(r => r.txid === record.txid)
 
-		//adding this temporary check in case we use this handler incorrectly in the future
+		/** check in case we try invalid flagged state transition */
 		if (existingRecord?.flagged === true && (record.flagged === false || record.flagged === undefined)) {
 			const msg = `Cannot update a flagged record to unflagged: '${record.txid} ${existingRecord.flagged}' => '${record.flagged}'`
 			slackLog(addonHandler.name, msg, JSON.stringify(record))
