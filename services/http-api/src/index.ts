@@ -24,7 +24,7 @@ app.post('/addon-update', async (req, res) => {
 
 		const counts = await addonHandler(body)
 
-		console.log(`${addonHandler.name} returned ${counts}, responding 200 OK`)
+		console.log(`${addonHandler.name} returned ${JSON.stringify(counts)}, responding 200 OK`)
 		res.setHeader('Content-Type', 'application/json')
 		return res.status(200).send(counts)
 	} catch (e: unknown) {

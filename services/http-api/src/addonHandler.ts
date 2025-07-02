@@ -89,10 +89,12 @@ export const addonHandler = async (
 
 		/** new record. most likely and basic event */
 		if (!existingRecord) {
-			const { txid, parent, parents } = record
-			const { start, end } = await getByteRange(txid, parent, parents)
-			record.byte_start = start.toString()
-			record.byte_end = end.toString()
+			const { txid, height, parent, parents } = record
+			if (height) {	//unmined records can sometimes find their way in here.
+				const { start, end } = await getByteRange(txid, parent, parents)
+				record.byte_start = start.toString()
+				record.byte_end = end.toString()
+			}
 			record.last_update_date = new Date()
 			return record; //updated
 		}
@@ -111,15 +113,12 @@ export const addonHandler = async (
 			return undefined; //not updated
 		}
 
-		if (!validByteRange) {
+		/** calc byte-range if needed */
+		if (!validByteRange && record.height) {
 			const { txid, parent, parents } = record
 			const { start, end } = await getByteRange(txid, parent, parents)
 			record.byte_start = start.toString()
 			record.byte_end = end.toString()
-		} else {
-			//overkill?
-			delete record.byte_start
-			delete record.byte_end
 		}
 
 		record.last_update_date = new Date()
@@ -139,7 +138,7 @@ export const addonHandler = async (
 	/** run updateS3Lists. !!only flagged records!! */
 	const flagged = updatedRecords.filter(r => r.flagged === true)
 	if (flagged.length > 0) {
-		const counts = await updateS3Lists(addonPrefix, updatedRecords.map(r => ({
+		const counts = await updateS3Lists(addonPrefix, flagged.map(r => ({
 			txid: r.txid,
 			range: [Number(r.byte_start), Number(r.byte_end)],
 		})))
