@@ -132,7 +132,9 @@ export const addonHandler = async (
 	const updatedRecords = updates.filter(r => r !== undefined)
 
 	/** update db */
-	const inserts = await knex<TxRecord>(`${addonPrefix}_txs`).insert(updatedRecords).onConflict('txid').merge().returning('txid')
+	const inserts: string[] = (updatedRecords.length > 0)
+		? await knex<TxRecord>(`${addonPrefix}_txs`).insert(updatedRecords).onConflict('txid').merge().returning('txid')
+		: []
 	console.info(addonHandler.name, `inserted ${inserts.length}/${records.length} records`)
 
 	/** run updateS3Lists. !!only flagged records!! */
