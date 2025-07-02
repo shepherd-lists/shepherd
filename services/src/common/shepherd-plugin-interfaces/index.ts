@@ -3,12 +3,14 @@ import * as Types from './types'
 
 export interface FilterResult extends Types.TxFlaggedOptions {
 	flagged: boolean // main output: whether the image is filtered or not
-
-	/** @deprecated */
-	scores?: string  //remove later
 }
 
-/* Feedback error types to the host app. Host may process image and try submitting to plugin again. */
+/** Feedback error types to the host app. Host may process image and try submitting to plugin again.
+ * thoughts: not sure we need such error detail anymore? 
+ * @deprecated these errors should be handled in the plugin. either:
+ * - handle internally, or
+ * - throw error in the plugin and message returns to queue.
+ */
 export interface FilterErrorResult {
 	flagged: undefined
 	data_reason:
@@ -38,11 +40,21 @@ export interface FilterPluginInterface {
 	checkImage(buffer: Buffer, mimetype: string, txid: string): Promise<FilterResult | FilterErrorResult>
 }
 
+/** used for POST http-api:84/postupdate */
 export interface APIFilterResult {
 	txid: string
 	filterResult: FilterResult | FilterErrorResult
 }
 
-export interface StreamPluginInterface {
-	checkStream(read: Readable, mimetype: string, txid: string):Promise<string | Error>
+/** used for POST http-api:84/addon-update */
+export interface APIAddonUpdateInput {
+	addonPrefix: string
+	records: Types.TxRecord[]
 }
+export interface APIAddonUpdateOutputCounts {
+	inserted: number
+	flagged: number
+}
+
+
+
