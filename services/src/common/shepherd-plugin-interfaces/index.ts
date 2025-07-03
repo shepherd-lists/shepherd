@@ -51,10 +51,8 @@ export interface APIAddonUpdateInput {
 	addonPrefix: string
 	records: Types.TxRecord[]
 }
-export interface APIAddonUpdateOutputCounts {
-	inserted: number
-	flagged: number
+export interface APIAddonUpdateOutput {
+	inserted: string[] // array of txids
+	flagged: string[]	 // array of txids
+	invalid: { msg: string; record: Types.TxRecord }[] //array of invalid record updates
 }
-
-
-
