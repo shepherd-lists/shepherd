@@ -1,11 +1,12 @@
 import knexCreate from '../../../libs/utils/knexCreate'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import { APIAddonUpdateInput, APIAddonUpdateOutputCounts } from 'shepherd-plugin-interfaces'
+import { APIAddonUpdateInput, APIAddonUpdateOutput } from 'shepherd-plugin-interfaces'
 import { z } from 'zod'
 import isEqual from 'lodash/isEqual'
 import { getByteRange as getByteRangeOriginal } from '../../../libs/byte-ranges/byteRanges'
 import { updateS3Lists } from '../../../libs/s3-lists/update-lists'
 import { slackLog } from '../../../libs/utils/slackLog'
+
 
 const knex = knexCreate()
 
@@ -48,13 +49,13 @@ const AddonHandlerArgsSchema = z.object({
  * 		- solution pending. suggest using manual removal method.
  * @param {Object} input - {addonPrefix: string; records: TxRecord[]}
  * @param {Function} getByteRange - dependency injection for testing
- * @returns {Promise<counts:{inserted:number, flagged:number}>} - number of records inserted and flagged
+ * @returns {Promise<APIAddonUpdateOutput>} - number of records inserted and flagged, plus list of invalid records
  */
 export const addonHandler = async (
 	{ addonPrefix, records }: APIAddonUpdateInput,
 	//dependency injection for testing
 	getByteRange = getByteRangeOriginal,
-): Promise<APIAddonUpdateOutputCounts> => {
+): Promise<APIAddonUpdateOutput> => {
 
 	/** use zod to check type of records is correct */
 	try {
@@ -76,6 +77,9 @@ export const addonHandler = async (
 	/** pre-process input records */
 	const existingRecords = await knex<TxRecord>(`${addonPrefix}_txs`).whereIn('txid', records.map(r => r.txid))
 
+	/** collect invalid flagged state transitions */
+	const invalidRecords: { record: TxRecord, msg: string }[] = []
+
 	const updates = await Promise.all(records.map(async (record) => {
 
 		const existingRecord = existingRecords.find(r => r.txid === record.txid)
@@ -84,7 +88,8 @@ export const addonHandler = async (
 		if (existingRecord?.flagged === true && (record.flagged === false || record.flagged === undefined)) {
 			const msg = `Cannot update a flagged record to unflagged: '${record.txid} ${existingRecord.flagged}' => '${record.flagged}'`
 			slackLog(addonHandler.name, msg, JSON.stringify(record))
-			throw new Error(msg)
+			invalidRecords.push({ record, msg })
+			return undefined; //skip this record, continue with others
 		}
 
 		/** new record. most likely and basic event */
@@ -151,8 +156,9 @@ export const addonHandler = async (
 	}
 
 	return {
-		inserted: inserts.length,
-		flagged: flagged.length,
+		inserted: inserts, //array of txids
+		flagged: flagged.map(r => r.txid), //array of txids
+		invalid: invalidRecords, //array of {record: TxRecord, msg: string}
 	}
 }
 

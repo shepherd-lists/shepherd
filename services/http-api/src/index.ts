@@ -22,11 +22,18 @@ app.post('/addon-update', async (req, res) => {
 	console.debug({ body: JSON.stringify(body) })
 	try {
 
-		const counts = await addonHandler(body)
+		const results = await addonHandler(body)
 
-		console.log(`${addonHandler.name} returned ${JSON.stringify(counts)}, responding 200 OK`)
+		/** check if there were invalid flagged state transitions */
+		if (results.invalid.length > 0) {
+			console.log(`${addonHandler.name} returned ${JSON.stringify(results)}, responding 422 Unprocessable Entity due to invalid transitions`)
+			res.setHeader('Content-Type', 'application/json')
+			return res.status(422).send(results)
+		}
+
+		console.log(`${addonHandler.name} returned ${JSON.stringify(results)}, responding 200 OK`)
 		res.setHeader('Content-Type', 'application/json')
-		return res.status(200).send(counts)
+		return res.status(200).send(results)
 	} catch (e: unknown) {
 		console.debug(e)
 		if (e instanceof Error) {

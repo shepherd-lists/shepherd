@@ -15,7 +15,7 @@
     "dotenv": "^16.4.5",
     "esbuild": "^0.25.1",
     "husky": "^9.0.10",
-    "shepherd-plugin-interfaces": "^2.0.0",
+    "shepherd-plugin-interfaces": "^2.1.0",
     "tsx": "^4.7.2",
     "typescript": "^5.8.2"
   }
