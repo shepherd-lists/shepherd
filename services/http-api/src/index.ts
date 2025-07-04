@@ -4,21 +4,61 @@ import { slackLog } from '../../../libs/utils/slackLog'
 import { network_EXXX_codes } from '../../../libs/constants'
 import { pluginResultHandler } from './pluginResultHandler'
 import './service/inbox2txs' //self starting
+import { addonHandler } from './addonHandler'
 
 
 const prefix = 'http-api'
 const app = express()
 const port = 84
 
-app.use(express.json())
+app.use(express.json({ limit: '1mb' })) //100 records is definitely less than 1mb
 
 app.get('/', (req, res) => {
-	res.status(200).send('API listener operational.\n')
+	res.send('API listener operational.\n')
+})
+
+app.post('/addon-update', async (req, res) => {
+	const body = req.body
+	console.debug({ body: JSON.stringify(body) })
+	try {
+
+		const results = await addonHandler(body)
+
+		/** check if there were invalid flagged state transitions */
+		if (results.invalid.length > 0) {
+			console.log(`${addonHandler.name} returned ${JSON.stringify(results)}, responding 422 Unprocessable Entity due to invalid transitions`)
+			res.setHeader('Content-Type', 'application/json')
+			return res.status(422).send(results)
+		}
+
+		console.log(`${addonHandler.name} returned ${JSON.stringify(results)}, responding 200 OK`)
+		res.setHeader('Content-Type', 'application/json')
+		return res.status(200).send(results)
+	} catch (e: unknown) {
+		console.debug(e)
+		if (e instanceof Error) {
+			if (e.message.startsWith('Invalid arguments')) {
+				slackLog(prefix, '/addon-update', body?.txid, e.message)
+				res.setHeader('Content-Type', 'text/plain')
+				res.status(400).send(e.message)
+				return
+			}
+			if (e.message === 'Could not update database') {
+				slackLog(prefix, '/addon-update', body?.txid, e.message)
+				res.setHeader('Content-Type', 'text/plain')
+				res.status(406).send(e.message) //not sure if this is the best status code for this
+				return
+			}
+		}
+		console.error(e)
+		slackLog(prefix, '/addon-update', body?.txid, String(e))
+		res.setHeader('Content-Type', 'text/plain')
+		res.status(500).send(String(e))
+	}
 })
 
 
 app.post('/postupdate', async (req, res) => {
-	req.resume()
 	const body = req.body
 	try {
 
