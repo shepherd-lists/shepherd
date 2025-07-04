@@ -87,8 +87,8 @@ describe('addonHandler', () => {
 			records: [mockRecord as TxRecord]
 		}, async (txid, parent, parents) => ({ start: -1n, end: -1n })
 		)
-		assert.equal(counts.inserted, 1)
-		assert.equal(counts.flagged, 1)
+		assert.equal(counts.inserted.length, 1)
+		assert.equal(counts.flagged.length, 1)
 		const firstRecord = await knex<TxRecord>(`${addonPrefix}_txs`).where('txid', mockRecord.txid).first()
 		assert(firstRecord)
 		assert.equal(firstRecord.byte_start, '-1')
@@ -101,8 +101,8 @@ describe('addonHandler', () => {
 			records: [{ ...mockRecord, data_reason: 'negligible-data' } as TxRecord]
 		}, async (txid, parent, parents) => ({ start: 1n, end: 2n })
 		)
-		assert.equal(counts2.inserted, 1)
-		assert.equal(counts2.flagged, 1)
+		assert.equal(counts2.inserted.length, 1)
+		assert.equal(counts2.flagged.length, 1)
 		const updatedRecord = await knex<TxRecord>(`${addonPrefix}_txs`).where('txid', mockRecord.txid).first()
 
 		assert(updatedRecord)
@@ -112,7 +112,7 @@ describe('addonHandler', () => {
 
 	})
 
-	it('should throw error for invalid flagged transition', async () => {
+	it('should never overwrite "flagged:true", and return invalid records for invalid flagged transition', async () => {
 		/** intial record */
 		await addonHandler({
 			addonPrefix,
@@ -123,28 +123,20 @@ describe('addonHandler', () => {
 		delete mockRecordWithoutFlagged.flagged
 
 		/** invalid true => undefined */
-		try {
-			await addonHandler({
-				addonPrefix,
-				records: [mockRecordWithoutFlagged]
-			})
-			assert.fail('Should have thrown error for invalid flagged transition')
-		} catch (e) {
-			assert.ok(e instanceof Error)
-			assert.ok(e.message.includes('Cannot update a flagged record to unflagged'))
-		}
+		const result1 = await addonHandler({
+			addonPrefix,
+			records: [mockRecordWithoutFlagged]
+		})
+		assert.equal(result1.invalid.length, 1)
+		assert.ok(result1.invalid[0].msg.includes('Cannot update a flagged record to unflagged'))
 
 		/** invalid true => false */
-		try {
-			await addonHandler({
-				addonPrefix,
-				records: [{ ...mockRecord, flagged: false } as TxRecord]
-			})
-			assert.fail('Should have thrown error for updating a flagged record to unflagged')
-		} catch (e) {
-			assert.ok(e instanceof Error)
-			assert.ok(e.message.includes('Cannot update a flagged record to unflagged'))
-		}
+		const result2 = await addonHandler({
+			addonPrefix,
+			records: [{ ...mockRecord, flagged: false } as TxRecord]
+		})
+		assert.equal(result2.invalid.length, 1)
+		assert.ok(result2.invalid[0].msg.includes('Cannot update a flagged record to unflagged'))
 	})
 
 })
