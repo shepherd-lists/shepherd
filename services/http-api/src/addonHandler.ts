@@ -6,6 +6,7 @@ import isEqual from 'lodash/isEqual'
 import { getByteRange as getByteRangeOriginal } from '../../../libs/byte-ranges/byteRanges'
 import { updateS3Lists } from '../../../libs/s3-lists/update-lists'
 import { slackLog } from '../../../libs/utils/slackLog'
+import { lambdaInvoker } from '../../../libs/utils/lambda-invoker'
 
 
 const knex = knexCreate()
@@ -145,6 +146,10 @@ export const addonHandler = async (
 	/** run updateS3Lists. !!only flagged records!! */
 	const flagged = updatedRecords.filter(r => r.flagged === true)
 	if (flagged.length > 0) {
+
+		/** TEMPORARY UNTIL LIST MIGRATION IS COMPLETE */
+		await lambdaInvoker(process.env.FN_TEMP!, {})
+
 		const counts = await updateS3Lists(addonPrefix, flagged.map(r => ({
 			txid: r.txid,
 			range: [Number(r.byte_start), Number(r.byte_end)],
