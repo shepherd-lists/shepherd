@@ -2,7 +2,25 @@ import { APIFilterResult, FilterErrorResult, FilterResult } from 'shepherd-plugi
 import { logger } from './logger'
 import { slackLogger } from './slackLogger'
 
-import axios from 'axios'
+import { request } from 'node:http'
+import { URL } from 'node:url'
+
+// Configure global agent for connection pooling
+import { Agent } from 'node:http'
+const agent = new Agent({
+	keepAlive: true,
+	// keepAliveMsecs: 1000, //default 1000
+	maxSockets: 100, // Limit concurrent connections
+	maxFreeSockets: 10, // Keep some connections warm
+	timeout: 60000, // Socket timeout
+})
+
+// Monitor connection pool usage
+setInterval(() => {
+	const pool = agent.sockets[`${hostname}:${port}`] || []
+	const free = agent.freeSockets[`${hostname}:${port}`] || []
+	console.log(`Connection pool: ${pool.length} active, ${free.length} free, ${pool.length + free.length}/${agent.maxSockets} total`)
+}, 30_000)
 
 // /** this improves things slightly with Fetch */
 // import http from 'http'
@@ -14,6 +32,12 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 if(!process.env.HTTP_API_URL) throw new Error('HTTP_API_URL not defined')
 const HTTP_API_URL = process.env.HTTP_API_URL
 console.log('HTTP_API_URL', HTTP_API_URL)
+
+// Parse the URL once
+const url = new URL(HTTP_API_URL)
+const hostname = url.hostname
+const port = url.port
+const path = url.pathname
 
 export const updateTx = async(txid: string, filterResult: Partial<FilterResult | FilterErrorResult> )=> {
 	const _count = ++count
@@ -29,19 +53,55 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 		while(true){
 			--tries
 			try{
-				const res = await axios.post(HTTP_API_URL, payloadString, {
-					headers: {
-						'Content-Type': 'application/json; charset=UTF-8',
-					},
+				const result = await new Promise<{statusCode: number, statusMessage: string}>((resolve, reject) => {
+					const req = request({
+						hostname,
+						port,
+						path,
+						method: 'POST',
+						agent, // Use connection pooling
+						headers: {
+							'Content-Type': 'application/json; charset=UTF-8',
+							// 'Content-Length': Buffer.byteLength(payloadString),
+						},
+						timeout: 120000, // 2 minute timeout for slow processing
+					}, (res) => {
+						res.resume() // consume the response body to ensure proper cleanup
+						res.on('end', () => {
+							resolve({
+								statusCode: res.statusCode!,
+								statusMessage: res.statusMessage!
+							})
+						})
+						res.on('error', (err) => {
+							res.destroy()
+							req.destroy()
+							reject(err)
+						})
+					})
+
+					req.on('error', (err) => {
+						req.destroy()
+						reject(err)
+					})
+
+					req.on('timeout', () => {
+						req.destroy()
+						reject(new Error('Request timeout'))
+					})
+
+					req.write(payloadString)
+					req.end()
 				})
-				console.log(txid, `sent ${_count}`, res.status, res.statusText)
-				break
+
+				console.info(txid, `sent ${_count}`, result.statusCode, result.statusMessage)
+				break;
 			}catch(err0:unknown){
 				const e0 = err0 as Error
 				if(tries>0){
 					console.error(txid, 'error posting to http-api',e0.name, ':', e0.message, 'retrying...')
 					await sleep(2_000)
-					continue
+					continue;
 				}else{
 					throw err0
 				}
@@ -49,32 +109,13 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 		}
 
 
-		// const res = await fetch(HTTP_API_URL, {
-		// 	method: 'POST',
-		// 	body: payloadString,
-		// 	headers: {
-		// 		'Content-Type': 'application/json; charset=UTF-8',
-		// 	},
-		// 	keepalive: true,
-		// })
-
-		// /** use up the body and close connection */
-		// if(!res.bodyUsed){
-		// 	console.log({txid, res: await res.text(), resBodyUsed: res.bodyUsed})
-		// 	res.body?.cancel() // doubly sure the connection is closed
-		// }
-
-		// if(!res.ok){
-		// 	throw new Error(`ok:${res.ok}, status:${res.status}, statusText:${res.statusText}, bodyUsed:${res.bodyUsed}`)
-		// }
-
 
 		return txid
 
 	}catch(err:unknown){
 		const e = err as Error
 		logger(txid, 'Error posting to http-api', e.name, ':', e.message, JSON.stringify(filterResult), e)
-		slackLogger(txid, ':warning: Error posting to http-api (nsfw) after 3 tries', e.name, ':', e.message, JSON.stringify(filterResult))
+		slackLogger(txid, ':warning: Error posting to http-api (nsfw) after 3 tries', e.name, ':', e.message, JSON.stringify(filterResult), e)
 		logger(txid, e) // `throw e` does nothing, use the return
 	}
 }
