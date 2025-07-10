@@ -177,7 +177,7 @@ const ownerUpdate = async (owner: string, txid: string) => {
 		}
 
 	} catch (err: unknown) {
-		trx.rollback()
+		await trx.rollback()
 		if (err instanceof Error && err.message === `Already exists in infractions`) return;
 		throw err // bubble up
 
