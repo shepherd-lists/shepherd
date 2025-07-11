@@ -37,3 +37,23 @@ export const lambdaInvoker = async (FunctionName: string, payload: object, retri
 		}
 	}
 }
+
+/**
+ * Dedicated function for fnTemp lambda calls.
+ * Prevents multiple simultaneous executions by using an SSM parameter.
+ */
+export const lambdaInvokerFnTemp = async () => {
+
+	/*
+		const isRunning = await isRunning()
+	
+		if (isRunning) {
+			console.info('fnTemp: Skipping execution')
+			await setOneMoreRun()
+			return
+		}
+	
+		await setRunning()
+	*/
+	return lambdaInvoker(process.env.FN_TEMP!, {}, 0)
+}
