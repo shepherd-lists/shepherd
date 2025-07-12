@@ -4,18 +4,19 @@ import { GetParameterCommand, SSMClient, PutParameterCommand } from '@aws-sdk/cl
 const ssm = new SSMClient() //current region
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const readParamLive = async (name: string) => JSON.parse(
+/** n.b. json is the default */
+export const readParamJsonLive = async (name: string) => JSON.parse(
 	(await ssm.send(new GetParameterCommand({
 		Name: `/shepherd/live/${name}`,
 		WithDecryption: true, // ignored if unencrypted
 	}))).Parameter!.Value as string // throw when undefined
 )
 /** standard tier string max of 4kb */
-const writeParamLive = async (name: string, value: Array<object>) => {
+export const writeParamJsonLive = async (name: string, value: object) => {
 	const Value = JSON.stringify(value)
 	if (Value.length > 4096) throw new Error(`Value too long: ${Value.length}`)
 
-	console.debug(writeParamLive.name, `DEBUG '/shepherd/live/${name}' <= ${Value}`)
+	console.debug(writeParamJsonLive.name, `DEBUG '/shepherd/live/${name}' <= ${Value}`)
 
 	ssm.send(new PutParameterCommand({
 		Name: `/shepherd/live/${name}`,
@@ -35,16 +36,16 @@ export interface BlockOwnerQueueItem {
 export const blockOwnerQueueParamName = 'BlockOwnerQueue'
 /** init store if necessary */
 try {
-	await readParamLive(blockOwnerQueueParamName)
+	await readParamJsonLive(blockOwnerQueueParamName)
 } catch (e) {
 	if (e instanceof Error && e.name === 'ParameterNotFound') {
 		console.info(blockOwnerQueueParamName, 'creating queue state in param store')
-		await writeParamLive(blockOwnerQueueParamName, [])
+		await writeParamJsonLive(blockOwnerQueueParamName, [])
 	}
 }
 
 export const readBlockOwnerQueue = async () => {
-	return readParamLive(blockOwnerQueueParamName) as Promise<BlockOwnerQueueItem[]>
+	return readParamJsonLive(blockOwnerQueueParamName) as Promise<BlockOwnerQueueItem[]>
 }
 
 /** N.B. there is a concurrency limit of `1` for PutParameter. 
@@ -64,14 +65,14 @@ export const updateBlockOwnerQueue = async (value: BlockOwnerQueueItem, op: 'add
 
 		while (true) {
 			try {
-				const queue = await readParamLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
+				const queue = await readParamJsonLive(blockOwnerQueueParamName) as BlockOwnerQueueItem[]
 				if (op === 'add' && queue.find(i => i.owner === value.owner)) {
 					console.debug(blockOwnerQueueParamName, `DEBUG ${value.owner} already in queue`)
 					return []
 				}
 
 				updated = op === 'remove' ? queue.filter(i => i.owner !== value.owner) : [...queue, value]
-				await writeParamLive(blockOwnerQueueParamName, updated)
+				await writeParamJsonLive(blockOwnerQueueParamName, updated)
 				break;
 			} catch (e) {
 				if (e instanceof Error && e.name === 'TooManyUpdates') {
