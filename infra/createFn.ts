@@ -13,10 +13,12 @@ export const createFn = (
 		timeout?: Duration,
 		logGroup?: aws_logs.ILogGroup,
 		environment: Record<string, string>,
+		/** @default undefined (no concurrency limit) */
+		reservedConcurrentExecutions?: number,
 	},
 ) => {
 
-	const { vpc, securityGroups, memorySize, timeout, logGroup, environment } = init
+	const { vpc, securityGroups, memorySize, timeout, logGroup, environment, reservedConcurrentExecutions } = init
 
 	const fn = new aws_lambda_nodejs.NodejsFunction(stack, name, {
 		runtime: aws_lambda.Runtime.NODEJS_22_X,
@@ -42,6 +44,7 @@ export const createFn = (
 		vpcSubnets: { subnetType: aws_ec2.SubnetType.PRIVATE_WITH_EGRESS },
 		securityGroups,
 		logGroup,
+		reservedConcurrentExecutions,
 	})
 
 	return fn;
