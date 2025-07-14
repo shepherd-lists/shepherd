@@ -49,7 +49,6 @@ interface FnTempState {
 
 const SSM_PARAMETER_NAME = 'fnTemp-state'
 
-
 const getFnTempState = async () => {
 	try {
 		return await readParamJsonLive(SSM_PARAMETER_NAME) as FnTempState
@@ -71,57 +70,47 @@ const setFnTempState = async (state: FnTempState) => writeParamJsonLive(SSM_PARA
  * - { isRunning: true, oneMoreRun: true } - running with pending run
  */
 export const lambdaInvokerFnTemp = async () => {
+	// Get the current state
 	let currentState = await getFnTempState()
 	if (currentState.isRunning && currentState.lastRun < Date.now() - 300_000) { //in case the service running ended unexpectedly, reset the state
-		currentState = { isRunning: false, oneMoreRun: false, lastRun: Date.now() }
+		currentState = { isRunning: false, oneMoreRun: false, lastRun: 0 }
 	}
+	await slackLog('ENTRY', lambdaInvokerFnTemp.name, `DEBUG`, JSON.stringify(currentState))
 
-	console.debug(lambdaInvokerFnTemp.name, `DEBUG entry`, JSON.stringify(currentState))
-
-	// Handle the 4 possible states
-	if (!currentState.isRunning && !currentState.oneMoreRun) {
-		// State: idle - set to running and invoke
-		await setFnTempState({ isRunning: true, oneMoreRun: false, lastRun: Date.now() })
-		await executeFnTempWithCleanup()
-	} else if (!currentState.isRunning && currentState.oneMoreRun) {
-		// State: idle but should run again - set to running and invoke
-		await setFnTempState({ isRunning: true, oneMoreRun: false, lastRun: Date.now() })
-		await executeFnTempWithCleanup()
-	} else if (currentState.isRunning && !currentState.oneMoreRun) {
-		// State: currently running - mark that another run is needed
-		await setFnTempState({ isRunning: true, oneMoreRun: true, lastRun: currentState.lastRun })
-		return // Exit without invoking, let the running instance handle it
-	} else if (currentState.isRunning && currentState.oneMoreRun) {
-		// State: running with pending run - do nothing, already queued
-		return
-	}
-}
-
-const executeFnTempWithCleanup = async () => {
-	try {
-		// Execute the lambda
-		await lambdaInvoker(process.env.FN_TEMP!, {}, 0)
-
-		// After execution, check if we need to run again
-		while (true) {
-			const state = await getFnTempState()
-			console.debug(executeFnTempWithCleanup.name, `DEBUG`, JSON.stringify(state))
-
-			if (state.oneMoreRun) {
-				// Reset oneMoreRun and continue running
+	do {
+		try {
+			// Handle the 4 possible states
+			if (!currentState.isRunning && !currentState.oneMoreRun) {
+				await slackLog('// State: idle - set to running and invoke')
 				await setFnTempState({ isRunning: true, oneMoreRun: false, lastRun: Date.now() })
-				console.debug(executeFnTempWithCleanup.name, `DEBUG`, JSON.stringify({ isRunning: true, oneMoreRun: false, lastRun: Date.now() }))
 				await lambdaInvoker(process.env.FN_TEMP!, {}, 0)
-			} else {
-				// No more runs needed, mark as not running
-				await setFnTempState({ isRunning: false, oneMoreRun: false, lastRun: 0 })
-				console.debug(executeFnTempWithCleanup.name, `DEBUG`, JSON.stringify({ isRunning: false, oneMoreRun: false, lastRun: 0 }))
-				break
+				currentState = await getFnTempState()
+				currentState.isRunning = false
+				await setFnTempState(currentState)
+			} else if (!currentState.isRunning && currentState.oneMoreRun) {
+				await slackLog('// State: idle but should run again - set to running and invoke')
+				await setFnTempState({ isRunning: true, oneMoreRun: false, lastRun: Date.now() })
+				await lambdaInvoker(process.env.FN_TEMP!, {}, 0)
+				currentState = await getFnTempState()
+				currentState.isRunning = false
+				await setFnTempState(currentState)
+			} else if (currentState.isRunning && !currentState.oneMoreRun) {
+				await slackLog('// State: currently running - mark that another run is needed')
+				await setFnTempState({ isRunning: true, oneMoreRun: true, lastRun: currentState.lastRun })
+				return // Exit without invoking, let the running instance handle it
+			} else if (currentState.isRunning && currentState.oneMoreRun) {
+				await slackLog('// State: running with pending run - do nothing, already queued')
+				return
 			}
+		} catch (e) {
+			if (e instanceof Error && e.name === 'TooManyUpdates') {
+				await sleep(100)
+				currentState = await getFnTempState()
+				continue
+			}
+			throw e
 		}
-	} catch (error) {
-		// On error, ensure we clean up the running state
-		await setFnTempState({ isRunning: false, oneMoreRun: false, lastRun: 0 })
-		throw error
-	}
+		currentState = await getFnTempState()
+	} while (currentState.oneMoreRun)
 }
+
