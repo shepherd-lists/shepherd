@@ -1,4 +1,5 @@
 import { GetParameterCommand, SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm'
+import { slackLog } from './slackLog'
 
 
 const ssm = new SSMClient() //current region
@@ -16,7 +17,7 @@ export const writeParamJsonLive = async (name: string, value: object) => {
 	const Value = JSON.stringify(value)
 	if (Value.length > 4096) throw new Error(`Value too long: ${Value.length}`)
 
-	console.debug(writeParamJsonLive.name, `DEBUG '/shepherd/live/${name}' <= ${Value}`)
+	await slackLog(writeParamJsonLive.name, `DEBUG '/shepherd/live/${name}' <= ${Value}`)
 
 	ssm.send(new PutParameterCommand({
 		Name: `/shepherd/live/${name}`,
