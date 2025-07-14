@@ -1,7 +1,7 @@
 import { slackLog } from '../../../../libs/utils/slackLog'
 import { checkForManuallyModifiedOwners } from './check-manually-added-owners'
 import { processBlockedOwnersQueue } from '../../../../libs/block-owner/owner-blocking'
-import { lambdaInvoker } from '../../../../libs/utils/lambda-invoker'
+import { lambdaInvokerFnTemp } from '../../../../libs/utils/lambda-invoker'
 
 
 if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var, FN_OWNER_BLOCKING')
@@ -21,7 +21,7 @@ export const ownerChecks = async () => {
 
 			/** TEMPORARY UNTIL LIST MIGRATION IS COMPLETE */
 			if (queueProcessing || tempWhitelisted) {
-				await lambdaInvoker(process.env.FN_TEMP!, {})
+				await lambdaInvokerFnTemp()
 			}
 
 			if (!queueProcessing) {

@@ -109,6 +109,7 @@ export const createStack = async (app: App, config: Config) => {
 		logGroup: logGroupServices,
 		memorySize: 3072, // might need to increase again, already using 2.5gb
 		timeout: Duration.minutes(10),
+		reservedConcurrentExecutions: 1,
 		environment: {
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: config.slack_webhook!,
@@ -167,7 +168,6 @@ export const createStack = async (app: App, config: Config) => {
 		actions: ['ssm:GetParameter', 'ssm:PutParameter'],
 		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
 	}))
-
 
 	const webserver = createAddonService(stack, 'webserver-next', {
 		cluster,

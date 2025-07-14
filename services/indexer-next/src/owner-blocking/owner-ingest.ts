@@ -4,7 +4,7 @@ import pool from '../../../../libs/utils/pgClient'
 import { s3GetObject, s3HeadObject } from '../../../../libs/utils/s3-services'
 import { performance } from 'perf_hooks'
 import { slackLog } from '../../../../libs/utils/slackLog'
-import { lambdaInvoker } from '../../../../libs/utils/lambda-invoker'
+import { lambdaInvokerFnTemp } from '../../../../libs/utils/lambda-invoker'
 
 
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
@@ -152,7 +152,7 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 		// lists get updated in fnOwnerBlocking now
 		/** TEMPORARY UNTIL LIST MIGRATION IS COMPLETE */
 		if (counts.inserts > 0) {
-			await lambdaInvoker(process.env.FN_TEMP!, {})
+			await lambdaInvokerFnTemp()
 		}
 
 		/** update state */

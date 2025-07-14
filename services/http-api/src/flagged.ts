@@ -8,7 +8,7 @@ import { UpdateItem, updateS3Lists } from '../../../libs/s3-lists/update-lists'
 import { updateAddresses } from '../../../libs/s3-lists/update-addresses'
 import { OwnersListRecord } from '../../../types'
 import { mergeRulesObject } from './service/move-records'
-import { lambdaInvoker } from '../../../libs/utils/lambda-invoker'
+import { lambdaInvokerFnTemp } from '../../../libs/utils/lambda-invoker'
 
 
 const knex = dbConnection()
@@ -81,7 +81,11 @@ export const processFlagged = async (
 		await updateS3Lists('flagged/', [s3Record])
 
 		/** TEMPORARY UNTIL LIST MIGRATION IS COMPLETE */
-		await lambdaInvoker(process.env.FN_TEMP!, {})
+		try {
+			await lambdaInvokerFnTemp()
+		} catch (e) {
+			await slackLog(txid, `ERROR in flagged.ts fnTemp failed '${(e as Error).message}'. :warning::warning: NOT ROLLING BACK! :warning::warning: may need to run fnTemp manually.`, e)
+		}
 
 		await trx.commit()
 	} catch (err: unknown) {
