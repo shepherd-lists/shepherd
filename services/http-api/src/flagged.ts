@@ -81,7 +81,11 @@ export const processFlagged = async (
 		await updateS3Lists('flagged/', [s3Record])
 
 		/** TEMPORARY UNTIL LIST MIGRATION IS COMPLETE */
-		await lambdaInvokerFnTemp()
+		try {
+			await lambdaInvokerFnTemp()
+		} catch (e) {
+			await slackLog(txid, `ERROR in flagged.ts fnTemp failed '${(e as Error).message}'. :warning::warning: NOT ROLLING BACK! :warning::warning: may need to run fnTemp manually.`, e)
+		}
 
 		await trx.commit()
 	} catch (err: unknown) {
