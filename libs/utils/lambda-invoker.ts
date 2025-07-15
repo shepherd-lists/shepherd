@@ -104,10 +104,12 @@ export const lambdaInvokerFnTemp = async () => {
 			}
 		} catch (e) {
 			if (e instanceof Error && e.name === 'TooManyUpdates') {
+				await slackLog('// Error - retry', e)
 				await sleep(100)
 				currentState = await getFnTempState()
 				continue
 			}
+			await slackLog('// Error - throw', e)
 			throw e
 		}
 		currentState = await getFnTempState()

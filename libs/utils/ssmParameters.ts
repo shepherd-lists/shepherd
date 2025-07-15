@@ -19,7 +19,7 @@ export const writeParamJsonLive = async (name: string, value: object) => {
 
 	await slackLog(writeParamJsonLive.name, `DEBUG '/shepherd/live/${name}' <= ${Value}`)
 
-	ssm.send(new PutParameterCommand({
+	await ssm.send(new PutParameterCommand({
 		Name: `/shepherd/live/${name}`,
 		Value,
 		Type: 'String',
