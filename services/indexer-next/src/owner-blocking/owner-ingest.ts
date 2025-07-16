@@ -151,8 +151,12 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 
 		// lists get updated in fnOwnerBlocking now
 		/** TEMPORARY UNTIL LIST MIGRATION IS COMPLETE */
-		if (counts.inserts > 0) {
-			await lambdaInvokerFnTemp()
+		try {
+			if (counts.inserts > 0) {
+				await lambdaInvokerFnTemp()
+			}
+		} catch (e) {
+			await slackLog(blockOwnerIngest.name, `ERROR in owner-ingest.ts fnTemp failed. :warning::warning: NOT RETRYING! :warning::warning: may need to run fnTemp manually.`, e)
 		}
 
 		/** update state */
