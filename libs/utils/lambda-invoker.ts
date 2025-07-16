@@ -75,41 +75,41 @@ export const lambdaInvokerFnTemp = async () => {
 	if (currentState.isRunning && currentState.lastRun < Date.now() - 300_000) { //in case the service running ended unexpectedly, reset the state
 		currentState = { isRunning: false, oneMoreRun: false, lastRun: 0 }
 	}
-	await slackLog('ENTRY', lambdaInvokerFnTemp.name, `DEBUG`, JSON.stringify(currentState))
+	console.info('ENTRY', lambdaInvokerFnTemp.name, `DEBUG`, JSON.stringify(currentState))
 
 	do {
 		try {
 			// Handle the 4 possible states
 			if (!currentState.isRunning && !currentState.oneMoreRun) {
-				await slackLog('// State: idle - set to running and invoke')
+				console.info('// State: idle - set to running and invoke')
 				await setFnTempState({ isRunning: true, oneMoreRun: false, lastRun: Date.now() })
 				await lambdaInvoker(process.env.FN_TEMP!, {}, 0)
 				currentState = await getFnTempState()
 				currentState.isRunning = false
 				await setFnTempState(currentState)
 			} else if (!currentState.isRunning && currentState.oneMoreRun) {
-				await slackLog('// State: idle but should run again - set to running and invoke')
+				console.info('// State: idle but should run again - set to running and invoke')
 				await setFnTempState({ isRunning: true, oneMoreRun: false, lastRun: Date.now() })
 				await lambdaInvoker(process.env.FN_TEMP!, {}, 0)
 				currentState = await getFnTempState()
 				currentState.isRunning = false
 				await setFnTempState(currentState)
 			} else if (currentState.isRunning && !currentState.oneMoreRun) {
-				await slackLog('// State: currently running - mark that another run is needed')
+				console.info('// State: currently running - mark that another run is needed')
 				await setFnTempState({ isRunning: true, oneMoreRun: true, lastRun: currentState.lastRun })
 				return // Exit without invoking, let the running instance handle it
 			} else if (currentState.isRunning && currentState.oneMoreRun) {
-				await slackLog('// State: running with pending run - do nothing, already queued')
+				console.info('// State: running with pending run - do nothing, already queued')
 				return
 			}
 		} catch (e) {
 			if (e instanceof Error && e.name === 'TooManyUpdates') {
-				await slackLog('// Error - retry', e)
+				console.info('// Error - retry', e)
 				await sleep(100)
 				currentState = await getFnTempState()
 				continue
 			}
-			await slackLog('// Error - throw', e)
+			console.info('// Error - throw', e)
 			throw e
 		}
 		currentState = await getFnTempState()
