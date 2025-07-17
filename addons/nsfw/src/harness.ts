@@ -134,11 +134,13 @@ export const harness = async()=> {
 const messageHandler = async (message: SQS.Message) => {
 	const s3event = JSON.parse(message.Body!) as S3Event
 	/* check if it's an s3 event */
-	if(s3event.Records && s3event.Records.length === 1
-		&& s3event.Records[0].eventName && s3event.Records[0].eventName.includes('ObjectCreated')
+	if(
+		s3event.Records 
+		&& s3event.Records.length === 1
+		&& typeof s3event.Records[0].s3?.object?.key === 'string'
+		&& typeof s3event.Records[0].s3?.bucket?.name === 'string'
 	){
-		const s3Record = s3event.Records[0]
-		const key = s3Record.s3.object.key
+		const key = s3event.Records[0].s3.object.key
 		const receiptHandle = message.ReceiptHandle!
 		// const bucket = s3Record.s3.bucket.name
 		// logger(prefix, `found s3 event for '${key}' in '${bucket}`)
