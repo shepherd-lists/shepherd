@@ -41,6 +41,11 @@ export const lambdaInvoker = async (FunctionName: string, payload: object, retri
 	}
 }
 
+/** 
+ * everything below is temporary for fnTemp lambda.
+ * TODO: remove this once fnTemp is removed.
+ */
+
 interface FnTempState {
 	isRunning: boolean
 	oneMoreRun: boolean

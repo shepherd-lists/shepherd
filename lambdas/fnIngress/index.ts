@@ -2,14 +2,15 @@ import { slackLog } from '../../libs/utils/slackLog'
 import { arGql, ArGqlInterface } from 'ar-gql'
 import { GQLEdgeInterface, GQLError } from 'ar-gql/dist/faces'
 import moize from 'moize'
-import { TxRecord, TxScanned } from 'shepherd-plugin-interfaces/types'
-import knexCreate from '../../libs/utils/knexCreate'
+import { TxRecord } from 'shepherd-plugin-interfaces/types'
+import pool, { batchInsert } from '../../libs/utils/pgClient'
+import { min_data_size } from '../../libs/constants'
 
 
 const ARIO_DELAY_MS = 500
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-const knex = knexCreate()
+
 
 interface Inputs {
 	metas: GQLEdgeInterface[]
@@ -37,13 +38,15 @@ export const handler = async (event: Inputs) => {
 			throw new Error('missing inputs. should have { metas: GQLEdgeInterface[], pageNumber: number, gqlUrl: string, gqlUrlBackup: string, gqlProvider: string, indexName: string, }')
 		}
 
-		const inserts = await buildRecords(
+		const records = await buildRecords(
 			metas,
 			arGql({ endpointUrl: gqlUrl }),
 			indexName,
 			gqlProvider,
 			arGql({ endpointUrl: gqlUrlBackup })
 		)
+
+		const inserts = await preFilterRecords(records, indexName, gqlProvider)
 
 		return inserts;
 	} catch (err: unknown) {
@@ -68,18 +71,22 @@ const getParent = moize(
 )
 
 const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: string, gqlProvider: string, gqlBackup: ArGqlInterface) => {
-	const records: TxScanned[] = []
+
+	const records: TxRecord[] = []
 
 	for (const item of metas) {
 		const txid = item.node.id
 		const content_type = item.node.data.type || item.node.tags.find(t => t.name === 'Content-Type')!.value
 		const content_size = item.node.data.size.toString()
 		const height = item.node.block.height // missing height should not happen and cause `TypeError : Cannot read properties of null (reading 'height')`
-		const parent = item.node.parent?.id || null // the direct parent, if exists
+		let parent = item.node.parent?.id || null // the direct parent, if exists
 		const parents: string[] = []
 		const owner = item.node.owner.address.padEnd(43, ' ') //pad non-arweave addresses to 43 chars
 
 		// loop to find all nested parents
+		if (+content_size < min_data_size) { //dont waste resources on small records
+			parent = null
+		}
 		if (parent) {
 			let p: string | null = parent
 			do {
@@ -126,78 +133,80 @@ const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 			parent,
 			...(parents.length > 0 && { parents }), //leave `parents` null if not nested
 			owner,
-		})
+		} as TxRecord)
 	}
 
-	return insertRecords(records, indexName, gqlProvider)
+	return records;
 }
 
-/** export insertRecords for test only */
-export const insertRecords = async (records: TxScanned[], indexName: string, gqlProvider: string) => {
+export const preFilterRecords = async (records: TxRecord[], indexName: string, gqlProvider: string) => {
 
 	if (records.length === 0) return 0
 
-	let alteredCount = 0
+	let upsertCount = 0
+
+	/**
+	 * filter records:-
+	 * using metadata:
+	 * - are already in the database and have the same height/parent/parents
+	 * - already flagged
+	 * - size > 4k. 
+	 * while retrieving data:
+	 * - use network nodes to retrieve data (make this modular so we can switch to gateway streams also)
+	 * - fileType (16kb) is defined and starts with image/video/audio (sometimes detected as audio contains video) 
+	 *   - [handle html/pdf/docs later]
+	 *   - SVG files (special case: allows application/xml when database expects image/svg+xml)
+	 * - partial data allowed
+	 * - actual data > 4kb again
+	 * - 404 is 404 if nodes tried as well as gateway
+	 * - abort dead connections (partial?)
+	 * - connection and 4xx/5xx retrying
+	 */
+
+
 	try {
-		if (indexName === 'indexer_tip') {
-			/** expecting almost zero conflicts here */
 
-			// console.log('pass1 inserting records', records.length, {records})
-
-			await knex<TxRecord>('inbox').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byte_start', 'byte_end'])
-			alteredCount = records.length
-		} else {
-			/** generally speaking, it's the norm to not see updates on pass2.
-			 * we would be expecting mostly conflicts here, so we will only update
-			 * records with newer height, and insert missing records
-			 */
-
-			const recordsInInbox = await knex<TxRecord>('inbox').whereIn('txid', records.map(r => r.txid))
-			const recordsInTxs = await knex<TxRecord>('txs').whereIn('txid', records.map(r => r.txid))
-			const recordsInDb = [...recordsInInbox, ...recordsInTxs]
+		// const recordsInTxs = await knex<TxRecord>('txs').whereIn('txid', records.map(r => r.txid)) //no inbox anymore
+		const existing = (await pool.query(`SELECT * FROM txs WHERE txid IN (${records.map(r => `'${r.txid}'`).join(',')})`)).rows as TxRecord[]
 
 
-			/* step 1: update records with newer height */
+		/* step 1: update records with newer height */
 
-			/* filter out records with same or less height */
-			const updateRecords = records.filter(r => recordsInDb.some(exist => (r.txid === exist.txid && r.height > exist.height)))
+		/* filter out records already flagged && with <= existing height */
+		const eIds = existing.map(r => r.txid)
+		const newRecords = records.filter(r => !eIds.includes(r.txid))
+		const updateRecords = records.filter(r => existing.some(exist => (r.txid === exist.txid && exist.flagged !== true && r.height > exist.height)))
+		const allRecords = [...newRecords, ...updateRecords]
 
-			const updatedIds = await Promise.all(updateRecords.map(async r =>
-				(
-					await knex<TxRecord>('inbox')
-						.update({
-							height: r.height,
-							parent: r.parent,
-							parents: r.parents,
-							byte_start: undefined,
-							byte_end: undefined,
-						})
-						.where('txid', r.txid)
-						.returning('txid')
-				)[0]
-			))
-
-			alteredCount += updatedIds.length
-
-			if (updatedIds.length > 0) console.log(`updated ${updatedIds.length}/${updateRecords.length} records.`, 'updatedIds', JSON.stringify(updatedIds))
-
-			/* step 2: insert missing records */
-
-			const missingRecords = records.filter(r => !recordsInDb.map(r => r.txid).includes(r.txid))
-			alteredCount += missingRecords.length
-
-			console.log(`missingRecords: length ${missingRecords.length}`)
-
-			if (missingRecords.length > 0) {
-				const res = await knex<TxRecord>('inbox')
-					.insert(missingRecords)
-					.onConflict().ignore() //can occur in restart during half finished height
-					.returning('txid')
-				console.log(`inserted ${res.length}/${missingRecords.length} missingRecords`, JSON.stringify(missingRecords))
+		/** split records into 2 lists:
+		 * - records with size < 4k
+		 * - records with size >= 4k
+		 */
+		const [negligibleRecords, filteredRecords] = allRecords.reduce((acc, rec) => {
+			if (+rec.content_size <= min_data_size) {
+				rec.data_reason = 'negligible-data'
+				rec.valid_data = false
+				rec.flagged = false
+				acc[0].push(rec)
+			} else {
+				acc[1].push(rec)
 			}
+			return acc;
+		}, [[], []] as TxRecord[][])
 
-			console.info(indexName, `inserted ${alteredCount}/${records.length} records`)
-		}
+		/** log negligibleRecords straight to db now */
+		const negligibleInserts = await batchInsert(negligibleRecords, 'txs')
+
+
+		upsertCount += negligibleInserts ?? 0
+
+		//output some count logs here already? 
+		//...
+
+
+
+
+		console.info(indexName, `inserted ${upsertCount}/${records.length} records`)
 
 	} catch (err: unknown) {
 		const e = err as Error & { code?: string, detail: string }
@@ -210,5 +219,5 @@ export const insertRecords = async (records: TxScanned[], indexName: string, gql
 		}
 	}
 
-	return alteredCount
+	return upsertCount;
 }
