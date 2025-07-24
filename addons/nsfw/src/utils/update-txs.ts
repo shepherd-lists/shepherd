@@ -1,18 +1,17 @@
 import { APIFilterResult, FilterErrorResult, FilterResult } from 'shepherd-plugin-interfaces'
 import { logger } from './logger'
 import { slackLogger } from './slackLogger'
-
-import { request } from 'node:http'
+import { request, Agent } from 'node:http'
 import { URL } from 'node:url'
 
+
 // Configure global agent for connection pooling
-import { Agent } from 'node:http'
 const agent = new Agent({
 	keepAlive: true,
 	// keepAliveMsecs: 1000, //default 1000
 	maxSockets: 100, // Limit concurrent connections
 	maxFreeSockets: 10, // Keep some connections warm
-	timeout: 60000, // Socket timeout
+	timeout: 130_000, // Socket timeout needs to be longer than connection timeout
 })
 
 // Monitor connection pool usage
@@ -62,11 +61,12 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 						agent, // Use connection pooling
 						headers: {
 							'Content-Type': 'application/json; charset=UTF-8',
-							// 'Content-Length': Buffer.byteLength(payloadString),
 						},
-						timeout: 120000, // 2 minute timeout for slow processing
+						timeout: 120_000, // 2 minute timeout for slow processing
 					}, (res) => {
-						res.resume() // consume the response body to ensure proper cleanup
+						// Don't destroy the response - let it complete naturally
+						let data = ''
+						res.on('data', chunk => data += chunk) // Consume response body properly
 						res.on('end', () => {
 							resolve({
 								statusCode: res.statusCode!,
@@ -74,14 +74,15 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 							})
 						})
 						res.on('error', (err) => {
-							res.destroy()
-							req.destroy()
+							// res.destroy()
+							// req.destroy()
+							// Don't destroy req here - it interferes with connection pooling
 							reject(err)
 						})
 					})
 
 					req.on('error', (err) => {
-						req.destroy()
+						// req.destroy() // don't destroy req here - it interferes with connection pooling
 						reject(err)
 					})
 
