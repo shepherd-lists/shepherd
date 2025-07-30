@@ -231,7 +231,7 @@ const bucketAndNotificationQs = (stack: cdk.Stack) => {
 		accessControl: cdk.aws_s3.BucketAccessControl.BUCKET_OWNER_FULL_CONTROL,
 		bucketName: `shepherd-input-s3-${cdk.Aws.REGION}`,
 		removalPolicy: cdk.RemovalPolicy.DESTROY,
-		autoDeleteObjects: true,
+		// autoDeleteObjects: true, // removed - this tends to fail + lambda Runtime has to be manually maintained. either way it's a manual s3 cleanup.
 	})
 	inputBucket.addObjectCreatedNotification(new cdk.aws_s3_notifications.SqsDestination(sqsInputQ))
 
