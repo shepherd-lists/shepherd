@@ -87,8 +87,29 @@ app.post('/postupdate', async (req, res) => {
 })
 
 export const server = app.listen(port, () => {
-	/** we're getting "clientError" 400 sent back to client. adjusting this timeout */
-	server.headersTimeout = 120_000 //default (nodejs) appears to be 60_000 currnently
+	/** we're getting "clientError"s */
+	/* actual default values:
+		Server settings: {
+		timeout: 0, disabled
+		requestTimeout: 300000,
+		headersTimeout: 60000,
+		keepAliveTimeout: 5000,
+		connectionsCheckingInterval: 30000,
+		allowHalfOpen: true,
+		pauseOnConnect: false,
+		keepAlive: false,
+		keepAliveInitialDelay: 0,
+		httpAllowHalfOpen: false,
+		maxHeadersCount: null,
+		maxRequestsPerSocket: 0
+		}
+	*/
+	// server.timeout = 0; //disabled
+	server.requestTimeout = 600_000 //10 mins. default 5mins
+	server.keepAliveTimeout = 20_000 //default 5000
+	// server.headersTimeout = 120_000 //default 60_000
+
+
 
 	console.info(`started on http://localhost:${port}`)
 	//debug
