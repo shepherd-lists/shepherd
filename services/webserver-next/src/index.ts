@@ -56,10 +56,12 @@ app.get('/robots.txt', (req, res) => {
 })
 
 
+app.get('/health-check', async (req, res) => {
+	res.sendStatus(200)
+})
+
 app.get('/', async (req, res) => {
-	res.setHeader('Content-Type', 'text/plain')
-	res.write('Webserver operational. v3.\n\n\n')
-	res.status(200).end()
+	res.sendStatus(404)
 })
 
 app.get('/addresses.txt', ipAllowMiddleware('txids'), async (req, res) => {
