@@ -202,6 +202,15 @@ export const createStack = async (app: App, config: Config) => {
 		port: 80,
 		protocol: aws_elasticloadbalancingv2.ApplicationProtocol.HTTP,
 		targets: [webserver],
+		healthCheck: {
+			path: '/health-check',
+			protocol: aws_elasticloadbalancingv2.Protocol.HTTP,
+			port: '80',
+			// interval: Duration.seconds(30), default
+			// timeout: Duration.seconds(10), default
+			healthyThresholdCount: 2, //default 5, min 2
+			unhealthyThresholdCount: 4, //default 2
+		},
 	})
 	const taskRoleWeb = webserver.taskDefinition.taskRole!
 	taskRoleWeb.addToPrincipalPolicy(new aws_iam.PolicyStatement({
