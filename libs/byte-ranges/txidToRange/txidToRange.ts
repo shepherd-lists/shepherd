@@ -19,6 +19,9 @@ export interface ByteRange {
 	status?: number
 	start: bigint
 	end: bigint
+	//export for data retrieval
+	dataStart: bigint
+	dataSize: bigint
 }
 export const txidToRange = async (id: string, parent: string | null, parents: string[] | undefined) => {
 	/**
@@ -90,8 +93,10 @@ const offsetL1 = async (id: string): Promise<ByteRange> => {
 	if (process.env['NODE_ENV'] === 'test') console.log({ end, size, modEnd, addEnd })
 
 	return {
-		end: BigInt(end) + addEnd,
 		start: BigInt(end) - BigInt(size),
+		end: BigInt(end) + addEnd,
+		dataStart: 0n,
+		dataSize: BigInt(size),
 	}
 }
 
