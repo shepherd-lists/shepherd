@@ -46,8 +46,9 @@ const checkEndpoint = async () => {
 }
 await checkEndpoint() //run straight away to populate
 const interval = 1000 * 60 * 60 // once an hour 
+let timer: NodeJS.Timeout
 if (http_api_nodes_url) { //if no url, no point checking (makes tests stop also)
-	setInterval(checkEndpoint, interval)
+	timer = setInterval(checkEndpoint, interval)
 }
 
 /** use a cron to check for updates. update on access too complicated/costly for the consumers */
@@ -62,4 +63,7 @@ export const httpApiNodes = () => _nodes
 export const rangeAllowed = () => _rangeItems
 
 export const rangeAllowedIps = () => _rangeItemIps
+
+/** use to exit tests */
+export const clearTimerHttpApiNodes = () => clearInterval(timer)
 
