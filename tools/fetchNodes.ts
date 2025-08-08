@@ -38,7 +38,13 @@ const getDataFromChunks = async (id: string, parent: string | null, parents?: st
 		const start = Number(dataStart), size = Number(dataSize)
 
 
-		const httpNodes = [...httpApiNodes(), { url: 'https://arweave.net', name: 'arweave.net' }]
+		const httpNodes = [
+			...httpApiNodes(),
+			{ url: 'https://arweave.net', name: 'arweave.net' },
+			{ url: 'http://tip-2.arweave.xyz:1984', name: 'tip-2.arweave.xyz' },
+			{ url: 'http://tip-3.arweave.xyz:1984', name: 'tip-3.arweave.xyz' },
+			{ url: 'http://tip-4.arweave.xyz:1984', name: 'tip-4.arweave.xyz' },
+		]
 		const totalHttpNodes = httpNodes.length
 		console.debug({ totalHttpNodes })
 
@@ -104,12 +110,13 @@ console.debug('length', baseDataSmall.length)
 console.info('-= base tx large =-')
 
 const largeL1s = [
-	'YvKsLs9zYc-qpPowicC2zfGSzZNiLcK3NB3J_qFVPGs', //size 520kb, original 2 years old
+	// 'YvKsLs9zYc-qpPowicC2zfGSzZNiLcK3NB3J_qFVPGs', //size 520kb, original 2 years old
 
-	/** !!! no new txs appear to be propagating !!! */
-	'a168-YVIITXbvIj68uA_vt3MLTQWGEVe_fG9ROJ7FZE', //size 520kb, text
-	'LZmLFAwjZ794w-K37wpbJkjM6RTeJiEpgokMbkdPXSY', //size 520kb, text ATTEMPT 2
-	'I7lOcaJpUsEUPAerb0ao7Ws0Jmv1Aa9_-Xhq5GAfKdE', //size 520kb, text ATTEMPT 3
+	// // /** !!! no new txs appear to be propagating !!! */
+	// 'a168-YVIITXbvIj68uA_vt3MLTQWGEVe_fG9ROJ7FZE', //size 520kb, text ATTEMPT 1 working after adding tip nodes!
+	// 'LZmLFAwjZ794w-K37wpbJkjM6RTeJiEpgokMbkdPXSY', //size 520kb, text ATTEMPT 2 working after adding tip nodes!
+	// 'I7lOcaJpUsEUPAerb0ao7Ws0Jmv1Aa9_-Xhq5GAfKdE', //size 520kb, text ATTEMPT 3 working after adding tip nodes!
+	'YqIGNFqScA5bIGLpt083Zp7fHcz7ApL-Do1e1bhMM3Q', //size 520kb, text ATTEMPT 4 
 ]
 
 for (const baseIdLarge of largeL1s) {
