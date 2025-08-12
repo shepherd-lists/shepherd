@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { getByteRange } from '../libs/byte-ranges/byteRanges'
 import Arweave from 'arweave'
 import { httpApiNodes, clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
+import { writeFileSync } from 'node:fs'
 
 process.on('uncaughtException', (e, origin) => {
 	clearTimerHttpApiNodes()
@@ -32,10 +33,9 @@ const getDataFromChunks = async (id: string, parent: string | null, parents?: st
 	console.log(offsets)
 
 	//get the chunks
-	const getChunks = async (dataStart: bigint, dataSize: bigint) => {
+	const getChunks = async (rangeStart: bigint, dataStart: bigint, dataSize: bigint) => {
 
-		//this is only goind to work for base txs
-		const start = Number(dataStart), size = Number(dataSize)
+		const start = Number(rangeStart), end = Number(dataStart + dataSize)
 
 
 		const httpNodes = [
@@ -52,9 +52,9 @@ const getDataFromChunks = async (id: string, parent: string | null, parents?: st
 		let node = httpNodes.pop()
 		const chunkStart = start + 1
 		let byte = 0
-		const data = new Uint8Array(size)
+		const data = new Uint8Array(end + 262_144) //extra 256kb to allow for rest of chunk
 
-		while (byte < size) {
+		while (byte < end) {
 			let chunkJson: { chunk: string; packing: string; }
 			try {
 				const url = node!.url + `/chunk/${chunkStart + byte}`
@@ -82,21 +82,68 @@ const getDataFromChunks = async (id: string, parent: string | null, parents?: st
 			}
 
 			const chunk = Arweave.utils.b64UrlToBuffer(chunkJson!.chunk)
-			console.debug(`chunk length ${chunk.length}, ${byte}/${size}`)
+			console.debug(`chunk length ${chunk.length}, ${byte}/${end}`)
 			data.set(chunk, byte)
 			byte += chunk.length
 		}
 		return data;
 	}
 
-	const data = await getChunks(offsets.start, offsets.dataSize)
+	const chunks = await getChunks(offsets.start, offsets.dataStart, offsets.dataSize)
+
+	console.debug('data', chunks.length)
+	console.debug('dataStart', offsets.dataStart)
+	console.debug('dataEnd', offsets.dataStart + offsets.dataSize)
+	let data = chunks.slice(Number(offsets.dataStart), Number(offsets.dataStart + offsets.dataSize))
+
 
 	if (parent) {
-		console.error('data-items not impl yet!')
+		//need to remove di header
+		const dataItem = data
+
+		const dataItemDataOffset = (dataItem: Uint8Array) => {
+			let offset = 0
+
+			// Signature type (2 bytes)
+			const sigType = new DataView(dataItem.buffer).getUint16(offset, true)
+			offset += 2
+
+			// Signature length depends on type: 512 most common (RSA/EdDSA); 65 secp256k1
+			const sigLength = sigType === 3 ? 65 : 512
+			offset += sigLength
+
+			// Owner (512 bytes)
+			offset += 512
+
+			// Target presence byte + target
+			const targetPresent = dataItem[offset] === 1
+			offset += 1
+			if (targetPresent) offset += 32
+
+			// Anchor presence byte + anchor  
+			const anchorPresent = dataItem[offset] === 1
+			offset += 1
+			if (anchorPresent) offset += 32
+
+			// Number of tags (8 bytes)
+			// const numTags = new DataView(dataItem.buffer).getBigUint64(offset, true)
+			offset += 8
+
+			// Tags bytes length (8 bytes)
+			const tagsLength = new DataView(dataItem.buffer).getBigUint64(offset, true)
+			offset += 8
+
+			// Skip tags data
+			offset += Number(tagsLength)
+
+			// Remaining is content
+			return offset;
+		}
+
+		data = dataItem.slice(dataItemDataOffset(dataItem))
 	}
 
 	return data;
-
 }
 
 /** some base L1 tests */
@@ -123,6 +170,21 @@ for (const baseIdLarge of largeL1s) {
 	const baseDataLarge = await getDataFromChunks(baseIdLarge, null, undefined)
 	console.debug('length', baseDataLarge.length)
 }
+
+
+/** data-items */
+console.info('-= small data-item =-')
+const diId = 'tPYLhLIxxq-pQJ95FWLVzaYG2VOiXyDsZwZLL6uOCvw'
+const diParent = '9KtQZqJAQwA7lYxKnjo6oN8YqQLWfusZ0DJNxRPDMac'
+const diData = await getDataFromChunks(diId, diParent, undefined)
+console.debug('length', diData.length, `content: "${new TextDecoder().decode(diData)}"`)
+
+console.info('-= large data-item =-')
+const diId2 = 'hYvWBh8atbm8WzwLdp8qTHGncGYFcnPdSfUPfF0jj0I'
+const diParent2 = 'BPdVS50l0LdiM2w8mYYXX_v31UM9MOMx0zpXSUiA69A'
+const diData2 = await getDataFromChunks(diId2, diParent2, undefined)
+console.debug('length', diData2.length)
+writeFileSync(`${diId2}.txt`, diData2)
 
 
 //exit app
