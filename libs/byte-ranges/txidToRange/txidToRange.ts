@@ -100,7 +100,7 @@ const offsetL1 = async (id: string): Promise<ByteRange> => {
 	}
 }
 
-const byteRange104 = async (txid: string, parent: string, parents: string[] | undefined) => {
+const byteRange104 = async (txid: string, parent: string, parents: string[] | undefined): Promise<ByteRange> => {
 
 	/* 1. fetch the bundle offsets */
 
@@ -125,8 +125,8 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 	const header0 = await ans104HeaderData(parent)
 	if (header0.status === 404) return {
 		status: header0.status,
-		start: -1n,
-		end: -1n,
+		start: -1n, end: -1n,
+		dataStart: -1n, dataSize: -1n,
 	}
 
 	if (parents) {
@@ -134,8 +134,8 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 			const header = await ans104HeaderData(parents[i])
 			if (header.status === 404) return {
 				status: header0.status,
-				start: -1n,
-				end: -1n,
+				start: -1n, end: -1n,
+				dataStart: -1n, dataSize: -1n,
 			}
 			headerDatas.push(header)
 		}
@@ -210,6 +210,8 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 	return {
 		start: weaveStart,
 		end: weaveEnd,
+		dataStart: start - (weaveStart - L1WeaveStart),
+		dataSize: size,
 	}
 }
 
