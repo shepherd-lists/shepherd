@@ -1,9 +1,12 @@
 import 'dotenv/config'
 import { getByteRange } from '../libs/byte-ranges/byteRanges'
-import Arweave from 'arweave'
 import { httpApiNodes, clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 import { writeFileSync } from 'node:fs'
+import { extractChunkOnly } from './fetchNodes_chunk2-parser'
 
+if (!process.env.http_api_nodes_url) throw new Error('http_api_nodes_url is not set')
+
+//clear the httpapinodes update loop so process exits.
 process.on('uncaughtException', (e, origin) => {
 	clearTimerHttpApiNodes()
 	throw e
@@ -41,9 +44,9 @@ const getDataFromChunks = async (id: string, parent: string | null, parents?: st
 		const httpNodes = [
 			...httpApiNodes(),
 			{ url: 'https://arweave.net', name: 'arweave.net' },
+			{ url: 'http://tip-4.arweave.xyz:1984', name: 'tip-4.arweave.xyz' },
 			{ url: 'http://tip-2.arweave.xyz:1984', name: 'tip-2.arweave.xyz' },
 			{ url: 'http://tip-3.arweave.xyz:1984', name: 'tip-3.arweave.xyz' },
-			{ url: 'http://tip-4.arweave.xyz:1984', name: 'tip-4.arweave.xyz' },
 		]
 		const totalHttpNodes = httpNodes.length
 		console.debug({ totalHttpNodes })
@@ -55,16 +58,28 @@ const getDataFromChunks = async (id: string, parent: string | null, parents?: st
 		const data = new Uint8Array(end + 262_144) //extra 256kb to allow for rest of chunk
 
 		while (byte < end) {
-			let chunkJson: { chunk: string; packing: string; }
+			let chunk: Uint8Array
 			try {
-				const url = node!.url + `/chunk/${chunkStart + byte}`
+				const url = node!.url + `/chunk2/${chunkStart + byte}`
 				console.info(url)
-				const res = await fetch(url)
+				const res = await fetch(url, {
+					headers: {
+						'x-packing': 'unpacked'
+					}
+				})
 
 				if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
 
-				chunkJson = await res.json() as { chunk: string; packing: string; }
-				if (chunkJson.packing !== 'unpacked') throw new Error('chunk not unpacked', { cause: { packing: chunkJson.packing } })
+				// /chunk2 returns raw binary data with length-prefixed segments
+				const arrayBuffer = await res.arrayBuffer() //i think we can do better
+				const data = new Uint8Array(arrayBuffer)
+
+				// Extract and validate unpacked chunk data
+				const chunkResult = extractChunkOnly(data)
+				if ('error' in chunkResult) {
+					throw new Error(`Chunk2 parse error: ${chunkResult.error}`)
+				}
+				chunk = chunkResult
 
 				console.info(url, 'Success ✅')
 			} catch (e) {
@@ -81,7 +96,6 @@ const getDataFromChunks = async (id: string, parent: string | null, parents?: st
 				throw e
 			}
 
-			const chunk = Arweave.utils.b64UrlToBuffer(chunkJson!.chunk)
 			console.debug(`chunk length ${chunk.length}, ${byte}/${end}`)
 			data.set(chunk, byte)
 			byte += chunk.length
