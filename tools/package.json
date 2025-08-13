@@ -2,7 +2,6 @@
 	"type": "module",
 	"devDependencies": {
 		"ar-gql": "^2.0.2",
-		"arweave": "^1.15.7",
 		"file-type": "^19.5.0",
 		"moize": "^6.1.6"
 	}
