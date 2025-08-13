@@ -195,13 +195,16 @@ export const preFilterRecords = async (records: TxRecord[], indexName: string, g
 		}, [[], []] as TxRecord[][])
 
 		/** log negligibleRecords straight to db now */
+		//should these actually be collected?
 		const negligibleInserts = await batchInsert(negligibleRecords, 'txs')
 
+		console.info(indexName, `inserted ${negligibleInserts}/${negligibleRecords.length} negligible records`)
 
 		upsertCount += negligibleInserts ?? 0
 
 		//output some count logs here already? 
 		//...
+
 
 
 
