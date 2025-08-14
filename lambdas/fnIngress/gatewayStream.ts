@@ -40,6 +40,10 @@ function makeRequest(url: string): Promise<ReadableStream<Uint8Array>> {
 					})
 					res.on('end', () => controller.close())
 					res.on('error', (err: Error) => controller.error(err))
+				},
+				cancel(reason) {
+					res.destroy()
+					console.info(url, 'cancelled', reason)
 				}
 			})
 
