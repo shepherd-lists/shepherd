@@ -79,6 +79,13 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 	const result = await checkImage(pic, mime, txid)
 
 	if(result.flagged !== undefined){
+		/* hack, remove specific spam false positives */
+		if(result.flagged === true && result.top_score_name === 'Porn' && [0.90324813, 0.9651742].includes(result.top_score_value || 0)){
+			result.top_score_name = undefined
+			result.top_score_value = undefined
+			result.flagged = false
+		}
+
 		await updateTx(txid, {
 			flagged: result.flagged,
 			...( result.top_score_name && {
