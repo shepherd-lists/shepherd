@@ -80,7 +80,12 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 
 	if(result.flagged !== undefined){
 		/* hack, remove specific spam false positives */
-		if(result.flagged === true && result.top_score_name === 'Porn' && [0.90324813, 0.9651742].includes(result.top_score_value || 0)){
+		if(
+			result.flagged === true 
+			&& result.top_score_name === 'Porn' 
+			&& [0.90324813, 0.9651742].includes(Number(result.top_score_value))
+		){
+			logger(prefix, 'hack, removing specific spam false positive', JSON.stringify(result))
 			result.top_score_name = undefined
 			result.top_score_value = undefined
 			result.flagged = false
