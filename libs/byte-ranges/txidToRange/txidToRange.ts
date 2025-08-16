@@ -206,11 +206,12 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 	if (weaveEnd > (L1WeaveEnd + addEnd)) throw new Error('weaveEnd out of range') //not the cleanest test
 
 	/* final values */
-	if (process.env.NODE_ENV === 'test') console.info('return', { weaveStart, weaveEnd })
+	const dataStart = start - (weaveStart - L1WeaveStart)
+	if (process.env.NODE_ENV === 'test') console.info('return', { weaveStart, weaveEnd, dataStart, size })
 	return {
 		start: weaveStart,
 		end: weaveEnd,
-		dataStart: start - (weaveStart - L1WeaveStart),
+		dataStart,
 		dataSize: size,
 	}
 }
