@@ -45,7 +45,6 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 					}
 
 					const url = `${node.url}/chunk2/${(chunkStart + BigInt(bytePos)).toString()}`
-					console.log(`Fetching from ${url} (bytePos=${bytePos}, remaining=${dataEnd - bytePos})`)
 					try {
 						const size = await fetchChunkData(url, (segment) => {
 							//truncate segment if it would exceed dataEnd
@@ -63,9 +62,9 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 							currentReq = req
 							currentRes = res
 						})
-						console.log(`Completed network chunk: ${size} bytes`)
-					} catch (err) {
-						console.log(`Error from ${node.name}: ${err instanceof Error ? err.message : String(err)}, trying next node`)
+						console.info(`${url} ${bytePos}/${dataEnd} bytes ✅`)
+					} catch (e) {
+						console.error(`${String(e)}, ${bytePos}/${dataEnd} bytes. trying next node`)
 						node = nodes.pop()
 						if (cancelled) return
 						continue
@@ -77,7 +76,6 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 					}
 				}
 
-				console.log(`Stream complete: bytePos=${bytePos}, dataEnd=${dataEnd}, cancelled=${cancelled}`)
 				if (!cancelled) controller.close()
 			}
 
@@ -87,7 +85,7 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 			cancelled = true
 			if (currentRes) currentRes.destroy()
 			if (currentReq) currentReq.destroy()
-			console.info('chunkStream cancelled:', reason)
+			console.info(`chunkStream cancelled. reason: ${reason}`)
 		},
 	})
 
@@ -107,12 +105,10 @@ function fetchChunkData(
 	onReq?: (req: http.ClientRequest, res: http.IncomingMessage) => void,
 ): Promise<number> {
 	return new Promise((resolve, reject) => {
-		console.log(`fetchChunkData: requesting ${url}`)
 		const req = http.get(url, { agent, headers: { 'x-packing': 'unpacked' } }, (res) => {
-			console.log(`fetchChunkData: response ${res.statusCode} from ${url}`)
 			if (res.statusCode !== 200) {
 				res.destroy()
-				return reject(new Error(`${url} failed: ${res.statusCode}`))
+				return reject(new Error(`${url} failed: ${res.statusCode} ${res.statusMessage}`))
 			}
 
 			if (onReq) onReq(req, res)
@@ -127,15 +123,15 @@ function fetchChunkData(
 				let offset = 0
 				while (offset < buf.length) {
 					if (chunkSize < 0) {
-						// read 3-byte big-endian length prefix
+						//read 3-byte big-endian length prefix
 						const toCopy = Math.min(headerBytesNeeded, buf.length - offset)
 						headerBuf.set(buf.subarray(offset, offset + toCopy), headerOffset)
 						headerOffset += toCopy
 						offset += toCopy
 						headerBytesNeeded -= toCopy
 						if (headerBytesNeeded === 0) {
-							chunkSize = (headerBuf[0] << 16) | (headerBuf[1] << 8) | headerBuf[2]
-							console.log(`fetchChunkData: parsed chunk size: ${chunkSize}`)
+							chunkSize = (headerBuf[0] << 16) | (headerBuf[1] << 8) | headerBuf[2] //cpu endian agnostic
+							// console.debug(`fetchChunkData: parsed chunk size: ${chunkSize}`)
 						}
 						continue
 					}
@@ -151,9 +147,8 @@ function fetchChunkData(
 					offset += toTake
 
 					if (emitted === chunkSize) {
-						console.log(`fetchChunkData: completed chunk, returning size ${chunkSize}`)
-						res.removeAllListeners('data')
-						res.removeAllListeners('end')
+						// res.removeAllListeners('data')
+						// res.removeAllListeners('end')
 						res.destroy()
 						return resolve(chunkSize)
 					}

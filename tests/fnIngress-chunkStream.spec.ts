@@ -56,9 +56,8 @@ describe('chunkStream', () => {
 		for await (const buf of stream) {
 			assert(buf.length > 0, 'Should have received some data')
 			count += buf.length
-			if (count > 2_000) break;
+			if (count > 2_000) break; //cancels the stream
 		}
-		stream.cancel('test reasons')
 
 		assert(true, 'cancellation completed without error')
 	})
