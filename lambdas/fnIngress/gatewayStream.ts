@@ -10,7 +10,7 @@ const agent = new https.Agent({
 })
 
 //export function to destroy agent after tests
-export const destroyAgent = () => agent.destroy()
+export const destroyGatewayAgent = () => agent.destroy()
 
 export async function gatewayStream(txid: string): Promise<ReadableStream<Uint8Array>> {
 	//try raw endpoint first (no redirects)
@@ -27,13 +27,11 @@ function makeRequest(url: string): Promise<ReadableStream<Uint8Array>> {
 		https.get(url, { agent }, (res) => {
 			//handle redirects
 			if (res.statusCode && [301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
-				resolve(makeRequest(res.headers.location))
-				return
+				return resolve(makeRequest(res.headers.location))
 			}
 
 			if (res.statusCode !== 200) {
-				reject(new Error(`${url} failed: ${res.statusCode}`))
-				return
+				return reject(new Error(`${url} failed: ${res.statusCode}`))
 			}
 
 			const stream = new ReadableStream<Uint8Array>({
