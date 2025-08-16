@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { after, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { gatewayStream, destroyAgent } from '../lambdas/fnIngress/gatewayStream'
+import { gatewayStream, destroyGatewayAgent } from '../lambdas/fnIngress/gatewayStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 
 
@@ -10,7 +10,7 @@ describe('gatewayStream', () => {
 
 	after(() => {
 		clearTimerHttpApiNodes()
-		destroyAgent()
+		destroyGatewayAgent()
 	})
 
 	it('should return ReadableStream and successfully stream a real transaction', async () => {
