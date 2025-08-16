@@ -96,7 +96,10 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 
 /**
  * Fetch a single /chunk2 response and emit all chunk payload bytes.
- * Returns the chunk size that was processed.
+ * Returns the chunk size that was processed. 
+ * N.B. this is uncancellable because:
+ *  the chunk usually downloads too quickly to cancel.
+ *  the arweave node is unaffected as it will process request regardless of request/connection status. it's nothing to them.
  */
 function fetchChunkData(
 	url: string,
