@@ -118,14 +118,7 @@ export const createStack = async (app: App, config: Config) => {
 	})
 
 	/** create s3 for lists */
-	const listsBucket = buildListsBucket(stack, {
-		config,
-		//this following below is not used
-		vpc,
-		listener: null as any,
-		logGroupServices, //unused
-		environment: {}, //unused
-	})
+	const listsBucket = buildListsBucket(stack, config)
 
 	/** create indexer-next service */
 	const indexerNext = createAddonService(stack, 'indexer-next', {
