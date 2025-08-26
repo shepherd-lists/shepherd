@@ -1,4 +1,4 @@
-import { RemovalPolicy, Stack, aws_ec2, aws_elasticloadbalancingv2, aws_elasticloadbalancingv2_targets, aws_iam, aws_logs, aws_s3 } from 'aws-cdk-lib'
+import { RemovalPolicy, Stack, Duration, aws_ec2, aws_elasticloadbalancingv2, aws_elasticloadbalancingv2_targets, aws_iam, aws_logs, aws_s3 } from 'aws-cdk-lib'
 import { Config } from '../../../Config'
 import { createFn } from './createFn'
 
@@ -16,6 +16,17 @@ export const buildListsBucket = (
 ) => {
 	const { config, vpc, logGroupServices, environment, listener } = init
 
+	//pointless versioning these legacy files + they are building up s3 costs
+	const noVersioningFiles = [
+		'addresses.txt',
+		'blacklist.txt',
+		'txidflagged.txt',
+		'txidowners.txt',
+		'rangelist.txt',
+		'rangeflagged.txt',
+		'rangeowners.txt',
+	]
+
 	const listsBucket = new aws_s3.Bucket(stack, 'listsBucket', {
 		bucketName: `shepherd-lists-${config.region}`,
 		removalPolicy: RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
@@ -31,6 +42,14 @@ export const buildListsBucket = (
 		},
 
 		versioned: true, // Enable versioning for the bucket
+
+		lifecycleRules: noVersioningFiles.map(filename => ({
+			id: `${filename.split('.')[0]}-no-versioning`,
+			enabled: true,
+			prefix: filename,
+			noncurrentVersionExpiration: Duration.days(1), // Expire noncurrent versions asap
+		})),
+
 
 		// cors: [{
 		// 	allowedMethods: [aws_s3.HttpMethods.GET, aws_s3.HttpMethods.HEAD],
