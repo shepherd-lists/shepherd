@@ -1,5 +1,3 @@
-// tests/fnIngress-chunkStream.spec.ts
-
 import { after, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { chunkStream, destroyChunkStreamAgent } from '../lambdas/fnIngress/chunkStream'
