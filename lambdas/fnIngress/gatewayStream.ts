@@ -1,4 +1,5 @@
 import https from 'node:https'
+import { ReadableStream } from 'node:stream/web'
 
 
 //reuse connections
@@ -34,7 +35,8 @@ function makeRequest(url: string): Promise<ReadableStream<Uint8Array>> {
 				return reject(new Error(`${url} failed: ${res.statusCode}`))
 			}
 
-			const stream = new ReadableStream<Uint8Array>({
+			const stream = new ReadableStream({
+				type: 'bytes',
 				start(controller) {
 					res.on('data', (chunk: Buffer) => {
 						controller.enqueue(new Uint8Array(chunk))
