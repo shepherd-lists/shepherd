@@ -1,5 +1,8 @@
 import http from 'node:http'
 import { httpApiNodes } from '../../libs/utils/update-range-nodes'
+import { ReadableStream } from 'node:stream/web'
+
+
 
 const agent = new http.Agent({
 	keepAlive: true,
@@ -30,9 +33,10 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 	let currentReq: http.ClientRequest | null = null
 	let currentRes: http.IncomingMessage | null = null
 
-	const stream = new ReadableStream<Uint8Array>({
+	const stream = new ReadableStream({
+		type: 'bytes',
 		start(controller) {
-			let bytePos = 0 // bytes fetched so far
+			let bytePos = 0 //bytes fetched so far
 			console.log(`chunkStream starting: chunkStart=${chunkStart}, dataEnd=${dataEnd}, nodes=${nodes.length}`)
 
 			const fetchNext = async (): Promise<void> => {
@@ -49,15 +53,16 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 						const size = await fetchChunkData(url, (segment) => {
 							//truncate segment if it would exceed dataEnd
 							const remaining = dataEnd - bytePos
-							if (remaining <= 0) return // Already at limit
+							if (remaining <= 0) return //already at limit
 
 							const truncated = remaining < segment.length
 								? segment.subarray(0, remaining)
 								: segment
 
-							// console.log(`Streaming data segment: ${truncated.length} bytes (original: ${segment.length})`)
+							//n.b. control of our segment is given away after enqueuing a byte stream
+							const truncatedLength = truncated.length //<= very important to store this before enqueuing
 							controller.enqueue(truncated)
-							bytePos += truncated.length
+							bytePos += truncatedLength
 						}, (req, res) => {
 							currentReq = req
 							currentRes = res
@@ -131,7 +136,6 @@ function fetchChunkData(
 						headerBytesNeeded -= toCopy
 						if (headerBytesNeeded === 0) {
 							chunkSize = (headerBuf[0] << 16) | (headerBuf[1] << 8) | headerBuf[2] //cpu endian agnostic
-							// console.debug(`fetchChunkData: parsed chunk size: ${chunkSize}`)
 						}
 						continue
 					}
