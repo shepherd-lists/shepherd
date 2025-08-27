@@ -4,6 +4,7 @@ import { fileTypeStream } from 'file-type'
 import { Upload } from '@aws-sdk/lib-storage'
 import { S3Client } from '@aws-sdk/client-s3'
 import { ReadableStream } from 'node:stream/web'
+import { slackLog } from '../../libs/utils/slackLog'
 
 
 const s3client = new S3Client({})
@@ -28,7 +29,7 @@ export const downloadWithChecks = async (records: TxRecord[]) => {
 }
 
 /** exported for testing only */
-export const processRecord = async (record: TxRecord) => {
+export const processRecord = async (record: TxRecord): Promise<{ queued: boolean, record?: TxRecord }> => {
 	const bucket = process.env.AWS_INPUT_BUCKET!
 	const key = record.txid
 	let inputStream: ReadableStream | null = null
@@ -41,26 +42,37 @@ export const processRecord = async (record: TxRecord) => {
 		const fileTypeTransform = await fileTypeStream(inputStream, { sampleSize: 16_384 })
 
 		//check file type before proceeding (fileType is available at this point)
-		const detectedFileType = fileTypeTransform.fileType
-		const allowedTypes = ['jpg', 'png', 'pdf', 'webp'] //test examples
+		const detectedMime = fileTypeTransform.fileType?.mime
+		const recordMime = record.content_type
 
-		if (!detectedFileType || !allowedTypes.includes(detectedFileType.ext)) {
-			//cancel streams for unsupported file types
+		if (
+			(detectedMime === 'application/xml' && recordMime === 'image/svg+xml') //file-type quirk
+			|| detectedMime?.startsWith('image')
+			|| detectedMime?.startsWith('video')
+			|| detectedMime?.startsWith('audio')
+			|| detectedMime === undefined
+		) {
+			console.info(record.txid, `proceeding with stream, detectedMime: "${detectedMime}", recordMime: "${recordMime}"`)
+		} else {
 			try {
-				if (fileTypeTransform && typeof fileTypeTransform.cancel === 'function') {
-					await fileTypeTransform.cancel()
-				}
-				if (inputStream && typeof inputStream.cancel === 'function') {
-					await inputStream.cancel()
-				}
-			} catch (cleanupError) {
-				console.warn(`Cleanup error for unsupported file type ${key}:`, cleanupError)
+				console.info(record.txid, `cancelling stream, detectedMime: "${detectedMime}", recordMime: "${recordMime}"`)
+				await fileTypeTransform.cancel('unsupported file type')
+			} catch (e) {
+				slackLog(record.txid, 'error cancelling stream', e)
 			}
-
-			throw new Error(`Unsupported file type for ${record.txid}: ${detectedFileType?.ext || 'unknown'}. Allowed types: ${allowedTypes.join(', ')}`)
+			return {
+				queued: false,
+				record: {
+					...record,
+					flagged: false,
+					valid_data: false,
+					data_reason: 'mimetype',
+					content_type: detectedMime,
+					last_update_date: new Date(),
+				}
+			}
 		}
 
-		console.log(`File type detected for ${key}: ${detectedFileType.ext} (${detectedFileType.mime})`)
 
 		//create and start S3 upload
 		const upload = new Upload({
@@ -69,7 +81,8 @@ export const processRecord = async (record: TxRecord) => {
 				Bucket: bucket,
 				Key: key,
 				Body: fileTypeTransform as globalThis.ReadableStream, //fussy types, we want the nodejs iterator version
-				ContentType: (detectedFileType.mime || record.content_type || 'application/octet-stream').replace(/\r|\n/g, ''),
+				ContentType: (detectedMime || record.content_type || 'application/octet-stream').replace(/\r|\n/g, ''),
+				Metadata: { txRecord: JSON.stringify(record) }
 			},
 			queueSize: 8
 		})
@@ -78,15 +91,18 @@ export const processRecord = async (record: TxRecord) => {
 		await upload.done()
 
 		return {
-			txid: record.txid,
-			success: true,
-			key,
-			bucket
+			queued: true,
+			record: {
+				...record,
+				valid_data: true,
+				last_update_date: new Date(),
+			}
 		}
-	} catch (error) {
+
+	} catch (e) {
 		//cleanup streams on error
 		try {
-			if (inputStream && typeof inputStream.cancel === 'function') {
+			if (inputStream) {
 				await inputStream.cancel()
 			}
 		} catch (cleanupError) {
@@ -94,18 +110,18 @@ export const processRecord = async (record: TxRecord) => {
 		}
 
 		//handle specific error types we expect
-		if (error instanceof Error) {
-			if (error.message.includes('NetworkingError') || error.message.includes('timeout')) {
-				throw new Error(`Network error processing ${record.txid}: ${error.message}`)
+		if (e instanceof Error) {
+			if (e.message.includes('NetworkingError') || e.message.includes('timeout')) {
+				throw new Error(`Network error processing ${record.txid}: ${e.message}`)
 			}
-			if (error.message.includes('NoSuchBucket') || error.message.includes('AccessDenied')) {
-				throw new Error(`S3 access error processing ${record.txid}: ${error.message}`)
+			if (e.message.includes('NoSuchBucket') || e.message.includes('AccessDenied')) {
+				throw new Error(`S3 access error processing ${record.txid}: ${e.message}`)
 			}
-			if (error.message.includes('404') || error.message.includes('not found')) {
-				throw new Error(`Transaction not found ${record.txid}: ${error.message}`)
+			if (e.message.includes('404') || e.message.includes('not found')) {
+				throw new Error(`Transaction not found ${record.txid}: ${e.message}`)
 			}
 		}
 
-		throw new Error(`Failed to process ${record.txid}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+		throw new Error(`Failed to process ${record.txid}: ${e instanceof Error ? e.message : 'Unknown error'}`)
 	}
 }
