@@ -1,9 +1,6 @@
 {
   "name": "indexer-next",
   "type": "module",
-  "scripts": {
-    "test": "tsx --test **/*.spec.ts"
-  },
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.659.0",
     "@aws-sdk/client-s3": "^3.515.0",
