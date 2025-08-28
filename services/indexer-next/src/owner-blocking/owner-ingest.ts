@@ -5,6 +5,7 @@ import { s3GetObject, s3HeadObject } from '../../../../libs/utils/s3-services'
 import { performance } from 'perf_hooks'
 import { slackLog } from '../../../../libs/utils/slackLog'
 import { lambdaInvokerFnTemp } from '../../../../libs/utils/lambda-invoker'
+import { GQLError } from 'ar-gql/dist/faces'
 
 
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
@@ -172,7 +173,10 @@ export const ownerIngestLoop = async () => {
 		} catch (e: unknown) {
 			console.error(e)
 			if (e instanceof Error) {
-				await slackLog('owner-ingest', `FATAL error ❌ ${e.name}:${e.message} \ncause ${e.cause} \n${e.stack} \nrestarting in 30 secs...`)
+				let cause = 'unprintable?'
+				try { cause = JSON.stringify(e.cause) } catch (_e) { cause = String(e.cause) }
+				const printStack = (e instanceof GQLError) ? '' : `\n${e.stack}`
+				await slackLog('owner-ingest', `FATAL error ❌ ${e.name}:${e.message} \ncause ${cause} ${printStack} \nrestarting in 30 secs...`)
 				await sleep(30_000)
 			} else {
 				throw e;
