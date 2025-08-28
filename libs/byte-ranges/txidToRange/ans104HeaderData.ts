@@ -22,9 +22,9 @@ const byteArrayToNumber = (buffer: Uint8Array): number => {
 
 const readEnoughBytes = async (
 	reader: ReadableStreamDefaultReader,
-	buffer: Uint8Array,
+	buffer: Uint8Array<ArrayBuffer>,
 	length: number,
-): Promise<Uint8Array> => {
+): Promise<Uint8Array<ArrayBuffer>> => {
 	// process.env['NODE_ENV'] === 'test' && console.log(buffer.byteLength)
 
 	if (buffer.byteLength > length) return buffer!
@@ -35,7 +35,7 @@ const readEnoughBytes = async (
 
 	//concat and clean up old buffers for gc
 	const joined = concatByteArray(buffer, value)
-	buffer = null as unknown as Uint8Array // keep ts happy
+	buffer = null as unknown as Uint8Array<ArrayBuffer> // keep ts happy
 	value = null
 
 	return readEnoughBytes(reader, joined, length)
@@ -146,7 +146,7 @@ const ans104HeaderDataUnmemoized = async (parent: string) => {
 	}
 
 	//ensure buffer available for gc
-	header = null as unknown as Uint8Array // keep ts happy
+	header = null as unknown as Uint8Array<ArrayBuffer> // keep ts happy
 
 	return {
 		status,
