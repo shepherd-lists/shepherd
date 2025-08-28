@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { describe, it, skip, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { nodesTxDataStream } from '../lambdas/fnIngress/nodesTxDataStream'
+import { nodesTxDataStream } from '../lambdas/fnIngress/chunkTxDataStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 
 describe('nodesStream', () => {
@@ -85,4 +85,13 @@ describe('nodesStream', () => {
 			/undiscoverable byte-range/
 		)
 	})
+
+	it('should handle 404 errors for nonexistent data', async () => {
+		const noDataId = 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw' //13 byte
+		await assert.rejects(
+			() => nodesTxDataStream(noDataId, null, undefined),
+			/test-404/
+		)
+	})
+
 })
