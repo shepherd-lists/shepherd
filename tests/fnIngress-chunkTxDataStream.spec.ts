@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { describe, it, skip, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { nodesTxDataStream } from '../lambdas/fnIngress/chunkTxDataStream'
+import { chunkTxDataStream } from '../lambdas/fnIngress/chunkTxDataStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 
 describe('nodesStream', () => {
@@ -18,7 +18,7 @@ describe('nodesStream', () => {
 
 	it('should stream base tx data', async () => {
 
-		const stream = await nodesTxDataStream(baseTxid, null, undefined)
+		const stream = await chunkTxDataStream(baseTxid, null, undefined)
 
 		const data = new Uint8Array(baseTxidSize)
 		let offset = 0
@@ -39,7 +39,7 @@ describe('nodesStream', () => {
 
 	it('should stream data-item tx data', async () => {
 
-		const stream = await nodesTxDataStream(diId, diParent, undefined)
+		const stream = await chunkTxDataStream(diId, diParent, undefined)
 
 		const data = new Uint8Array(diSize)
 		let offset = 0
@@ -59,7 +59,7 @@ describe('nodesStream', () => {
 	})
 
 	it('should handle data-item stream cancellation gracefully', async () => {
-		const stream = await nodesTxDataStream(diId, diParent, undefined)
+		const stream = await chunkTxDataStream(diId, diParent, undefined)
 
 		let offset = 0
 		const data = new Uint8Array(diSize)
@@ -81,7 +81,7 @@ describe('nodesStream', () => {
 		const invalidTxid = 'invalid-txid'.padEnd(43, 'x')
 
 		await assert.rejects(
-			() => nodesTxDataStream(invalidTxid, null, undefined),
+			() => chunkTxDataStream(invalidTxid, null, undefined),
 			/undiscoverable byte-range/
 		)
 	})
@@ -89,7 +89,7 @@ describe('nodesStream', () => {
 	it('should handle 404 errors for nonexistent data', async () => {
 		const noDataId = 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw' //13 byte
 		await assert.rejects(
-			() => nodesTxDataStream(noDataId, null, undefined),
+			() => chunkTxDataStream(noDataId, null, undefined),
 			/test-404/
 		)
 	})

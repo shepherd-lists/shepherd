@@ -9,7 +9,7 @@ import { ReadableStream, TransformStream } from 'node:stream/web'
  *  - base tx: no initial bytes to skip. pass chunkStream directly.
  *  - data-item tx: need to skip initial bytes (first chunk boundary before data-item) + ans104 data-item header.
  */
-export const nodesTxDataStream = async (txid: string, parent: string | null, parents: string[] | undefined): Promise<ReadableStream<Uint8Array>> => {
+export const chunkTxDataStream = async (txid: string, parent: string | null, parents: string[] | undefined): Promise<ReadableStream<Uint8Array>> => {
 	const offsets = await getByteRange(txid, parent, parents)
 	if (offsets.start === -1n) {
 		throw new Error(`nodesStream: undiscoverable byte-range for txid=${txid} parent=${parent ?? 'null'}`)
