@@ -67,9 +67,9 @@ export const gqlPages = async ({
 
 				break
 			} catch (err: unknown) {
-				console.error(JSON.stringify({ err }))
-				console.error(JSON.stringify({ res }))
-				console.error(JSON.stringify({ edges }))
+				console.error('err', JSON.stringify(err))
+				console.error('res', JSON.stringify(res))
+				console.error('edges', JSON.stringify(edges))
 				const e = err as GQLError
 				const status = e.cause?.status || undefined
 
@@ -79,11 +79,12 @@ export const gqlPages = async ({
 					continue
 				}
 
-				let ms = 10_000
-				if (Number(status) === 429) ms = 30_000
+				const ms = (Number(status) === 429) ? 30_000 : 10_000
 
 				/** in all other cases sleep before retrying */
-				await slackLog(indexName, 'gql-error', status, ':', e.message, gqlProvider, String(e.cause), `retrying in ${ms / 1000}s`)
+				let cause = 'unprintable?'
+				try { cause = JSON.stringify(e.cause) } catch (e) { }
+				await slackLog(indexName, 'gql-error', status, ':', e.message, gqlProvider, cause, `retrying in ${ms / 1000}s`)
 				console.log(err)
 				await sleep(ms)
 				continue
