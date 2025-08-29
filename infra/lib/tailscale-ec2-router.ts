@@ -41,7 +41,7 @@ export const createTailscaleSubrouter = (stack: Stack, vpc: aws_ec2.Vpc) => {
 	securityGroup.addIngressRule(aws_ec2.Peer.ipv4(vpc.vpcCidrBlock), aws_ec2.Port.allTraffic(), 'allow traffic from within the vpc')
 
 	/** instance */
-	const instance = new aws_ec2.Instance(stack, 'tsSubRouterInstance13', {
+	const instance = new aws_ec2.Instance(stack, 'tsSubRouterInstance15', {
 		vpc,
 		role,
 		instanceType: new aws_ec2.InstanceType('t3a.nano'), // t3a.nano is (was) cheapest
