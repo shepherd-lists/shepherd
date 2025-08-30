@@ -23,7 +23,7 @@ export interface ByteRange {
 	dataStart: bigint
 	dataSize: bigint
 }
-export const txidToRange = async (id: string, parent: string | null, parents: string[] | undefined) => {
+export const txidToRange = async (id: string, parent: string | null, parents: string[] | undefined): Promise<ByteRange> => {
 	/**
 	 * Overview:
 	 * determine if L1 or L2
@@ -82,6 +82,8 @@ export const txidToRange = async (id: string, parent: string | null, parents: st
 	return {
 		start: -1n,
 		end: -1n,
+		dataStart: -1n,
+		dataSize: -1n,
 	}
 }
 

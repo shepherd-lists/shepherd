@@ -62,7 +62,7 @@ export const byteRange102 = async (txid: string, parent: string) => {
 	const { status, diSizes, indexTxid } = await fetchHeaderInfoMemo(txid, parent)
 	if (status === 404) return {
 		status,
-		start: -1n, end: -1n,
+		start: -1n, end: -1n, dataStart: -1n, dataSize: -1n
 	}
 
 	/* get weave offset & sanity check */
@@ -70,7 +70,7 @@ export const byteRange102 = async (txid: string, parent: string) => {
 	const { status: statusOffset, json } = await fetchFullRetriedMemo(`/tx/${parent}/offset`)
 	if (statusOffset === 404) return {
 		status: statusOffset,
-		start: -1n, end: -1n,
+		start: -1n, end: -1n, dataStart: -1n, dataSize: -1n
 	}
 	const offset = json as { size: string, offset: string }
 	const bundleWeaveEnd = BigInt(offset.offset) //using bigints as `weaveSize ~= Number.MAX_SAFE_INTEGER / 100`, as of 2022-08-10
@@ -137,5 +137,6 @@ export const byteRange102 = async (txid: string, parent: string) => {
 	return {
 		start: weaveStart,
 		end: weaveEnd,
+		dataStart: -1n, dataSize: -1n //just not bothering to implement this for ans102
 	}
 }

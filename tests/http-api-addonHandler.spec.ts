@@ -85,7 +85,7 @@ describe('addonHandler', () => {
 		const counts = await addonHandler({
 			addonPrefix,
 			records: [mockRecord as TxRecord]
-		}, async (txid, parent, parents) => ({ start: -1n, end: -1n })
+		}, async (txid, parent, parents) => ({ start: -1n, end: -1n, dataStart: -1n, dataSize: -1n })
 		)
 		assert.equal(counts.inserted.length, 1)
 		assert.equal(counts.flagged.length, 1)
@@ -99,7 +99,7 @@ describe('addonHandler', () => {
 		const counts2 = await addonHandler({
 			addonPrefix,
 			records: [{ ...mockRecord, data_reason: 'negligible-data' } as TxRecord]
-		}, async (txid, parent, parents) => ({ start: 1n, end: 2n })
+		}, async (txid, parent, parents) => ({ start: 1n, end: 2n, dataStart: -1n, dataSize: -1n })
 		)
 		assert.equal(counts2.inserted.length, 1)
 		assert.equal(counts2.flagged.length, 1)

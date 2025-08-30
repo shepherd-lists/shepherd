@@ -7,7 +7,7 @@ export const getByteRange = async (id: string, parent: string | null, parents: s
 
 	/* get byte-range (if applicable) */
 
-	let chunkRange: ByteRange = { start: -1n, end: -1n }
+	let chunkRange: ByteRange = { start: -1n, end: -1n, dataStart: -1n, dataSize: -1n }
 	try {
 		chunkRange = await txidToRange(id, parent, parents)
 	} catch (err: unknown) {
