@@ -1,4 +1,4 @@
-import { after, describe, it } from 'node:test'
+import { after, describe, it, skip } from 'node:test'
 import assert from 'node:assert/strict'
 import { chunkStream, destroyChunkStreamAgent } from '../lambdas/fnIngress/chunkStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
@@ -59,5 +59,25 @@ describe('chunkStream', () => {
 
 		assert(true, 'cancellation completed without error')
 	})
+
+	it('should handle 404 errors for nonexistent data', async () => {
+		const noDataId = 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw' //13 byte
+
+		const stream = await chunkStream(1686542281742n, 13)
+		assert(stream instanceof ReadableStream)
+
+		try {
+			// Try to read from the stream - this should error
+			for await (const buf of stream) {
+				// Should not reach here
+			}
+			assert.fail('Should have thrown an error for running out of nodes 404 Not Found')
+		} catch (error) {
+			assert(error instanceof Error)
+			assert(error.message.includes('ran out of nodes to try'))
+			assert(error.message.includes('404 Not Found'))
+		}
+	})
+
 
 })
