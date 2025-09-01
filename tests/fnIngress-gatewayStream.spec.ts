@@ -36,7 +36,7 @@ describe('gatewayStream', () => {
 	})
 
 	it('should handle 404 errors for nonexistent transactions', async () => {
-		const invalidTxid = 'nonexistent-invalid-txid-12345'.padEnd(43, 'x')
+		const invalidTxid = 'nonexistent-invalid-txid'.padEnd(43, 'x')
 
 		try {
 			await gatewayStream(invalidTxid)
@@ -67,5 +67,6 @@ describe('gatewayStream', () => {
 		assert(result.done === true || result.value !== undefined)
 
 	})
+
 
 })

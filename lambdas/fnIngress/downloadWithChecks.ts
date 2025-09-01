@@ -29,7 +29,7 @@ export const downloadWithChecks = async (records: TxRecord[]) => {
 }
 
 /** exported for testing only */
-export const processRecord = async (record: TxRecord): Promise<{ queued: boolean, record?: TxRecord }> => {
+export const processRecord = async (record: TxRecord): Promise<{ queued: boolean, record: TxRecord }> => {
 	const bucket = process.env.AWS_INPUT_BUCKET!
 	const key = record.txid
 	let inputStream: ReadableStream | null = null
@@ -73,6 +73,9 @@ export const processRecord = async (record: TxRecord): Promise<{ queued: boolean
 			}
 		}
 
+		//last update before upload
+		record.valid_data = true
+		record.last_update_date = new Date()
 
 		//create and start S3 upload
 		const upload = new Upload({
@@ -82,7 +85,7 @@ export const processRecord = async (record: TxRecord): Promise<{ queued: boolean
 				Key: key,
 				Body: fileTypeTransform as globalThis.ReadableStream, //fussy types, we want the nodejs iterator version
 				ContentType: (detectedMime || record.content_type || 'application/octet-stream').replace(/\r|\n/g, ''),
-				Metadata: { txRecord: JSON.stringify(record) }
+				Metadata: { txrecord: JSON.stringify(record) } //only lowercase supported in key name!!
 			},
 			queueSize: 8
 		})
@@ -92,11 +95,7 @@ export const processRecord = async (record: TxRecord): Promise<{ queued: boolean
 
 		return {
 			queued: true,
-			record: {
-				...record,
-				valid_data: true,
-				last_update_date: new Date(),
-			}
+			record,
 		}
 
 	} catch (e) {
@@ -111,14 +110,26 @@ export const processRecord = async (record: TxRecord): Promise<{ queued: boolean
 
 		//handle specific error types we expect
 		if (e instanceof Error) {
+			if (e.message.includes('404') || e.message.includes('not found')) {
+				return {
+					queued: false,
+					record: {
+						...record,
+						flagged: false,
+						valid_data: false,
+						data_reason: '404',
+						last_update_date: new Date(),
+					}
+				}
+			}
+
+			//PLACEHOLDERS
 			if (e.message.includes('NetworkingError') || e.message.includes('timeout')) {
+				//retry?
 				throw new Error(`Network error processing ${record.txid}: ${e.message}`)
 			}
 			if (e.message.includes('NoSuchBucket') || e.message.includes('AccessDenied')) {
 				throw new Error(`S3 access error processing ${record.txid}: ${e.message}`)
-			}
-			if (e.message.includes('404') || e.message.includes('not found')) {
-				throw new Error(`Transaction not found ${record.txid}: ${e.message}`)
 			}
 		}
 
