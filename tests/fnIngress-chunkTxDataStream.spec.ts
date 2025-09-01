@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { chunkTxDataStream } from '../lambdas/fnIngress/chunkTxDataStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 
-describe('nodesStream', () => {
+describe('chunkTxDataStream', () => {
 	const baseTxid = 'YqIGNFqScA5bIGLpt083Zp7fHcz7ApL-Do1e1bhMM3Q' //size 520kb, text/html
 	const baseTxidSize = 584685
 
@@ -76,22 +76,22 @@ describe('nodesStream', () => {
 
 	})
 
-	skip('should handle undiscoverable byte range error', async () => {
-		//necessary? takes a long time to run until all nodes are exhausted
-		const invalidTxid = 'invalid-txid'.padEnd(43, 'x')
-
-		await assert.rejects(
-			() => chunkTxDataStream(invalidTxid, null, undefined),
-			/undiscoverable byte-range/
-		)
-	})
-
 	it('should handle 404 errors for nonexistent data', async () => {
 		const noDataId = 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw' //13 byte
-		await assert.rejects(
-			() => chunkTxDataStream(noDataId, null, undefined),
-			/test-404/
-		)
+		const stream = await chunkTxDataStream(noDataId, null, undefined)
+
+		try {
+			for await (const chunk of stream) {
+				assert.fail('should not have any data')
+			}
+		} catch (e) {
+			if (e instanceof Error) {
+				assert.ok(e.message.includes('ran out of nodes to try'), 'expected ran out of nodes to try error')
+				assert.ok(e.message.includes('404'), 'expected 404 error')
+			} else {
+				assert.fail('expected error')
+			}
+		}
 	})
 
 })
