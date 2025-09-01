@@ -32,6 +32,7 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 	let cancelled = false
 	let currentReq: http.ClientRequest | null = null
 	let currentRes: http.IncomingMessage | null = null
+	let lastErrorMsg = ''
 
 	const stream = new ReadableStream({
 		type: 'bytes',
@@ -42,9 +43,9 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 			const fetchNext = async (): Promise<void> => {
 				while (!cancelled && bytePos < dataEnd) {
 					if (!node) {
-						console.error('chunkStream: Ran out of nodes to try', { chunkStart, dataEnd, bytePos })
+						// console.error('chunkStream: ran out of nodes to try', { chunkStart, dataEnd, bytePos, lastErrorMsg })
 						return controller.error(
-							new Error(`chunkStream: Ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, bytePos })}`)
+							new Error(`chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, bytePos, lastErrorMsg })}`)
 						)
 					}
 
@@ -70,6 +71,7 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 						console.info(`${url} ${bytePos}/${dataEnd} bytes ✅`)
 					} catch (e) {
 						console.error(`${String(e)}, ${bytePos}/${dataEnd} bytes. trying next node`)
+						lastErrorMsg = (e as Error).message
 						node = nodes.pop()
 						if (cancelled) return
 						continue
@@ -113,7 +115,7 @@ function fetchChunkData(
 		const req = http.get(url, { agent, headers: { 'x-packing': 'unpacked' } }, (res) => {
 			if (res.statusCode !== 200) {
 				res.destroy()
-				return reject(new Error(`${url} failed: ${res.statusCode} ${res.statusMessage}`))
+				return reject(new Error(`${url} failed: ${res.statusCode} ${res.statusMessage}`, { cause: res }))
 			}
 
 			if (onReq) onReq(req, res)
