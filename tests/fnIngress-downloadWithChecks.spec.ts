@@ -3,7 +3,7 @@ import { after, describe, it, skip } from 'node:test'
 import assert from 'node:assert/strict'
 import { destroyGatewayAgent, gatewayStream } from '../lambdas/fnIngress/gatewayStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
-import { processRecord } from '../lambdas/fnIngress/downloadWithChecks'
+import { processRecord, downloadWithChecks } from '../lambdas/fnIngress/downloadWithChecks'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { s3DeleteObject, s3HeadObject } from '../libs/utils/s3-services'
 
@@ -18,7 +18,7 @@ describe('downloadWithChecks', () => {
 		// await s3DeleteObject(process.env.AWS_INPUT_BUCKET!, 'test-404')
 	})
 
-	it('should upload an image file to S3 and check txrecord metadata', async () => {
+	skip('should upload an image file to S3 and check txrecord metadata', async () => {
 		const res = await processRecord({
 			txid: smallDataId, //small data-item
 			parent: 'l-bDXsnBUlD8taaCC1tAyW1CeuGbeTOUCFU-H5Ahzxk',
@@ -41,7 +41,7 @@ describe('downloadWithChecks', () => {
 		}
 	})
 
-	it('should cancel a download when invalid file-type detected', async () => {
+	skip('should cancel a download when invalid file-type detected', async () => {
 		const res = await processRecord({
 			txid: '060CDwAtjAd4MPrazzeEDMu4jmczC6AmoYd-0U8D7ks',
 			content_type: 'test/fake', //application/pdf
@@ -54,7 +54,7 @@ describe('downloadWithChecks', () => {
 		assert(res.record.content_type === 'application/pdf', `should have set content_type to 'application/pdf', got "${res.record.content_type}"`)
 	})
 
-	it('should handle a 404', async () => {
+	skip('should handle a 404', async () => {
 		const noDataId = 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw' //13 byte
 
 		const res = await processRecord({
@@ -66,6 +66,53 @@ describe('downloadWithChecks', () => {
 		assert(res.record.flagged === false, 'should have set flagged to false')
 		assert(res.record.valid_data === false, 'should have set valid_data to false') //may remove at some point
 		assert(res.record.data_reason === '404', 'should have set data_reason to mimetype')
+	})
+
+	it('should process multiple records with downloadWithChecks function', async () => {
+		// Using the 3 common test records from other unit tests
+		const testRecords: TxRecord[] = [
+			{
+				txid: 'SUIycDyPfSqkkYunexGcGXjjhujc4rM5KHUz9NP-JBI', // small successfull upload
+				parent: 'l-bDXsnBUlD8taaCC1tAyW1CeuGbeTOUCFU-H5Ahzxk',
+				content_type: 'image/webp',
+			} as TxRecord,
+			{
+				txid: '060CDwAtjAd4MPrazzeEDMu4jmczC6AmoYd-0U8D7ks', // invalid file-type
+				content_type: 'test/fake', //application/pdf
+			} as TxRecord,
+			{
+				txid: 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw', // 404
+				content_type: 'unknown',
+			} as TxRecord
+		]
+
+		const results = await downloadWithChecks(testRecords)
+
+		assert.equal(results.length, 3)
+
+		// Successful upload
+		const [successResult, mimetypeResult, notFoundResult] = results
+
+		console.debug('successResult', successResult)
+		console.debug('mimetypeResult', mimetypeResult)
+		console.debug('notFoundResult', notFoundResult)
+
+		assert.equal(successResult.queued, true, 'successResult.queued should be true')
+		assert.equal(successResult.record.flagged, undefined, 'successResult.record.flagged should be undefined')
+		assert.equal(successResult.record.valid_data, true, 'successResult.record.valid_data should be true')
+
+		// Invalid mimetype rejection  
+		assert.equal(mimetypeResult.queued, false, 'mimetypeResult.queued should be false')
+		assert.equal(mimetypeResult.record.flagged, false, 'mimetypeResult.record.flagged should be false')
+		assert.equal(mimetypeResult.record.valid_data, false, 'mimetypeResult.record.valid_data should be false')
+		assert.equal(mimetypeResult.record.data_reason, 'mimetype', 'mimetypeResult.record.data_reason should be mimetype')
+		assert.equal(mimetypeResult.record.content_type, 'application/pdf', 'mimetypeResult.record.content_type should be application/pdf')
+
+		// 404 error
+		assert.equal(notFoundResult.queued, false, 'notFoundResult.queued should be false')
+		assert.equal(notFoundResult.record.flagged, false, 'notFoundResult.record.flagged should be false')
+		assert.equal(notFoundResult.record.valid_data, false, 'notFoundResult.record.valid_data should be false')
+		assert.equal(notFoundResult.record.data_reason, '404', 'notFoundResult.record.data_reason should be 404')
 	})
 
 })
