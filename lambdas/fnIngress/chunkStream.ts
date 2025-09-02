@@ -23,8 +23,8 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 	const nodes = [
 		...httpApiNodes(),
 		//manually adding these for now
-		{ url: 'http://tip-4.arweave.xyz:1984', name: 'tip-4.arweave.xyz' },
 		{ url: 'http://tip-2.arweave.xyz:1984', name: 'tip-2.arweave.xyz' },
+		{ url: 'http://tip-4.arweave.xyz:1984', name: 'tip-4.arweave.xyz' },
 		{ url: 'http://tip-3.arweave.xyz:1984', name: 'tip-3.arweave.xyz' },
 	]
 	let node = nodes.pop()

@@ -8,6 +8,7 @@ import { slackLog } from '../../libs/utils/slackLog'
 import { chunkTxDataStream } from './chunkTxDataStream'
 
 
+
 const s3client = new S3Client({})
 
 export const downloadWithChecks = async (records: TxRecord[]) => {
@@ -34,6 +35,7 @@ export const processRecord = async (record: TxRecord): Promise<{ queued: boolean
 	const bucket = process.env.AWS_INPUT_BUCKET!
 	const key = record.txid
 	let inputStream: ReadableStream | null = null
+	let upload: Upload | null = null
 
 	try {
 		//get input stream
@@ -79,7 +81,7 @@ export const processRecord = async (record: TxRecord): Promise<{ queued: boolean
 		record.last_update_date = new Date()
 
 		//create and start S3 upload
-		const upload = new Upload({
+		upload = new Upload({
 			client: s3client,
 			params: {
 				Bucket: bucket,
@@ -100,6 +102,16 @@ export const processRecord = async (record: TxRecord): Promise<{ queued: boolean
 		}
 
 	} catch (e) {
+		//abort S3 upload if it was started
+		if (upload) {
+			try {
+				await upload.abort()
+				console.info(`Aborted S3 upload for ${key}`)
+			} catch (abortError) {
+				slackLog(key, 'S3 upload abort failed', abortError)
+			}
+		}
+
 		//cleanup streams on error
 		try {
 			if (inputStream) {
