@@ -5,6 +5,7 @@ import { Upload } from '@aws-sdk/lib-storage'
 import { S3Client } from '@aws-sdk/client-s3'
 import { ReadableStream } from 'node:stream/web'
 import { slackLog } from '../../libs/utils/slackLog'
+import { chunkTxDataStream } from './chunkTxDataStream'
 
 
 const s3client = new S3Client({})
@@ -36,7 +37,7 @@ export const processRecord = async (record: TxRecord): Promise<{ queued: boolean
 
 	try {
 		//get input stream
-		inputStream = await gatewayStream(record.txid)
+		inputStream = await chunkTxDataStream(record.txid, record.parent || null, record.parents)
 
 		//create file type detection stream
 		const fileTypeTransform = await fileTypeStream(inputStream, { sampleSize: 16_384 })
