@@ -1,6 +1,6 @@
 import { getByteRange } from '../../libs/byte-ranges/byteRanges'
 import { chunkStream } from './chunkStream'
-import { ReadableStream, TransformStream } from 'node:stream/web'
+import { ReadableStream } from 'node:stream/web'
 
 
 /**
@@ -26,43 +26,62 @@ export const chunkTxDataStream = async (txid: string, parent: string | null, par
 
 	//complex case, data-item: need to skip initial bytes + data-item header
 	const rawStream = await chunkStream(chunkStart, dataEnd)
+	const reader = rawStream.getReader()
+
 	let bytesSkipped = 0
 	let headerBuffer = new Uint8Array(0)
 	let headerParsed = false
 
-	const skipTransform = new TransformStream<Uint8Array, Uint8Array>({
-		transform(data, controller) {
-			// Skip to dataStart first
-			if (bytesSkipped < dataStart) {
-				const skipFromThisChunk = Math.min(dataStart - bytesSkipped, data.length)
-				bytesSkipped += skipFromThisChunk
-				if (skipFromThisChunk < data.length) {
-					data = data.subarray(skipFromThisChunk)
-				} else {
-					return //skip this entire data chunk
-				}
-			}
+	return new ReadableStream({
+		type: 'bytes',
+		async start(controller) {
+			try {
+				while (true) {
+					const { done, value } = await reader.read()
+					if (done) break
 
-			// Parse header when we have enough bytes
-			if (!headerParsed) {
-				const combined = new Uint8Array(headerBuffer.length + data.length)
-				combined.set(headerBuffer)
-				combined.set(data, headerBuffer.length)
-				headerBuffer = combined
+					let data = value
 
-				const headerSize = parseDataItemHeader(headerBuffer)
-				if (headerSize !== null) {
-					headerParsed = true
-					const remaining = headerBuffer.subarray(headerSize)
-					if (remaining.length > 0) controller.enqueue(remaining)
+					// Skip to dataStart first
+					if (bytesSkipped < dataStart) {
+						const skipFromThisChunk = Math.min(dataStart - bytesSkipped, data.length)
+						bytesSkipped += skipFromThisChunk
+						if (skipFromThisChunk < data.length) {
+							data = data.subarray(skipFromThisChunk)
+						} else {
+							continue //skip this entire data chunk
+						}
+					}
+
+					// Parse header when we have enough bytes
+					if (!headerParsed) {
+						const combined = new Uint8Array(headerBuffer.length + data.length)
+						combined.set(headerBuffer)
+						combined.set(data, headerBuffer.length)
+						headerBuffer = combined
+
+						const headerSize = parseDataItemHeader(headerBuffer)
+						if (headerSize !== null) {
+							headerParsed = true
+							const remaining = headerBuffer.subarray(headerSize)
+							if (remaining.length > 0) controller.enqueue(remaining)
+						}
+					} else {
+						controller.enqueue(data)
+					}
 				}
-			} else {
-				controller.enqueue(data)
+				controller.close()
+			} catch (error) {
+				controller.error(error)
+			} finally {
+				reader.releaseLock()
 			}
+		},
+		cancel(reason) {
+			reader.cancel(reason)
+			reader.releaseLock()
 		}
 	})
-
-	return rawStream.pipeThrough(skipTransform)
 }
 
 const parseDataItemHeader = (buffer: Uint8Array): number | null => {
