@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { after, describe, it, skip } from 'node:test'
 import assert from 'node:assert/strict'
 import { destroyGatewayAgent, gatewayStream } from '../lambdas/fnIngress/gatewayStream'
@@ -9,7 +10,7 @@ import { s3DeleteObject, s3HeadObject } from '../libs/utils/s3-services'
 
 describe('downloadWithChecks', () => {
 
-	const smallDataId = '-m9UVTGfQZYlHAukiPzCnO9Q7EdHebHmLuUbb2fp6qA'
+	const smallDataId = 'SUIycDyPfSqkkYunexGcGXjjhujc4rM5KHUz9NP-JBI'
 
 	after(async () => {
 		destroyGatewayAgent()
@@ -20,6 +21,7 @@ describe('downloadWithChecks', () => {
 	it('should upload an image file to S3 and check txrecord metadata', async () => {
 		const res = await processRecord({
 			txid: smallDataId, //small data-item
+			parent: 'l-bDXsnBUlD8taaCC1tAyW1CeuGbeTOUCFU-H5Ahzxk',
 			content_type: 'image/webp',
 		} as TxRecord)
 
@@ -65,7 +67,5 @@ describe('downloadWithChecks', () => {
 		assert(res.record.valid_data === false, 'should have set valid_data to false') //may remove at some point
 		assert(res.record.data_reason === '404', 'should have set data_reason to mimetype')
 	})
-
-
 
 })
