@@ -11,27 +11,16 @@ import { chunkTxDataStream } from './chunkTxDataStream'
 
 const s3client = new S3Client({})
 
-export const downloadWithChecks = async (records: TxRecord[]) => {
-	const results = []
+export const downloadWithChecks = async (records: TxRecord[]) => Promise.all(records.map(async (record) => await processRecord(record)))
 
-	for (const record of records) {
-		try {
-			const result = await processRecord(record)
-			results.push(result)
-		} catch (error) {
-			results.push({
-				txid: record.txid,
-				success: false,
-				error: error instanceof Error ? error.message : 'Unknown error'
-			})
-		}
-	}
-
-	return results
-}
 
 /** exported for testing only */
-export const processRecord = async (record: TxRecord): Promise<{ queued: boolean, record: TxRecord }> => {
+export const processRecord = async (
+	record: TxRecord,
+	/** dependency injection */
+	sourceStream: (txid: string, parent: string | null, parents: string[] | undefined) => Promise<ReadableStream<Uint8Array>> = chunkTxDataStream,
+): Promise<{ queued: boolean; record: TxRecord; errorId?: string }> => {
+
 	const bucket = process.env.AWS_INPUT_BUCKET!
 	const key = record.txid
 	let inputStream: ReadableStream | null = null
@@ -39,7 +28,7 @@ export const processRecord = async (record: TxRecord): Promise<{ queued: boolean
 
 	try {
 		//get input stream
-		inputStream = await chunkTxDataStream(record.txid, record.parent || null, record.parents)
+		inputStream = await sourceStream(record.txid, record.parent || null, record.parents) //switch to other gateway/chunkTxData-Stream source when errors out?
 
 		//create file type detection stream
 		const fileTypeTransform = await fileTypeStream(inputStream, { sampleSize: 16_384 })
@@ -135,17 +124,15 @@ export const processRecord = async (record: TxRecord): Promise<{ queued: boolean
 					}
 				}
 			}
-
-			//PLACEHOLDERS
-			if (e.message.includes('NetworkingError') || e.message.includes('timeout')) {
-				//retry?
-				throw new Error(`Network error processing ${record.txid}: ${e.message}`)
-			}
-			if (e.message.includes('NoSuchBucket') || e.message.includes('AccessDenied')) {
-				throw new Error(`S3 access error processing ${record.txid}: ${e.message}`)
+			console.error(`Failed to process ${record.txid}: ${e}`)
+			return {
+				queued: false,
+				record,
+				errorId: e.message, //should be retried
 			}
 		}
 
-		throw new Error(`Failed to process ${record.txid}: ${e instanceof Error ? e.message : 'Unknown error'}`)
+		//shouldn't get here
+		throw new Error(`Failed to process ${record.txid}: ${e}`)
 	}
 }
