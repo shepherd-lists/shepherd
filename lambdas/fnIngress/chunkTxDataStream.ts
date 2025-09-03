@@ -12,7 +12,7 @@ import { ReadableStream } from 'node:stream/web'
 export const chunkTxDataStream = async (txid: string, parent: string | null, parents: string[] | undefined): Promise<ReadableStream<Uint8Array>> => {
 	const offsets = await getByteRange(txid, parent, parents)
 	if (offsets.start === -1n) {
-		throw new Error(`nodesStream: undiscoverable byte-range for txid=${txid} parent=${parent ?? 'null'}`)
+		throw new Error(`${chunkTxDataStream.name}: undiscoverable byte-range for txid=${txid} parent=${parent ?? 'null'}`)
 	}
 
 	const dataStart = Number(offsets.dataStart)

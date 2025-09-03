@@ -5,7 +5,8 @@ import { destroyGatewayAgent, gatewayStream } from '../lambdas/fnIngress/gateway
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 import { processRecord, downloadWithChecks } from '../lambdas/fnIngress/downloadWithChecks'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import { s3DeleteObject, s3HeadObject } from '../libs/utils/s3-services'
+import { s3HeadObject } from '../libs/utils/s3-services'
+import { chunkTxDataStream } from '../lambdas/fnIngress/chunkTxDataStream'
 
 
 describe('downloadWithChecks', () => {
@@ -15,10 +16,9 @@ describe('downloadWithChecks', () => {
 	after(async () => {
 		destroyGatewayAgent()
 		clearTimerHttpApiNodes()
-		// await s3DeleteObject(process.env.AWS_INPUT_BUCKET!, 'test-404')
 	})
 
-	skip('should upload an image file to S3 and check txrecord metadata', async () => {
+	it('should upload an image file to S3 and check txrecord metadata', async () => {
 		const res = await processRecord({
 			txid: smallDataId, //small data-item
 			parent: 'l-bDXsnBUlD8taaCC1tAyW1CeuGbeTOUCFU-H5Ahzxk',
@@ -41,7 +41,7 @@ describe('downloadWithChecks', () => {
 		}
 	})
 
-	skip('should cancel a download when invalid file-type detected', async () => {
+	it('should cancel a download when invalid file-type detected', async () => {
 		const res = await processRecord({
 			txid: '060CDwAtjAd4MPrazzeEDMu4jmczC6AmoYd-0U8D7ks',
 			content_type: 'test/fake', //application/pdf
@@ -54,7 +54,7 @@ describe('downloadWithChecks', () => {
 		assert(res.record.content_type === 'application/pdf', `should have set content_type to 'application/pdf', got "${res.record.content_type}"`)
 	})
 
-	skip('should handle a 404', async () => {
+	it('should handle a 404', async () => {
 		const noDataId = 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw' //13 byte
 
 		const res = await processRecord({
@@ -66,6 +66,28 @@ describe('downloadWithChecks', () => {
 		assert(res.record.flagged === false, 'should have set flagged to false')
 		assert(res.record.valid_data === false, 'should have set valid_data to false') //may remove at some point
 		assert(res.record.data_reason === '404', 'should have set data_reason to mimetype')
+	})
+
+	it('should handle an error', async () => {
+		//gatewayStream
+		const resGw = await processRecord(
+			{ txid: 'error', content_type: 'unknown', } as TxRecord,
+			gatewayStream,
+		)
+
+		assert(resGw.queued === false, 'queued should be false')
+		assert.deepEqual(resGw.record, { txid: 'error', content_type: 'unknown', }, 'record should be passed through')
+		assert(resGw.errorId?.includes('failed: 400'), 'errorId didnt match')
+
+		//chunkTxDataStream
+		const resChunk = await processRecord(
+			{ txid: 'error', content_type: 'unknown', } as TxRecord,
+			chunkTxDataStream,
+		)
+
+		assert(resChunk.queued === false, 'queued should be false')
+		assert.deepEqual(resChunk.record, { txid: 'error', content_type: 'unknown', }, 'record should be passed through')
+		assert(resChunk.errorId?.includes('undiscoverable byte-range'), 'errorId didnt match')
 	})
 
 	it('should process multiple records with downloadWithChecks function', async () => {
@@ -93,9 +115,9 @@ describe('downloadWithChecks', () => {
 		// Successful upload
 		const [successResult, mimetypeResult, notFoundResult] = results
 
-		console.debug('successResult', successResult)
-		console.debug('mimetypeResult', mimetypeResult)
-		console.debug('notFoundResult', notFoundResult)
+		// console.debug('successResult', successResult)
+		// console.debug('mimetypeResult', mimetypeResult)
+		// console.debug('notFoundResult', notFoundResult)
 
 		assert.equal(successResult.queued, true, 'successResult.queued should be true')
 		assert.equal(successResult.record.flagged, undefined, 'successResult.record.flagged should be undefined')
