@@ -11,14 +11,17 @@ import { chunkTxDataStream } from './chunkTxDataStream'
 
 const s3client = new S3Client({})
 
-export const downloadWithChecks = async (records: TxRecord[]) => Promise.all(records.map(async (record) => await processRecord(record)))
+
+type SourceStream = typeof chunkTxDataStream | typeof gatewayStream
+
+export const downloadWithChecks = async (records: TxRecord[], sourceStream?: SourceStream) => Promise.all(records.map(async (record) => await processRecord(record, sourceStream)))
 
 
 /** exported for testing only */
 export const processRecord = async (
 	record: TxRecord,
 	/** dependency injection */
-	sourceStream: (txid: string, parent: string | null, parents: string[] | undefined) => Promise<ReadableStream<Uint8Array>> = chunkTxDataStream,
+	sourceStream: SourceStream = chunkTxDataStream,
 ): Promise<{ queued: boolean; record: TxRecord; errorId?: string }> => {
 
 	const bucket = process.env.AWS_INPUT_BUCKET!
@@ -28,7 +31,7 @@ export const processRecord = async (
 
 	try {
 		//get input stream
-		inputStream = await sourceStream(record.txid, record.parent || null, record.parents) //switch to other gateway/chunkTxData-Stream source when errors out?
+		inputStream = await sourceStream(record.txid, record.parent || null, record.parents)
 
 		//create file type detection stream
 		const fileTypeTransform = await fileTypeStream(inputStream, { sampleSize: 16_384 })
