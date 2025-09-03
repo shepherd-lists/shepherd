@@ -1,5 +1,6 @@
 import https from 'node:https'
 import { ReadableStream } from 'node:stream/web'
+import { min_data_size } from '../../libs/constants'
 
 
 //reuse connections
@@ -7,8 +8,10 @@ const agent = new https.Agent({
 	keepAlive: true,
 	maxSockets: 100,
 	maxFreeSockets: 10,
-	timeout: 30000
+	timeout: 30_000
 })
+const no_data_timeout = 30_000
+
 
 //export function to destroy agent after tests
 export const destroyGatewayAgent = () => agent.destroy()
@@ -35,14 +38,36 @@ function makeRequest(url: string): Promise<ReadableStream<Uint8Array>> {
 				return reject(new Error(`${url} failed: ${res.statusCode}`))
 			}
 
+			let bytesReceived = 0
+
+			//timeout if no data received within timeout period
+			res.setTimeout(no_data_timeout, () => {
+				if (bytesReceived < min_data_size) {
+					console.warn(`${url} data timeout - only ${bytesReceived} bytes received (< ${min_data_size})`)
+					res.destroy(new Error('NO_DATA'))
+				} else {
+					console.warn(`${url} data timeout - ${bytesReceived} bytes received, ending stream`)
+					res.destroy(new Error('GRACEFUL')) // End stream gracefully
+				}
+			})
+
 			const stream = new ReadableStream({
 				type: 'bytes',
 				start(controller) {
 					res.on('data', (chunk: Buffer) => {
+						bytesReceived += chunk.length
 						controller.enqueue(new Uint8Array(chunk))
 					})
 					res.on('end', () => controller.close())
-					res.on('error', (err: Error) => controller.error(err))
+					res.on('error', (err: Error) => {
+						if (err.message === 'GRACEFUL') {
+							return controller.close() //this would be a partial file, potentially still viewable
+						}
+						if (err.message === 'NO_DATA' || bytesReceived < min_data_size) {
+							return controller.error(new Error('NO_DATA'))
+						}
+						controller.error(err)
+					})
 				},
 				cancel(reason) {
 					console.info(url, 'cancelled stream, reason:', reason)
