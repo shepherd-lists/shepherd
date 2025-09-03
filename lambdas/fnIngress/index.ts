@@ -5,6 +5,9 @@ import moize from 'moize'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import pool, { batchInsert } from '../../libs/utils/pgClient'
 import { min_data_size } from '../../libs/constants'
+import { downloadWithChecks } from './downloadWithChecks'
+import { chunkTxDataStream } from './chunkTxDataStream'
+import { gatewayStream } from './gatewayStream'
 
 
 const ARIO_DELAY_MS = 500
@@ -46,9 +49,50 @@ export const handler = async (event: Inputs) => {
 			arGql({ endpointUrl: gqlUrlBackup })
 		)
 
-		const inserts = await preFilterRecords(records, indexName, gqlProvider)
 
-		return inserts;
+		/**
+		 * filter records:-
+		 * using metadata:
+		 * - are already in the database and have the same height/parent/parents
+		 * - already flagged
+		 * - size > 4k. 
+		 * while retrieving data:
+		 * - use network nodes to retrieve data (make this modular so we can switch to gateway streams also)
+		 * - fileType (16kb) is defined and starts with image/video/audio (sometimes detected as audio contains video) 
+		 *   - [handle html/pdf/docs later]
+		 *   - SVG files (special case: allows application/xml when database expects image/svg+xml)
+		 * - partial data allowed
+		 * - actual data > 4kb again
+		 * - 404 is 404 if nodes tried as well as gateway
+		 * - abort dead connections (partial?)
+		 * - connection and 4xx/5xx retrying <= do outside this lambda
+		 */
+		let numQueued = 0
+		const updated: TxRecord[] = []
+		const errored: TxRecord[] = []
+
+		const metaFiltered = await metaFilteredRecords(records, indexName, gqlProvider)
+		updated.push(...metaFiltered.updated)
+
+		const queued = await downloadWithChecks(metaFiltered.unqueued, chunkTxDataStream) //perhaps switch source according to lambda input?
+
+		//sort processed records
+		for (const entry of queued) {
+			if (entry.queued === true) numQueued++
+			else if (!entry.errorId) updated.push(entry.record)
+			else errored.push(entry.record)
+		}
+
+		//upsert updated records
+		const numInserted = await batchInsert(updated, 'txs') ?? 0
+
+		console.info(indexName, `total records ${records.length}, ${numQueued} queued in s3, ${numInserted}/${updated} inserts, ${errored.length} errored.`)
+
+		return {
+			numQueued,
+			numUpdated: updated.length,
+			errored,
+		}
 	} catch (err: unknown) {
 		const e = err as Error
 		await slackLog('fnIndexer.handler', `Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
@@ -139,29 +183,11 @@ const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 	return records;
 }
 
-export const preFilterRecords = async (records: TxRecord[], indexName: string, gqlProvider: string) => {
+const metaFilteredRecords = async (records: TxRecord[], indexName: string, gqlProvider: string): Promise<{ updated: TxRecord[]; unqueued: TxRecord[] }> => {
 
-	if (records.length === 0) return 0
-
-	let upsertCount = 0
-
-	/**
-	 * filter records:-
-	 * using metadata:
-	 * - are already in the database and have the same height/parent/parents
-	 * - already flagged
-	 * - size > 4k. 
-	 * while retrieving data:
-	 * - use network nodes to retrieve data (make this modular so we can switch to gateway streams also)
-	 * - fileType (16kb) is defined and starts with image/video/audio (sometimes detected as audio contains video) 
-	 *   - [handle html/pdf/docs later]
-	 *   - SVG files (special case: allows application/xml when database expects image/svg+xml)
-	 * - partial data allowed
-	 * - actual data > 4kb again
-	 * - 404 is 404 if nodes tried as well as gateway
-	 * - abort dead connections (partial?)
-	 * - connection and 4xx/5xx retrying
-	 */
+	if (records.length === 0) return {
+		updated: [], unqueued: [],
+	}
 
 
 	try {
@@ -194,22 +220,10 @@ export const preFilterRecords = async (records: TxRecord[], indexName: string, g
 			return acc;
 		}, [[], []] as TxRecord[][])
 
-		/** log negligibleRecords straight to db now */
-		//should these actually be collected?
-		const negligibleInserts = await batchInsert(negligibleRecords, 'txs')
-
-		console.info(indexName, `inserted ${negligibleInserts}/${negligibleRecords.length} negligible records`)
-
-		upsertCount += negligibleInserts ?? 0
-
-		//output some count logs here already? 
-		//...
-
-
-
-
-
-		console.info(indexName, `inserted ${upsertCount}/${records.length} records`)
+		return {
+			updated: negligibleRecords,
+			unqueued: filteredRecords
+		}
 
 	} catch (err: unknown) {
 		const e = err as Error & { code?: string, detail: string }
@@ -221,6 +235,4 @@ export const preFilterRecords = async (records: TxRecord[], indexName: string, g
 			throw e
 		}
 	}
-
-	return upsertCount;
 }
