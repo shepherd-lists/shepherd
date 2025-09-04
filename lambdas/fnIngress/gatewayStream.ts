@@ -3,6 +3,7 @@ import { ReadableStream } from 'node:stream/web'
 import { min_data_size } from '../../libs/constants'
 
 
+
 //reuse connections
 const agent = new https.Agent({
 	keepAlive: true,
@@ -16,22 +17,25 @@ const no_data_timeout = 30_000
 //export function to destroy agent after tests
 export const destroyGatewayAgent = () => agent.destroy()
 
-export async function gatewayStream(txid: string): Promise<ReadableStream<Uint8Array>> {
+export async function gatewayStream(
+	txid: string,
+	httpsGet = https.get, //dependency injection for testing
+): Promise<ReadableStream<Uint8Array>> {
 	//try raw endpoint first (no redirects)
 	try {
-		return await makeRequest(`https://arweave.net/raw/${txid}`)
+		return await makeRequest(`https://arweave.net/raw/${txid}`, httpsGet)
 	} catch {
 		//fallback to regular endpoint
-		return await makeRequest(`https://arweave.net/${txid}`)
+		return await makeRequest(`https://arweave.net/${txid}`, httpsGet)
 	}
 }
 
-function makeRequest(url: string): Promise<ReadableStream<Uint8Array>> {
+function makeRequest(url: string, httpsGet: typeof https.get): Promise<ReadableStream<Uint8Array>> {
 	return new Promise((resolve, reject) => {
-		https.get(url, { agent }, (res) => {
+		httpsGet(url, { agent }, (res) => {
 			//handle redirects
 			if (res.statusCode && [301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
-				return resolve(makeRequest(res.headers.location))
+				return resolve(makeRequest(res.headers.location, httpsGet))
 			}
 
 			if (res.statusCode !== 200) {
