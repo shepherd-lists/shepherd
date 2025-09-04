@@ -31,7 +31,11 @@ export const processRecord = async (
 
 	try {
 		//get input stream
-		inputStream = await sourceStream(record.txid, record.parent || null, record.parents)
+		if (sourceStream === gatewayStream) {
+			inputStream = await (sourceStream as typeof gatewayStream)(record.txid)
+		} else {
+			inputStream = await (sourceStream as typeof chunkTxDataStream)(record.txid, record.parent || null, record.parents)
+		}
 
 		//create file type detection stream
 		const fileTypeTransform = await fileTypeStream(inputStream, { sampleSize: 16_384 })
@@ -123,6 +127,18 @@ export const processRecord = async (
 						flagged: false,
 						valid_data: false,
 						data_reason: '404',
+						last_update_date: new Date(),
+					}
+				}
+			}
+			if (e.message.includes('NO_DATA')) {
+				return {
+					queued: false,
+					record: {
+						...record,
+						flagged: false,
+						valid_data: false,
+						data_reason: 'nodata',
 						last_update_date: new Date(),
 					}
 				}
