@@ -4,21 +4,27 @@ import { arGql } from 'ar-gql'
 import { GQLError } from 'ar-gql/dist/faces'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
+import { TxRecord } from 'shepherd-plugin-interfaces/types'
 
 
 const ARIO_DELAY_MS = 500
-const MAX_INDEXER_LAMBDAS = 10
-const limit = pLimit(MAX_INDEXER_LAMBDAS)
+const MAX_INGRESS_LAMBDAS = 10
+const limit = pLimit(MAX_INGRESS_LAMBDAS)
 const MISSING_HEIGHT = 'MISSING_HEIGHT'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const lambdaClient = new LambdaClient({})
 
 
-const FN_INDEXER = process.env.FN_INDEXER as string //ario by default
-console.info(`FN_INDEXER: ${FN_INDEXER}`)
-if (!FN_INDEXER) throw new Error('FN_INDEXER not set')
+const FN_INGRESS = process.env.FN_INGRESS as string
+console.info(`FN_INDEXER: ${FN_INGRESS}`)
+if (!FN_INGRESS) throw new Error('FN_INDEXER not set')
 
+interface FnIngressReturn {
+	numQueued: number;
+	numUpdated: number;
+	errored: TxRecord[];
+}
 
 export const gqlPages = async ({
 	query,
@@ -39,7 +45,7 @@ export const gqlPages = async ({
 
 	let hasNextPage = true
 	let cursor = ''
-	const promises: Promise<number>[] = []
+	const promises: Promise<FnIngressReturn>[] = []
 	const t0 = performance.now()
 	let pageCount = 0, itemCount = 0
 
@@ -99,7 +105,7 @@ export const gqlPages = async ({
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
-			promises.push(limit(fnIndexerInvoker, { metas: edges, pageNumber: pageCount++, gqlUrl, gqlUrlBackup, gqlProvider, indexName }))
+			promises.push(limit(fnIngressInvoker, { metas: edges, pageNumber: pageCount++, gqlUrl, gqlUrlBackup, gqlProvider, indexName }))
 
 			tPage = performance.now() - p0
 			logstring = `retrieved & dispatched gql page of ${edges.length} results in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
@@ -123,14 +129,14 @@ export const gqlPages = async ({
 	}//end while(hasNextPage)
 
 	const results = await Promise.all(promises)
-	const inserted = results.reduce((acc, result) => acc + result, 0)
-	console.info(indexName, `finished ${pageCount} pages, ${inserted}/${itemCount} items inserted in ${(performance.now() - t0).toFixed(0)} ms`)
+	const numProgressed = results.reduce((acc, result) => acc + result.numQueued + result.numUpdated, 0)
+	console.info(indexName, `finished ${pageCount} pages, ${numProgressed}/${itemCount} items progressed in ${(performance.now() - t0).toFixed(0)} ms`)
 
 	return;
 }
 
-/** N.B. `inputs` must match fnIndex `event` */
-const fnIndexerInvoker = async (inputs: {
+/** N.B. `inputs` must match fnIngress `event` */
+const fnIngressInvoker = async (inputs: {
 	metas: GQLEdgeInterface[],
 	pageNumber: number,
 	gqlUrl: string,
@@ -143,7 +149,7 @@ const fnIndexerInvoker = async (inputs: {
 	while (true) {
 		try {
 			const res = await lambdaClient.send(new InvokeCommand({
-				FunctionName: FN_INDEXER as string,
+				FunctionName: FN_INGRESS as string,
 				Payload: JSON.stringify(inputs),
 				InvocationType: 'RequestResponse',
 			}))
@@ -154,13 +160,13 @@ const fnIndexerInvoker = async (inputs: {
 				throw new Error(`Lambda error '${res.FunctionError}' for ${JSON.stringify({ indexName, pageNumber })}, payload: ${payloadMsg}`)
 			}
 
-			const inserts: number = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
+			const inserts: FnIngressReturn = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
 
-			console.info(indexName, fnIndexerInvoker.name, `page ${pageNumber}, ${inserts}/${metas.length} inserted`)
+			console.info(indexName, fnIngressInvoker.name, `page ${pageNumber}, total records ${metas.length}, ${inserts.numQueued} queued in s3, ${inserts.numUpdated} inserts, ${inserts.errored.length} errored.`)
 			return inserts;
 		} catch (err: unknown) {
 			const e = err as Error
-			slackLog(indexName, fnIndexerInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
+			slackLog(indexName, fnIngressInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
 			await sleep(10_000)
 			continue;
 		}
