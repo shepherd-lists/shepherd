@@ -71,7 +71,7 @@ function makeRequest(url: string): Promise<ReadableStream<Uint8Array>> {
 				},
 				cancel(reason) {
 					console.info(url, 'cancelled stream, reason:', reason)
-					res.destroy()
+					res.destroy(reason)
 				}
 			})
 
