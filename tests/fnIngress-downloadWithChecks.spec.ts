@@ -7,6 +7,7 @@ import { processRecord, downloadWithChecks } from '../lambdas/fnIngress/download
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { s3HeadObject } from '../libs/utils/s3-services'
 import { chunkTxDataStream } from '../lambdas/fnIngress/chunkTxDataStream'
+import { createMockHttpsGet } from './mocks/mock-httpsGet'
 
 
 describe('downloadWithChecks', () => {
@@ -88,6 +89,33 @@ describe('downloadWithChecks', () => {
 		assert(resChunk.queued === false, 'queued should be false')
 		assert.deepEqual(resChunk.record, { txid: 'error', content_type: 'unknown', }, 'record should be passed through')
 		assert(resChunk.errorId?.includes('undiscoverable byte-range'), 'errorId didnt match')
+	})
+
+	it('should process nodata and partial errors as expected', async () => {
+		const mockId = 'mockId-'.padEnd(43, '0')
+		const resNodata = await processRecord({ txid: mockId } as TxRecord, () => gatewayStream(mockId, createMockHttpsGet({
+			shouldTimeout: true,
+			timeoutDelay: 100,
+		}) as any))
+		console.debug('resNodata', resNodata)
+		assert(resNodata.queued === false, 'resNodata.queued should be false')
+		assert(!resNodata.errorId, 'resNodata.errorId should not have an errorId')
+		assert(resNodata.record.data_reason === 'nodata', 'resNodata.record.data_reason should be nodata')
+		assert(resNodata.record.valid_data === false, 'resNodata.record.valid_data should be false')
+		assert(resNodata.record.flagged === false, 'resNodata.record.flagged should be false')
+
+		const resPartial = await processRecord({ txid: mockId } as TxRecord, () => gatewayStream(mockId, createMockHttpsGet({
+			dataChunks: [Buffer.alloc(1000)], // Only 1000 bytes < 4096 min_data_size
+			shouldTimeout: true,
+			timeoutDelay: 100,
+			shouldEnd: false // Don't end naturally, let timeout handle it
+		}) as any))
+		console.debug('resPartial', resPartial)
+		assert(resPartial.queued === false, 'resPartial.queued should be false')
+		assert(!resPartial.errorId, 'resPartial.errorId should not have an errorId')
+		assert(resPartial.record.data_reason === 'nodata', 'resPartial.record.data_reason should be nodata as partial < min_data_size (4096)')
+		assert(resPartial.record.valid_data === false, 'resPartial.record.valid_data should be false')
+		assert(resPartial.record.flagged === false, 'resPartial.record.flagged should be false')
 	})
 
 	it('should process multiple records with downloadWithChecks function', async () => {
