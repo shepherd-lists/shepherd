@@ -169,7 +169,7 @@ export const createStack = async (app: App, config: Config) => {
 		actions: ['lambda:InvokeFunction'],
 		resources: [
 			fnOwnerBlocking.functionArn,
-			fnIndex.functionArn,
+			fnIngress.functionArn,
 			fnInitLists.functionArn,
 			fnTemp.functionArn,
 		],
