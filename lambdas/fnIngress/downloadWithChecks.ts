@@ -24,7 +24,7 @@ export const processRecord = async (
 	sourceStream: SourceStream = chunkTxDataStream,
 ): Promise<{ queued: boolean; record: TxRecord; errorId?: string }> => {
 
-	const bucket = process.env.AWS_INPUT_BUCKET!
+	const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET!
 	const key = record.txid
 	let inputStream: ReadableStream | null = null
 	let upload: Upload | null = null
@@ -80,7 +80,7 @@ export const processRecord = async (
 		upload = new Upload({
 			client: s3client,
 			params: {
-				Bucket: bucket,
+				Bucket: AWS_INPUT_BUCKET,
 				Key: key,
 				Body: fileTypeTransform as globalThis.ReadableStream, //fussy types, we want the nodejs iterator version
 				ContentType: (detectedMime || record.content_type || 'application/octet-stream').replace(/\r|\n/g, ''),

@@ -40,6 +40,7 @@ export const handler = async (event: Inputs) => {
 		) {
 			throw new Error('missing inputs. should have { metas: GQLEdgeInterface[], pageNumber: number, gqlUrl: string, gqlUrlBackup: string, gqlProvider: string, indexName: string, }')
 		}
+		console.info(indexName, `processing page ${pageNumber} of ${metas.length} records`)
 
 		const records = await buildRecords(
 			metas,
@@ -86,7 +87,7 @@ export const handler = async (event: Inputs) => {
 		//upsert updated records
 		const numInserted = await batchInsert(updated, 'txs') ?? 0
 
-		console.info(indexName, `total records ${records.length}, ${numQueued} queued in s3, ${numInserted}/${updated} inserts, ${errored.length} errored.`)
+		console.info(indexName, `page ${pageNumber}, number of records ${records.length}, ${numQueued} queued in s3, ${numInserted}/${updated.length} inserts, ${errored.length} errored.`)
 
 		return {
 			numQueued,
@@ -95,7 +96,7 @@ export const handler = async (event: Inputs) => {
 		}
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog('fnIndexer.handler', `Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
+		await slackLog('fnIngress.handler', `Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
 		throw e
 	}
 }
