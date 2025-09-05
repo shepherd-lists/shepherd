@@ -28,7 +28,7 @@ export const createFn = (
 		entry: new URL(`../lambdas/${name}/index.ts`, import.meta.url).pathname,
 		bundling: {
 			format: aws_lambda_nodejs.OutputFormat.ESM,
-			banner: 'import { createRequire } from \'module\';const require = createRequire(import.meta.url);',
+			banner: 'import { createRequire as _createRequire } from \'module\'; const require = _createRequire(import.meta.url);',
 			externalModules: [
 				'sqlite3',
 				'better-sqlite3',

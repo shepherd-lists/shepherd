@@ -105,6 +105,7 @@ export const createStack = async (app: App, config: Config) => {
 			HOST_URL: config.host_url || 'https://arweave.net',
 			http_api_nodes: JSON.stringify(config.http_api_nodes),
 			http_api_nodes_url: config.http_api_nodes_url || '', //byte-ranges
+			AWS_INPUT_BUCKET: inputBucketName,
 		},
 	})
 	fnIngress.addToRolePolicy(new aws_iam.PolicyStatement({
