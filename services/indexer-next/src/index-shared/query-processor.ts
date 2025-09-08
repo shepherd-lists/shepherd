@@ -32,12 +32,14 @@ export const gqlPages = async ({
 	indexName,
 	gqlUrl,
 	gqlUrlBackup,
+	streamSourceName = 'nodes',
 }: {
 	query: string
 	variables: Record<string, any>,
 	indexName: string,
 	gqlUrl: string,
 	gqlUrlBackup: string,
+	streamSourceName?: 'gateway' | 'nodes',
 }) => {
 
 	const gql = arGql({ endpointUrl: gqlUrl, retries: 3 })
@@ -105,10 +107,24 @@ export const gqlPages = async ({
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
-			promises.push(limit(fnIngressInvoker, { metas: edges, pageNumber: pageCount++, gqlUrl, gqlUrlBackup, gqlProvider, indexName }))
+			// Split into batches if more than 60 metas
+			if (edges.length > 60 && streamSourceName !== 'gateway') {
+				const midpoint = Math.ceil(edges.length / 2)
+				const batch1 = edges.slice(0, midpoint)
+				const batch2 = edges.slice(midpoint)
 
-			tPage = performance.now() - p0
-			logstring = `retrieved & dispatched gql page of ${edges.length} results in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
+				promises.push(limit(fnIngressInvoker, { metas: batch1, pageNumber: `${pageCount}-1`, gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName }))
+				promises.push(limit(fnIngressInvoker, { metas: batch2, pageNumber: `${pageCount}-2`, gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName }))
+				pageCount++
+				tPage = performance.now() - p0
+				logstring = `retrieved & dispatched gql page split into ${batch1.length} and ${batch2.length} results in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
+			} else {
+				promises.push(limit(fnIngressInvoker, { metas: edges, pageNumber: pageCount.toString(), gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName }))
+				pageCount++
+				tPage = performance.now() - p0
+				logstring = `retrieved & dispatched gql page of ${edges.length} results in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
+			}
+
 		} else {
 			logstring = `no pages to dispatch. cursor: ${cursor}`
 		}
@@ -138,13 +154,14 @@ export const gqlPages = async ({
 /** N.B. `inputs` must match fnIngress `event` */
 const fnIngressInvoker = async (inputs: {
 	metas: GQLEdgeInterface[],
-	pageNumber: number,
+	pageNumber: string,
 	gqlUrl: string,
-	gqlUrlBackup: string
+	gqlUrlBackup: string,
 	gqlProvider: string,
 	indexName: string,
+	streamSourceName: 'gateway' | 'nodes',
 }) => {
-	const { indexName, pageNumber, metas } = inputs
+	const { indexName, pageNumber, metas, streamSourceName } = inputs
 	/* invoke lambdas, retry on errors, return count */
 	while (true) {
 		try {
@@ -162,7 +179,7 @@ const fnIngressInvoker = async (inputs: {
 
 			const inserts: FnIngressReturn = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
 
-			console.info(indexName, fnIngressInvoker.name, `page ${pageNumber}, total records ${metas.length}, ${inserts.numQueued} queued in s3, ${inserts.numUpdated} inserts, ${inserts.errored.length} errored.`)
+			console.info(indexName, fnIngressInvoker.name, `page ${pageNumber}, total records ${metas.length}, ${inserts.numQueued} queued in s3, ${inserts.numUpdated} inserts, ${inserts.errored.length} errored.`, streamSourceName)
 			return inserts;
 		} catch (err: unknown) {
 			const e = err as Error

@@ -88,6 +88,7 @@ export const ingestLoop = async (
 			gqlUrl: process.env.GQL_URL_SECONDARY!, // goldsky
 			gqlUrlBackup: process.env.GQL_URL!, // arweave.net
 			indexName,
+			streamSourceName: 'nodes',
 		})
 
 		/** update state */

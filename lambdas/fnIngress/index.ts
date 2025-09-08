@@ -17,11 +17,12 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 interface Inputs {
 	metas: GQLEdgeInterface[]
-	pageNumber: number
+	pageNumber: string
 	gqlUrl: string
 	gqlUrlBackup: string
 	gqlProvider: string
 	indexName: string
+	streamSourceName: 'gateway' | 'nodes'
 }
 /** the handler will receive 1 page of new items to index. */
 export const handler = async (event: Inputs) => {
@@ -29,14 +30,15 @@ export const handler = async (event: Inputs) => {
 		console.info('event', JSON.stringify(event))
 
 		/* check inputs */
-		const { metas, pageNumber, gqlUrl, gqlUrlBackup, gqlProvider, indexName } = event
+		const { metas, pageNumber, gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName } = event
 		if (
 			!Array.isArray(metas) || metas.length === 0
-			|| typeof pageNumber !== 'number' || pageNumber < 0
+			|| typeof pageNumber !== 'string'
 			|| typeof gqlUrl !== 'string' || !gqlUrl.match(/^https:\/\/[a-zA-Z0-9.-]+\/graphql/)
 			|| typeof gqlUrlBackup !== 'string' || !gqlUrlBackup.match(/^https:\/\/[a-zA-Z0-9.-]+\/graphql/)
 			|| typeof gqlProvider !== 'string'
 			|| typeof indexName !== 'string'
+			|| typeof streamSourceName !== 'string' || !['gateway', 'nodes'].includes(streamSourceName)
 		) {
 			throw new Error('missing inputs. should have { metas: GQLEdgeInterface[], pageNumber: number, gqlUrl: string, gqlUrlBackup: string, gqlProvider: string, indexName: string, }')
 		}
@@ -75,7 +77,8 @@ export const handler = async (event: Inputs) => {
 		const metaFiltered = await metaFilteredRecords(records, indexName, gqlProvider)
 		updated.push(...metaFiltered.updated)
 
-		const queued = await downloadWithChecks(metaFiltered.unqueued, chunkTxDataStream) //perhaps switch source according to lambda input?
+		const streamSource = streamSourceName === 'gateway' ? gatewayStream : chunkTxDataStream
+		const queued = await downloadWithChecks(metaFiltered.unqueued, streamSource) //perhaps switch source according to lambda input?
 
 		//sort processed records
 		for (const entry of queued) {

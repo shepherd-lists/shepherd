@@ -134,5 +134,6 @@ const gqlQueryOrig = async ({ min, max }: { min: number, max: number }) => {
 		indexName: 'indexer_tip',
 		gqlUrl: GQL_URL, //arweave.net
 		gqlUrlBackup: GQL_URL_SECONDARY, //goldsky.com
+		streamSourceName: 'gateway',
 	})
 }
