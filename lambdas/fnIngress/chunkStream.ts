@@ -41,9 +41,13 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 			console.log(`chunkStream starting: chunkStart=${chunkStart}, dataEnd=${dataEnd}, nodes=${nodes.length}`)
 
 			const fetchNext = async (): Promise<void> => {
-				while (!cancelled && bytePos < dataEnd) {
+				const INITIAL_CHUNKS = 2 // Fetch first 2 chunks sequentially for file type detection
+				const PARALLEL_CONCURRENCY = 10 // Then fetch remaining chunks in parallel
+
+				// Phase 1: Fetch first 2 chunks sequentially
+				let chunksProcessed = 0
+				while (!cancelled && bytePos < dataEnd && chunksProcessed < INITIAL_CHUNKS) {
 					if (!node) {
-						// console.error('chunkStream: ran out of nodes to try', { chunkStart, dataEnd, bytePos, lastErrorMsg })
 						return controller.error(
 							new Error(`chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, bytePos, lastErrorMsg })}`)
 						)
@@ -68,7 +72,8 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 							currentReq = req
 							currentRes = res
 						})
-						console.info(`${url} ${bytePos}/${dataEnd} bytes ✅`)
+						console.info(`${url} ${bytePos}/${dataEnd} bytes ✅ (initial chunk ${chunksProcessed + 1}/2)`)
+						chunksProcessed++
 					} catch (e) {
 						console.error(`${String(e)}, ${bytePos}/${dataEnd} bytes. trying next node`)
 						lastErrorMsg = (e as Error).message
@@ -83,7 +88,91 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 					}
 				}
 
+				// Phase 2: Fetch remaining chunks in parallel batches
+				while (!cancelled && bytePos < dataEnd) {
+					const remainingBytes = dataEnd - bytePos
+					const chunkSize = 256 * 1024 // 256KB
+					const remainingChunks = Math.ceil(remainingBytes / chunkSize)
+					const batchSize = Math.min(PARALLEL_CONCURRENCY, remainingChunks)
+
+					if (batchSize === 0) break
+
+					console.info(`Starting parallel batch: ${batchSize} chunks from offset ${bytePos}`)
+
+					const chunkPromises = []
+					for (let i = 0; i < batchSize; i++) {
+						const chunkOffset = bytePos + (i * chunkSize)
+						if (chunkOffset >= dataEnd) break
+
+						chunkPromises.push(fetchChunkAtOffset(chunkOffset, node))
+					}
+
+					const chunkResults = await Promise.allSettled(chunkPromises)
+
+					// Process results in order and advance bytePos
+					let successfulChunks = 0
+					for (let i = 0; i < chunkResults.length; i++) {
+						const result = chunkResults[i]
+						if (result.status === 'fulfilled' && result.value) {
+							const remaining = dataEnd - bytePos
+							const truncated = remaining < result.value.length ? result.value.subarray(0, remaining) : result.value
+							const truncatedLength = truncated.length
+							controller.enqueue(truncated)
+							bytePos += truncatedLength
+							successfulChunks++
+						} else {
+							console.error(`Parallel chunk ${i} failed:`, result.status === 'rejected' ? result.reason : 'No data')
+						}
+					}
+
+					console.info(`Parallel batch completed: ${successfulChunks}/${batchSize} chunks, now at ${bytePos}/${dataEnd} bytes`)
+
+					// If all chunks failed, try next node
+					if (successfulChunks === 0) {
+						node = nodes.pop()
+						if (!node) {
+							return controller.error(new Error('All nodes exhausted during parallel fetch'))
+						}
+						console.info(`Switching to next node for parallel fetch: ${node.name}`)
+					}
+				}
+
 				if (!cancelled) controller.close()
+			}
+
+			const fetchChunkAtOffset = async (offset: number, currentNode: typeof node): Promise<Uint8Array | null> => {
+				if (!currentNode) return null
+
+				const url = `${currentNode.url}/chunk2/${(chunkStart + BigInt(offset)).toString()}`
+				const chunks: Uint8Array[] = []
+				let chunkReq: http.ClientRequest | undefined
+				let chunkRes: http.IncomingMessage | undefined
+
+				try {
+					await fetchChunkData(url, (segment) => {
+						chunks.push(segment)
+					}, (req, res) => {
+						chunkReq = req
+						chunkRes = res
+					})
+
+					// Combine all segments into single array
+					const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+					const combined = new Uint8Array(totalLength)
+					let pos = 0
+					for (const chunk of chunks) {
+						combined.set(chunk, pos)
+						pos += chunk.length
+					}
+					return combined
+				} catch (e) {
+					console.error(`Parallel chunk fetch failed for offset ${offset}: ${e}`)
+					return null
+				} finally {
+					// Always cleanup connections for parallel requests
+					chunkReq?.destroy()
+					chunkRes?.destroy()
+				}
 			}
 
 			fetchNext().catch(e => controller.error(e))
@@ -169,3 +258,4 @@ function fetchChunkData(
 		req.on('error', reject)
 	})
 }
+
