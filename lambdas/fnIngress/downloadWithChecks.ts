@@ -86,7 +86,8 @@ export const processRecord = async (
 				ContentType: (detectedMime || record.content_type || 'application/octet-stream').replace(/\r|\n/g, ''),
 				Metadata: { txrecord: JSON.stringify(record) } //only lowercase supported in key name!!
 			},
-			queueSize: 8
+			// partSize: default & minimum is 5MB
+			queueSize: 1, // that's queueSize * partSize per concurrent upload, up to 100
 		})
 
 		//wait for upload completion
