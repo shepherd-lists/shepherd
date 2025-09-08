@@ -1,6 +1,7 @@
 {
 	"type": "module",
 	"dependencies": {
+		"@aws-sdk/node-http-handler": "^3.370.0",
 		"ar-gql": "^3.1.0",
 		"file-type": "^21.0.0",
 		"moize": "^6.1.6",

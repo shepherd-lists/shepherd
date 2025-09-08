@@ -6,10 +6,18 @@ import { S3Client } from '@aws-sdk/client-s3'
 import { ReadableStream } from 'node:stream/web'
 import { slackLog } from '../../libs/utils/slackLog'
 import { chunkTxDataStream } from './chunkTxDataStream'
+import { NodeHttpHandler } from '@aws-sdk/node-http-handler'
 
 
 
-const s3client = new S3Client({})
+const s3client = new S3Client({
+	requestHandler: new NodeHttpHandler({
+		connectionTimeout: 30_000, // 30 seconds
+		requestTimeout: 600_000,   // 10 minutes (matches Lambda timeout)
+	}),
+	maxAttempts: 3,
+	retryMode: 'adaptive', // handles varying AWS load conditions
+})
 
 
 type SourceStream = typeof chunkTxDataStream | typeof gatewayStream
