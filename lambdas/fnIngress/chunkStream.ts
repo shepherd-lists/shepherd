@@ -6,8 +6,8 @@ import { ReadableStream } from 'node:stream/web'
 
 const agent = new http.Agent({
 	keepAlive: true,
-	maxSockets: 100,
-	maxFreeSockets: 10,
+	maxSockets: 50,
+	maxFreeSockets: 5,
 	timeout: 30000
 })
 
@@ -107,33 +107,31 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 						chunkPromises.push(fetchChunkAtOffset(chunkOffset, node))
 					}
 
-					const chunkResults = await Promise.allSettled(chunkPromises)
+					try {
+						const chunkResults = await Promise.all(chunkPromises)
 
-					// Process results in order and advance bytePos
-					let successfulChunks = 0
-					for (let i = 0; i < chunkResults.length; i++) {
-						const result = chunkResults[i]
-						if (result.status === 'fulfilled' && result.value) {
-							const remaining = dataEnd - bytePos
-							const truncated = remaining < result.value.length ? result.value.subarray(0, remaining) : result.value
-							const truncatedLength = truncated.length
-							controller.enqueue(truncated)
-							bytePos += truncatedLength
-							successfulChunks++
-						} else {
-							console.error(`Parallel chunk ${i} failed:`, result.status === 'rejected' ? result.reason : 'No data')
+						// Process results in order and advance bytePos
+						for (const result of chunkResults) {
+							if (result) {
+								const remaining = dataEnd - bytePos
+								const truncated = remaining < result.length ? result.subarray(0, remaining) : result
+								const truncatedLength = truncated.length
+								controller.enqueue(truncated)
+								bytePos += truncatedLength
+							}
 						}
-					}
 
-					console.info(`Parallel batch completed: ${successfulChunks}/${batchSize} chunks, now at ${bytePos}/${dataEnd} bytes`)
+						console.info(`Parallel batch completed: ${chunkResults.length}/${batchSize} chunks, now at ${bytePos}/${dataEnd} bytes`)
 
-					// If all chunks failed, try next node
-					if (successfulChunks === 0) {
+					} catch (e) {
+						console.error(`Parallel batch failed, switching to next node: ${e}`)
 						node = nodes.pop()
 						if (!node) {
 							return controller.error(new Error('All nodes exhausted during parallel fetch'))
 						}
 						console.info(`Switching to next node for parallel fetch: ${node.name}`)
+						// Retry this batch with new node by not advancing bytePos
+						continue
 					}
 				}
 
