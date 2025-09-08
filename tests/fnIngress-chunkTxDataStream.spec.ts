@@ -3,6 +3,7 @@ import { describe, it, skip, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { chunkTxDataStream } from '../lambdas/fnIngress/chunkTxDataStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
+import { writeFileSync } from 'node:fs'
 
 describe('chunkTxDataStream', () => {
 	const baseTxid = 'YqIGNFqScA5bIGLpt083Zp7fHcz7ApL-Do1e1bhMM3Q' //size 520kb, text/html
@@ -92,6 +93,25 @@ describe('chunkTxDataStream', () => {
 				assert.fail('expected error')
 			}
 		}
+	})
+
+	skip('should download a 700mb file using concurrent chunks', async () => {
+		const txid = 'izeI_QzFiIYWJYs66E--QL5oUFbN471aVUt1KHZD3OI' //700mb video/mp4
+		const stream = await chunkTxDataStream(txid, null, undefined)
+
+
+		const data = new Uint8Array(695_557_456)
+		let offset = 0
+
+		for await (const chunk of stream) {
+			data.set(chunk, offset)
+			offset += chunk.length
+		}
+
+		assert(offset === 695_557_456, `expected 695557456 bytes, got ${offset}`)
+
+		//temp
+		writeFileSync('700mb.mp4', data)
 	})
 
 })
