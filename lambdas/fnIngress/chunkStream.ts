@@ -8,7 +8,7 @@ const agent = new http.Agent({
 	keepAlive: true,
 	maxSockets: 50,
 	maxFreeSockets: 5,
-	timeout: 30000
+	timeout: 30_000
 })
 
 export const destroyChunkStreamAgent = () => agent.destroy()
@@ -205,6 +205,12 @@ function fetchChunkData(
 				return reject(new Error(`${url} failed: ${res.statusCode} ${res.statusMessage}`, { cause: res }))
 			}
 
+			// Set timeout on the response
+			res.setTimeout(30_000, () => {
+				res.destroy()
+				reject(new Error(`Response timeout after 30s: ${url}`))
+			})
+
 			if (onReq) onReq(req, res)
 
 			let headerBytesNeeded = 3
@@ -253,6 +259,13 @@ function fetchChunkData(
 				reject(new Error('Connection ended before chunk header was fully read'))
 			})
 		})
+
+		// Add explicit request timeout to catch network-level hangs in Lambda
+		req.setTimeout(30_000, () => {
+			req.destroy()
+			reject(new Error(`Request timeout after 30s: ${url}`))
+		})
+
 		req.on('error', reject)
 	})
 }
