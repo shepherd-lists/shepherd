@@ -38,6 +38,7 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 		type: 'bytes',
 		start(controller) {
 			let bytePos = 0 //bytes fetched so far
+			let totalChunksProcessed = 0 //total chunks processed across all phases
 			console.log(`chunkStream starting: chunkStart=${chunkStart}, dataEnd=${dataEnd}, nodes=${nodes.length}`)
 
 			const fetchNext = async (): Promise<void> => {
@@ -72,7 +73,8 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 							currentReq = req
 							currentRes = res
 						})
-						console.info(`${url} ${bytePos}/${dataEnd} bytes ✅ (initial chunk ${chunksProcessed + 1}/2)`)
+						totalChunksProcessed++
+						console.info(`${url} ${bytePos}/${dataEnd} bytes ✅ (chunk ${totalChunksProcessed})`)
 						chunksProcessed++
 					} catch (e) {
 						console.error(`${String(e)}, ${bytePos}/${dataEnd} bytes. trying next node`)
@@ -100,10 +102,17 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 					console.info(`Starting parallel batch: ${batchSize} chunks from offset ${bytePos}`)
 
 					const chunkPromises = []
+					const chunkMetadata = []
 					for (let i = 0; i < batchSize; i++) {
 						const chunkOffset = bytePos + (i * chunkSize)
 						if (chunkOffset >= dataEnd) break
 
+						const chunkMeta = {
+							offset: chunkOffset,
+							url: `${node?.url}/chunk2/${(chunkStart + BigInt(chunkOffset)).toString()}`,
+							index: i
+						}
+						chunkMetadata.push(chunkMeta)
 						chunkPromises.push(fetchChunkAtOffset(chunkOffset, node))
 					}
 
@@ -111,23 +120,31 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 						const chunkResults = await Promise.all(chunkPromises)
 
 						// Process results in order and advance bytePos
-						for (const result of chunkResults) {
+						for (let i = 0; i < chunkResults.length; i++) {
+							const result = chunkResults[i]
+							const meta = chunkMetadata[i]
+
 							if (result) {
 								const remaining = dataEnd - bytePos
 								const truncated = remaining < result.length ? result.subarray(0, remaining) : result
 								const truncatedLength = truncated.length
 								controller.enqueue(truncated)
 								bytePos += truncatedLength
+								totalChunksProcessed++
+								console.info(`${meta.url} ${bytePos}/${dataEnd} bytes ✅ (chunk ${totalChunksProcessed})`)
+							} else {
+								console.error(`${meta.url} failed ❌`)
 							}
 						}
 
 						console.info(`Parallel batch completed: ${chunkResults.length}/${batchSize} chunks, now at ${bytePos}/${dataEnd} bytes`)
 
 					} catch (e) {
+						lastErrorMsg = (e as Error).message
 						console.error(`Parallel batch failed, switching to next node: ${e}`)
 						node = nodes.pop()
 						if (!node) {
-							return controller.error(new Error('All nodes exhausted during parallel fetch'))
+							return controller.error(new Error(`All nodes exhausted during parallel fetch: ${lastErrorMsg}`))
 						}
 						console.info(`Switching to next node for parallel fetch: ${node.name}`)
 						// Retry this batch with new node by not advancing bytePos
@@ -135,7 +152,7 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 					}
 				}
 
-				if (!cancelled) controller.close()
+				controller.close()
 			}
 
 			const fetchChunkAtOffset = async (offset: number, currentNode: typeof node): Promise<Uint8Array | null> => {
@@ -164,7 +181,9 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 					}
 					return combined
 				} catch (e) {
-					console.error(`Parallel chunk fetch failed for offset ${offset}: ${e}`)
+					const errorMsg = (e as Error).message
+					lastErrorMsg = errorMsg
+					console.error(`Parallel chunk fetch failed for offset ${offset}: ${errorMsg}`)
 					return null
 				} finally {
 					// Always cleanup connections for parallel requests
