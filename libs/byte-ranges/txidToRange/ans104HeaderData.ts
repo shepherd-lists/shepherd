@@ -58,44 +58,55 @@ const fetchHeader = async (parent: string) => {
 			let header = new Uint8Array(0)
 
 			const { aborter, res } = await fetchRetryConnection(`/${parent}`)
-			//pass 404s up
-			if (res.status === 404) return {
-				status: res.status,
-				header,
-				numDataItems: -1,
-				headerLength: 0n,
-			}
 
-			/** gateway bug, where wrong data present. report it! */
-			if (res.headers.get('content-type')?.includes('text/html')) {
-				throw new Error(`${BUNDLE_DATA_CONTAINS_TEXT_HTML}. id: ${parent}`)
-			}
+			// Set timeout for stream reading operations
+			const streamTimeout = setTimeout(() => {
+				aborter?.abort()
+			}, 30_000) // 30 second timeout
 
-			/* fetch the bytes we're interested in */
+			try {
+				//pass 404s up
+				if (res.status === 404) return {
+					status: res.status,
+					header,
+					numDataItems: -1,
+					headerLength: 0n,
+				}
 
-			//read bytes for numDataItems and calculate header size
-			reader = res.body!.getReader()
-			header = await readEnoughBytes(reader, header, 32)
-			const numDataItems = byteArrayToNumber(header.slice(0, 32))
-			const totalHeaderLength = 64 * numDataItems + 32
+				/** gateway bug, where wrong data present. report it! */
+				if (res.headers.get('content-type')?.includes('text/html')) {
+					throw new Error(`${BUNDLE_DATA_CONTAINS_TEXT_HTML}. id: ${parent}`)
+				}
 
-			if (process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`, { numDataItems, totalHeaderLength })
+				/* fetch the bytes we're interested in */
 
-			//read bytes for the rest of the header index
-			header = await readEnoughBytes(reader, header, totalHeaderLength)
+				//read bytes for numDataItems and calculate header size
+				reader = res.body!.getReader()
+				header = await readEnoughBytes(reader, header, 32)
+				const numDataItems = byteArrayToNumber(header.slice(0, 32))
+				const totalHeaderLength = 64 * numDataItems + 32
 
-			if (process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`)
+				if (process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`, { numDataItems, totalHeaderLength })
 
-			/* close the stream & return results */
-			// aborter!.abort() this changed around nodejs v20.13.0, throws abort error event
-			reader?.releaseLock()
-			res.body?.cancel() //twice to be sure?
+				//read bytes for the rest of the header index
+				header = await readEnoughBytes(reader, header, totalHeaderLength)
 
-			return {
-				status: res.status,
-				header,
-				numDataItems,
-				headerLength: BigInt(totalHeaderLength),
+				if (process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`)
+
+				/* close the stream & return results */
+				// aborter!.abort() this changed around nodejs v20.13.0, throws abort error event
+				reader?.releaseLock()
+				res.body?.cancel() //twice to be sure?
+
+				return {
+					status: res.status,
+					header,
+					numDataItems,
+					headerLength: BigInt(totalHeaderLength),
+				}
+			} finally {
+				// Clear timeout whether success or failure
+				clearTimeout(streamTimeout)
 			}
 
 		} catch (e) {
