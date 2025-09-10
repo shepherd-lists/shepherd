@@ -107,17 +107,21 @@ export const gqlPages = async ({
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
-			// Split into batches if more than 60 metas
-			if (edges.length > 60 && streamSourceName !== 'gateway') {
-				const midpoint = Math.ceil(edges.length / 2)
-				const batch1 = edges.slice(0, midpoint)
-				const batch2 = edges.slice(midpoint)
+			/* split page into batches to process in lambda */
+			if (streamSourceName === 'nodes') {
 
-				promises.push(limit(fnIngressInvoker, { metas: batch1, pageNumber: `${pageCount}-1`, gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName }))
-				promises.push(limit(fnIngressInvoker, { metas: batch2, pageNumber: `${pageCount}-2`, gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName }))
+				const batchSize = 10
+				let batchCount = 0
+				const batchSizes = []
+				let batch
+				while ((batch = edges.slice(batchCount * batchSize, (batchCount + 1) * batchSize)).length > 0) {
+					batchSizes.push(batch.length)
+					promises.push(limit(fnIngressInvoker, { metas: batch, pageNumber: `${pageCount}-${batchCount + 1}`, gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName }))
+					batchCount++
+				}
 				pageCount++
 				tPage = performance.now() - p0
-				logstring = `retrieved & dispatched gql page split into ${batch1.length} and ${batch2.length} results in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
+				logstring = `retrieved & dispatched gql page into ${batchCount} batches [${batchSizes.join(', ')}] in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
 			} else {
 				promises.push(limit(fnIngressInvoker, { metas: edges, pageNumber: pageCount.toString(), gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName }))
 				pageCount++
@@ -163,6 +167,7 @@ const fnIngressInvoker = async (inputs: {
 }) => {
 	const { indexName, pageNumber, metas, streamSourceName } = inputs
 	/* invoke lambdas, retry on errors, return count */
+	console.log(`${indexName} fnIngressInvoker starting for page ${pageNumber}`)
 	while (true) {
 		try {
 			const res = await lambdaClient.send(new InvokeCommand({
@@ -183,7 +188,7 @@ const fnIngressInvoker = async (inputs: {
 			return inserts;
 		} catch (err: unknown) {
 			const e = err as Error
-			slackLog(indexName, fnIngressInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
+			await slackLog(indexName, fnIngressInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds...`, JSON.stringify(e))
 			await sleep(10_000)
 			continue;
 		}
