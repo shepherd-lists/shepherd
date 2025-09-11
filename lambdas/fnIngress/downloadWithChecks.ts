@@ -7,6 +7,7 @@ import { ReadableStream } from 'node:stream/web'
 import { slackLog } from '../../libs/utils/slackLog'
 import { chunkTxDataStream } from './chunkTxDataStream'
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler'
+import { s3HeadObject } from '../../libs/utils/s3-services'
 
 
 
@@ -18,6 +19,7 @@ const s3client = new S3Client({
 	maxAttempts: 3,
 	retryMode: 'adaptive', // handles varying AWS load conditions
 })
+const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET!
 
 
 type SourceStream = typeof chunkTxDataStream | typeof gatewayStream
@@ -44,24 +46,45 @@ export const downloadWithChecks = async (
 	// Add timeout to collect partial results
 	let timeoutId: NodeJS.Timeout | null = null
 	const timeoutPromise = new Promise<Array<{ queued: boolean; record: TxRecord; errorId?: string }>>((resolve) => {
-		timeoutId = setTimeout(() => {
-			// Determine which txids completed vs hanging
+		timeoutId = setTimeout(async () => {
 			const completedTxids = Array.from(promiseResults.keys())
-			const pendingTxids = records.filter(r => !promiseResults.has(r.txid)).map(r => r.txid)
+			const pendingRecords = records.filter(r => !promiseResults.has(r.txid))
 
 			console.error(`Promise.all timeout after ${(downloadTimeout / 1000 / 60).toFixed(1)} minutes!`)
-			console.error(`HANGING TXIDS: ${pendingTxids.join(', ')}`)
-			console.error(`Completed txids: ${completedTxids.join(', ')}`)
+			console.error(`HANGING: ${pendingRecords.map(r => r.txid).join(', ')}`)
+			console.error(`COMPLETED: ${completedTxids.join(', ')}`)
 
-			// Collect all available results
-			const timeoutResults = records.map(record => {
-				const result = promiseResults.get(record.txid)
-				return result || {
-					queued: false,
-					record,
-					errorId: 'timeout'
+			// Check S3 for hanging records to see if they actually completed
+			const s3CheckResults = new Map<string, { queued: boolean; record: TxRecord; errorId?: string }>()
+
+			await Promise.all(pendingRecords.map(async (record) => {
+				try {
+					const head = await s3HeadObject(AWS_INPUT_BUCKET, record.txid)
+					if (Number(head.ContentLength) !== Number(record.content_size)) throw new Error(`content size mismatch: ${head.ContentLength} !== ${record.content_size}`)
+					const metaid = JSON.parse(head.Metadata!.txrecord).txid
+					if (metaid !== record.txid) throw new Error(`txid mismatch: ${metaid} !== ${record.txid}`)
+
+					console.info(`${record.txid} found in S3 despite hanging promise`)
+					s3CheckResults.set(record.txid, {
+						queued: true,
+						record: { ...record, valid_data: true, last_update_date: new Date() }
+					})
+				} catch (e) {
+					console.error(`${record.txid} confirmed hanging - not fully found in S3.`, String(e))
+					s3CheckResults.set(record.txid, {
+						queued: false,
+						record,
+						errorId: 'timeout'
+					})
 				}
-			})
+			}))
+
+			// Build final results: promise results + S3 check results + defaults
+			const timeoutResults = records.map(record =>
+				promiseResults.get(record.txid) ||
+				s3CheckResults.get(record.txid) ||
+				{ queued: false, record, errorId: 'timeout' }
+			)
 
 			resolve(timeoutResults)
 		}, downloadTimeout)
@@ -87,7 +110,6 @@ export const processRecord = async (
 	sourceStream: SourceStream = chunkTxDataStream,
 ): Promise<{ queued: boolean; record: TxRecord; errorId?: string }> => {
 
-	const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET!
 	const key = record.txid
 	let inputStream: ReadableStream | null = null
 	let upload: Upload | null = null
