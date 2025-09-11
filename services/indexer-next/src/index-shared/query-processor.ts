@@ -108,27 +108,22 @@ export const gqlPages = async ({
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
 			/* split page into batches to process in lambda */
-			if (streamSourceName === 'nodes') {
+			const { batchCount, batchSizes } = batchAndDispatchEdges(
+				edges,
+				pageCount.toString(),
+				streamSourceName,
+				gqlUrl,
+				gqlUrlBackup,
+				gqlProvider,
+				indexName,
+				promises,
+				/* downloadTimeout: */ 30_000, //adjust this later
+			)
 
-				const batchSize = 10
-				let batchCount = 0
-				const batchSizes = []
-				let batch
-				while ((batch = edges.slice(batchCount * batchSize, (batchCount + 1) * batchSize)).length > 0) {
-					batchSizes.push(batch.length)
-					promises.push(limit(fnIngressInvoker, { metas: batch, pageNumber: `${pageCount}-${batchCount + 1}`, gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName }))
-					batchCount++
-				}
-				pageCount++
-				tPage = performance.now() - p0
-				logstring = `retrieved & dispatched gql page into ${batchCount} batches [${batchSizes.join(', ')}] in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
-			} else {
-				promises.push(limit(fnIngressInvoker, { metas: edges, pageNumber: pageCount.toString(), gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName }))
-				pageCount++
-				tPage = performance.now() - p0
-				logstring = `retrieved & dispatched gql page of ${edges.length} results in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
-			}
+			pageCount++
+			tPage = performance.now() - p0
 
+			logstring = `retrieved & dispatched gql page into ${batchCount} batches [${batchSizes.join(', ')}] in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
 		} else {
 			logstring = `no pages to dispatch. cursor: ${cursor}`
 		}
@@ -149,6 +144,10 @@ export const gqlPages = async ({
 	}//end while(hasNextPage)
 
 	const results = await Promise.all(promises)
+
+	// for (const result of results.) {
+
+
 	const numProgressed = results.reduce((acc, result) => acc + result.numQueued + result.numUpdated, 0)
 	console.info(indexName, `finished ${pageCount} pages, ${numProgressed}/${itemCount} items progressed in ${(performance.now() - t0).toFixed(0)} ms`)
 
@@ -164,6 +163,7 @@ const fnIngressInvoker = async (inputs: {
 	gqlProvider: string,
 	indexName: string,
 	streamSourceName: 'gateway' | 'nodes',
+	downloadTimeout: number,
 }) => {
 	const { indexName, pageNumber, metas, streamSourceName } = inputs
 	/* invoke lambdas, retry on errors, return count */
@@ -192,5 +192,51 @@ const fnIngressInvoker = async (inputs: {
 			await sleep(10_000)
 			continue;
 		}
+	}
+}
+
+const batchAndDispatchEdges = (
+	edges: GQLEdgeInterface[],
+	pageNumber: string,
+	streamSourceName: 'gateway' | 'nodes',
+	gqlUrl: string,
+	gqlUrlBackup: string,
+	gqlProvider: string,
+	indexName: string,
+	promises: Promise<FnIngressReturn>[],
+	downloadTimeout: number,
+): { batchCount: number; batchSizes: number[] } => {
+	if (streamSourceName === 'nodes') {
+		const batchSize = 10
+		let batchCount = 0
+		const batchSizes = []
+		let batch
+		while ((batch = edges.slice(batchCount * batchSize, (batchCount + 1) * batchSize)).length > 0) {
+			batchSizes.push(batch.length)
+			promises.push(limit(fnIngressInvoker, {
+				metas: batch,
+				pageNumber: `${pageNumber}-${batchCount + 1}`,
+				gqlUrl,
+				gqlUrlBackup,
+				gqlProvider,
+				indexName,
+				streamSourceName,
+				downloadTimeout,
+			}))
+			batchCount++
+		}
+		return { batchCount, batchSizes }
+	} else {
+		promises.push(limit(fnIngressInvoker, {
+			metas: edges,
+			pageNumber,
+			gqlUrl,
+			gqlUrlBackup,
+			gqlProvider,
+			indexName,
+			streamSourceName,
+			downloadTimeout,
+		}))
+		return { batchCount: 1, batchSizes: [edges.length] }
 	}
 }
