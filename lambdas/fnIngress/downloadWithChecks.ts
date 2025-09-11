@@ -22,7 +22,62 @@ const s3client = new S3Client({
 
 type SourceStream = typeof chunkTxDataStream | typeof gatewayStream
 
-export const downloadWithChecks = async (records: TxRecord[], sourceStream?: SourceStream) => Promise.all(records.map(async (record) => await processRecord(record, sourceStream)))
+export const downloadWithChecks = async (
+	records: TxRecord[],
+	downloadTimeout: number,
+	sourceStream?: SourceStream,
+) => {
+	console.debug(`downloadWithChecks starting for ${records.length} records. Timeout: ${downloadTimeout}ms. downloadWithChecks txids: ${records.map(r => r.txid).join(', ')}`)
+
+	// Track results to identify hanging txids
+	const promiseResults = new Map<string, { queued: boolean; record: TxRecord; errorId?: string }>()
+
+	// processRecord never rejects, always resolves with result
+	const promises = records.map(async (record, index) => {
+		console.debug(`${record.txid} promise ${index + 1}/${records.length} starting`)
+		const result = await processRecord(record, sourceStream)
+		promiseResults.set(record.txid, result)
+		console.debug(`${record.txid} promise ${index + 1}/${records.length} completed`)
+		return result
+	})
+
+	// Add timeout to collect partial results
+	let timeoutId: NodeJS.Timeout | null = null
+	const timeoutPromise = new Promise<Array<{ queued: boolean; record: TxRecord; errorId?: string }>>((resolve) => {
+		timeoutId = setTimeout(() => {
+			// Determine which txids completed vs hanging
+			const completedTxids = Array.from(promiseResults.keys())
+			const pendingTxids = records.filter(r => !promiseResults.has(r.txid)).map(r => r.txid)
+
+			console.error(`Promise.all timeout after ${(downloadTimeout / 1000 / 60).toFixed(1)} minutes!`)
+			console.error(`HANGING TXIDS: ${pendingTxids.join(', ')}`)
+			console.error(`Completed txids: ${completedTxids.join(', ')}`)
+
+			// Collect all available results
+			const timeoutResults = records.map(record => {
+				const result = promiseResults.get(record.txid)
+				return result || {
+					queued: false,
+					record,
+					errorId: 'timeout'
+				}
+			})
+
+			resolve(timeoutResults)
+		}, downloadTimeout)
+	})
+
+	const results = await Promise.race([
+		Promise.all(promises),
+		timeoutPromise
+	]) as Array<{ queued: boolean; record: TxRecord; errorId?: string }>
+
+	// Clear timeout if Promise.all resolved first
+	if (timeoutId) clearTimeout(timeoutId)
+
+	console.info(`downloadWithChecks completed for ${results.length} records`)
+	return results
+}
 
 
 /** exported for testing only */
