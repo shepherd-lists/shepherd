@@ -136,7 +136,7 @@ describe('downloadWithChecks', () => {
 			} as TxRecord
 		]
 
-		const results = await downloadWithChecks(testRecords)
+		const results = await downloadWithChecks(testRecords, 30_000) // 30 second timeout
 
 		assert.equal(results.length, 3)
 
@@ -163,6 +163,34 @@ describe('downloadWithChecks', () => {
 		assert.equal(notFoundResult.record.flagged, false, 'notFoundResult.record.flagged should be false')
 		assert.equal(notFoundResult.record.valid_data, false, 'notFoundResult.record.valid_data should be false')
 		assert.equal(notFoundResult.record.data_reason, '404', 'notFoundResult.record.data_reason should be 404')
+	})
+
+	it('should handle timeout by returning records with errorId instead of throwing', async () => {
+		const mockId = 'timeout-test-'.padEnd(43, '0')
+
+		// Create a mock sourceStream that hangs indefinitely
+		const hangingSourceStream = async () => {
+			return new Promise<never>(() => {
+				// Never resolves - simulates a hanging promise
+			})
+		}
+
+		const testRecords: TxRecord[] = [
+			{
+				txid: mockId,
+				content_type: 'image/webp',
+			} as TxRecord
+		]
+
+		// Use short timeout for test (1 second)
+		const results = await downloadWithChecks(testRecords, 1000, hangingSourceStream)
+
+		assert.equal(results.length, 1, 'should return one result')
+
+		const timeoutResult = results[0]
+		assert.equal(timeoutResult.queued, false, 'timeout result should not be queued')
+		assert.equal(timeoutResult.errorId, 'timeout', 'should have timeout errorId')
+		assert.equal(timeoutResult.record.txid, mockId, 'should return the original record')
 	})
 
 })
