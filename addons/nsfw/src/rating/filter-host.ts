@@ -86,7 +86,6 @@ const checkImagePluginResults = async(pic: Buffer, mime: string, txid: string)=>
 			&& [0.903248131275177, 0.9651741981506348].includes(Number(result.top_score_value))
 		){
 			logger(txid, 'hack, removing specific spam false positive', JSON.stringify(result))
-			await slackLogger(txid, 'hack, removing specific spam false positive', JSON.stringify(result))
 			result.top_score_name = undefined
 			result.top_score_value = undefined
 			result.flagged = false
