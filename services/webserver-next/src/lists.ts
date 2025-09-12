@@ -122,10 +122,10 @@ export const prefetchLists = async () => {
 		routes.push(`/${addonPath}/ranges.txt`)
 	})
 
-	await Promise.all(routes.map(async path => {
+	for (const path of routes) {
 		const dummy = new PassThrough()
 		await getList(dummy, path as GetListPath)
 		dummy.destroy()
-	}))
+	}
 	console.info('prefetching lists done.')
 }
