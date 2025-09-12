@@ -140,7 +140,7 @@ const ownerUpdate = async (owner: string, txid: string) => {
 			infractions++
 			await trx(infractionsTablename).insert({ txid })
 		} else {
-			await slackLog(txid, 'ERROR ❌ already exists in infractions. should be SQS dupe, CHECK!',) //`(${JSON.stringify(updates)}) => ${resInsert}`)
+			console.warn(txid, 'WARN. already exists in infractions. should be SQS dupe')
 			throw new Error(`Already exists in infractions`) //cause a rollback
 		}
 
