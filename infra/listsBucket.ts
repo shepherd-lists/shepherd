@@ -17,6 +17,14 @@ export const buildListsBucket = (
 		'rangelist.txt',
 		'rangeflagged.txt',
 		'rangeowners.txt',
+		/** .last_update files */
+		'flagged/.last_update',
+		'list/.last_update',
+		'owners/.last_update',
+		/** dnsr */
+		'dnsr/.last_update',
+		'dnsr/ranges.txt',
+		'dnsr/txids.txt',
 	]
 
 	const listsBucket = new aws_s3.Bucket(stack, 'listsBucket', {
