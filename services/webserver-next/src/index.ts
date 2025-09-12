@@ -219,10 +219,11 @@ server.on('clientError', (e: Error & { code: string }, socket: Socket) => {
 	const alb = cnnIPs?.alb || socket.remoteAddress || 'unknown'
 	const forwarded = cnnIPs?.forwarded || 'unknown'
 
-	slackLog(prefix, 'clientError', `ALB: ${alb} → Real Client: ${forwarded} → Webserver: ${targetIPs} - ${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
+	console.error(prefix, 'clientError', `ALB: ${alb} → Real Client: ${forwarded} → Webserver: ${targetIPs} - ${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
+	slackLog(prefix, 'clientError', `Real Client: ${forwarded} - (${e.code}) ${String(e)}. socket.writable=${socket.writable}`)
 
 	//write object for CW querying
-	console.log(JSON.stringify({
+	console.error(JSON.stringify({
 		eventType: 'clientError',
 		timestamp: new Date().toISOString(),
 		alb,
