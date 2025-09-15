@@ -8,24 +8,24 @@ export const buildListsBucket = (
 	config: Config,
 ) => {
 
-	//pointless versioning these legacy files + they are building up s3 costs
-	const noVersioningFiles = [
-		'addresses.txt',
-		'blacklist.txt',
-		'txidflagged.txt',
-		'txidowners.txt',
-		'rangelist.txt',
-		'rangeflagged.txt',
-		'rangeowners.txt',
-		/** .last_update files */
-		'flagged/.last_update',
-		'list/.last_update',
-		'owners/.last_update',
-		/** dnsr */
-		'dnsr/.last_update',
-		'dnsr/ranges.txt',
-		'dnsr/txids.txt',
-	]
+	// //pointless versioning these legacy files + they are building up s3 costs
+	// const noVersioningFiles = [
+	// 	'addresses.txt',
+	// 	'blacklist.txt',
+	// 	'txidflagged.txt',
+	// 	'txidowners.txt',
+	// 	'rangelist.txt',
+	// 	'rangeflagged.txt',
+	// 	'rangeowners.txt',
+	// 	/** .last_update files */
+	// 	'flagged/.last_update',
+	// 	'list/.last_update',
+	// 	'owners/.last_update',
+	// 	/** dnsr */
+	// 	'dnsr/.last_update',
+	// 	'dnsr/ranges.txt',
+	// 	'dnsr/txids.txt',
+	// ]
 
 	const listsBucket = new aws_s3.Bucket(stack, 'listsBucket', {
 		bucketName: `shepherd-lists-${config.region}`,
@@ -41,15 +41,25 @@ export const buildListsBucket = (
 			restrictPublicBuckets: true,
 		},
 
-		versioned: true, //enable versioning
+		versioned: false, //can only suspend versioning once enabled. use lifecycle rules to remove old versions
 
-		//expire noncurrent versions asap
-		lifecycleRules: noVersioningFiles.map(filename => ({
-			id: `${filename.split('.')[0]}-no-versioning`,
-			enabled: true,
-			prefix: filename,
-			noncurrentVersionExpiration: Duration.days(1),
-		})),
+		//cleanup after versioning suspension
+		lifecycleRules: [
+			{
+				id: 'expire-noncurrent-versions',
+				enabled: true,
+				prefix: '',
+				noncurrentVersionExpiration: Duration.days(1),
+			},
+		],
+
+		// //expire noncurrent versions asap
+		// lifecycleRules: noVersioningFiles.map(filename => ({
+		// 	id: `${filename.split('.')[0]}-no-versioning`,
+		// 	enabled: true,
+		// 	prefix: filename,
+		// 	noncurrentVersionExpiration: Duration.days(1),
+		// })),
 
 	})
 
