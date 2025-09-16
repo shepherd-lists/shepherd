@@ -6,7 +6,7 @@ import { ReadableStream } from 'node:stream/web'
 
 const agent = new http.Agent({
 	keepAlive: true,
-	maxSockets: 50,
+	maxSockets: 100,
 	maxFreeSockets: 5,
 	timeout: 30_000
 })
@@ -93,7 +93,7 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 				// Phase 2: Fetch remaining chunks in parallel batches
 				while (!cancelled && bytePos < dataEnd) {
 					const remainingBytes = dataEnd - bytePos
-					const chunkSize = 256 * 1024 // 256KB
+					const chunkSize = 262_144 // 256KB
 					const remainingChunks = Math.ceil(remainingBytes / chunkSize)
 					const batchSize = Math.min(PARALLEL_CONCURRENCY, remainingChunks)
 
@@ -164,7 +164,7 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 				let chunkRes: http.IncomingMessage | undefined
 
 				try {
-					await fetchChunkData(url, (segment) => {
+					const size = await fetchChunkData(url, (segment) => {
 						chunks.push(segment)
 					}, (req, res) => {
 						chunkReq = req
@@ -218,74 +218,69 @@ function fetchChunkData(
 	onReq?: (req: http.ClientRequest, res: http.IncomingMessage) => void,
 ): Promise<number> {
 	return new Promise((resolve, reject) => {
+		const timeout = (message: string) => {
+			req.destroy()
+			reject(new Error(`${message}: ${url}`))
+		}
+
 		const req = http.get(url, { agent, headers: { 'x-packing': 'unpacked' } }, (res) => {
 			if (res.statusCode !== 200) {
 				res.destroy()
-				return reject(new Error(`${url} failed: ${res.statusCode} ${res.statusMessage}`, { cause: res }))
+				return reject(new Error(`${url} failed: ${res.statusCode} ${res.statusMessage}`))
 			}
 
-			// Set timeout on the response
-			res.setTimeout(30_000, () => {
-				res.destroy()
-				reject(new Error(`Response timeout after 30s: ${url}`))
-			})
+			res.setTimeout(30_000, () => timeout('Response timeout after 30s'))
+			onReq?.(req, res)
 
-			if (onReq) onReq(req, res)
-
-			let headerBytesNeeded = 3
-			let headerBuf = new Uint8Array(3)
+			const headerBuf = new Uint8Array(3)
 			let headerOffset = 0
 			let chunkSize = -1
-			let emitted = 0
+			let bytesEmitted = 0
 
-			res.on('data', (buf: Buffer) => {
+			const processData = (buf: Buffer) => {
 				let offset = 0
-				while (offset < buf.length) {
-					if (chunkSize < 0) {
-						//read 3-byte big-endian length prefix
-						const toCopy = Math.min(headerBytesNeeded, buf.length - offset)
-						headerBuf.set(buf.subarray(offset, offset + toCopy), headerOffset)
-						headerOffset += toCopy
-						offset += toCopy
-						headerBytesNeeded -= toCopy
-						if (headerBytesNeeded === 0) {
-							chunkSize = (headerBuf[0] << 16) | (headerBuf[1] << 8) | headerBuf[2] //cpu endian agnostic
-						}
-						continue
-					}
 
-					const remainingChunk = chunkSize - emitted
-					const toTake = Math.min(remainingChunk, buf.length - offset)
-					const slice = buf.subarray(offset, offset + toTake)
+				// Read 3-byte header if not complete
+				while (offset < buf.length && chunkSize < 0) {
+					const remaining = 3 - headerOffset
+					const available = buf.length - offset
+					const toCopy = Math.min(remaining, available)
 
-					// emit all chunk data - let caller handle filtering
-					onSegment(new Uint8Array(slice))
+					headerBuf.set(buf.subarray(offset, offset + toCopy), headerOffset)
+					headerOffset += toCopy
+					offset += toCopy
 
-					emitted += toTake
-					offset += toTake
-
-					if (emitted === chunkSize) {
-						// res.removeAllListeners('data')
-						// res.removeAllListeners('end')
-						res.destroy()
-						return resolve(chunkSize)
+					if (headerOffset === 3) {
+						chunkSize = (headerBuf[0] << 16) | (headerBuf[1] << 8) | headerBuf[2]
 					}
 				}
-			})
 
+				// Emit chunk data
+				if (chunkSize > 0 && offset < buf.length) {
+					const remaining = chunkSize - bytesEmitted
+					const available = buf.length - offset
+					const toEmit = Math.min(remaining, available)
+
+					onSegment(new Uint8Array(buf.subarray(offset, offset + toEmit)))
+					bytesEmitted += toEmit
+
+					if (bytesEmitted === chunkSize) {
+						res.removeAllListeners('data')
+						res.on('data', () => { }) // drain without processing
+						res.resume()
+					}
+				}
+			}
+
+			res.on('data', processData)
 			res.on('end', () => {
-				if (chunkSize > 0) return resolve(chunkSize)
-				reject(new Error('Connection ended before chunk header was fully read'))
+				chunkSize > 0 ? resolve(chunkSize) : reject(new Error('Connection ended before chunk header was fully read'))
 			})
 		})
 
-		// Add explicit request timeout to catch network-level hangs in Lambda
-		req.setTimeout(30_000, () => {
-			req.destroy()
-			reject(new Error(`Request timeout after 30s: ${url}`))
-		})
-
+		req.setTimeout(30_000, () => timeout('Request timeout after 30s'))
 		req.on('error', reject)
 	})
 }
+
 
