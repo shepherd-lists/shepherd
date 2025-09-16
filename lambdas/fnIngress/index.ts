@@ -90,7 +90,21 @@ export const handler = async (event: Inputs) => {
 		}
 
 		//upsert updated records
-		const numInserted = await batchInsert(updated, 'txs') ?? 0
+		const numInserted = await batchInsert(updated.map(r => ({
+			//initial fields
+			txid: r.txid,
+			content_type: r.content_type,
+			content_size: r.content_size,
+			height: r.height,
+			parent: r.parent || null,
+			parents: r.parents || null,
+			owner: r.owner,
+			//added fields
+			flagged: r.flagged,
+			valid_data: r.valid_data || null, //should be deprecating this field
+			data_reason: r.data_reason,
+			last_update_date: r.last_update_date || new Date(),
+		}) as TxRecord), 'txs') ?? 0
 
 		console.info(indexName, `page ${pageNumber}, number of records ${records.length}, ${numQueued} queued in s3, ${numInserted}/${updated.length} inserts, ${errored.length} errored.`)
 
@@ -216,10 +230,13 @@ const metaFilteredRecords = async (records: TxRecord[], indexName: string, gqlPr
 		 */
 		const [negligibleRecords, filteredRecords] = allRecords.reduce((acc, rec) => {
 			if (+rec.content_size <= min_data_size) {
-				rec.data_reason = 'negligible-data'
-				rec.valid_data = false
-				rec.flagged = false
-				acc[0].push(rec)
+				acc[0].push({
+					...rec,
+					flagged: false,
+					valid_data: false,
+					data_reason: 'negligible-data',
+					last_update_date: new Date(),
+				})
 			} else {
 				acc[1].push(rec)
 			}
