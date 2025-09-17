@@ -120,6 +120,7 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 						const chunkResults = await Promise.all(chunkPromises)
 
 						// Process results in order and advance bytePos
+						const failedChunks = []
 						for (let i = 0; i < chunkResults.length; i++) {
 							const result = chunkResults[i]
 							const meta = chunkMetadata[i]
@@ -133,7 +134,40 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 								totalChunksProcessed++
 								console.info(`${meta.url} ${bytePos}/${dataEnd} bytes ✅ (chunk ${totalChunksProcessed})`)
 							} else {
-								console.error(`${meta.url} failed ❌`)
+								console.error(`${meta.url} ${meta.offset} failed ❌`)
+								failedChunks.push({ offset: meta.offset, retries: 0 })
+							}
+						}
+
+						// Retry failed chunks individually with exponential backoff
+						for (const failed of failedChunks) {
+							const maxRetries = 3
+							let retryCount = 0
+							let retryResult = null
+
+							while (retryCount < maxRetries && !retryResult) {
+								retryCount++
+								console.info(`Retrying chunk at offset ${failed.offset}, attempt ${retryCount}/${maxRetries}`)
+
+								// Wait before retry (exponential backoff)
+								if (retryCount > 1) {
+									await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 2)))
+								}
+
+								retryResult = await fetchChunkAtOffset(failed.offset, node)
+							}
+
+							if (retryResult) {
+								const remaining = dataEnd - bytePos
+								const truncated = remaining < retryResult.length ? retryResult.subarray(0, remaining) : retryResult
+								const truncatedLength = truncated.length
+								controller.enqueue(truncated)
+								bytePos += truncatedLength
+								totalChunksProcessed++
+								console.info(`Retry successful for offset ${failed.offset}: ${bytePos}/${dataEnd} bytes ✅`)
+							} else {
+								console.error(`All retries failed for chunk at offset ${failed.offset}`)
+								// Continue trying other chunks, final validation will catch incomplete download
 							}
 						}
 
@@ -152,6 +186,13 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 					}
 				}
 
+				// Verify all expected bytes were fetched before closing
+				if (bytePos < dataEnd) {
+					console.error(`chunkStream incomplete: ${bytePos}/${dataEnd} bytes fetched`)
+					return controller.error(new Error(`Incomplete download: ${bytePos}/${dataEnd} bytes`))
+				}
+
+				console.info(`chunkStream completed successfully: ${bytePos}/${dataEnd} bytes, ${totalChunksProcessed} chunks`)
 				controller.close()
 			}
 
