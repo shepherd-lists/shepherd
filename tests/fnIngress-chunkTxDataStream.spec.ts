@@ -96,6 +96,7 @@ describe('chunkTxDataStream', () => {
 	})
 
 	skip('should download a 700mb file using concurrent chunks', async () => {
+		const t0 = Date.now()
 		const txid = 'izeI_QzFiIYWJYs66E--QL5oUFbN471aVUt1KHZD3OI' //700mb video/mp4
 		const stream = await chunkTxDataStream(txid, null, undefined)
 
@@ -108,10 +109,32 @@ describe('chunkTxDataStream', () => {
 			offset += chunk.length
 		}
 
-		assert(offset === 695_557_456, `expected 695557456 bytes, got ${offset}`)
+		console.info(`downloaded 700mb file in ${(Date.now() - t0) / 1000}s`)
 
 		//temp
 		writeFileSync('700mb.mp4', data)
+
+		assert(offset === 695_557_456, `expected 695557456 bytes, got ${offset}`)
 	})
+
+	// it('should download a large test file using concurrent chunks', async () => {
+	// 	const txid = 'xPemxl1eioHIL1aov9Des_JPtdWnnISHWZGga4E3l28' //140mb video/mp4
+	// 	const parent = 'g3jBbb8U8Bm4kEKinYQd2T0dy8x3Fv8uc__CtYTtT2M'
+	// 	const stream = await chunkTxDataStream(txid, parent, undefined)
+
+
+	// 	const data = new Uint8Array(147523153)
+	// 	let offset = 0
+
+	// 	for await (const chunk of stream) {
+	// 		data.set(chunk, offset)
+	// 		offset += chunk.length
+	// 	}
+
+	// 	// assert(offset === 695_557_456, `expected 695557456 bytes, got ${offset}`)
+
+	// 	//temp
+	// 	writeFileSync(`${txid}.mp4`, data)
+	// })
 
 })

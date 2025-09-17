@@ -13,6 +13,7 @@ import { createMockHttpsGet } from './mocks/mock-httpsGet'
 describe('downloadWithChecks', () => {
 
 	const smallDataId = 'SUIycDyPfSqkkYunexGcGXjjhujc4rM5KHUz9NP-JBI'
+	const smallDataIdSize = 19371
 
 	after(async () => {
 		destroyGatewayAgent()
@@ -24,6 +25,7 @@ describe('downloadWithChecks', () => {
 			txid: smallDataId, //small data-item
 			parent: 'l-bDXsnBUlD8taaCC1tAyW1CeuGbeTOUCFU-H5Ahzxk',
 			content_type: 'image/webp',
+			content_size: smallDataIdSize.toString(),
 		} as TxRecord)
 
 		assert(res.queued === true, 'should have queued the image file')
@@ -37,6 +39,9 @@ describe('downloadWithChecks', () => {
 			metadata.last_update_date = new Date(metadata.last_update_date) //string !== Date()
 
 			assert.deepEqual(metadata, res.record, 'should have the same metadata')
+
+			assert.equal(Number(data.ContentLength), smallDataIdSize, 'should have the correct size')
+
 		} catch (e) {
 			assert.fail(`should have found the object, got ${String(e)}`)
 		}
@@ -125,6 +130,7 @@ describe('downloadWithChecks', () => {
 				txid: 'SUIycDyPfSqkkYunexGcGXjjhujc4rM5KHUz9NP-JBI', // small successfull upload
 				parent: 'l-bDXsnBUlD8taaCC1tAyW1CeuGbeTOUCFU-H5Ahzxk',
 				content_type: 'image/webp',
+				content_size: smallDataIdSize.toString(),
 			} as TxRecord,
 			{
 				txid: '060CDwAtjAd4MPrazzeEDMu4jmczC6AmoYd-0U8D7ks', // invalid file-type
