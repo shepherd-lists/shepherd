@@ -19,7 +19,7 @@ export const destroyChunkStreamAgent = () => agent.destroy()
  * - dataEnd: absolute byte position where streaming should stop
  * returns clean data stream that caller can parse/filter as needed.
  */
-export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<ReadableStream<Uint8Array>> {
+export async function chunkStream(chunkStart: bigint, dataEnd: number, txid: string): Promise<ReadableStream<Uint8Array>> {
 	const nodes = [
 		...httpApiNodes(),
 		//manually adding these for now
@@ -39,55 +39,22 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 		start(controller) {
 			let bytePos = 0 //bytes fetched so far
 			let totalChunksProcessed = 0 //total chunks processed across all phases
-			console.log(`chunkStream starting: chunkStart=${chunkStart}, dataEnd=${dataEnd}, nodes=${nodes.length}`)
+			console.log(txid, `chunkStream starting: chunkStart=${chunkStart}, dataEnd=${dataEnd}, nodes=${nodes.length}`)
 
 			const fetchNext = async (): Promise<void> => {
-				const INITIAL_CHUNKS = 2 // Fetch first 2 chunks sequentially for file type detection
-				const PARALLEL_CONCURRENCY = 10 // Then fetch remaining chunks in parallel
+				const PARALLEL_CONCURRENCY = 10
 
-				// Phase 1: Fetch first 2 chunks sequentially
-				let chunksProcessed = 0
-				while (!cancelled && bytePos < dataEnd && chunksProcessed < INITIAL_CHUNKS) {
-					if (!node) {
-						return controller.error(
-							new Error(`chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, bytePos, lastErrorMsg })}`)
-						)
-					}
+				// Phase 1: Fetch first 2 chunks individually for file type detection
+				if (!cancelled && bytePos < dataEnd) {
+					const result1 = await fetchChunks([bytePos])
+					bytePos = result1.newBytePos
+					totalChunksProcessed += result1.chunksProcessed
+				}
 
-					const url = `${node.url}/chunk2/${(chunkStart + BigInt(bytePos)).toString()}`
-					try {
-						const size = await fetchChunkData(url, (segment) => {
-							//truncate segment if it would exceed dataEnd
-							const remaining = dataEnd - bytePos
-							if (remaining <= 0) return //already at limit
-
-							const truncated = remaining < segment.length
-								? segment.subarray(0, remaining)
-								: segment
-
-							//n.b. control of our segment is given away after enqueuing a byte stream
-							const truncatedLength = truncated.length //<= very important to store this before enqueuing
-							controller.enqueue(truncated)
-							bytePos += truncatedLength
-						}, (req, res) => {
-							currentReq = req
-							currentRes = res
-						})
-						totalChunksProcessed++
-						console.info(`${url} ${bytePos}/${dataEnd} bytes ✅ (chunk ${totalChunksProcessed})`)
-						chunksProcessed++
-					} catch (e) {
-						console.error(`${String(e)}, ${bytePos}/${dataEnd} bytes. trying next node`)
-						lastErrorMsg = (e as Error).message
-						node = nodes.pop()
-						if (cancelled) return
-						continue
-					} finally {
-						currentReq?.destroy()
-						currentRes?.destroy()
-						currentReq = null
-						currentRes = null
-					}
+				if (!cancelled && bytePos < dataEnd) {
+					const result2 = await fetchChunks([bytePos])
+					bytePos = result2.newBytePos
+					totalChunksProcessed += result2.chunksProcessed
 				}
 
 				// Phase 2: Fetch remaining chunks in parallel batches
@@ -99,120 +66,166 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 
 					if (batchSize === 0) break
 
-					console.info(`Starting parallel batch: ${batchSize} chunks from offset ${bytePos}`)
-
-					const chunkPromises = []
-					const chunkMetadata = []
+					// Create array of chunk offsets for this batch
+					const chunkOffsets = []
 					for (let i = 0; i < batchSize; i++) {
-						const chunkOffset = bytePos + (i * chunkSize)
-						if (chunkOffset >= dataEnd) break
-
-						const chunkMeta = {
-							offset: chunkOffset,
-							url: `${node?.url}/chunk2/${(chunkStart + BigInt(chunkOffset)).toString()}`,
-							index: i
-						}
-						chunkMetadata.push(chunkMeta)
-						chunkPromises.push(fetchChunkAtOffset(chunkOffset, node))
+						const offset = bytePos + (i * chunkSize)
+						if (offset >= dataEnd) break
+						chunkOffsets.push(offset)
 					}
 
-					try {
-						const chunkResults = await Promise.all(chunkPromises)
-
-						// Process results in order and advance bytePos
-						const failedChunks = []
-						for (let i = 0; i < chunkResults.length; i++) {
-							const result = chunkResults[i]
-							const meta = chunkMetadata[i]
-
-							if (result) {
-								const remaining = dataEnd - bytePos
-								const truncated = remaining < result.length ? result.subarray(0, remaining) : result
-								const truncatedLength = truncated.length
-								controller.enqueue(truncated)
-								bytePos += truncatedLength
-								totalChunksProcessed++
-								console.info(`${meta.url} ${bytePos}/${dataEnd} bytes ✅ (chunk ${totalChunksProcessed})`)
-							} else {
-								console.error(`${meta.url} ${meta.offset} failed ❌`)
-								failedChunks.push({ offset: meta.offset, retries: 0 })
-							}
-						}
-
-						// Retry failed chunks individually with exponential backoff
-						for (const failed of failedChunks) {
-							const maxRetries = 3
-							let retryCount = 0
-							let retryResult = null
-
-							while (retryCount < maxRetries && !retryResult) {
-								retryCount++
-								console.info(`Retrying chunk at offset ${failed.offset}, attempt ${retryCount}/${maxRetries}`)
-
-								// Wait before retry (exponential backoff)
-								if (retryCount > 1) {
-									await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 2)))
-								}
-
-								retryResult = await fetchChunkAtOffset(failed.offset, node)
-							}
-
-							if (retryResult) {
-								const remaining = dataEnd - bytePos
-								const truncated = remaining < retryResult.length ? retryResult.subarray(0, remaining) : retryResult
-								const truncatedLength = truncated.length
-								controller.enqueue(truncated)
-								bytePos += truncatedLength
-								totalChunksProcessed++
-								console.info(`Retry successful for offset ${failed.offset}: ${bytePos}/${dataEnd} bytes ✅`)
-							} else {
-								console.error(`All retries failed for chunk at offset ${failed.offset}`)
-								// Continue trying other chunks, final validation will catch incomplete download
-							}
-						}
-
-						console.info(`Parallel batch completed: ${chunkResults.length}/${batchSize} chunks, now at ${bytePos}/${dataEnd} bytes`)
-
-					} catch (e) {
-						lastErrorMsg = (e as Error).message
-						console.error(`Parallel batch failed, switching to next node: ${e}`)
-						node = nodes.pop()
-						if (!node) {
-							return controller.error(new Error(`All nodes exhausted during parallel fetch: ${lastErrorMsg}`))
-						}
-						console.info(`Switching to next node for parallel fetch: ${node.name}`)
-						// Retry this batch with new node by not advancing bytePos
-						continue
-					}
+					const batchResult = await fetchChunks(chunkOffsets)
+					bytePos = batchResult.newBytePos
+					totalChunksProcessed += batchResult.chunksProcessed
 				}
 
 				// Verify all expected bytes were fetched before closing
 				if (bytePos < dataEnd) {
-					console.error(`chunkStream incomplete: ${bytePos}/${dataEnd} bytes fetched`)
+					console.error(txid, `chunkStream incomplete: ${bytePos}/${dataEnd} bytes fetched`)
 					return controller.error(new Error(`Incomplete download: ${bytePos}/${dataEnd} bytes`))
 				}
 
-				console.info(`chunkStream completed successfully: ${bytePos}/${dataEnd} bytes, ${totalChunksProcessed} chunks`)
+				console.info(txid, `chunkStream completed successfully: ${bytePos}/${dataEnd} bytes, ${totalChunksProcessed} chunks`)
 				controller.close()
 			}
 
-			const fetchChunkAtOffset = async (offset: number, currentNode: typeof node): Promise<Uint8Array | null> => {
-				if (!currentNode) return null
+			const fetchChunks = async (chunkOffsets: number[]): Promise<{ newBytePos: number, chunksProcessed: number }> => {
+				if (!node) {
+					throw new Error(`chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, bytePos: chunkOffsets[0] || 0, lastErrorMsg })}`)
+				}
 
-				const url = `${currentNode.url}/chunk2/${(chunkStart + BigInt(offset)).toString()}`
-				const chunks: Uint8Array[] = []
-				let chunkReq: http.ClientRequest | undefined
-				let chunkRes: http.IncomingMessage | undefined
+				console.info(txid, `Fetching ${chunkOffsets.length} chunks from offset ${chunkOffsets[0]}`)
+
+				// For sequential (single chunk), stream directly as data arrives
+				if (chunkOffsets.length === 1) {
+					const offset = chunkOffsets[0]
+					let currentPos = offset
+					let processed = 0
+
+					const url = `${node.url}/chunk2/${(chunkStart + BigInt(offset)).toString()}`
+					try {
+						await fetchChunkData(txid, url, (segment) => {
+							if (cancelled) return
+							const remaining = dataEnd - currentPos
+							if (remaining <= 0) return
+
+							const truncated = remaining < segment.length ? segment.subarray(0, remaining) : segment
+							const truncatedLength = truncated.length // Save length before enqueue!
+							controller.enqueue(truncated)
+							currentPos += truncatedLength
+						}, (req, res) => {
+							currentReq = req
+							currentRes = res
+						})
+						processed++
+						console.info(txid, `${url} ${currentPos}/${dataEnd} bytes ✅ (chunk ${totalChunksProcessed + processed})`)
+						return { newBytePos: currentPos, chunksProcessed: processed }
+					} catch (e) {
+						console.error(txid, `${String(e)}, ${currentPos}/${dataEnd} bytes. trying next node`)
+						lastErrorMsg = (e as Error).message
+						node = nodes.pop()
+						if (!node) {
+							throw new Error(`${txid} chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, bytePos: currentPos, lastErrorMsg })}`)
+						}
+						if (cancelled) throw e
+						return fetchChunks(chunkOffsets) // Retry with new node
+					} finally {
+						currentReq?.destroy()
+						currentRes?.destroy()
+						currentReq = null
+						currentRes = null
+					}
+				}
+
+				// For parallel chunks, use ordered streaming buffer
+				const chunkBuffer = new Map<number, Uint8Array>() // offset -> data
+				let nextExpectedOffset = chunkOffsets[0]
+				let totalBytesStreamed = 0
+				let processed = 0
+				let remainingChunks = new Set(chunkOffsets)
+
+				const streamBufferedChunks = () => {
+					while (chunkBuffer.has(nextExpectedOffset) && !cancelled) {
+						const chunkData = chunkBuffer.get(nextExpectedOffset)!
+						chunkBuffer.delete(nextExpectedOffset)
+						remainingChunks.delete(nextExpectedOffset)
+
+						const remaining = dataEnd - nextExpectedOffset
+						const truncated = remaining < chunkData.length ? chunkData.subarray(0, remaining) : chunkData
+						if (truncated.length > 0) {
+							const truncatedLength = truncated.length // Save length before enqueue!
+							controller.enqueue(truncated)
+							totalBytesStreamed += truncatedLength
+							processed++
+							console.info(txid, `Streamed chunk at ${nextExpectedOffset}: ${nextExpectedOffset + truncatedLength}/${dataEnd} bytes ✅ (chunk ${totalChunksProcessed + processed})`)
+						}
+
+						nextExpectedOffset += 262_144 // Move to next expected chunk
+					}
+				}
+
+				// Start all chunk fetches in parallel
+				const promises = chunkOffsets.map(async (offset) => {
+					try {
+						const result = await fetchSingleChunk(offset)
+						if (result.success && result.data) {
+							chunkBuffer.set(offset, result.data)
+							streamBufferedChunks() // Try to stream chunks in order
+							return { offset, success: true }
+						} else {
+							return { offset, success: false }
+						}
+					} catch (e) {
+						console.error(txid, `Chunk fetch failed for offset ${offset}: ${e}`)
+						return { offset, success: false }
+					}
+				})
 
 				try {
-					const size = await fetchChunkData(url, (segment) => {
-						chunks.push(segment)
-					}, (req, res) => {
-						chunkReq = req
-						chunkRes = res
-					})
+					const results = await Promise.all(promises)
+					const failedOffsets = results.filter(r => !r.success).map(r => r.offset)
 
-					// Combine all segments into single array
+					// Retry failed chunks
+					for (const failedOffset of failedOffsets) {
+						if (cancelled) break
+						if (!remainingChunks.has(failedOffset)) continue // Already streamed
+
+						const retryResult = await retryChunk(failedOffset, 3)
+						if (retryResult) {
+							chunkBuffer.set(failedOffset, retryResult)
+							streamBufferedChunks() // Try to stream again
+						} else {
+							console.error(txid, `All retries failed for chunk at offset ${failedOffset}`)
+						}
+					}
+
+					// Calculate new position - advance to end of the batch
+					const batchEndOffset = Math.max(...chunkOffsets) + 262_144
+					const newBytePos = Math.min(batchEndOffset, dataEnd)
+
+					return { newBytePos, chunksProcessed: processed }
+				} catch (e) {
+					console.error(txid, `Batch failed, switching to next node: ${e}`)
+					lastErrorMsg = (e as Error).message
+					node = nodes.pop()
+					if (!node) {
+						throw new Error(`${txid} All nodes exhausted: ${lastErrorMsg}`)
+					}
+					return fetchChunks(chunkOffsets) // Retry with new node
+				}
+			}
+
+			const fetchSingleChunk = async (offset: number): Promise<{ success: boolean, data?: Uint8Array, url: string }> => {
+				if (!node) return { success: false, url: '' }
+
+				const url = `${node.url}/chunk2/${(chunkStart + BigInt(offset)).toString()}`
+				const chunks: Uint8Array[] = []
+				let req: http.ClientRequest | undefined
+				let res: http.IncomingMessage | undefined
+
+				try {
+					await fetchChunkData(txid, url, (segment) => chunks.push(segment), (r, rs) => { req = r; res = rs })
+
 					const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
 					const combined = new Uint8Array(totalLength)
 					let pos = 0
@@ -220,17 +233,31 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 						combined.set(chunk, pos)
 						pos += chunk.length
 					}
-					return combined
+					return { success: true, data: combined, url }
 				} catch (e) {
-					const errorMsg = (e as Error).message
-					lastErrorMsg = errorMsg
-					console.error(`Parallel chunk fetch failed for offset ${offset}: ${errorMsg}`)
-					return null
+					lastErrorMsg = (e as Error).message
+					console.error(txid, `Chunk fetch failed for offset ${offset}: ${lastErrorMsg}`)
+					return { success: false, url }
 				} finally {
-					// Always cleanup connections for parallel requests
-					chunkReq?.destroy()
-					chunkRes?.destroy()
+					req?.destroy()
+					res?.destroy()
 				}
+			}
+
+			const retryChunk = async (offset: number, maxRetries: number): Promise<Uint8Array | null> => {
+				for (let attempt = 1; attempt <= maxRetries; attempt++) {
+					console.info(txid, `Retrying chunk at offset ${offset}, attempt ${attempt}/${maxRetries}`)
+
+					if (attempt > 1) {
+						await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 2)))
+					}
+
+					const result = await fetchSingleChunk(offset)
+					if (result.success && result.data) {
+						return result.data
+					}
+				}
+				return null
 			}
 
 			fetchNext().catch(e => controller.error(e))
@@ -239,7 +266,7 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
 			cancelled = true
 			if (currentRes) currentRes.destroy()
 			if (currentReq) currentReq.destroy()
-			console.info(`chunkStream cancelled. reason: ${reason}`)
+			console.info(txid, `chunkStream cancelled. reason: ${reason}`)
 		},
 	})
 
@@ -254,6 +281,7 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number): Promise<
  *  the arweave node is unaffected as it will process request regardless of request/connection status. it's nothing to them.
  */
 function fetchChunkData(
+	txid: string,
 	url: string,
 	onSegment: (segment: Uint8Array) => void,
 	onReq?: (req: http.ClientRequest, res: http.IncomingMessage) => void,
@@ -261,13 +289,13 @@ function fetchChunkData(
 	return new Promise((resolve, reject) => {
 		const timeout = (message: string) => {
 			req.destroy()
-			reject(new Error(`${message}: ${url}`))
+			reject(new Error(`${txid} ${message}: ${url}`))
 		}
 
 		const req = http.get(url, { agent, headers: { 'x-packing': 'unpacked' } }, (res) => {
 			if (res.statusCode !== 200) {
 				res.destroy()
-				return reject(new Error(`${url} failed: ${res.statusCode} ${res.statusMessage}`))
+				return reject(new Error(`${txid} ${url} failed: ${res.statusCode} ${res.statusMessage}`))
 			}
 
 			res.setTimeout(30_000, () => timeout('Response timeout after 30s'))
@@ -315,7 +343,7 @@ function fetchChunkData(
 
 			res.on('data', processData)
 			res.on('end', () => {
-				chunkSize > 0 ? resolve(chunkSize) : reject(new Error('Connection ended before chunk header was fully read'))
+				chunkSize > 0 ? resolve(chunkSize) : reject(new Error(`${txid} Connection ended before chunk header was fully read`))
 			})
 		})
 
@@ -323,5 +351,4 @@ function fetchChunkData(
 		req.on('error', reject)
 	})
 }
-
 
