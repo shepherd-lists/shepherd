@@ -58,3 +58,12 @@ export const SIG_CONFIG: Record<SignatureConfig, SignatureMeta> = {
 		sigName: "kyve",
 	},
 }
+
+//from arbundle utils
+export function byteArrayToLong(byteArray: Uint8Array): number {
+	let value = 0;
+	for (let i = byteArray.length - 1; i >= 0; i--) {
+		value = value * 256 + byteArray[i];
+	}
+	return value;
+}

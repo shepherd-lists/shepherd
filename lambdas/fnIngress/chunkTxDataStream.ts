@@ -1,7 +1,7 @@
 import { getByteRange } from '../../libs/byte-ranges/byteRanges'
 import { chunkStream } from './chunkStream'
 import { ReadableStream } from 'node:stream/web'
-import { SIG_CONFIG, SignatureConfig } from './ANS-104-constants'
+import { SIG_CONFIG, SignatureConfig, byteArrayToLong } from './ANS-104-constants'
 
 
 /**
@@ -138,7 +138,7 @@ const dataItemDataOffset = (dataItem: Uint8Array) => {
 	let offset = 0
 
 	// Signature type (2 bytes)
-	const sigType = new DataView(dataItem.buffer).getUint16(offset, true)
+	const sigType = byteArrayToLong(dataItem.subarray(offset, offset + 2))
 	offset += 2
 
 	// Get signature configuration
@@ -154,25 +154,27 @@ const dataItemDataOffset = (dataItem: Uint8Array) => {
 	offset += sigConfig.pubLength
 
 	// Target presence byte + target
-	const targetPresent = dataItem[offset] === 1
+	const targetPresenceByte = dataItem[offset]
+	if (![0, 1].includes(targetPresenceByte)) throw new Error(`invalid target presence byte: ${targetPresenceByte}`)
 	offset += 1
-	if (targetPresent) offset += 32
+	if (targetPresenceByte === 1) offset += 32
 
 	// Anchor presence byte + anchor  
-	const anchorPresent = dataItem[offset] === 1
+	const anchorPresenceByte = dataItem[offset]
+	if (![0, 1].includes(anchorPresenceByte)) throw new Error(`invalid anchor presence byte: ${anchorPresenceByte}`)
 	offset += 1
-	if (anchorPresent) offset += 32
+	if (anchorPresenceByte === 1) offset += 32
 
 	// Number of tags (8 bytes)
-	// const numTags = new DataView(dataItem.buffer).getBigUint64(offset, true)
+	// const numTags = byteArrayToLong(dataItem.subarray(offset, offset + 8))
 	offset += 8
 
 	// Tags bytes length (8 bytes)
-	const tagsLength = new DataView(dataItem.buffer).getBigUint64(offset, true)
+	const tagsLength = byteArrayToLong(dataItem.subarray(offset, offset + 8))
 	offset += 8
 
 	// Skip tags data
-	offset += Number(tagsLength)
+	offset += tagsLength
 
 	// Remaining is content
 	return offset;
