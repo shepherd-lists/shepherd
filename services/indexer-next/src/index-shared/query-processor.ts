@@ -11,6 +11,8 @@ const ARIO_DELAY_MS = 500
 const MAX_INGRESS_LAMBDAS = 10
 const limit = pLimit(MAX_INGRESS_LAMBDAS)
 const MISSING_HEIGHT = 'MISSING_HEIGHT'
+const CHUNKS_BATCH_SIZE = 100
+const PASS1_DOWNLOAD_TIMEOUT = 60_000 //ms
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const lambdaClient = new LambdaClient({})
@@ -23,7 +25,7 @@ if (!FN_INGRESS) throw new Error('FN_INDEXER not set')
 interface FnIngressReturn {
 	numQueued: number;
 	numUpdated: number;
-	errored: TxRecord[];
+	errored: { queued: boolean; record: TxRecord; errorId?: string }[];
 }
 
 export const gqlPages = async ({
@@ -117,7 +119,7 @@ export const gqlPages = async ({
 				gqlProvider,
 				indexName,
 				promises,
-				/* downloadTimeout: */ 30_000, //adjust this later
+				/* downloadTimeout: */ PASS1_DOWNLOAD_TIMEOUT, //ms (adjust this later)
 			)
 
 			pageCount++
@@ -145,7 +147,14 @@ export const gqlPages = async ({
 
 	const results = await Promise.all(promises)
 
-	// for (const result of results.) {
+	const [pending, errored] = results.reduce((acc, result) => {
+		result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push(value.record))
+		return acc
+	}, [[], []] as [TxRecord[], TxRecord[]])
+
+	console.error(`pending: ${pending.length}, errored: ${errored.length}`)
+
+	// now retry the pending records with a longer download timeout
 
 
 	const numProgressed = results.reduce((acc, result) => acc + result.numQueued + result.numUpdated, 0)
@@ -182,10 +191,10 @@ const fnIngressInvoker = async (inputs: {
 				throw new Error(`Lambda error '${res.FunctionError}' for ${JSON.stringify({ indexName, pageNumber })}, payload: ${payloadMsg}`)
 			}
 
-			const inserts: FnIngressReturn = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
+			const processed: FnIngressReturn = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
 
-			console.info(indexName, fnIngressInvoker.name, `page ${pageNumber}, total records ${metas.length}, ${inserts.numQueued} queued in s3, ${inserts.numUpdated} inserts, ${inserts.errored.length} errored.`, streamSourceName)
-			return inserts;
+			console.info(indexName, fnIngressInvoker.name, `page ${pageNumber}, total records ${metas.length}, ${processed.numQueued} queued in s3, ${processed.numUpdated} inserts, ${processed.errored.length} errored.`, streamSourceName)
+			return processed;
 		} catch (err: unknown) {
 			const e = err as Error
 			await slackLog(indexName, fnIngressInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds...`, JSON.stringify(e))
@@ -207,7 +216,7 @@ const batchAndDispatchEdges = (
 	downloadTimeout: number,
 ): { batchCount: number; batchSizes: number[] } => {
 	if (streamSourceName === 'nodes') {
-		const batchSize = 10
+		const batchSize = CHUNKS_BATCH_SIZE
 		let batchCount = 0
 		const batchSizes = []
 		let batch
