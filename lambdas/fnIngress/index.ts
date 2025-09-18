@@ -80,7 +80,9 @@ export const handler = async (event: Inputs) => {
 		updated.push(...metaFiltered.updated)
 
 		const streamSource = streamSourceName === 'gateway' ? gatewayStream : chunkTxDataStream
+		console.debug(indexName, `starting downloadWithChecks for ${metaFiltered.unqueued.length} records`)
 		const queued = await downloadWithChecks(metaFiltered.unqueued, downloadTimeout, streamSource) //perhaps switch source according to lambda input?
+		console.debug(indexName, `downloadWithChecks completed for ${queued.length} records`)
 
 		//sort processed records
 		for (const entry of queued) {
@@ -90,6 +92,7 @@ export const handler = async (event: Inputs) => {
 		}
 
 		//upsert updated records
+		console.debug(indexName, `starting database batch insert for ${updated.length} records`)
 		const numInserted = await batchInsert(updated.map(r => ({
 			//initial fields
 			txid: r.txid,
