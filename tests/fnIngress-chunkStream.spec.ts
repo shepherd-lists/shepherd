@@ -9,6 +9,7 @@ describe('chunkStream', () => {
 	 * using YqIGNFqScA5bIGLpt083Zp7fHcz7ApL-Do1e1bhMM3Q as a test item
 	 * it's a base tx spanning 3 chunks. 3 chunks get fully returned from the nodes
 	 */
+	const txid = 'YqIGNFqScA5bIGLpt083Zp7fHcz7ApL-Do1e1bhMM3Q'
 	const chunkStart = 355855954125047n
 	const dataEnd = 584685
 
@@ -19,7 +20,7 @@ describe('chunkStream', () => {
 
 	it('should create stream and read full requested chunks', async () => {
 		//test creating stream of 3 full chunks
-		const stream = await chunkStream(chunkStart, dataEnd) // 256KB to 512KB range
+		const stream = await chunkStream(chunkStart, dataEnd, txid) // 256KB to 512KB range
 		assert(stream instanceof ReadableStream)
 
 		const data = new Uint8Array(dataEnd)
@@ -34,7 +35,7 @@ describe('chunkStream', () => {
 
 	it('should create stream and read partial requested chunks', async () => {
 
-		const stream = await chunkStream(chunkStart, dataEnd - 100)
+		const stream = await chunkStream(chunkStart, dataEnd - 100, txid)
 		assert(stream instanceof ReadableStream)
 
 		const data = new Uint8Array(dataEnd - 100)
@@ -47,7 +48,7 @@ describe('chunkStream', () => {
 	})
 
 	it('should successfully cancel a stream', async () => {
-		const stream = await chunkStream(chunkStart, dataEnd)
+		const stream = await chunkStream(chunkStart, dataEnd, txid)
 		assert(stream instanceof ReadableStream, 'Should return a ReadableStream')
 
 		let count = 0
@@ -63,7 +64,7 @@ describe('chunkStream', () => {
 	it('should handle 404 errors for nonexistent data', async () => {
 		const noDataId = 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw' //13 byte
 
-		const stream = await chunkStream(1686542281742n, 13)
+		const stream = await chunkStream(1686542281742n, 13, noDataId)
 		assert(stream instanceof ReadableStream)
 
 		try {
