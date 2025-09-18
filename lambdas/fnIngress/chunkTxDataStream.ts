@@ -1,6 +1,7 @@
 import { getByteRange } from '../../libs/byte-ranges/byteRanges'
 import { chunkStream } from './chunkStream'
 import { ReadableStream } from 'node:stream/web'
+import { SIG_CONFIG, SignatureConfig } from './ANS-104-constants'
 
 
 /**
@@ -140,12 +141,17 @@ const dataItemDataOffset = (dataItem: Uint8Array) => {
 	const sigType = new DataView(dataItem.buffer).getUint16(offset, true)
 	offset += 2
 
-	// Signature length depends on type: 512 most common (RSA/EdDSA); 65 secp256k1
-	const sigLength = sigType === 3 ? 65 : 512
-	offset += sigLength
+	// Get signature configuration
+	const sigConfig = SIG_CONFIG[sigType as SignatureConfig]
+	if (!sigConfig) {
+		throw new Error(`Unknown signature type: ${sigType}`)
+	}
 
-	// Owner (512 bytes)
-	offset += 512
+	// Signature length based on type
+	offset += sigConfig.sigLength
+
+	// Owner length based on type
+	offset += sigConfig.pubLength
 
 	// Target presence byte + target
 	const targetPresent = dataItem[offset] === 1
