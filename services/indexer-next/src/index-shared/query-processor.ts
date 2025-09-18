@@ -11,7 +11,7 @@ const ARIO_DELAY_MS = 500
 const MAX_INGRESS_LAMBDAS = 10
 const limit = pLimit(MAX_INGRESS_LAMBDAS)
 const MISSING_HEIGHT = 'MISSING_HEIGHT'
-const CHUNKS_BATCH_SIZE = 100
+const CHUNKS_BATCH_SIZE = 50
 const PASS1_DOWNLOAD_TIMEOUT = 60_000 //ms
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
