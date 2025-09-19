@@ -219,21 +219,24 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number, txid: str
 				if (!node) return { success: false, url: '' }
 
 				const url = `${node.url}/chunk2/${(chunkStart + BigInt(offset)).toString()}`
-				const chunks: Uint8Array[] = []
+				let chunkData: Uint8Array | null = null
 				let req: http.ClientRequest | undefined
 				let res: http.IncomingMessage | undefined
 
 				try {
-					await fetchChunkData(txid, url, (segment) => chunks.push(segment), (r, rs) => { req = r; res = rs })
+					await fetchChunkData(txid, url, (segment) => {
+						if (!chunkData) {
+							chunkData = segment  // First segment
+						} else {
+							// Only copy if multiple segments (rare for 256KB chunks)
+							const combined = new Uint8Array(chunkData.length + segment.length)
+							combined.set(chunkData)
+							combined.set(segment, chunkData.length)
+							chunkData = combined
+						}
+					}, (r, rs) => { req = r; res = rs })
 
-					const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
-					const combined = new Uint8Array(totalLength)
-					let pos = 0
-					for (const chunk of chunks) {
-						combined.set(chunk, pos)
-						pos += chunk.length
-					}
-					return { success: true, data: combined, url }
+					return { success: true, data: chunkData || undefined, url }
 				} catch (e) {
 					lastErrorMsg = (e as Error).message
 					console.error(txid, `Chunk fetch failed for offset ${offset}: ${lastErrorMsg}`)
