@@ -54,12 +54,14 @@ describe('gatewayStream', () => {
 	it('should handle cancellation', async () => {
 		const txid = 'YqIGNFqScA5bIGLpt083Zp7fHcz7ApL-Do1e1bhMM3Q' //520kb
 
-		const stream = await gatewayStream(txid)
+		const abortController = new AbortController()
+		const stream = await gatewayStream(txid, undefined, abortController.signal)
 		const reader = stream.getReader()
 
 		//start reading then cancel
 		const readPromise = reader.read()
-		await reader.cancel('test cancellation')
+		abortController.abort('test cancellation')
+		// await reader.cancel('test cancellation')
 
 		//the read should complete gracefully (may or may not have data)
 		const result = await readPromise
