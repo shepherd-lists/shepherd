@@ -195,7 +195,7 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number, txid: str
 							chunkBuffer.set(failedOffset, retryResult)
 							streamBufferedChunks() // Try to stream again
 						} else {
-							console.error(txid, `All retries failed for chunk at offset ${failedOffset}`)
+							throw new Error(`${txid} All retries failed for chunk at offset ${failedOffset}`)
 						}
 					}
 
