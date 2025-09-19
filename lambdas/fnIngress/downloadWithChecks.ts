@@ -34,10 +34,13 @@ export const downloadWithChecks = async (
 	// Track results to identify hanging txids
 	const promiseResults = new Map<string, { queued: boolean; record: TxRecord; errorId?: string }>()
 
+	// Create AbortController for cancelling hanging promises
+	const abortController = new AbortController()
+
 	// processRecord never rejects, always resolves with result
 	const promises = records.map(async (record, index) => {
 		console.debug(`${record.txid} promise ${index + 1}/${records.length} starting`)
-		const result = await processRecord(record, sourceStream)
+		const result = await processRecord(record, sourceStream, abortController.signal)
 		promiseResults.set(record.txid, result)
 		console.debug(`${record.txid} promise ${index + 1}/${records.length} completed`)
 		return result
@@ -51,8 +54,15 @@ export const downloadWithChecks = async (
 			const pendingRecords = records.filter(r => !promiseResults.has(r.txid))
 
 			console.error(`Promise.all timeout after ${(downloadTimeout / 1000 / 60).toFixed(1)} minutes!`)
-			console.error(`HANGING: ${pendingRecords.map(r => r.txid).join(', ')}`)
-			console.error(`COMPLETED: ${completedTxids.join(', ')}`)
+			console.error(`HANGING: ${pendingRecords.length} ${pendingRecords.map(r => r.txid).join(', ')}`)
+			pendingRecords.forEach(r => {
+				console.error(`${r.txid} ${(+r.content_size / 1024).toFixed(1)}kb`)
+			})
+			console.error(`COMPLETED: ${completedTxids.length} ${completedTxids.join(', ')}`)
+
+			// Abort all pending operations to clean up resources
+			console.info('Aborting pending promises and their associated streams/uploads')
+			abortController.abort('timeout')
 
 			// Check S3 for hanging records to see if they actually completed
 			const s3CheckResults = new Map<string, { queued: boolean; record: TxRecord; errorId?: string }>()
@@ -78,6 +88,8 @@ export const downloadWithChecks = async (
 					})
 				}
 			}))
+			const [s3ChecksOk, s3ChecksFailed] = [...s3CheckResults.values()].reduce((acc, result) => (!result.errorId ? ++acc[0] : ++acc[1], acc), [0, 0])
+			console.error(`S3 checks ok: ${s3ChecksOk}/${s3CheckResults.size}, failed: ${s3ChecksFailed}/${s3CheckResults.size}`)
 
 			// Build final results: promise results + S3 check results + defaults
 			const timeoutResults = records.map(record =>
@@ -108,22 +120,39 @@ export const processRecord = async (
 	record: TxRecord,
 	/** dependency injection */
 	sourceStream: SourceStream = chunkTxDataStream,
+	/** abort signal for cancellation */
+	abortSignal?: AbortSignal,
 ): Promise<{ queued: boolean; record: TxRecord; errorId?: string }> => {
 
 	const key = record.txid
 	let inputStream: ReadableStream | null = null
 	let upload: Upload | null = null
 
+	console.debug(`${record.txid} starting processRecord - size: ${record.content_size}`)
+
+	const abortHandler = () => {
+		console.info(`${record.txid} aborting processRecord due to timeout signal`)
+		if (inputStream) {
+			inputStream.cancel('abort')
+		}
+	}
+	abortSignal?.addEventListener('abort', abortHandler)
+
 	try {
 		//get input stream
+		console.debug(`${record.txid} getting input stream...`)
 		if (sourceStream === gatewayStream) {
+			console.debug(`${record.txid} calling gatewayStream`)
 			inputStream = await (sourceStream as typeof gatewayStream)(record.txid)
 		} else {
+			console.debug(`${record.txid} calling chunkTxDataStream`)
 			inputStream = await (sourceStream as typeof chunkTxDataStream)(record.txid, record.parent || null, record.parents)
 		}
+		console.debug(`${record.txid} input stream obtained, creating file type detection...`)
 
 		//create file type detection stream
 		const fileTypeTransform = await fileTypeStream(inputStream, { sampleSize: 16_384 })
+		console.debug(`${record.txid} file type detection created`)
 
 		//check file type before proceeding (fileType is available at this point)
 		const detectedMime = fileTypeTransform.fileType?.mime
@@ -158,10 +187,10 @@ export const processRecord = async (
 		}
 
 		//last update before upload
-		record.valid_data = true
-		record.last_update_date = new Date()
+		record = { ...record, valid_data: true, last_update_date: new Date() }
 
 		//create and start S3 upload
+		console.debug(`${record.txid} creating S3 upload...`)
 		upload = new Upload({
 			client: s3client,
 			params: {
@@ -174,9 +203,36 @@ export const processRecord = async (
 			// partSize: default & minimum is 5MB
 			queueSize: 1, // that's queueSize * partSize per concurrent upload, up to 100
 		})
+		console.debug(`${record.txid} S3 upload created, waiting for completion...`)
 
 		//wait for upload completion
 		await upload.done()
+		console.debug(`${record.txid} S3 upload completed successfully`)
+
+		// Verify the uploaded file size matches expected content size
+		try {
+			const head = await s3HeadObject(AWS_INPUT_BUCKET, key)
+
+			const uploadedSize = Number(head.ContentLength)
+			const expectedSize = Number(record.content_size)
+
+			if (uploadedSize !== expectedSize) {
+				console.error(`${record.txid} size mismatch: uploaded ${uploadedSize}, expected ${expectedSize}`)
+				throw new Error(`Upload size verification failed: ${uploadedSize} !== ${expectedSize} bytes`)
+			}
+
+			console.debug(`${record.txid} upload verification successful, uploaded===expected: ${uploadedSize}===${expectedSize} bytes`)
+		} catch (verifyErr) {
+			console.error(`${record.txid} upload verification failed:`, String(verifyErr))
+
+			try {
+				await upload.abort()
+			} catch (abortError) {
+				console.warn(`${record.txid} failed to abort invalid upload:`, abortError)
+			}
+
+			throw verifyErr
+		}
 
 		return {
 			queued: true,
@@ -232,12 +288,14 @@ export const processRecord = async (
 			console.error(`Failed to process ${record.txid}: ${e}`)
 			return {
 				queued: false,
-				record,
+				record, //n.b. incomplete record
 				errorId: e.message, //should be retried
 			}
 		}
 
 		//shouldn't get here
 		throw new Error(`Failed to process ${record.txid}: ${e}`)
+	} finally {
+		abortSignal?.removeEventListener('abort', abortHandler)
 	}
 }
