@@ -13,6 +13,7 @@ describe('chunkStream', () => {
 	const chunkStart = 355855954125047n
 	const dataEnd = 584685
 
+
 	after(() => {
 		destroyChunkStreamAgent()
 		clearTimerHttpApiNodes()
@@ -20,7 +21,7 @@ describe('chunkStream', () => {
 
 	it('should create stream and read full requested chunks', async () => {
 		//test creating stream of 3 full chunks
-		const stream = await chunkStream(chunkStart, dataEnd, txid) // 256KB to 512KB range
+		const stream = await chunkStream(chunkStart, dataEnd, txid, (new AbortController()).signal) // 256KB to 512KB range
 		assert(stream instanceof ReadableStream)
 
 		const data = new Uint8Array(dataEnd)
@@ -35,7 +36,7 @@ describe('chunkStream', () => {
 
 	it('should create stream and read partial requested chunks', async () => {
 
-		const stream = await chunkStream(chunkStart, dataEnd - 100, txid)
+		const stream = await chunkStream(chunkStart, dataEnd - 100, txid, (new AbortController()).signal)
 		assert(stream instanceof ReadableStream)
 
 		const data = new Uint8Array(dataEnd - 100)
@@ -48,23 +49,22 @@ describe('chunkStream', () => {
 	})
 
 	it('should successfully cancel a stream', async () => {
-		const stream = await chunkStream(chunkStart, dataEnd, txid)
-		assert(stream instanceof ReadableStream, 'Should return a ReadableStream')
+		const abortController = new AbortController()
+		const stream = await chunkStream(chunkStart, dataEnd, txid, abortController.signal)
 
-		let count = 0
-		for await (const buf of stream) {
-			assert(buf.length > 0, 'Should have received some data')
-			count += buf.length
-			if (count > 2_000) break; //cancels the stream
-		}
+		const reader = stream.getReader()
+		const readPromise = reader.read()
+		abortController.abort('test cancellation')
 
-		assert(true, 'cancellation completed without error')
+		const { done, value } = await readPromise
+		assert(done, 'stream should be done')
+
 	})
 
 	it('should handle 404 errors for nonexistent data', async () => {
 		const noDataId = 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw' //13 byte
 
-		const stream = await chunkStream(1686542281742n, 13, noDataId)
+		const stream = await chunkStream(1686542281742n, 13, noDataId, (new AbortController()).signal)
 		assert(stream instanceof ReadableStream)
 
 		try {
