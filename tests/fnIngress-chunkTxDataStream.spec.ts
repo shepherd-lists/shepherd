@@ -19,7 +19,7 @@ describe('chunkTxDataStream', () => {
 
 	it('should stream base tx data', async () => {
 
-		const stream = await chunkTxDataStream(baseTxid, null, undefined)
+		const stream = await chunkTxDataStream(baseTxid, null, undefined, (new AbortController()).signal)
 
 		const data = new Uint8Array(baseTxidSize)
 		let offset = 0
@@ -40,7 +40,7 @@ describe('chunkTxDataStream', () => {
 
 	it('should stream data-item tx data', async () => {
 
-		const stream = await chunkTxDataStream(diId, diParent, undefined)
+		const stream = await chunkTxDataStream(diId, diParent, undefined, (new AbortController()).signal)
 
 		const data = new Uint8Array(diSize)
 		let offset = 0
@@ -60,7 +60,7 @@ describe('chunkTxDataStream', () => {
 	})
 
 	it('should handle data-item stream cancellation gracefully', async () => {
-		const stream = await chunkTxDataStream(diId, diParent, undefined)
+		const stream = await chunkTxDataStream(diId, diParent, undefined, (new AbortController()).signal)
 
 		let offset = 0
 		const data = new Uint8Array(diSize)
@@ -77,9 +77,20 @@ describe('chunkTxDataStream', () => {
 
 	})
 
+	it('should throw on data-item stream abort', async () => {
+		const abortController = new AbortController()
+		const stream = await chunkTxDataStream(diId, diParent, undefined, abortController.signal)
+
+		const reader = stream.getReader()
+		const readPromise = reader.read()
+		abortController.abort('test abortion')
+		await assert.rejects(readPromise, /test abortion|aborted/)
+
+	})
+
 	it('should handle 404 errors for nonexistent data', async () => {
 		const noDataId = 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw' //13 byte
-		const stream = await chunkTxDataStream(noDataId, null, undefined)
+		const stream = await chunkTxDataStream(noDataId, null, undefined, (new AbortController()).signal)
 
 		try {
 			for await (const chunk of stream) {
@@ -98,7 +109,7 @@ describe('chunkTxDataStream', () => {
 	skip('should download a 700mb file using concurrent chunks', async () => {
 		const t0 = Date.now()
 		const txid = 'izeI_QzFiIYWJYs66E--QL5oUFbN471aVUt1KHZD3OI' //700mb video/mp4
-		const stream = await chunkTxDataStream(txid, null, undefined)
+		const stream = await chunkTxDataStream(txid, null, undefined, (new AbortController()).signal)
 
 
 		const data = new Uint8Array(695_557_456)
@@ -120,7 +131,7 @@ describe('chunkTxDataStream', () => {
 	// it('should download a large test file using concurrent chunks', async () => {
 	// 	const txid = 'xPemxl1eioHIL1aov9Des_JPtdWnnISHWZGga4E3l28' //140mb video/mp4
 	// 	const parent = 'g3jBbb8U8Bm4kEKinYQd2T0dy8x3Fv8uc__CtYTtT2M'
-	// 	const stream = await chunkTxDataStream(txid, parent, undefined)
+	// 	const stream = await chunkTxDataStream(txid, parent, undefined, (new AbortController()).signal)
 
 
 	// 	const data = new Uint8Array(147523153)
