@@ -71,6 +71,9 @@ function makeRequest(url: string, httpsGet: typeof https.get, abortSignal?: Abor
 						if (err.message === 'NO_DATA' || bytesReceived < min_data_size) {
 							return controller.error(new Error('NO_DATA'))
 						}
+						if (err instanceof Error && err.name === 'AbortError') {
+							return controller.error(new Error(abortSignal?.reason ?? 'aborted'))
+						}
 						controller.error(err)
 					})
 				},

@@ -76,9 +76,9 @@ describe('gatewayStream', () => {
 
 		//start reading then abort
 		reader.read()
-		abortController.abort()
+		abortController.abort('test cancellation')
 
-		await assert.rejects(reader.read(), /abort/)
+		await assert.rejects(reader.read(), /abort|test cancellation/)
 
 	})
 
