@@ -48,16 +48,29 @@ describe('chunkStream', () => {
 		assert(offset === dataEnd - 100, 'Should have received all data')
 	})
 
-	it('should successfully cancel a stream', async () => {
+	it('should cancel a stream', async () => {
+		const stream = await chunkStream(chunkStart, dataEnd, txid, (new AbortController()).signal)
+		assert(stream instanceof ReadableStream, 'Should return a ReadableStream')
+
+		let count = 0
+		for await (const buf of stream) {
+			assert(buf.length > 0, 'Should have received some data')
+			count += buf.length
+			if (count > 2_000) break; //cancels the stream
+		}
+
+		assert(true, 'cancellation completed without error')
+	})
+
+	it('should abort a stream', async () => {
 		const abortController = new AbortController()
 		const stream = await chunkStream(chunkStart, dataEnd, txid, abortController.signal)
 
 		const reader = stream.getReader()
-		const readPromise = reader.read()
-		abortController.abort('test cancellation')
+		// const readPromise = reader.read()
+		abortController.abort('test abort')
 
-		const { done, value } = await readPromise
-		assert(done, 'stream should be done')
+		await assert.rejects(reader.read(), /test abort|aborted/)
 
 	})
 
