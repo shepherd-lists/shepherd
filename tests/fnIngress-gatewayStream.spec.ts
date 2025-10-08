@@ -51,7 +51,7 @@ describe('gatewayStream', () => {
 		}
 	})
 
-	it('should handle cancellation', async () => {
+	it('should handle stream cancellation', async () => {
 		const txid = 'YqIGNFqScA5bIGLpt083Zp7fHcz7ApL-Do1e1bhMM3Q' //520kb
 
 		const abortController = new AbortController()
@@ -60,13 +60,25 @@ describe('gatewayStream', () => {
 
 		//start reading then cancel
 		const readPromise = reader.read()
-		abortController.abort('test cancellation')
-		// await reader.cancel('test cancellation')
+		await reader.cancel('test cancellation')
 
-		//the read should complete gracefully (may or may not have data)
-		const result = await readPromise
 
-		assert(result.done === true || result.value !== undefined, 'after cancellation, the stream should be done')
+		assert((await reader.read()).done === true, 'after cancellation, the stream should be done')
+
+	})
+
+	it('should handle stream abort', async () => {
+		const txid = 'YqIGNFqScA5bIGLpt083Zp7fHcz7ApL-Do1e1bhMM3Q' //520kb
+
+		const abortController = new AbortController()
+		const stream = await gatewayStream(txid, undefined, abortController.signal)
+		const reader = stream.getReader()
+
+		//start reading then abort
+		reader.read()
+		abortController.abort()
+
+		await assert.rejects(reader.read(), /abort/)
 
 	})
 
