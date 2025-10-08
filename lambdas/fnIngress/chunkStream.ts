@@ -19,7 +19,12 @@ export const destroyChunkStreamAgent = () => agent.destroy()
  * - dataEnd: absolute byte position where streaming should stop
  * returns clean data stream that caller can parse/filter as needed.
  */
-export async function chunkStream(chunkStart: bigint, dataEnd: number, txid: string, abortSignal: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+export async function chunkStream(
+	chunkStart: bigint,
+	dataEnd: number,
+	txid: string,
+	abortSignal: AbortSignal, //for cancelling batches (these controllers are not expensive)
+): Promise<ReadableStream<Uint8Array>> {
 	const nodes = [
 		...httpApiNodes(),
 		//manually adding these for now
@@ -27,12 +32,11 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number, txid: str
 		{ url: 'http://tip-4.arweave.xyz:1984', name: 'tip-4.arweave.xyz' },
 		{ url: 'http://tip-3.arweave.xyz:1984', name: 'tip-3.arweave.xyz' },
 	]
-	let node = nodes.pop()
+	let nodeIndex = nodes.length - 1
+	let lastErrorMsg = ''
 
-	let cancelled = false
 	let currentReq: http.ClientRequest | null = null
 	let currentRes: http.IncomingMessage | null = null
-	let lastErrorMsg = ''
 
 	const stream = new ReadableStream({
 		type: 'bytes',
@@ -41,20 +45,23 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number, txid: str
 			let chunksProcessed = 0
 			console.log(txid, `chunkStream starting: chunkStart=${chunkStart}, dataEnd=${dataEnd}, nodes=${nodes.length}`)
 
-			const fetchNext = async (): Promise<void> => {
-				if (abortSignal.aborted) return;
+			const controllerErrorAborted = () => {
+				console.info(txid, `chunkStream aborted. reason: ${abortSignal?.reason ?? 'aborted'}`)
+				controller.error(new Error(abortSignal?.reason ?? 'aborted'))
+			}
 
+			const fetchNext = async (): Promise<void> => {
 				// Fetch chunks serially
-				while (!cancelled && bytePos < dataEnd) {
-					if (!node) {
+				while (!abortSignal.aborted && bytePos < dataEnd) {
+					if (nodeIndex < 0) {
 						throw new Error(`chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, bytePos, lastErrorMsg })}`)
 					}
 
-					const url = `${node.url}/chunk2/${(chunkStart + BigInt(bytePos)).toString()}`
+					const url = `${nodes[nodeIndex].url}/chunk2/${(chunkStart + BigInt(bytePos)).toString()}`
 
 					try {
 						await fetchChunkData(txid, url, abortSignal, (segment) => {
-							if (cancelled) return
+							if (abortSignal.aborted) return controllerErrorAborted()
 							const remaining = dataEnd - bytePos
 							if (remaining <= 0) return
 
@@ -71,20 +78,14 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number, txid: str
 						console.info(txid, `${url} ${bytePos}/${dataEnd} bytes ✅ (chunk ${chunksProcessed})`)
 					} catch (e) {
 						if (e instanceof Error && e.name === 'AbortError') {
-							cancelled = true
-							controller.close()
-							// controller.error(new Error(abortSignal.reason ?? 'aborted.'))
-							return
+							return controllerErrorAborted()
 						}
 
 						console.error(txid, `${String(e)}, ${bytePos}/${dataEnd} bytes. trying next node`)
 						lastErrorMsg = (e as Error).message
-						node = nodes.pop()
-
-						if (!node) {
-							throw new Error(`${txid} chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, bytePos, lastErrorMsg })}`)
-						}
-					} finally {
+						nodeIndex--
+					}
+					finally {
 						currentReq?.destroy()
 						currentRes?.destroy()
 						currentReq = null
@@ -92,10 +93,8 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number, txid: str
 					}
 				}
 
-				// Don't close if cancelled
-				if (cancelled) return
-
-				// Verify all expected bytes were fetched
+				// Verify completion
+				if (abortSignal.aborted) return controllerErrorAborted()
 				if (bytePos < dataEnd) {
 					console.error(txid, `chunkStream incomplete: ${bytePos}/${dataEnd} bytes fetched`)
 					return controller.error(new Error(`Incomplete download: ${bytePos}/${dataEnd} bytes`))
@@ -108,9 +107,10 @@ export async function chunkStream(chunkStart: bigint, dataEnd: number, txid: str
 			fetchNext().catch(e => controller.error(e))
 		},
 		cancel(reason) {
-			cancelled = true
-			if (currentRes) currentRes.destroy()
-			if (currentReq) currentReq.destroy()
+			currentReq?.destroy()
+			currentRes?.destroy()
+			currentReq = null
+			currentRes = null
 			console.info(txid, `chunkStream cancelled. reason: ${reason}`)
 		},
 	})
