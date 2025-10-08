@@ -10,7 +10,12 @@ import { SIG_CONFIG, SignatureConfig, byteArrayToLong } from './ANS-104-constant
  *  - base tx: no initial bytes to skip. pass chunkStream directly.
  *  - data-item tx: need to skip initial bytes (first chunk boundary before data-item) + ans104 data-item header.
  */
-export const chunkTxDataStream = async (txid: string, parent: string | null, parents: string[] | undefined): Promise<ReadableStream<Uint8Array>> => {
+export const chunkTxDataStream = async (
+	txid: string,
+	parent: string | null,
+	parents: string[] | undefined,
+	abortSignal: AbortSignal,
+): Promise<ReadableStream<Uint8Array>> => {
 	const offsets = await getByteRange(txid, parent, parents)
 	if (offsets.start === -1n) {
 		throw new Error(`${chunkTxDataStream.name}: undiscoverable byte-range for txid=${txid} parent=${parent ?? 'null'}`)
@@ -24,12 +29,12 @@ export const chunkTxDataStream = async (txid: string, parent: string | null, par
 	//simple case, base tx: no initial bytes to skip.
 	if (dataStart === 0) {
 		console.debug(`${txid} base tx - returning chunkStream directly`)
-		return chunkStream(chunkStart, dataEnd, txid)
+		return chunkStream(chunkStart, dataEnd, txid, abortSignal)
 	}
 
 	//complex case, data-item: need to skip initial bytes + data-item header
 	console.debug(`${txid} data-item tx - creating filtered stream`)
-	const rawStream = await chunkStream(chunkStart, dataEnd, txid)
+	const rawStream = await chunkStream(chunkStart, dataEnd, txid, abortSignal)
 	const reader = rawStream.getReader()
 
 	let bytesSkipped = 0
