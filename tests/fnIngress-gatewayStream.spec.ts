@@ -20,7 +20,7 @@ describe('gatewayStream', () => {
 	it('should return ReadableStream and successfully stream a real transaction', async () => {
 		const txid = 'EwyiK6-mZj5d3pwts7zwreNBq-HyyzhECEnMISLE49I' // ~2.7kb text/plain
 
-		const stream = await gatewayStream(txid)
+		const stream = await gatewayStream(txid, (new AbortController()).signal)
 		assert(stream instanceof ReadableStream)
 		assert(typeof stream.getReader === 'function')
 		assert(typeof stream.cancel === 'function')
@@ -43,7 +43,7 @@ describe('gatewayStream', () => {
 		const invalidTxid = 'nonexistent-invalid-txid'.padEnd(43, 'x')
 
 		try {
-			await gatewayStream(invalidTxid)
+			await gatewayStream(invalidTxid, (new AbortController()).signal)
 			assert.fail('Should have thrown an error for invalid txid')
 		} catch (error) {
 			assert(error instanceof Error)
@@ -55,7 +55,7 @@ describe('gatewayStream', () => {
 		const txid = 'YqIGNFqScA5bIGLpt083Zp7fHcz7ApL-Do1e1bhMM3Q' //520kb
 
 		const abortController = new AbortController()
-		const stream = await gatewayStream(txid, undefined, abortController.signal)
+		const stream = await gatewayStream(txid, abortController.signal)
 		const reader = stream.getReader()
 
 		//start reading then cancel
@@ -71,7 +71,7 @@ describe('gatewayStream', () => {
 		const txid = 'YqIGNFqScA5bIGLpt083Zp7fHcz7ApL-Do1e1bhMM3Q' //520kb
 
 		const abortController = new AbortController()
-		const stream = await gatewayStream(txid, undefined, abortController.signal)
+		const stream = await gatewayStream(txid, abortController.signal)
 		const reader = stream.getReader()
 
 		//start reading then abort
@@ -88,7 +88,7 @@ describe('gatewayStream', () => {
 			dataChunks: [Buffer.alloc(min_data_size + 1)]
 		})
 
-		const stream = await gatewayStream(mockTxid, mockHttpsGet as any)
+		const stream = await gatewayStream(mockTxid, (new AbortController()).signal, mockHttpsGet as any)
 		const chunks: Uint8Array[] = []
 		for await (const chunk of stream) {
 			chunks.push(chunk)
@@ -106,7 +106,7 @@ describe('gatewayStream', () => {
 			timeoutDelay: 100
 		})
 
-		const stream = await gatewayStream(mockTxid, mockHttpsGet as any)
+		const stream = await gatewayStream(mockTxid, (new AbortController()).signal, mockHttpsGet as any)
 
 		try {
 			for await (const chunk of stream) {
@@ -128,7 +128,7 @@ describe('gatewayStream', () => {
 		})
 
 		const chunks: Uint8Array[] = []
-		const stream = await gatewayStream(mockTxid, mockHttpsGet as any)
+		const stream = await gatewayStream(mockTxid, (new AbortController()).signal, mockHttpsGet as any)
 		try {
 			for await (const chunk of stream) {
 				chunks.push(chunk)
