@@ -21,12 +21,15 @@ describe('downloadWithChecks', () => {
 	})
 
 	it('should upload an image file to S3 and check txrecord metadata', async () => {
-		const res = await processRecord({
-			txid: smallDataId, //small data-item
-			parent: 'l-bDXsnBUlD8taaCC1tAyW1CeuGbeTOUCFU-H5Ahzxk',
-			content_type: 'image/webp',
-			content_size: smallDataIdSize.toString(),
-		} as TxRecord)
+		const res = await processRecord(
+			{
+				txid: smallDataId, //small data-item
+				parent: 'l-bDXsnBUlD8taaCC1tAyW1CeuGbeTOUCFU-H5Ahzxk',
+				content_type: 'image/webp',
+				content_size: smallDataIdSize.toString(),
+			} as TxRecord,
+			(new AbortController()).signal,
+		)
 
 		assert(res.queued === true, 'should have queued the image file')
 
@@ -48,10 +51,13 @@ describe('downloadWithChecks', () => {
 	})
 
 	it('should cancel a download when invalid file-type detected', async () => {
-		const res = await processRecord({
-			txid: '060CDwAtjAd4MPrazzeEDMu4jmczC6AmoYd-0U8D7ks',
-			content_type: 'test/fake', //application/pdf
-		} as TxRecord)
+		const res = await processRecord(
+			{
+				txid: '060CDwAtjAd4MPrazzeEDMu4jmczC6AmoYd-0U8D7ks',
+				content_type: 'test/fake', //application/pdf
+			} as TxRecord,
+			(new AbortController()).signal,
+		)
 
 		assert(res.queued === false, 'should have cancelled the download')
 		assert(res.record.flagged === false, 'should have set flagged to false')
@@ -63,10 +69,13 @@ describe('downloadWithChecks', () => {
 	it('should handle a 404', async () => {
 		const noDataId = 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw' //13 byte
 
-		const res = await processRecord({
-			txid: noDataId,
-			content_type: 'unknown',
-		} as TxRecord)
+		const res = await processRecord(
+			{
+				txid: noDataId,
+				content_type: 'unknown',
+			} as TxRecord,
+			(new AbortController()).signal,
+		)
 
 		assert(res.queued === false, 'should have cancelled the html file download')
 		assert(res.record.flagged === false, 'should have set flagged to false')
@@ -78,6 +87,7 @@ describe('downloadWithChecks', () => {
 		//gatewayStream
 		const resGw = await processRecord(
 			{ txid: 'error', content_type: 'unknown', } as TxRecord,
+			(new AbortController().signal),
 			gatewayStream,
 		)
 
@@ -88,6 +98,7 @@ describe('downloadWithChecks', () => {
 		//chunkTxDataStream
 		const resChunk = await processRecord(
 			{ txid: 'error', content_type: 'unknown', } as TxRecord,
+			(new AbortController().signal),
 			chunkTxDataStream,
 		)
 
@@ -97,8 +108,9 @@ describe('downloadWithChecks', () => {
 	})
 
 	it('should process nodata and partial errors as expected', async () => {
+		const abortSignal = new AbortController().signal
 		const mockId = 'mockId-'.padEnd(43, '0')
-		const resNodata = await processRecord({ txid: mockId } as TxRecord, () => gatewayStream(mockId, createMockHttpsGet({
+		const resNodata = await processRecord({ txid: mockId } as TxRecord, abortSignal, () => gatewayStream(mockId, abortSignal, createMockHttpsGet({
 			shouldTimeout: true,
 			timeoutDelay: 100,
 		}) as any))
@@ -109,7 +121,7 @@ describe('downloadWithChecks', () => {
 		assert(resNodata.record.valid_data === false, 'resNodata.record.valid_data should be false')
 		assert(resNodata.record.flagged === false, 'resNodata.record.flagged should be false')
 
-		const resPartial = await processRecord({ txid: mockId } as TxRecord, () => gatewayStream(mockId, createMockHttpsGet({
+		const resPartial = await processRecord({ txid: mockId } as TxRecord, abortSignal, () => gatewayStream(mockId, abortSignal, createMockHttpsGet({
 			dataChunks: [Buffer.alloc(1000)], // Only 1000 bytes < 4096 min_data_size
 			shouldTimeout: true,
 			timeoutDelay: 100,
@@ -197,6 +209,26 @@ describe('downloadWithChecks', () => {
 		assert.equal(timeoutResult.queued, false, 'timeout result should not be queued')
 		assert.equal(timeoutResult.errorId, 'timeout', 'should have timeout errorId')
 		assert.equal(timeoutResult.record.txid, mockId, 'should return the original record')
+	})
+
+
+	it('should retrieve data for a non-arweave signed data-item', async () => {
+		const res = await processRecord(
+			{
+				txid: 'Qhd79IG7cHoAJpx5CZrOT62rloS8EneeOVMcjB8tobc',
+				parent: 'BcOq2iOUyXSKtu4AXMtDyznmV5MF2antxuHm4mmQLBc',
+				content_size: '90642',
+				content_type: 'image/jpeg',
+			} as TxRecord,
+			(new AbortController()).signal,
+		)
+
+		assert.equal(res.queued, true, 'should have queued the data-item')
+		assert.equal(res.record.flagged, undefined, 'should have set flagged to undefined')
+		assert.equal(res.record.valid_data, true, 'should have set valid_data to true')
+		assert.equal(res.record.data_reason, undefined, 'should have set data_reason to undefined')
+		assert.equal(res.record.content_type, 'image/jpeg', 'should have set content_type to image/jpeg')
+
 	})
 
 })
