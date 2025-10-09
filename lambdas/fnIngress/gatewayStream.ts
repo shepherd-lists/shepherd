@@ -17,26 +17,26 @@ const no_data_timeout = 30_000
 //export function to destroy agent after tests
 export const destroyGatewayAgent = () => agent.destroy()
 
-export async function gatewayStream(
+export const gatewayStream = async (
 	txid: string,
 	abortSignal: AbortSignal,
 	httpsGet = https.get, //dependency injection for testing
-): Promise<ReadableStream<Uint8Array>> {
+): Promise<ReadableStream<Uint8Array>> => {
 	//try raw endpoint first (no redirects)
 	try {
-		return await makeRequest(`https://arweave.net/raw/${txid}`, httpsGet, abortSignal)
+		return await httpsStream(`https://arweave.net/raw/${txid}`, httpsGet, abortSignal)
 	} catch {
 		//fallback to regular endpoint
-		return await makeRequest(`https://arweave.net/${txid}`, httpsGet, abortSignal)
+		return httpsStream(`https://arweave.net/${txid}`, httpsGet, abortSignal)
 	}
 }
 
-function makeRequest(url: string, httpsGet: typeof https.get, abortSignal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+const httpsStream = (url: string, httpsGet: typeof https.get, abortSignal?: AbortSignal): Promise<ReadableStream<Uint8Array>> => {
 	return new Promise((resolve, reject) => {
 		httpsGet(url, { agent, signal: abortSignal }, (res) => {
 			//handle redirects
 			if (res.statusCode && [301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
-				return resolve(makeRequest(res.headers.location, httpsGet, abortSignal))
+				return resolve(httpsStream(res.headers.location, httpsGet, abortSignal))
 			}
 
 			if (res.statusCode !== 200) {
