@@ -31,22 +31,22 @@ export const downloadWithChecks = async (
 ) => {
 	console.debug(`downloadWithChecks starting for ${records.length} records. Timeout: ${downloadTimeout}ms. downloadWithChecks txids: ${records.map(r => r.txid).join(', ')}`)
 
-	// Track results to identify hanging txids
+	//track results to identify hanging txids
 	const promiseResults = new Map<string, { queued: boolean; record: TxRecord; errorId?: string }>()
 
-	// Create AbortController for cancelling hanging promises
+	//create AbortController for cancelling hanging promises
 	const abortController = new AbortController()
 
-	// processRecord never rejects, always resolves with result
+	//processRecord never rejects, always resolves with result
 	const promises = records.map(async (record, index) => {
 		console.debug(`${record.txid} promise ${index + 1}/${records.length} starting`)
-		const result = await processRecord(record, sourceStream, abortController.signal)
+		const result = await processRecord(record, abortController.signal, sourceStream)
 		promiseResults.set(record.txid, result)
 		console.debug(`${record.txid} promise ${index + 1}/${records.length} completed`)
 		return result
 	})
 
-	// Add timeout to collect partial results
+	//add timeout to collect partial results
 	let timeoutId: NodeJS.Timeout | null = null
 	const timeoutPromise = new Promise<Array<{ queued: boolean; record: TxRecord; errorId?: string }>>((resolve) => {
 		timeoutId = setTimeout(async () => {
@@ -60,11 +60,11 @@ export const downloadWithChecks = async (
 			})
 			console.error(`COMPLETED: ${completedTxids.length} ${completedTxids.join(', ')}`)
 
-			// Abort all pending operations to clean up resources
+			//abort all pending operations to clean up resources
 			console.info('Aborting pending promises and their associated streams/uploads')
 			abortController.abort('timeout')
 
-			// Check S3 for hanging records to see if they actually completed
+			//check S3 for hanging records to see if they actually completed
 			const s3CheckResults = new Map<string, { queued: boolean; record: TxRecord; errorId?: string }>()
 
 			await Promise.all(pendingRecords.map(async (record) => {
@@ -91,7 +91,7 @@ export const downloadWithChecks = async (
 			const [s3ChecksOk, s3ChecksFailed] = [...s3CheckResults.values()].reduce((acc, result) => (!result.errorId ? ++acc[0] : ++acc[1], acc), [0, 0])
 			console.error(`S3 checks ok: ${s3ChecksOk}/${s3CheckResults.size}, failed: ${s3ChecksFailed}/${s3CheckResults.size}`)
 
-			// Build final results: promise results + S3 check results + defaults
+			//build final results: promise results + S3 check results + defaults
 			const timeoutResults = records.map(record =>
 				promiseResults.get(record.txid) ||
 				s3CheckResults.get(record.txid) ||
@@ -107,7 +107,7 @@ export const downloadWithChecks = async (
 		timeoutPromise
 	]) as Array<{ queued: boolean; record: TxRecord; errorId?: string }>
 
-	// Clear timeout if Promise.all resolved first
+	//clear timeout if Promise.all resolved first
 	if (timeoutId) clearTimeout(timeoutId)
 
 	console.info(`downloadWithChecks completed for ${results.length} records`)
@@ -118,10 +118,8 @@ export const downloadWithChecks = async (
 /** exported for testing only */
 export const processRecord = async (
 	record: TxRecord,
-	/** dependency injection */
+	abortSignal: AbortSignal, //abort signal for cancellation
 	sourceStream: SourceStream = chunkTxDataStream,
-	/** abort signal for cancellation */
-	abortSignal?: AbortSignal,
 ): Promise<{ queued: boolean; record: TxRecord; errorId?: string }> => {
 
 	const key = record.txid
@@ -130,23 +128,15 @@ export const processRecord = async (
 
 	console.debug(`${record.txid} starting processRecord - size: ${record.content_size}`)
 
-	const abortHandler = () => {
-		console.info(`${record.txid} aborting processRecord due to timeout signal`)
-		if (inputStream) {
-			inputStream.cancel('abort')
-		}
-	}
-	abortSignal?.addEventListener('abort', abortHandler)
-
 	try {
 		//get input stream
 		console.debug(`${record.txid} getting input stream...`)
 		if (sourceStream === gatewayStream) {
 			console.debug(`${record.txid} calling gatewayStream`)
-			inputStream = await (sourceStream as typeof gatewayStream)(record.txid)
+			inputStream = await (sourceStream as typeof gatewayStream)(record.txid, abortSignal)
 		} else {
 			console.debug(`${record.txid} calling chunkTxDataStream`)
-			inputStream = await (sourceStream as typeof chunkTxDataStream)(record.txid, record.parent || null, record.parents)
+			inputStream = await (sourceStream as typeof chunkTxDataStream)(record.txid, record.parent || null, record.parents, abortSignal)
 		}
 		console.debug(`${record.txid} input stream obtained, creating file type detection...`)
 
@@ -209,7 +199,7 @@ export const processRecord = async (
 		await upload.done()
 		console.debug(`${record.txid} S3 upload completed successfully`)
 
-		// Verify the uploaded file size matches expected content size
+		//verify the uploaded file size matches expected content size
 		try {
 			const head = await s3HeadObject(AWS_INPUT_BUCKET, key)
 
@@ -295,7 +285,5 @@ export const processRecord = async (
 
 		//shouldn't get here
 		throw new Error(`Failed to process ${record.txid}: ${e}`)
-	} finally {
-		abortSignal?.removeEventListener('abort', abortHandler)
 	}
 }
