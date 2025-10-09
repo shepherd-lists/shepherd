@@ -19,8 +19,8 @@ export const destroyGatewayAgent = () => agent.destroy()
 
 export async function gatewayStream(
 	txid: string,
+	abortSignal: AbortSignal,
 	httpsGet = https.get, //dependency injection for testing
-	abortSignal?: AbortSignal,
 ): Promise<ReadableStream<Uint8Array>> {
 	//try raw endpoint first (no redirects)
 	try {
