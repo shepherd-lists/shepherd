@@ -19,30 +19,41 @@ const syncS3ToSQS = async (bucketName: string, queueUrl: string, region: string)
 		console.info(`Found ${s3Keys.size} objects in S3`);
 	} while (token);
 
-	// Get object keys from queue messages
+	// Get object keys from queue messages (concurrent polling)
 	const queueKeys = new Set<string>();
-	let hasMessages = true;
-	while (hasMessages) {
-		const res = await sqs.send(new ReceiveMessageCommand({
-			QueueUrl: queueUrl,
-			MaxNumberOfMessages: 10,
-			WaitTimeSeconds: 1,
-		}));
+	const pollConcurrency = 10;
+	let consecutiveEmpty = 0;
 
-		if (!res.Messages?.length) {
-			hasMessages = false;
+	while (consecutiveEmpty < 2) {
+		const polls = Array(pollConcurrency).fill(0).map(() =>
+			sqs.send(new ReceiveMessageCommand({
+				QueueUrl: queueUrl,
+				MaxNumberOfMessages: 10,
+				WaitTimeSeconds: 0,
+			}))
+		);
+
+		const results = await Promise.all(polls);
+		const allEmpty = results.every(r => !r.Messages?.length);
+
+		if (allEmpty) {
+			consecutiveEmpty++;
 		} else {
-			res.Messages.forEach(msg => {
-				const body = JSON.parse(msg.Body!);
-				body.Records?.forEach((r: any) => queueKeys.add(r.s3.object.key));
+			consecutiveEmpty = 0;
+			results.forEach(res => {
+				res.Messages?.forEach(msg => {
+					const body = JSON.parse(msg.Body!);
+					body.Records?.forEach((r: any) => queueKeys.add(r.s3.object.key));
+				});
 			});
 			console.info(`Found ${queueKeys.size} objects in queue`);
 		}
 	}
 
+
 	// Send messages for missing objects (concurrent)
 	const missing = [...s3Keys].filter(key => !queueKeys.has(key));
-	const concurrency = 50;
+	const concurrency = 100;
 	let done = 0;
 
 	for (let i = 0; i < missing.length; i += concurrency) {
