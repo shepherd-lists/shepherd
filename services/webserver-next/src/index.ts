@@ -170,6 +170,13 @@ app.get(/^\/range(flagged|owners).txt$/, ipAllowMiddleware('ranges'), async (req
 	}
 })
 
+/**
+ * drop connections from undefined methods & routes
+ */
+app.all('*', (req, res) => {
+	req.socket.destroy() //drop unwanted connection
+})
+
 const server = app.listen(port, () => console.info(`webserver started on http://localhost:${port}`))
 
 

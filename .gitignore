@@ -3,3 +3,4 @@ node_modules
 services/checks/src/quicktest-rangesOverlap.ts
 compose.yml
 tests/assets/lib-rangelist.txt
+*.log
