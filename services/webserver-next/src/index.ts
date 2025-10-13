@@ -60,9 +60,6 @@ app.get('/health-check', async (req, res) => {
 	res.sendStatus(200)
 })
 
-app.get('/', async (req, res) => {
-	res.sendStatus(404)
-})
 
 app.get('/addresses.txt', ipAllowMiddleware('txids'), async (req, res) => {
 	try {
