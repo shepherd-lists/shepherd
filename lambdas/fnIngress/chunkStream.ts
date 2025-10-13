@@ -40,7 +40,7 @@ export async function chunkStream(
 
 	const stream = new ReadableStream({
 		type: 'bytes',
-		start(controller) {
+		async start(controller) {
 			let bytePos = 0
 			let chunksProcessed = 0
 			console.log(txid, `chunkStream starting: chunkStart=${chunkStart}, dataEnd=${dataEnd}, nodes=${nodes.length}`)
@@ -50,8 +50,8 @@ export async function chunkStream(
 				controller.error(new Error(abortSignal?.reason ?? 'aborted'))
 			}
 
-			const fetchNext = async (): Promise<void> => {
-				// Fetch chunks serially
+			try {
+				//start fetching chunks serially
 				while (!abortSignal.aborted && bytePos < dataEnd) {
 					if (nodeIndex < 0) {
 						throw new Error(`chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, bytePos, lastErrorMsg })}`)
@@ -60,19 +60,24 @@ export async function chunkStream(
 					const url = `${nodes[nodeIndex].url}/chunk2/${(chunkStart + BigInt(bytePos)).toString()}`
 
 					try {
-						await fetchChunkData(txid, url, abortSignal, (segment) => {
-							if (abortSignal.aborted) return controllerErrorAborted()
-							const remaining = dataEnd - bytePos
-							if (remaining <= 0) return
+						await fetchChunkData(txid, url, abortSignal,
+							(segment) => {
+								if (abortSignal.aborted) return controllerErrorAborted()
+								const remaining = dataEnd - bytePos
+								if (remaining <= 0) return
 
-							const truncated = remaining < segment.length ? segment.subarray(0, remaining) : segment
-							const truncatedLength = truncated.length
-							controller.enqueue(truncated)
-							bytePos += truncatedLength
-						}, (req, res) => {
-							currentReq = req
-							currentRes = res
-						})
+								const truncated = remaining < segment.length ? segment.subarray(0, remaining) : segment
+								const truncatedLength = truncated.length
+								controller.enqueue(truncated)
+								bytePos += truncatedLength
+							},
+							(size) => {
+								console.log(txid, `chunk size: ${size}`)
+							},
+							(req, res) => {
+								currentReq = req
+								currentRes = res
+							})
 
 						chunksProcessed++
 						console.info(txid, `${url} ${bytePos}/${dataEnd} bytes ✅ (chunk ${chunksProcessed})`)
@@ -102,9 +107,9 @@ export async function chunkStream(
 
 				console.info(txid, `chunkStream completed successfully: ${bytePos}/${dataEnd} bytes, ${chunksProcessed} chunks`)
 				controller.close()
+			} catch (e) {
+				controller.error(e)
 			}
-
-			fetchNext().catch(e => controller.error(e))
 		},
 		cancel(reason) {
 			currentReq?.destroy()
@@ -130,7 +135,7 @@ function fetchChunkData(
 	url: string,
 	abortSignal: AbortSignal,
 	onSegment: (segment: Uint8Array) => void,
-	// onSize: (size: number) => void,
+	onSize: (size: number) => void,
 	onReq?: (req: http.ClientRequest, res: http.IncomingMessage) => void,
 ): Promise<number> {
 	return new Promise((resolve, reject) => {
@@ -170,7 +175,7 @@ function fetchChunkData(
 
 					if (headerOffset === 3) {
 						chunkSize = (headerBuf[0] << 16) | (headerBuf[1] << 8) | headerBuf[2]
-						// onSize(chunkSize)
+						onSize(chunkSize)
 					}
 				}
 
