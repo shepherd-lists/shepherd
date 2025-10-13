@@ -73,47 +73,6 @@ app.get('/addresses.txt', ipAllowMiddleware('txids'), async (req, res) => {
 	}
 })
 
-addonTxsTableNames().then((tablenames) => {
-	tablenames.forEach((tablename) => {
-		const routepath = tablename.replace('_txs', '')
-
-		const routeTxids: GetListPath = `/${routepath}/txids.txt`
-		app.head(routeTxids, ipAllowMiddleware('txids'), async (req, res) => {
-			res.setHeader('eTag', await getETag(routeTxids))
-			res.sendStatus(200)
-		})
-		app.get(routeTxids, ipAllowMiddleware('txids'), async (req, res) => {
-			try {
-				res.setHeader('Content-Type', 'text/plain')
-				await getList(res, routeTxids)
-				res.status(200).end()
-			} catch (err) {
-				const e = err as Error
-				await slackLog(prefix, routeTxids, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
-				res.status(500).send('internal server error\n')
-			}
-		})
-
-		const routeRanges: GetListPath = `/${routepath}/ranges.txt`
-		app.head(routeRanges, ipAllowMiddleware('ranges'), async (req, res) => {
-			res.setHeader('eTag', await getETag(routeRanges))
-			res.sendStatus(200)
-		})
-		app.get(routeRanges, ipAllowMiddleware('ranges'), async (req, res) => {
-			try {
-				res.setHeader('Content-Type', 'text/plain')
-				await getList(res, routeRanges)
-				res.status(200).end()
-			} catch (err) {
-				const e = err as Error
-				await slackLog(prefix, routeRanges, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
-				res.status(500).send('internal server error\n')
-			}
-		})
-		console.log(JSON.stringify({ tablename, routepath, routeTxids, routeRanges }))
-	})
-})
-
 app.head('/blacklist.txt', ipAllowMiddleware('txids'), async (req, res) => {
 	res.setHeader('eTag', await getETag(req.path as GetListPath))
 	res.sendStatus(200)
@@ -167,13 +126,57 @@ app.get(/^\/range(flagged|owners).txt$/, ipAllowMiddleware('ranges'), async (req
 	}
 })
 
-/**
- * drop connections from undefined methods & routes
- */
-app.all('*', (req, res) => {
-	req.socket.destroy() //drop unwanted connection
+addonTxsTableNames().then((tablenames) => {
+	tablenames.forEach((tablename) => {
+		const routepath = tablename.replace('_txs', '')
+
+		const routeTxids: GetListPath = `/${routepath}/txids.txt`
+		app.head(routeTxids, ipAllowMiddleware('txids'), async (req, res) => {
+			res.setHeader('eTag', await getETag(routeTxids))
+			res.sendStatus(200)
+		})
+		app.get(routeTxids, ipAllowMiddleware('txids'), async (req, res) => {
+			try {
+				res.setHeader('Content-Type', 'text/plain')
+				await getList(res, routeTxids)
+				res.status(200).end()
+			} catch (err) {
+				const e = err as Error
+				await slackLog(prefix, routeTxids, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+				res.status(500).send('internal server error\n')
+			}
+		})
+
+		const routeRanges: GetListPath = `/${routepath}/ranges.txt`
+		app.head(routeRanges, ipAllowMiddleware('ranges'), async (req, res) => {
+			res.setHeader('eTag', await getETag(routeRanges))
+			res.sendStatus(200)
+		})
+		app.get(routeRanges, ipAllowMiddleware('ranges'), async (req, res) => {
+			try {
+				res.setHeader('Content-Type', 'text/plain')
+				await getList(res, routeRanges)
+				res.status(200).end()
+			} catch (err) {
+				const e = err as Error
+				await slackLog(prefix, routeRanges, `❌ ERROR retrieving! ${e.name}:${e.message}.`)
+				res.status(500).send('internal server error\n')
+			}
+		})
+		console.log(JSON.stringify({ tablename, routepath, routeTxids, routeRanges }))
+	})
+
+	/**** !!! MOVING THIS HERE TO ENSURE ALL ROUTES SET FIRST !!! */
+
+	/* drop connections from undefined methods & routes */
+	app.all('*', (req, res) => {
+		req.socket.destroy() //drop unwanted connection
+	})
 })
 
+/**
+ * server start up
+ */
 const server = app.listen(port, () => console.info(`webserver started on http://localhost:${port}`))
 
 
