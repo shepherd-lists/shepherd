@@ -130,7 +130,7 @@ export async function chunkStream(
  *  the chunk usually downloads too quickly to cancel.
  *  the arweave node is unaffected as it will process request regardless of request/connection status. it's nothing to them.
  */
-function fetchChunkData(
+export function fetchChunkData(
 	txid: string,
 	url: string,
 	abortSignal: AbortSignal,
