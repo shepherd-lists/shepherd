@@ -18,7 +18,15 @@ export const chunkStream2 = async (
 	let dataPos = 0
 	let boundaryPos = 0
 
-	const nodeUrl = 'http://tip-1.arweave.xyz:1984' //fix this later
+	const nodes = [
+		...httpApiNodes(),
+		//manually adding these for now
+		{ url: 'http://tip-2.arweave.xyz:1984', name: 'tip-2.arweave.xyz' },
+		{ url: 'http://tip-3.arweave.xyz:1984', name: 'tip-3.arweave.xyz' },
+		{ url: 'http://tip-4.arweave.xyz:1984', name: 'tip-4.arweave.xyz' },
+	]
+	let nodeIndex = nodes.length - 1
+
 
 	interface ChunkInfo {
 		offset: number
@@ -49,10 +57,10 @@ export const chunkStream2 = async (
 		}
 	}
 
-	const startChunk = (index: number, chunkInfo: ChunkInfo) => {
+	const startChunk = async (index: number, chunkInfo: ChunkInfo) => {
 		if (abortSignal.aborted) return
+		console.info(txid, `chunk ${index}, offset ${chunkInfo.offset} starting...`)
 
-		const url = `${nodeUrl}/chunk2/${(chunkStart + BigInt(chunkInfo.offset)).toString()}`
 		activeFetches++
 
 		const onSegment = (segment: Uint8Array) => {
@@ -78,21 +86,40 @@ export const chunkStream2 = async (
 			chunkInfo.res = res
 		}
 
-		fetchChunkData(txid, url, abortSignal, onSegment, onSize, onReq)
-			.then(() => {
+		while (!abortSignal.aborted) {
+			const url = `${nodes[nodeIndex].url}/chunk2/${(chunkStart + BigInt(chunkInfo.offset)).toString()}`
+			try {
+				await fetchChunkData(txid, url, abortSignal, onSegment, onSize, onReq)
+				console.info(txid, `${url} ${chunkInfo.offset}/${dataEnd} bytes ✅ (chunk ${activeWriteIndex})`)
 				activeFetches--
 				activeWriteIndex++
 				// Start next chunk if we have capacity
 				if (activeFetches < maxParallel) {
 					console.error('TODO: start queued chunks for free slots')
 				}
-			})
-			.catch(error => {
-				console.error('TODO: handle errors properly')
-				controller?.error(error)
-			})
+				return;
+			} catch (e) {
+				if (e instanceof Error && e.name === 'AbortError') {
+					console.info(txid, `chunkStream aborted. reason: ${abortSignal?.reason ?? 'aborted'}`)
+					controller?.error(new Error(abortSignal?.reason ?? 'aborted'))
+					return;
+				}
 
-	}
+				console.error(txid, url, `${String(e)}, ${chunkInfo.offset}/${dataEnd} bytes. trying next node`)
+				nodeIndex--
+
+				if (nodeIndex < 0) {
+					throw new Error(`chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, offset: chunkInfo.offset, lastErrorMsg: (e as Error).message })}`)
+				}
+				continue;
+			}
+			finally {
+				chunkInfo.req?.destroy()
+				chunkInfo.res?.destroy()
+			}
+		}
+
+	}//end of startChunk
 
 	// Start first chunk
 	chunkBuffers.push({
