@@ -17,6 +17,7 @@ export const chunkStream2 = async (
 	let activeWriteIndex = 0
 	let dataPos = 0
 	let boundaryPos = 0
+	let isCancelled = false
 
 	const nodes = [
 		...httpApiNodes(),
@@ -30,24 +31,32 @@ export const chunkStream2 = async (
 
 	interface ChunkInfo {
 		offset: number
+		size?: number
 		bufferedData: Uint8Array[] | undefined
 		req?: http.ClientRequest
 		res?: http.IncomingMessage
-		fullyBuffered: boolean
+		bufferedSize: number
 	}
 	const chunkBuffers: ChunkInfo[] = []
 
 	/** this function will always be called in sequence */
 	const onSize = (size: number) => {
 		//check if we're done setting up chunk fetches
-		if (boundaryPos > dataEnd) return console.debug('boundaryPos exceeds dataEnd')
 		boundaryPos += size
+		if (dataEnd - boundaryPos <= 0) {
+			// console.debug('SETUP ENOUGH CHUNKS')
+			return;
+		}
+		// console.debug('DEBUG', { size, dataEnd, boundaryPos, remaining: dataEnd - boundaryPos })
+
+		//update current chunk
+		chunkBuffers[chunkBuffers.length - 1].size = size
 
 		//set up next chunk
 		const nextChunkInfo: ChunkInfo = {
 			offset: boundaryPos,
 			bufferedData: [],
-			fullyBuffered: false,
+			bufferedSize: 0,
 		}
 		chunkBuffers.push(nextChunkInfo)
 
@@ -66,18 +75,24 @@ export const chunkStream2 = async (
 		const onSegment = (segment: Uint8Array) => {
 			if (abortSignal.aborted || !controller) return
 
+			const remaining = dataEnd - dataPos
+			if (remaining <= 0) return;
+			const truncated = remaining < segment.length ? segment.subarray(0, remaining) : segment
+
 			if (index === activeWriteIndex) {
 				if (chunkInfo.bufferedData && chunkInfo.bufferedData.length > 0) {
-					const l = chunkInfo.bufferedData.length
+					const l = chunkInfo.bufferedData.reduce((acc, buf) => acc + buf.length, 0)
+					console.debug('WRITING OUT BUFFERED DATA', l)
 					controller.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData)))
 					delete chunkInfo.bufferedData
 					dataPos += l
 				}
-				const ls = segment.length
-				controller.enqueue(new Uint8Array(segment))
-				dataPos += ls
+				const truncatedLength = truncated.length //need to save before losing buffer 
+				controller.enqueue(new Uint8Array(truncated))
+				dataPos += truncatedLength
 			} else /** buffering */ {
-				chunkInfo.bufferedData!.push(segment)
+				chunkInfo.bufferedData!.push(truncated)
+				chunkInfo.bufferedSize += truncated.length
 			}
 		}
 
@@ -86,16 +101,40 @@ export const chunkStream2 = async (
 			chunkInfo.res = res
 		}
 
-		while (!abortSignal.aborted) {
+		while (!abortSignal.aborted && !isCancelled) {
 			const url = `${nodes[nodeIndex].url}/chunk2/${(chunkStart + BigInt(chunkInfo.offset)).toString()}`
 			try {
 				await fetchChunkData(txid, url, abortSignal, onSegment, onSize, onReq)
-				console.info(txid, `${url} ${chunkInfo.offset}/${dataEnd} bytes ✅ (chunk ${activeWriteIndex})`)
+				console.info(txid, `${url} ${chunkInfo.offset}/${dataEnd} bytes ✅ (chunk ${index})`, `DEBUG dataPos ${dataPos}`)
 				activeFetches--
-				activeWriteIndex++
+				if (index === activeWriteIndex) {
+					console.info('index=activeWriteIndex', { index, activeWriteIndex })
+					activeWriteIndex++
+					//next chunks might be fully buffered already
+					while (
+						chunkBuffers.length > activeWriteIndex
+						&& chunkBuffers[activeWriteIndex].bufferedSize === chunkBuffers[activeWriteIndex].size
+					) {
+						//enqueue buffer and dataPos+
+						const chunkInfo = chunkBuffers[activeWriteIndex]
+						const l = chunkInfo.bufferedData!.reduce((acc, buf) => acc + buf.length, 0)
+						console.debug('WRITING OUT TOTAL BUFFERED DATA', activeWriteIndex, l)
+						controller!.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData!)))
+						delete chunkInfo.bufferedData
+						dataPos += l
+
+						activeWriteIndex++
+					}
+				}
+
+
 				// Start next chunk if we have capacity
 				if (activeFetches < maxParallel) {
 					console.error('TODO: start queued chunks for free slots')
+				}
+				if (dataPos === dataEnd) {
+					console.info(txid, `chunkStream2 completed: ${dataPos}/${dataEnd} bytes`)
+					controller?.close()
 				}
 				return;
 			} catch (e) {
@@ -125,17 +164,25 @@ export const chunkStream2 = async (
 	chunkBuffers.push({
 		offset: 0,
 		bufferedData: [],
-		fullyBuffered: false,
+		bufferedSize: 0,
 	})
-	startChunk(0, chunkBuffers[0])
 
 	return new ReadableStream({
 		type: 'bytes',
-		start: (c) => { controller = c },
-		cancel: () => {
-			abortSignal.dispatchEvent(new Event('abort')) //?
-			activeFetches = 0
-			//TODO: cancel all req/res fetches and release buffers
+		start: (c) => {
+			controller = c
+			startChunk(0, chunkBuffers[0]) //controller needs to be set before this
+		},
+		cancel: async () => {
+			isCancelled = true
+			await Promise.all(
+				chunkBuffers.map(info => {
+					info.req?.destroy()
+					info.res?.destroy()
+					delete info.bufferedData
+				})
+			)
+			chunkBuffers.length = 0
 		}
 	})
 }
