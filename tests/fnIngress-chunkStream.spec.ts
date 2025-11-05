@@ -1,6 +1,8 @@
 import { after, describe, it, skip } from 'node:test'
 import assert from 'node:assert/strict'
-import { chunkStream, destroyChunkStreamAgent } from '../lambdas/fnIngress/chunkStream'
+import { destroyChunkStreamAgent } from '../lambdas/fnIngress/chunkStream'
+
+import { chunkStream2 as chunkStream } from '../lambdas/fnIngress/chunkStream2'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 
 describe('chunkStream', () => {
