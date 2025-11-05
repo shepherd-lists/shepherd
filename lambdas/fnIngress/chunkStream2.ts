@@ -67,97 +67,101 @@ export const chunkStream2 = async (
 	}
 
 	const startChunk = async (index: number, chunkInfo: ChunkInfo) => {
-		if (abortSignal.aborted) return
-		console.info(txid, `chunk ${index}, offset ${chunkInfo.offset} starting...`)
+		try {
+			if (abortSignal.aborted) return
+			console.info(txid, `chunk ${index}, offset ${chunkInfo.offset} starting...`)
 
-		activeFetches++
+			activeFetches++
 
-		const onSegment = (segment: Uint8Array) => {
-			if (abortSignal.aborted || !controller) return
+			const onSegment = (segment: Uint8Array) => {
+				if (abortSignal.aborted || !controller) return;
 
-			const remaining = dataEnd - dataPos
-			if (remaining <= 0) return;
-			const truncated = remaining < segment.length ? segment.subarray(0, remaining) : segment
+				const remaining = dataEnd - dataPos
+				if (remaining <= 0) return;
+				const truncated = remaining < segment.length ? segment.subarray(0, remaining) : segment
 
-			if (index === activeWriteIndex) {
-				if (chunkInfo.bufferedData && chunkInfo.bufferedData.length > 0) {
-					const l = chunkInfo.bufferedData.reduce((acc, buf) => acc + buf.length, 0)
-					console.debug('WRITING OUT BUFFERED DATA', l)
-					controller.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData)))
-					delete chunkInfo.bufferedData
-					dataPos += l
-				}
-				const truncatedLength = truncated.length //need to save before losing buffer 
-				controller.enqueue(new Uint8Array(truncated))
-				dataPos += truncatedLength
-			} else /** buffering */ {
-				chunkInfo.bufferedData!.push(truncated)
-				chunkInfo.bufferedSize += truncated.length
-			}
-		}
-
-		const onReq = (req: http.ClientRequest, res: http.IncomingMessage) => {
-			chunkInfo.req = req
-			chunkInfo.res = res
-		}
-
-		while (!abortSignal.aborted && !isCancelled) {
-			const url = `${nodes[nodeIndex].url}/chunk2/${(chunkStart + BigInt(chunkInfo.offset)).toString()}`
-			try {
-				await fetchChunkData(txid, url, abortSignal, onSegment, onSize, onReq)
-				console.info(txid, `${url} ${chunkInfo.offset}/${dataEnd} bytes ✅ (chunk ${index})`, `DEBUG dataPos ${dataPos}`)
-				activeFetches--
 				if (index === activeWriteIndex) {
-					console.info('index=activeWriteIndex', { index, activeWriteIndex })
-					activeWriteIndex++
-					//next chunks might be fully buffered already
-					while (
-						chunkBuffers.length > activeWriteIndex
-						&& chunkBuffers[activeWriteIndex].bufferedSize === chunkBuffers[activeWriteIndex].size
-					) {
-						//enqueue buffer and dataPos+
-						const chunkInfo = chunkBuffers[activeWriteIndex]
-						const l = chunkInfo.bufferedData!.reduce((acc, buf) => acc + buf.length, 0)
-						console.debug('WRITING OUT TOTAL BUFFERED DATA', activeWriteIndex, l)
-						controller!.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData!)))
+					if (chunkInfo.bufferedData && chunkInfo.bufferedData.length > 0) {
+						const l = chunkInfo.bufferedData.reduce((acc, buf) => acc + buf.length, 0)
+						console.debug('WRITING OUT BUFFERED DATA', l)
+						controller.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData)))
 						delete chunkInfo.bufferedData
 						dataPos += l
-
-						activeWriteIndex++
 					}
+					const truncatedLength = truncated.length //need to save before losing buffer 
+					controller.enqueue(new Uint8Array(truncated))
+					dataPos += truncatedLength
+				} else /** buffering */ {
+					chunkInfo.bufferedData!.push(truncated)
+					chunkInfo.bufferedSize += truncated.length
 				}
+			}
+
+			const onReq = (req: http.ClientRequest, res: http.IncomingMessage) => {
+				chunkInfo.req = req
+				chunkInfo.res = res
+			}
+
+			while (!abortSignal.aborted && !isCancelled) {
+				const url = `${nodes[nodeIndex].url}/chunk2/${(chunkStart + BigInt(chunkInfo.offset)).toString()}`
+				try {
+					await fetchChunkData(txid, url, abortSignal, onSegment, onSize, onReq)
+					console.info(txid, `${url} ${chunkInfo.offset}/${dataEnd} bytes ✅ (chunk ${index})`, `DEBUG dataPos ${dataPos}`)
+					activeFetches--
+					if (index === activeWriteIndex) {
+						console.info('index=activeWriteIndex', { index, activeWriteIndex })
+						activeWriteIndex++
+						//next chunks might be fully buffered already
+						while (
+							chunkBuffers.length > activeWriteIndex
+							&& chunkBuffers[activeWriteIndex].bufferedSize === chunkBuffers[activeWriteIndex].size
+						) {
+							//enqueue buffer and dataPos+
+							const chunkInfo = chunkBuffers[activeWriteIndex]
+							const l = chunkInfo.bufferedData!.reduce((acc, buf) => acc + buf.length, 0)
+							console.debug('WRITING OUT TOTAL BUFFERED DATA', activeWriteIndex, l)
+							controller!.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData!)))
+							delete chunkInfo.bufferedData
+							dataPos += l
+
+							activeWriteIndex++
+						}
+					}
 
 
-				// Start next chunk if we have capacity
-				if (activeFetches < maxParallel) {
-					console.error('TODO: start queued chunks for free slots')
-				}
-				if (dataPos === dataEnd) {
-					console.info(txid, `chunkStream2 completed: ${dataPos}/${dataEnd} bytes`)
-					controller?.close()
-				}
-				return;
-			} catch (e) {
-				if (e instanceof Error && e.name === 'AbortError') {
-					console.info(txid, `chunkStream aborted. reason: ${abortSignal?.reason ?? 'aborted'}`)
-					controller?.error(new Error(abortSignal?.reason ?? 'aborted'))
+					// Start next chunk if we have capacity
+					if (activeFetches < maxParallel) {
+						console.error('TODO: start queued chunks for free slots')
+					}
+					//if we have streamed all data close the controller
+					if (dataPos === dataEnd) {
+						console.info(txid, `chunkStream2 completed: ${dataPos}/${dataEnd} bytes`)
+						controller?.close()
+					}
 					return;
-				}
+				} catch (e) {
+					if (e instanceof Error && e.name === 'AbortError') {
+						console.info(txid, `chunkStream aborted. reason: ${abortSignal?.reason ?? 'aborted'}`)
+						controller?.error(new Error(abortSignal?.reason ?? 'aborted'))
+						return;
+					}
 
-				console.error(txid, url, `${String(e)}, ${chunkInfo.offset}/${dataEnd} bytes. trying next node`)
-				nodeIndex--
+					console.error(txid, url, `${String(e)}, ${chunkInfo.offset}/${dataEnd} bytes. trying next node`)
+					nodeIndex--
 
-				if (nodeIndex < 0) {
-					throw new Error(`chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, offset: chunkInfo.offset, lastErrorMsg: (e as Error).message })}`)
+					if (nodeIndex < 0) {
+						throw new Error(`chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, offset: chunkInfo.offset, lastErrorMsg: (e as Error).message })}`)
+					}
+					continue;
 				}
-				continue;
+				finally {
+					chunkInfo.req?.destroy()
+					chunkInfo.res?.destroy()
+				}
 			}
-			finally {
-				chunkInfo.req?.destroy()
-				chunkInfo.res?.destroy()
-			}
+		} catch (e) {
+			controller?.error(e)
 		}
-
 	}//end of startChunk
 
 	// Start first chunk
