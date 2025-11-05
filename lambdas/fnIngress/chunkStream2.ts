@@ -50,6 +50,7 @@ export const chunkStream2 = async (
 		// console.debug('DEBUG', { size, dataEnd, boundaryPos, remaining: dataEnd - boundaryPos })
 
 		//update current chunk
+		if (isCancelled) return; //we may be cancelling
 		chunkBuffers[chunkBuffers.length - 1].size = size
 
 		//set up next chunk
@@ -74,7 +75,8 @@ export const chunkStream2 = async (
 			activeFetches++
 
 			const onSegment = (segment: Uint8Array) => {
-				if (abortSignal.aborted || !controller) return;
+				if (abortSignal.aborted || isCancelled) return;
+				if (!controller) throw new Error('controller not found!')
 
 				const remaining = dataEnd - dataPos
 				if (remaining <= 0) return;
