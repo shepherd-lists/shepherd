@@ -131,11 +131,11 @@ export const chunkStream2 = async (
 					}
 
 
-					// Start next chunk if we have capacity
+					//start next chunk if we have capacity
 					if (activeFetches < maxParallel) {
 						console.error('TODO: start queued chunks for free slots')
 					}
-					//if we have streamed all data close the controller
+					//close the controller if we have streamed all data 
 					if (dataPos === dataEnd) {
 						console.info(txid, `chunkStream2 completed: ${dataPos}/${dataEnd} bytes`)
 						controller?.close()
@@ -166,7 +166,7 @@ export const chunkStream2 = async (
 		}
 	}//end of startChunk
 
-	// Start first chunk
+	//setup the first chunk
 	chunkBuffers.push({
 		offset: 0,
 		bufferedData: [],
@@ -177,7 +177,7 @@ export const chunkStream2 = async (
 		type: 'bytes',
 		start: (c) => {
 			controller = c
-			startChunk(0, chunkBuffers[0]) //controller needs to be set before this
+			startChunk(0, chunkBuffers[0]) //controller needs to be set before starting
 		},
 		cancel: async () => {
 			isCancelled = true
