@@ -15,7 +15,7 @@ export const chunkStream2 = async (
 	let controller: ReadableByteStreamController | null = null
 	let activeFetches = 0 //?
 	let activeWriteIndex = 0
-	let dataPos = 0
+	let writePos = 0
 	let boundaryPos = 0
 	let isCancelled = false
 
@@ -27,7 +27,6 @@ export const chunkStream2 = async (
 		{ url: 'http://tip-4.arweave.xyz:1984', name: 'tip-4.arweave.xyz' },
 	]
 	let nodeIndex = nodes.length - 1
-
 
 	interface ChunkInfo {
 		offset: number
@@ -41,6 +40,12 @@ export const chunkStream2 = async (
 
 	/** this function will always be called in sequence */
 	const onSize = (size: number) => {
+		if (isCancelled || abortSignal.aborted) return; //we may be cancelling
+
+		//update current chunk size
+		const remaining = dataEnd - boundaryPos
+		chunkBuffers[chunkBuffers.length - 1].size = remaining < size ? remaining : size
+
 		//check if we're done setting up chunk fetches
 		boundaryPos += size
 		if (dataEnd - boundaryPos <= 0) {
@@ -49,9 +54,6 @@ export const chunkStream2 = async (
 		}
 		// console.debug('DEBUG', { size, dataEnd, boundaryPos, remaining: dataEnd - boundaryPos })
 
-		//update current chunk
-		if (isCancelled) return; //we may be cancelling
-		chunkBuffers[chunkBuffers.length - 1].size = size
 
 		//set up next chunk
 		const nextChunkInfo: ChunkInfo = {
@@ -74,11 +76,13 @@ export const chunkStream2 = async (
 
 			activeFetches++
 
+			let chunkPos = chunkInfo.offset
+
 			const onSegment = (segment: Uint8Array) => {
 				if (abortSignal.aborted || isCancelled) return;
 				if (!controller) throw new Error('controller not found!')
 
-				const remaining = dataEnd - dataPos
+				const remaining = dataEnd - chunkPos
 				if (remaining <= 0) return;
 				const truncated = remaining < segment.length ? segment.subarray(0, remaining) : segment
 
@@ -88,14 +92,17 @@ export const chunkStream2 = async (
 						console.debug('WRITING OUT BUFFERED DATA', l)
 						controller.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData)))
 						delete chunkInfo.bufferedData
-						dataPos += l
+						writePos += l
 					}
 					const truncatedLength = truncated.length //need to save before losing buffer 
 					controller.enqueue(new Uint8Array(truncated))
-					dataPos += truncatedLength
+					writePos += truncatedLength
+					chunkPos += truncatedLength
 				} else /** buffering */ {
-					chunkInfo.bufferedData!.push(truncated)
+					if (!chunkInfo.bufferedData) return; //cancelled
+					chunkInfo.bufferedData.push(truncated)
 					chunkInfo.bufferedSize += truncated.length
+					chunkPos += truncated.length
 				}
 			}
 
@@ -108,8 +115,11 @@ export const chunkStream2 = async (
 				const url = `${nodes[nodeIndex].url}/chunk2/${(chunkStart + BigInt(chunkInfo.offset)).toString()}`
 				try {
 					await fetchChunkData(txid, url, abortSignal, onSegment, onSize, onReq)
-					console.info(txid, `${url} ${chunkInfo.offset}/${dataEnd} bytes ✅ (chunk ${index})`, `DEBUG dataPos ${dataPos}`)
+					console.info(txid, `${url} ${chunkInfo.offset}/${dataEnd} bytes ✅ (chunk ${index})`, `DEBUG offset=${chunkInfo.offset},size=${chunkInfo.size},bufferSize=${chunkInfo.bufferedSize}`)
 					activeFetches--
+
+					if (isCancelled || abortSignal.aborted) return;
+
 					if (index === activeWriteIndex) {
 						console.info('index=activeWriteIndex', { index, activeWriteIndex })
 						activeWriteIndex++
@@ -124,10 +134,17 @@ export const chunkStream2 = async (
 							console.debug('WRITING OUT TOTAL BUFFERED DATA', activeWriteIndex, l)
 							controller!.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData!)))
 							delete chunkInfo.bufferedData
-							dataPos += l
+							writePos += l
 
 							activeWriteIndex++
 						}
+
+						//close the controller if we have streamed all data 
+						if (writePos === dataEnd) {
+							console.info(txid, `chunkStream2 completed: ${writePos}/${dataEnd} bytes`)
+							controller?.close()
+						}
+						return;
 					}
 
 
@@ -136,8 +153,8 @@ export const chunkStream2 = async (
 						console.error('TODO: start queued chunks for free slots')
 					}
 					//close the controller if we have streamed all data 
-					if (dataPos === dataEnd) {
-						console.info(txid, `chunkStream2 completed: ${dataPos}/${dataEnd} bytes`)
+					if (writePos === dataEnd) {
+						console.info(txid, `chunkStream2 completed: ${writePos}/${dataEnd} bytes`)
 						controller?.close()
 					}
 					return;
