@@ -1,4 +1,4 @@
-import { fetchChunkData } from './chunkStream'
+import { fetchChunkData as fetchChunkDataOriginal } from './chunkStream'
 import http from 'node:http'
 import { ReadableStream, ReadableByteStreamController } from 'node:stream/web'
 import { httpApiNodes } from '../../libs/utils/update-range-nodes'
@@ -10,7 +10,8 @@ export const chunkStream2 = async (
 	dataEnd: number,
 	txid: string,
 	abortSignal: AbortSignal,
-	maxParallel: number = 10
+	maxParallel: number = 10,
+	fetchChunkData = fetchChunkDataOriginal, //dep inject
 ): Promise<ReadableStream<Uint8Array>> => {
 	let controller: ReadableByteStreamController | null = null
 	let activeFetches = 0 //?

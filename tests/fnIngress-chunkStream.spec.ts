@@ -1,9 +1,10 @@
 import { after, describe, it, skip } from 'node:test'
 import assert from 'node:assert/strict'
 import { destroyChunkStreamAgent } from '../lambdas/fnIngress/chunkStream'
-
+// import { chunkStream } from '../lambdas/fnIngress/chunkStream'
 import { chunkStream2 as chunkStream } from '../lambdas/fnIngress/chunkStream2'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
+import http from 'node:http'
 
 describe('chunkStream', () => {
 
@@ -15,6 +16,41 @@ describe('chunkStream', () => {
 	const chunkStart = 355855954125047n
 	const dataEnd = 584685
 
+	/** Mock fetchChunkData factory - controls chunk completion order via delays */
+	const createMockFetch = (chunkDelays: Map<number, number>) => {
+		return async (
+			txid: string,
+			url: string,
+			abortSignal: AbortSignal,
+			onSegment: (segment: Uint8Array) => void,
+			onSize: (size: number) => void,
+			onReq?: (req: http.ClientRequest, res: http.IncomingMessage) => void
+		): Promise<number> => {
+			const chunkSize = 256 * 1024 // 256KB typical chunk
+			const offsetMatch = url.match(/chunk2\/(\d+)/)
+			const offset = offsetMatch ? Number(offsetMatch[1]) - Number(chunkStart) : 0
+			const delay = chunkDelays.get(offset) || 0
+
+			// Signal chunk size immediately
+			onSize(chunkSize)
+
+			// Simulate network delay
+			if (delay > 0) {
+				await new Promise(resolve => setTimeout(resolve, delay))
+			}
+
+			if (abortSignal.aborted) throw new Error('AbortError')
+
+			// Simulate streaming data in segments
+			const segmentSize = 8192
+			for (let i = 0; i < chunkSize; i += segmentSize) {
+				if (abortSignal.aborted) throw new Error('AbortError')
+				onSegment(new Uint8Array(segmentSize).fill(i % 256))
+			}
+
+			return chunkSize
+		}
+	}
 
 	after(() => {
 		destroyChunkStreamAgent()
@@ -93,6 +129,90 @@ describe('chunkStream', () => {
 			assert(error.message.includes('ran out of nodes to try'))
 			assert(error.message.includes('404 Not Found'))
 		}
+	})
+
+	describe('chunk ordering with mocked fetch', () => {
+		const mockDataEnd = 256 * 1024 * 3 // 3 chunks of 256KB each
+
+		it('should handle last chunk finishing first', async () => {
+			// Last chunk (offset 524288) completes in 10ms, first two take longer
+			const delays = new Map([
+				[0, 200],         // chunk 0: slow
+				[262144, 100],    // chunk 1: medium
+				[524288, 10]      // chunk 2: fast (last chunk finishes first!)
+			])
+			const mockFetch = createMockFetch(delays)
+
+			const stream = await chunkStream(
+				chunkStart,
+				mockDataEnd,
+				txid,
+				(new AbortController()).signal,
+				10, // maxParallel
+				mockFetch
+			)
+
+			const chunks: Uint8Array[] = []
+			for await (const chunk of stream) {
+				chunks.push(chunk)
+			}
+
+			const totalBytes = chunks.reduce((acc, c) => acc + c.length, 0)
+			assert.equal(totalBytes, mockDataEnd, 'Should receive all data in order despite out-of-order completion')
+		})
+
+		it('should handle middle chunk finishing first', async () => {
+			const delays = new Map([
+				[0, 200],         // chunk 0: slow
+				[262144, 10],     // chunk 1: fast (finishes first)
+				[524288, 100]     // chunk 2: medium
+			])
+			const mockFetch = createMockFetch(delays)
+
+			const stream = await chunkStream(
+				chunkStart,
+				mockDataEnd,
+				txid,
+				(new AbortController()).signal,
+				10,
+				mockFetch
+			)
+
+			const chunks: Uint8Array[] = []
+			for await (const chunk of stream) {
+				chunks.push(chunk)
+			}
+
+			const totalBytes = chunks.reduce((acc, c) => acc + c.length, 0)
+			assert.equal(totalBytes, mockDataEnd, 'Should buffer middle chunk and maintain order')
+		})
+
+		it('should handle reverse order completion', async () => {
+			// Chunks complete in reverse order: 2, 1, 0
+			const delays = new Map([
+				[0, 300],         // chunk 0: slowest
+				[262144, 200],    // chunk 1: slow
+				[524288, 100]     // chunk 2: fast
+			])
+			const mockFetch = createMockFetch(delays)
+
+			const stream = await chunkStream(
+				chunkStart,
+				mockDataEnd,
+				txid,
+				(new AbortController()).signal,
+				10,
+				mockFetch
+			)
+
+			const chunks: Uint8Array[] = []
+			for await (const chunk of stream) {
+				chunks.push(chunk)
+			}
+
+			const totalBytes = chunks.reduce((acc, c) => acc + c.length, 0)
+			assert.equal(totalBytes, mockDataEnd, 'Should handle complete reverse order')
+		})
 	})
 
 
