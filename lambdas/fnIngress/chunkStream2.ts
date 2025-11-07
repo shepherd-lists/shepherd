@@ -39,7 +39,7 @@ export const chunkStream2 = async (
 	}
 	const chunkBuffers: ChunkInfo[] = []
 
-	/** this function will always be called in sequence */
+	/** N.B. this function will always be called in correct sequence */
 	const onSize = (size: number) => {
 		if (isCancelled || abortSignal.aborted) return; //we may be cancelling
 
@@ -49,12 +49,7 @@ export const chunkStream2 = async (
 
 		//check if we're done setting up chunk fetches
 		boundaryPos += size
-		if (dataEnd - boundaryPos <= 0) {
-			// console.debug('SETUP ENOUGH CHUNKS')
-			return;
-		}
-		// console.debug('DEBUG', { size, dataEnd, boundaryPos, remaining: dataEnd - boundaryPos })
-
+		if (boundaryPos >= dataEnd) return;
 
 		//set up next chunk
 		const nextChunkInfo: ChunkInfo = {
@@ -121,6 +116,12 @@ export const chunkStream2 = async (
 
 					if (isCancelled || abortSignal.aborted) return;
 
+					//start next chunk if we have capacity
+					if (activeFetches < maxParallel) {
+						console.error('TODO: start queued chunks for free slots')
+					}
+
+					//move to next chunk(s)
 					if (index === activeWriteIndex) {
 						console.info('index=activeWriteIndex', { index, activeWriteIndex })
 						activeWriteIndex++
@@ -139,21 +140,9 @@ export const chunkStream2 = async (
 
 							activeWriteIndex++
 						}
-
-						//close the controller if we have streamed all data 
-						if (writePos === dataEnd) {
-							console.info(txid, `chunkStream2 completed: ${writePos}/${dataEnd} bytes`)
-							controller?.close()
-						}
-						return;
 					}
 
-
-					//start next chunk if we have capacity
-					if (activeFetches < maxParallel) {
-						console.error('TODO: start queued chunks for free slots')
-					}
-					//close the controller if we have streamed all data 
+					//check complete
 					if (writePos === dataEnd) {
 						console.info(txid, `chunkStream2 completed: ${writePos}/${dataEnd} bytes`)
 						controller?.close()
