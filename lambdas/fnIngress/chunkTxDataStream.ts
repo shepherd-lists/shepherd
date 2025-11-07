@@ -1,5 +1,5 @@
 import { getByteRange } from '../../libs/byte-ranges/byteRanges'
-import { chunkStream } from './chunkStream2'
+import { chunkStream } from './chunkStream'
 import { ReadableStream } from 'node:stream/web'
 import { SIG_CONFIG, SignatureConfig, byteArrayToLong } from './ANS-104-constants'
 
