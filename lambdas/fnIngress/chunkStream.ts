@@ -1,7 +1,4 @@
 import http from 'node:http'
-import { httpApiNodes } from '../../libs/utils/update-range-nodes'
-import { ReadableStream } from 'node:stream/web'
-
 
 
 const agent = new http.Agent({
@@ -13,122 +10,13 @@ const agent = new http.Agent({
 
 export const destroyChunkStreamAgent = () => agent.destroy()
 
-/**
- * stream chunks from nodes starting from chunkStart until dataEnd bytes.
- * - chunkStart: the +1 chunk offset for /chunk2 API
- * - dataEnd: absolute byte position where streaming should stop
- * returns clean data stream that caller can parse/filter as needed.
- */
-export async function chunkStream(
-	chunkStart: bigint,
-	dataEnd: number,
-	txid: string,
-	abortSignal: AbortSignal, //for cancelling batches (these controllers are not expensive)
-): Promise<ReadableStream<Uint8Array>> {
-	const nodes = [
-		...httpApiNodes(),
-		//manually adding these for now
-		{ url: 'http://tip-2.arweave.xyz:1984', name: 'tip-2.arweave.xyz' },
-		{ url: 'http://tip-4.arweave.xyz:1984', name: 'tip-4.arweave.xyz' },
-		{ url: 'http://tip-3.arweave.xyz:1984', name: 'tip-3.arweave.xyz' },
-	]
-	let nodeIndex = nodes.length - 1
-	let lastErrorMsg = ''
-
-	let currentReq: http.ClientRequest | null = null
-	let currentRes: http.IncomingMessage | null = null
-
-	const stream = new ReadableStream({
-		type: 'bytes',
-		async start(controller) {
-			let bytePos = 0
-			let chunksProcessed = 0
-			console.log(txid, `chunkStream starting: chunkStart=${chunkStart}, dataEnd=${dataEnd}, nodes=${nodes.length}`)
-
-			const controllerErrorAborted = () => {
-				console.info(txid, `chunkStream aborted. reason: ${abortSignal?.reason ?? 'aborted'}`)
-				controller.error(new Error(abortSignal?.reason ?? 'aborted'))
-			}
-
-			try {
-				//start fetching chunks serially
-				while (!abortSignal.aborted && bytePos < dataEnd) {
-					if (nodeIndex < 0) {
-						throw new Error(`chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, bytePos, lastErrorMsg })}`)
-					}
-
-					const url = `${nodes[nodeIndex].url}/chunk2/${(chunkStart + BigInt(bytePos)).toString()}`
-
-					try {
-						await fetchChunkData(txid, url, abortSignal,
-							(segment) => {
-								if (abortSignal.aborted) return controllerErrorAborted()
-								const remaining = dataEnd - bytePos
-								if (remaining <= 0) return
-
-								const truncated = remaining < segment.length ? segment.subarray(0, remaining) : segment
-								const truncatedLength = truncated.length
-								controller.enqueue(truncated)
-								bytePos += truncatedLength
-							},
-							(size) => {
-								console.log(txid, `chunk size: ${size}`)
-							},
-							(req, res) => {
-								currentReq = req
-								currentRes = res
-							})
-
-						chunksProcessed++
-						console.info(txid, `${url} ${bytePos}/${dataEnd} bytes ✅ (chunk ${chunksProcessed})`)
-					} catch (e) {
-						if (e instanceof Error && e.name === 'AbortError') {
-							return controllerErrorAborted()
-						}
-
-						console.error(txid, `${String(e)}, ${bytePos}/${dataEnd} bytes. trying next node`)
-						lastErrorMsg = (e as Error).message
-						nodeIndex--
-					}
-					finally {
-						currentReq?.destroy()
-						currentRes?.destroy()
-						currentReq = null
-						currentRes = null
-					}
-				}
-
-				// Verify completion
-				if (abortSignal.aborted) return controllerErrorAborted()
-				if (bytePos < dataEnd) {
-					console.error(txid, `chunkStream incomplete: ${bytePos}/${dataEnd} bytes fetched`)
-					return controller.error(new Error(`Incomplete download: ${bytePos}/${dataEnd} bytes`))
-				}
-
-				console.info(txid, `chunkStream completed successfully: ${bytePos}/${dataEnd} bytes, ${chunksProcessed} chunks`)
-				controller.close()
-			} catch (e) {
-				controller.error(e)
-			}
-		},
-		cancel(reason) {
-			currentReq?.destroy()
-			currentRes?.destroy()
-			currentReq = null
-			currentRes = null
-			console.info(txid, `chunkStream cancelled. reason: ${reason}`)
-		},
-	})
-
-	return stream
-}
 
 /**
  * Fetch a single /chunk2 response and emit all chunk payload bytes.
  * Returns the chunk size that was processed. 
  * N.B. this is uncancellable because:
  *  the chunk usually downloads too quickly to cancel.
- *  the arweave node is unaffected as it will process request regardless of request/connection status. it's nothing to them.
+ *  the arweave node is _unaffected_ as it will process request regardless of request/connection status. it's nothing to them.
  */
 export function fetchChunkData(
 	txid: string,

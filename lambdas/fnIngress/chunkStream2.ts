@@ -4,8 +4,16 @@ import { ReadableStream, ReadableByteStreamController } from 'node:stream/web'
 import { httpApiNodes } from '../../libs/utils/update-range-nodes'
 
 
-/** real buffered parallel chunk streaming */
-export const chunkStream2 = async (
+/** backend buffered parallel arweave chunk streaming.
+ * 
+ * stream chunks from nodes starting from chunkStart until dataEnd bytes.
+ * - chunkStart: the +1 chunk offset for /chunk2 API
+ * - dataEnd: absolute byte position where streaming should stop
+ * returns clean data stream that caller can parse/filter as needed.
+ * 
+ * n.b. filtering the start (i.e. data-items) is done in chunkTxDataStream
+ */
+export const chunkStream = async (
 	chunkStart: bigint,
 	dataEnd: number,
 	txid: string,
