@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { after, describe, it, skip } from 'node:test'
 import assert from 'node:assert/strict'
 import { destroyChunkStreamAgent } from '../lambdas/fnIngress/chunkFetch'
