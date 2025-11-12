@@ -71,6 +71,19 @@ describe('chunkStream', () => {
 		assert(data.length === dataEnd, 'Should have received all data')
 	})
 
+	it('should create stream and read single chunk (< 256KB)', async () => {
+		const singleChunkSize = 100_000 // 100KB, less than 256KB chunk size
+		const stream = await chunkStream(chunkStart, singleChunkSize, txid, (new AbortController()).signal)
+		assert(stream instanceof ReadableStream)
+
+		const data = new Uint8Array(singleChunkSize)
+		let offset = 0
+		for await (const buf of stream) {
+			data.set(buf, offset)
+			offset += buf.length
+		}
+		assert(offset === singleChunkSize, 'Should have received all data from single chunk')
+	})
 
 	it('should create stream and read partial requested chunks', async () => {
 
