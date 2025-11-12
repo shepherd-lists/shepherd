@@ -63,14 +63,16 @@ export const chunkStream = async (
 			boundaryPos += CHUNK_SIZE
 		}
 		//boundaryPos now points to where dynamic chunks start
-	} else {
+	}
+	/** ensure starting chunk exists */
+	if (chunkBuffers.length === 0) {
 		//setup the first chunk only
 		chunkBuffers.push({
 			offset: 0,
 			bufferedData: [],
 			bufferedSize: 0,
 		})
-		//boundaryPos is 0. this ok ???
+		//boundaryPos is 0.
 	}
 	// console.debug({ boundaryPos, chunkBuffers })
 
