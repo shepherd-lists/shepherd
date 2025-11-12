@@ -79,8 +79,6 @@ export const chunkStream = async (
 		try {
 			if (abortSignal.aborted) return;
 
-			chunkInfo.started = true
-			activeFetches++
 			console.info(txid, `chunk ${index}, offset ${chunkInfo.offset} starting...`)
 
 
@@ -108,6 +106,8 @@ export const chunkStream = async (
 
 					//start next chunk in parallel 
 					if (activeFetches < maxParallel) {
+						nextChunkInfo.started = true
+						activeFetches++
 						startChunk(chunkBuffers.length - 1, nextChunkInfo)
 					}
 				}
@@ -162,7 +162,9 @@ export const chunkStream = async (
 					for (let i = 0; i < chunkBuffers.length && activeFetches < maxParallel; i++) {
 						const info = chunkBuffers[i]
 						if (info.started) continue;
-						info.started = true //set to avoid race condition
+						//avoid race conditions
+						info.started = true
+						activeFetches++
 						startChunk(i, info)
 					}
 
@@ -224,6 +226,8 @@ export const chunkStream = async (
 		start: (c) => {
 			controller = c
 			//do not pre-load to maxParallel here (might not actually want the stream)
+			chunkBuffers[0].started = true
+			activeFetches++
 			startChunk(0, chunkBuffers[0]) //controller needs to be set. 
 		},
 		cancel: async () => {
