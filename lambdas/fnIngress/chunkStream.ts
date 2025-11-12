@@ -2,6 +2,7 @@ import { fetchChunkData as fetchChunkDataOriginal } from './chunkFetch'
 import http from 'node:http'
 import { ReadableStream, ReadableByteStreamController } from 'node:stream/web'
 import { httpApiNodes } from '../../libs/utils/update-range-nodes'
+import { CHUNK_ALIGN_GENESIS } from '../../libs/byte-ranges/txidToRange/constants-byteRange'
 
 
 /** backend buffered parallel arweave chunk streaming.
@@ -44,41 +45,74 @@ export const chunkStream = async (
 		req?: http.ClientRequest
 		res?: http.IncomingMessage
 		bufferedSize: number
+		started?: boolean
 	}
 	const chunkBuffers: ChunkInfo[] = []
 
-	/** N.B. this function will always be called in correct sequence */
-	const onSize = (size: number) => {
-		if (isCancelled || abortSignal.aborted) return; //we may be cancelling
-
-		//update current chunk size
-		const remaining = dataEnd - boundaryPos
-		chunkBuffers[chunkBuffers.length - 1].size = remaining < size ? remaining : size
-
-		//check if we're done setting up chunk fetches
-		boundaryPos += size
-		if (boundaryPos >= dataEnd) return;
-
-		//set up next chunk
-		const nextChunkInfo: ChunkInfo = {
-			offset: boundaryPos,
+	/** create static chunkInfos in advance for max concurrency */
+	if (chunkStart > CHUNK_ALIGN_GENESIS) {
+		const CHUNK_SIZE = 262144
+		//don't calculate the last 2
+		while ((dataEnd - boundaryPos) > CHUNK_SIZE * 2) {
+			chunkBuffers.push({
+				offset: boundaryPos,
+				size: CHUNK_SIZE,
+				bufferedData: [],
+				bufferedSize: 0,
+			})
+			boundaryPos += CHUNK_SIZE
+		}
+		//boundaryPos now points to where dynamic chunks start
+	} else {
+		//setup the first chunk only
+		chunkBuffers.push({
+			offset: 0,
 			bufferedData: [],
 			bufferedSize: 0,
-		}
-		chunkBuffers.push(nextChunkInfo)
-
-		//start next chunk in parallel
-		if (activeFetches < maxParallel) {
-			startChunk(chunkBuffers.length - 1, nextChunkInfo)
-		}
+		})
+		//boundaryPos is 0. this ok ???
 	}
+	// console.debug({ boundaryPos, chunkBuffers })
+
 
 	const startChunk = async (index: number, chunkInfo: ChunkInfo) => {
 		try {
-			if (abortSignal.aborted) return
+			if (abortSignal.aborted) return;
+
+			chunkInfo.started = true
+			activeFetches++
 			console.info(txid, `chunk ${index}, offset ${chunkInfo.offset} starting...`)
 
-			activeFetches++
+
+			const onSize = (size: number) => {
+				if (isCancelled || abortSignal.aborted) return; //we may be cancelling
+
+				//update current chunk size
+				const remaining = dataEnd - chunkInfo.offset
+				chunkInfo.size = Math.min(remaining, size)
+
+
+				const nextOffset = chunkInfo.offset + chunkInfo.size
+				//check if we are in dynamic chunkInfo creation range
+				if (nextOffset >= boundaryPos) {
+					boundaryPos = chunkInfo.offset + chunkInfo.size
+					if (nextOffset >= dataEnd) return; //finished creating chunks
+
+					//create next dynamic chunk
+					const nextChunkInfo: ChunkInfo = {
+						offset: boundaryPos,
+						bufferedData: [],
+						bufferedSize: 0,
+					}
+					chunkBuffers.push(nextChunkInfo)
+
+					//start next chunk in parallel 
+					if (activeFetches < maxParallel) {
+						startChunk(chunkBuffers.length - 1, nextChunkInfo)
+					}
+				}
+			}
+
 
 			let chunkPos = chunkInfo.offset
 
@@ -93,7 +127,7 @@ export const chunkStream = async (
 				if (index === activeWriteIndex) {
 					if (chunkInfo.bufferedData && chunkInfo.bufferedData.length > 0) {
 						const l = chunkInfo.bufferedData.reduce((acc, buf) => acc + buf.length, 0)
-						console.debug('WRITING OUT BUFFERED DATA', l)
+						console.debug(txid, 'WRITING OUT BUFFERED DATA', l)
 						controller.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData)))
 						delete chunkInfo.bufferedData
 						writePos += l
@@ -125,13 +159,16 @@ export const chunkStream = async (
 					if (isCancelled || abortSignal.aborted) return;
 
 					//start next chunk if we have capacity
-					if (activeFetches < maxParallel) {
-						console.error('TODO: start queued chunks for free slots')
+					for (let i = 0; i < chunkBuffers.length && activeFetches < maxParallel; i++) {
+						const info = chunkBuffers[i]
+						if (info.started) continue;
+						info.started = true //set to avoid race condition
+						startChunk(i, info)
 					}
 
 					//move to next chunk(s)
 					if (index === activeWriteIndex) {
-						console.info('index=activeWriteIndex', { index, activeWriteIndex })
+						console.info(txid, 'index=activeWriteIndex', { index, activeWriteIndex })
 						activeWriteIndex++
 						//next chunks might be fully buffered already
 						while (
@@ -141,7 +178,7 @@ export const chunkStream = async (
 							//enqueue buffer and dataPos+
 							const chunkInfo = chunkBuffers[activeWriteIndex]
 							const l = chunkInfo.bufferedData!.reduce((acc, buf) => acc + buf.length, 0)
-							console.debug('WRITING OUT TOTAL BUFFERED DATA', activeWriteIndex, l)
+							console.debug(txid, 'WRITING OUT TOTAL BUFFERED DATA', activeWriteIndex, l)
 							controller!.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData!)))
 							delete chunkInfo.bufferedData
 							writePos += l
@@ -152,7 +189,7 @@ export const chunkStream = async (
 
 					//check complete
 					if (writePos === dataEnd) {
-						console.info(txid, `chunkStream2 completed: ${writePos}/${dataEnd} bytes`)
+						console.info(txid, `chunkStream completed: ${writePos}/${dataEnd} bytes`)
 						controller?.close()
 					}
 					return;
@@ -167,7 +204,7 @@ export const chunkStream = async (
 					nodeIndex--
 
 					if (nodeIndex < 0) {
-						throw new Error(`chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, offset: chunkInfo.offset, lastErrorMsg: (e as Error).message })}`)
+						throw new Error(`${txid} chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, offset: chunkInfo.offset, lastErrorMsg: (e as Error).message })}`)
 					}
 					continue;
 				}
@@ -181,18 +218,13 @@ export const chunkStream = async (
 		}
 	}//end of startChunk
 
-	//setup the first chunk
-	chunkBuffers.push({
-		offset: 0,
-		bufferedData: [],
-		bufferedSize: 0,
-	})
 
 	return new ReadableStream({
 		type: 'bytes',
 		start: (c) => {
 			controller = c
-			startChunk(0, chunkBuffers[0]) //controller needs to be set before starting
+			//do not pre-load to maxParallel here (might not actually want the stream)
+			startChunk(0, chunkBuffers[0]) //controller needs to be set. 
 		},
 		cancel: async () => {
 			isCancelled = true
