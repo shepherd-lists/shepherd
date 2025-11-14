@@ -194,6 +194,9 @@ const fnIngressInvoker = async (inputs: {
 			const processed: FnIngressReturn = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
 
 			console.info(indexName, fnIngressInvoker.name, `page ${pageNumber}, total records ${metas.length}, ${processed.numQueued} queued in s3, ${processed.numUpdated} inserts, ${processed.errored.length} errored.`, streamSourceName)
+
+			if (processed.errored.length > 0) slackLog(`DEBUG errors ${processed.errored.length}/${metas.length}.`, JSON.stringify(processed.errored))
+
 			return processed;
 		} catch (err: unknown) {
 			const e = err as Error
