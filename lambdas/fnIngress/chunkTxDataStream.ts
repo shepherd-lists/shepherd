@@ -181,6 +181,11 @@ const dataItemDataOffset = (dataItem: Uint8Array) => {
 	// Skip tags data
 	offset += tagsLength
 
+	// Verify we have all the bytes we need
+	if (dataItem.length < offset) {
+		throw new Error(`Not enough bytes: need ${offset}, have ${dataItem.length}`)
+	}
+
 	// Remaining is content
 	return offset;
 }
