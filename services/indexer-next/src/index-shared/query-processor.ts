@@ -13,6 +13,8 @@ const limit = pLimit(MAX_INGRESS_LAMBDAS)
 const MISSING_HEIGHT = 'MISSING_HEIGHT'
 const CHUNKS_BATCH_SIZE = 50
 const PASS1_DOWNLOAD_TIMEOUT = 60_000 //ms
+const LONG_DOWNLOAD_TIMEOUT = 14 * 60_000 //14 mins
+
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const lambdaClient = new LambdaClient({})
@@ -34,7 +36,7 @@ export const gqlPages = async ({
 	indexName,
 	gqlUrl,
 	gqlUrlBackup,
-	streamSourceName = 'nodes',
+	streamSourceName = 'gateway',// 'nodes',
 }: {
 	query: string
 	variables: Record<string, any>,
@@ -47,11 +49,14 @@ export const gqlPages = async ({
 	const gql = arGql({ endpointUrl: gqlUrl, retries: 3 })
 	const gqlProvider = gqlUrl.includes('arweave.net') ? 'arweave.net' : 'goldsky.com'
 
+
 	let hasNextPage = true
 	let cursor = ''
 	const promises: Promise<FnIngressReturn>[] = []
 	const t0 = performance.now()
 	let pageCount = 0, itemCount = 0
+
+	const allEdges = new Map<string, GQLEdgeInterface>()
 
 	while (hasNextPage) {
 		const p0 = performance.now()
@@ -109,6 +114,9 @@ export const gqlPages = async ({
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
+			//store for our retries
+			edges.forEach(edge => allEdges.set(edge.node.id, edge))
+
 			/* split page into batches to process in lambda */
 			const { batchCount, batchSizes } = batchAndDispatchEdges(
 				edges,
@@ -152,9 +160,43 @@ export const gqlPages = async ({
 		return acc
 	}, [[], []] as [TxRecord[], TxRecord[]])
 
-	console.error(`pending: ${pending.length}, errored: ${errored.length}`)
+	//temporary debug slacks
+	if (errored.length > 0) slackLog(`DEBUG errored ${errored.length}/${results.length}.`, JSON.stringify(errored))
+	if (pending.length > 0) slackLog(`DEBUG pending ${pending.length}/${results.length}.`, JSON.stringify(pending))
 
-	// now retry the pending records with a longer download timeout
+	console.info(`pending: ${pending.length}, errored: ${errored.length}`)
+
+	//now retry the pending/errored records with a longer download timeout
+	if (pending.length > 0 || errored.length > 0) {
+		const promisesRetries: Promise<FnIngressReturn>[] = []
+		const toRetry = [...pending, ...errored].map(record => allEdges.get(record.txid)).filter(Boolean) as GQLEdgeInterface[]
+
+		const { batchCount, batchSizes } = batchAndDispatchEdges(
+			toRetry,
+			'retries',
+			'gateway', //
+			gqlUrl,
+			gqlUrlBackup,
+			gqlProvider,
+			indexName,
+			promisesRetries,
+			LONG_DOWNLOAD_TIMEOUT,
+		)
+
+		const resultsRetries = await Promise.all(promisesRetries)
+		const [pendingRetries, erroredRetries] = resultsRetries.reduce((acc, result) => {
+			result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push(value.record))
+			return acc
+		}, [[], []] as [TxRecord[], TxRecord[]])
+
+		console.info(`retried ${batchCount} batches [${batchSizes.join(', ')}] for pending/errored records using 'gateway' stream source`)
+
+		if (pendingRetries.length > 0) slackLog(`DEBUG pending retries ${pendingRetries.length}/${resultsRetries.length}.`, JSON.stringify(pendingRetries))
+		if (erroredRetries.length > 0) slackLog(`DEBUG errored retries ${erroredRetries.length}/${resultsRetries.length}.`, JSON.stringify(erroredRetries))
+
+		console.info(`pending retries: ${pendingRetries.length}, errored retries: ${erroredRetries.length}`)
+
+	}
 
 
 	const numProgressed = results.reduce((acc, result) => acc + result.numQueued + result.numUpdated, 0)
@@ -195,8 +237,6 @@ const fnIngressInvoker = async (inputs: {
 
 			console.info(indexName, fnIngressInvoker.name, `page ${pageNumber}, total records ${metas.length}, ${processed.numQueued} queued in s3, ${processed.numUpdated} inserts, ${processed.errored.length} errored.`, streamSourceName)
 
-			if (processed.errored.length > 0) slackLog(`DEBUG errors ${processed.errored.length}/${metas.length}.`, JSON.stringify(processed.errored))
-
 			return processed;
 		} catch (err: unknown) {
 			const e = err as Error
@@ -218,30 +258,15 @@ const batchAndDispatchEdges = (
 	promises: Promise<FnIngressReturn>[],
 	downloadTimeout: number,
 ): { batchCount: number; batchSizes: number[] } => {
-	if (streamSourceName === 'nodes') {
-		const batchSize = CHUNKS_BATCH_SIZE
-		let batchCount = 0
-		const batchSizes = []
-		let batch
-		while ((batch = edges.slice(batchCount * batchSize, (batchCount + 1) * batchSize)).length > 0) {
-			batchSizes.push(batch.length)
-			promises.push(limit(fnIngressInvoker, {
-				metas: batch,
-				pageNumber: `${pageNumber}-${batchCount + 1}`,
-				gqlUrl,
-				gqlUrlBackup,
-				gqlProvider,
-				indexName,
-				streamSourceName,
-				downloadTimeout,
-			}))
-			batchCount++
-		}
-		return { batchCount, batchSizes }
-	} else {
+	const batchSize = (streamSourceName === 'nodes') ? CHUNKS_BATCH_SIZE : 100
+	let batchCount = 0
+	const batchSizes = []
+	let batch
+	while ((batch = edges.slice(batchCount * batchSize, (batchCount + 1) * batchSize)).length > 0) {
+		batchSizes.push(batch.length)
 		promises.push(limit(fnIngressInvoker, {
-			metas: edges,
-			pageNumber,
+			metas: batch,
+			pageNumber: `${pageNumber}-${batchCount + 1}`,
 			gqlUrl,
 			gqlUrlBackup,
 			gqlProvider,
@@ -249,6 +274,7 @@ const batchAndDispatchEdges = (
 			streamSourceName,
 			downloadTimeout,
 		}))
-		return { batchCount: 1, batchSizes: [edges.length] }
+		batchCount++
 	}
+	return { batchCount, batchSizes }
 }
