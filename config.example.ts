@@ -5,7 +5,12 @@ export const config: Config = {
 	cidr: '10.0.0.0/16',
 
 	addons: [
-		// 'nsfw',
+		'nsfw',
+	],
+
+	/** classifiers and order for linking */
+	classifiers: [
+		'nsfw'
 	],
 
 	txids_whitelist: [],

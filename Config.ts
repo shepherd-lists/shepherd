@@ -17,6 +17,9 @@ export type Config = {
 	/** addonns to load. must be installed in ./addons/ */
 	addons: Array<string>
 
+	/** classifiers and order for linking */
+	classifiers: Array<string>
+
 	// // ## whitelist IPs for http://webserver/blacklist.txt
 	txids_whitelist: Array<string>
 
