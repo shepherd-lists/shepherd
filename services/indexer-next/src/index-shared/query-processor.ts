@@ -257,16 +257,16 @@ const batchAndDispatchEdges = (
 	indexName: string,
 	promises: Promise<FnIngressReturn>[],
 	downloadTimeout: number,
-): { batchCount: number; batchSizes: number[] } => {
+) => {
 	const batchSize = (streamSourceName === 'nodes') ? CHUNKS_BATCH_SIZE : 100
-	let batchCount = 0
 	const batchSizes = []
-	let batch
-	while ((batch = edges.slice(batchCount * batchSize, (batchCount + 1) * batchSize)).length > 0) {
+	let batchCount = 0
+	for (let i = 0; i < edges.length; i += batchSize) {
+		const batch = edges.slice(i, i + batchSize)
 		batchSizes.push(batch.length)
 		promises.push(limit(fnIngressInvoker, {
 			metas: batch,
-			pageNumber: `${pageNumber}-${batchCount + 1}`,
+			pageNumber: `${pageNumber}-${batchCount}`,
 			gqlUrl,
 			gqlUrlBackup,
 			gqlProvider,
