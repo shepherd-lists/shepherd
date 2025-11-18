@@ -83,8 +83,9 @@ export class InfraStack extends cdk.Stack {
 		/** inputQ metric and notifications */
 		const { inputAgeMetricProps } = inputQMetricAndNotifications(stack, vpc, sqsInputQ.queueName, config.slack_public!, logGroupInfra)
 
-		/** create feeder Q */
-		const { feederQ } = feederQs(stack)
+		/** create output Qs */
+		const { outputQs } = createOutputQs(stack, config.classifiers)
+		if(outputQs.length <= 0) throw new Error('no output queues created')
 
 
 		/** SQS queue security */
@@ -98,13 +99,13 @@ export class InfraStack extends cdk.Stack {
 		})
 
 		/* grant vpc resources access to the queues */
-		const queues = [sqsInputQ, feederQ]
-		queues.map(q => {
+		const queues = [sqsInputQ, ...outputQs]
+		queues.forEach(q => {
 			q.addToResourcePolicy(new cdk.aws_iam.PolicyStatement({
 				effect: cdk.aws_iam.Effect.ALLOW,
 				principals: [new cdk.aws_iam.AccountPrincipal(cdk.Aws.ACCOUNT_ID)],
 				actions: ['sqs:*'],
-				resources: [q.queueArn],
+				resources: [q.queueArn!],
 				conditions: {
 					StringEquals: {
 						'aws:SourceVpce': sqsVpcEndpoint.vpcEndpointId,
@@ -159,7 +160,6 @@ export class InfraStack extends cdk.Stack {
 		writeParam('LogGroup', logGroupServices.logGroupName)		 	//LOG_GROUP_NAME
 		writeParam('InputQueueUrl', sqsInputQ.queueUrl)		// AWS_SQS_INPUT_QUEUE
 		writeParam('InputQueueName', sqsInputQ.queueName)
-		writeParam('FeederQueueUrl', feederQ.queueUrl)		// AWS_FEEDER_QUEUE
 		writeParam('RdsEndpoint', pgdb.dbInstanceEndpointAddress)
 		writeParam('AlbDnsName', alb.loadBalancerDnsName)
 		writeParam('AlbArn', alb.loadBalancerArn)					// LB_ARN
@@ -241,21 +241,26 @@ const bucketAndNotificationQs = (stack: cdk.Stack) => {
 	}
 }
 
-const feederQs = (stack: cdk.Stack) => {
-	const feederQ = new cdk.aws_sqs.Queue(stack, 'shepherd2-feeder-q', {
-		queueName: 'shepherd2-feeder-q',
-		retentionPeriod: cdk.Duration.days(14), //max value
-		visibilityTimeout: cdk.Duration.minutes(15),
-		deadLetterQueue: {
-			maxReceiveCount: 10,
-			queue: new cdk.aws_sqs.Queue(stack, 'shepherd2-feeder-dlq', {
-				queueName: 'shepherd2-feeder-dlq',
-				retentionPeriod: cdk.Duration.days(14),
-			}),
-		},
-	})
+const createOutputQs = (stack: cdk.Stack, classifiers: Array<string>): {outputQs: cdk.aws_sqs.Queue[]} => {
+	const outputQs = []
+	for (let i = 0; i < classifiers.length; i++) {
+		const classifier = classifiers[i]
+		const q = new cdk.aws_sqs.Queue(stack, `shepherd2-output-${i+1}-${classifier}-q`, {
+			queueName: `shepherd2-output-${i+1}-${classifier}-q`,
+			retentionPeriod: cdk.Duration.days(14), //max value
+			visibilityTimeout: cdk.Duration.minutes(15),
+			deadLetterQueue: {
+				maxReceiveCount: 10,
+				queue: new cdk.aws_sqs.Queue(stack, `shepherd2-output-${i+1}-${classifier}-dlq`, {
+					queueName: `shepherd2-output-${i+1}-${classifier}-dlq`,
+					retentionPeriod: cdk.Duration.days(14),
+				}),
+			},
+		})
+		outputQs.push(q)
+	}
 
 	return {
-		feederQ,
+		outputQs,
 	}
 }
