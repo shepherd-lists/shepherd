@@ -132,6 +132,13 @@ export class InfraStack extends cdk.Stack {
 			},
 		}))
 
+		/** create a single cluster to export for services */
+		const cluster = new cdk.aws_ecs.Cluster(stack, 'shepherd-services-cluster', {
+			vpc,
+			clusterName: 'shepherd-services',
+			defaultCloudMapNamespace: { name: 'shepherd.local' },
+		})
+
 
 		/** cfn outputs. unused, but handy to have in aws console */
 
@@ -164,6 +171,10 @@ export class InfraStack extends cdk.Stack {
 		writeParam('AlbDnsName', alb.loadBalancerDnsName)
 		writeParam('AlbArn', alb.loadBalancerArn)					// LB_ARN
 		writeParam('InputMetricProps', inputAgeMetricProps)	// object to re-create the metric
+
+		writeParam('ClusterName', cluster.clusterName)
+		writeParam('NamespaceArn', cluster.defaultCloudMapNamespace!.namespaceArn)
+		writeParam('NamespaceId', cluster.defaultCloudMapNamespace!.namespaceId)
 
 	}
 }
