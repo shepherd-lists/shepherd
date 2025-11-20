@@ -1,0 +1,24 @@
+{
+  "name": "shepherd-next",
+  "version": "0.0.1",
+  "description": " ingested_at based indexer, amongst other things",
+  "type": "module",
+  "scripts": {
+    "init": "lockfiles=$(find . -name 'package-lock.json' -not -path './package-lock.json') && for lockfile in $lockfiles; do (cd $(dirname \"$lockfile\") && npm ci); done",
+    "preinstall": "(source $NVM_DIR/nvm.sh && nvm use) || echo 'nvm not found. please use nodejs v20+'",
+    "prepare": "husky && npm run init"
+  },
+  "author": "Ros McMahon <rosmcmahon@gmail.com",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.873.0",
+    "@aws-sdk/lib-storage": "^3.873.0",
+    "@types/node": "^22.13.10",
+    "dotenv": "^16.4.5",
+    "esbuild": "^0.25.1",
+    "husky": "^9.0.10",
+    "shepherd-plugin-interfaces": "^2.1.0",
+    "tsx": "^4.7.2",
+    "typescript": "^5.8.2"
+  }
+}

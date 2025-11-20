@@ -1,0 +1,7 @@
+{
+	"type": "module",
+	"dependencies": {
+		"pg": "^8.13.0",
+		"pg-query-stream": "^4.7.0"
+	}
+}

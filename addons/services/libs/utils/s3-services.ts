@@ -1,0 +1,163 @@
+import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, DeleteObjectCommand, GetObjectTaggingCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3'
+import { Upload } from '@aws-sdk/lib-storage'
+import { slackLog } from './slackLog'
+import { PassThrough, Readable, Writable } from 'stream'
+import { NodeHttpHandler } from '@aws-sdk/node-http-handler'
+
+
+console.info('AWS_DEFAULT_REGION', process.env.AWS_DEFAULT_REGION)
+console.info('AWS_REGION', process.env.AWS_REGION)
+
+const s3client = new S3Client({
+	requestHandler: new NodeHttpHandler({
+		connectionTimeout: 0,
+		requestTimeout: 0,
+	}),
+	maxAttempts: 3,
+})
+
+
+export const s3HeadObject = async (Bucket: string, Key: string) => s3client.send(new HeadObjectCommand({ Bucket, Key }))
+
+export const s3ObjectTagging = async (Bucket: string, Key: string) => s3client.send(new GetObjectTaggingCommand({ Bucket, Key }))
+
+export const s3DeleteObject = async (Bucket: string, Key: string) => s3client.send(new DeleteObjectCommand({ Bucket, Key }))
+
+export const s3CheckFolderExists = async (Bucket: string, folder: string) => {
+	const Prefix = folder.endsWith('/') ? folder : folder + '/'
+	const res = await s3client.send(new ListObjectsV2Command({ Bucket, Prefix, MaxKeys: 1 }))
+	if (Number(res.KeyCount) > 0) return true;
+	if (res.KeyCount === 0) {
+		console.info(s3CheckFolderExists.name, `could not find '${Prefix}' in ${Bucket}`)
+		return false;
+	}
+	throw new Error(`could not check for folder '${Prefix}' in ${Bucket}`)
+}
+
+/** uses pagination */
+export const s3ListFolderObjects = async (Bucket: string, folder: string) => {
+	let continuationToken: string | undefined
+	let contents: any[] = []
+	const Prefix = folder.endsWith('/') ? folder : folder + '/'
+
+	do {
+		const { Contents, IsTruncated, NextContinuationToken } = await s3client.send(new ListObjectsV2Command({
+			Bucket,
+			Prefix, // specify the folder prefix here
+			Delimiter: "/", // use a delimiter to list only objects in the folder
+			ContinuationToken: continuationToken, // include theContinuationToken if present
+		}))
+
+		if (Contents) {
+			contents = contents.concat(Contents)
+		}
+
+		// console.debug({ IsTruncated, NextContinuationToken })
+		continuationToken = NextContinuationToken
+	} while (continuationToken)
+
+	return contents.map(item => item.Key as string)
+}
+
+export const s3DeleteFolder = async (Bucket: string, folder: string) => {
+	const Prefix = folder.endsWith('/') ? folder : folder + '/'
+
+	/* 1. List all objects "recursively" */
+	let continuationToken: string | undefined
+	let objectIdentifiers: { Key: string }[] = []
+
+	do {
+		const list = await s3client.send(new ListObjectsV2Command({
+			Bucket,
+			Prefix,
+			// no delimiter to list all objects starting with Prefix
+			ContinuationToken: continuationToken,
+		}))
+
+		if (list.Contents) {
+			objectIdentifiers.push(...list.Contents.map(obj => ({ Key: obj.Key! })));
+		}
+
+		continuationToken = list.NextContinuationToken;
+	} while (continuationToken)
+
+	/* 2. Batch delete in parallel (1000 objects per request - S3 limit) */
+	const batchSize = 1000
+	const total = objectIdentifiers.length
+	for (let i = 0; i < objectIdentifiers.length; i += batchSize) {
+		const batch = objectIdentifiers.slice(i, i + batchSize);
+
+		await s3client.send(new DeleteObjectsCommand({
+			Bucket,
+			Delete: { Objects: batch },
+		}))
+	}
+
+	// console.debug(`deleted ${total} objects from ${Prefix}`);
+}
+
+/** N.B. this will accept either a Readable or ReadableStream (nodejs or web stream)  */
+export const s3UploadStream = async (Bucket: string, Key: string, Body: ReadableStream | Readable) => {
+
+	try {
+		const upload = new Upload({
+			client: s3client,
+			params: {
+				Bucket,
+				Key,
+				ContentType: 'text/plain',
+				Body,
+			},
+			// partSize: default = min = 5mb
+			queueSize: 8, //default 4
+		})
+
+		// Start the upload
+		await upload.done()
+		// upload completed successfully
+	} catch (err: unknown) {
+		const e = err as Error
+		slackLog(s3UploadStream.name, Key, `UNHANDLED s3 upload error ${e.name}:${e.message}.`, e)
+		throw e
+	}
+}
+export const s3UploadReadable = (Bucket: string, Key: string) => {
+	const Body = new PassThrough({ autoDestroy: true, emitClose: true })
+	const promise = s3UploadStream(Bucket, Key, Body)
+	const customObject = Body as unknown as Writable & { promise: Promise<void> }
+	customObject.promise = promise
+	return customObject
+}
+
+export const s3PutObject = async ({ Bucket, Key, text, Sha1 }: { Bucket: string; Key: string; text: string; Sha1?: string }) => {
+	const res = await s3client.send(new PutObjectCommand({
+		Bucket,
+		Key,
+		ContentType: 'text/plain',
+		Body: text,
+		Tagging: Sha1 ? `SHA-1=${Sha1}` : undefined,
+	}))
+	return res.$metadata.httpStatusCode
+}
+
+export const s3GetObjectWebStream = async (Bucket: string, Key: string) => {
+	try {
+		const { Body } = (await s3client.send(new GetObjectCommand({ Bucket, Key, })))
+
+		// //DEBUG
+		// console.debug('s3GetObjectWebStream typeof Body', typeof Body)
+		// if (Body instanceof ReadableStream) console.debug('s3GetObjectWebStream Body is a ReadableStream')
+		// if (Body instanceof Readable) console.debug('s3GetObjectWebStream Body is a Readable')
+
+		return Body!.transformToWebStream() // this should be consistent for nodejs and browser
+	} catch (err: unknown) {
+		const e = err as Error
+		slackLog(s3GetObjectWebStream.name, Key, `UNHANDLED error ${e.name}:${e.message}.`, JSON.stringify(e))
+		throw e
+	}
+}
+
+export const s3GetObject = async (Bucket: string, Key: string) => {
+	const res = await s3client.send(new GetObjectCommand({ Bucket, Key, }))
+	return res.Body!.transformToString()
+}
