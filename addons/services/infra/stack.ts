@@ -1,9 +1,8 @@
-import { App, Duration, Stack, aws_ec2, aws_ecs, aws_elasticloadbalancingv2, aws_iam, aws_logs, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
+import { App, Duration, Stack, aws_ec2, aws_ecs, aws_elasticloadbalancingv2, aws_iam, aws_logs, aws_s3, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
 import { Config } from '../../../Config'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { createAddonService } from './createService'
 import { createFn } from './createFn'
-import { buildListsBucket } from './listsBucket'
 
 
 
@@ -48,7 +47,7 @@ export const createStack = async (app: App, config: Config) => {
 	const namespaceId = readParamCfn('NamespaceId')
 	const alb = aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn })
 	// const listener80 = aws_elasticloadbalancingv2.ApplicationListener.fromLookup(stack, 'listener80', { listenerArn: await readParamSdk('Listener80') })
-
+	const listsBucket = aws_s3.Bucket.fromBucketArn(stack, 'listsBucket', readParamCfn('ListsBucketArn'))
 
 	const cloudMapNamespace = aws_servicediscovery.PrivateDnsNamespace.fromPrivateDnsNamespaceAttributes(stack, 'shepherd.local', {
 		namespaceName: 'shepherd.local',
@@ -135,12 +134,10 @@ export const createStack = async (app: App, config: Config) => {
 		environment: {
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: config.slack_webhook!,
-			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+			LISTS_BUCKET: listsBucket.bucketName,
 		}
 	})
 
-	/** create s3 for lists */
-	const listsBucket = buildListsBucket(stack, config)
 
 	/** create indexer-next service */
 	const indexerNext = createAddonService(stack, 'indexer-next', {
@@ -160,7 +157,7 @@ export const createStack = async (app: App, config: Config) => {
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
 			FN_INDEXER: fnIndex.functionName,
 			FN_INIT_LISTS: fnInitLists.functionName,
-			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+			LISTS_BUCKET: listsBucket.bucketName,
 			FN_INGRESS: fnIngress.functionName,
 		}
 	})
@@ -198,7 +195,7 @@ export const createStack = async (app: App, config: Config) => {
 			maxHealthyPercent: 200,
 		}),
 		environment: {
-			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+			LISTS_BUCKET: listsBucket.bucketName,
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: config.slack_webhook!,
 			SLACK_PROBE: config.slack_probe!,
@@ -250,7 +247,7 @@ export const createStack = async (app: App, config: Config) => {
 				memoryLimitMiB: 4096,
 			},
 			environment: {
-				LISTS_BUCKET: `shepherd-lists-${config.region}`,
+				LISTS_BUCKET: listsBucket.bucketName,
 				SLACK_WEBHOOK: config.slack_webhook!,
 				SLACK_PROBE: config.slack_probe!,
 				BLACKLIST_ALLOWED: JSON.stringify(config.txids_whitelist) || '',
@@ -283,7 +280,7 @@ export const createStack = async (app: App, config: Config) => {
 			memoryLimitMiB: 2048,
 		},
 		environment: {
-			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+			LISTS_BUCKET: listsBucket.bucketName,
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: config.slack_webhook!,
 			SLACK_POSITIVE: config.slack_positive!,

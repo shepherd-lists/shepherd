@@ -3,6 +3,7 @@ import { Construct } from 'constructs'
 import { inputQMetricAndNotifications } from './lib/queue-notifications'
 import { createTailscaleSubrouter } from './lib/tailscale-ec2-router'
 import { Config } from '../Config'
+import { buildListsBucket } from './lib/listsBucket'
 
 
 interface InfraStackProps extends cdk.StackProps {
@@ -139,6 +140,9 @@ export class InfraStack extends cdk.Stack {
 			defaultCloudMapNamespace: { name: 'shepherd.local' },
 		})
 
+		/** create s3 for lists */
+		const listsBucket = buildListsBucket(stack, config)
+
 
 		/** cfn outputs. unused, but handy to have in aws console */
 
@@ -171,10 +175,10 @@ export class InfraStack extends cdk.Stack {
 		writeParam('AlbDnsName', alb.loadBalancerDnsName)
 		writeParam('AlbArn', alb.loadBalancerArn)					// LB_ARN
 		writeParam('InputMetricProps', inputAgeMetricProps)	// object to re-create the metric
-
 		writeParam('ClusterName', cluster.clusterName)
 		writeParam('NamespaceArn', cluster.defaultCloudMapNamespace!.namespaceArn)
 		writeParam('NamespaceId', cluster.defaultCloudMapNamespace!.namespaceId)
+		writeParam('ListsBucketArn', listsBucket.bucketArn)
 
 	}
 }
