@@ -70,7 +70,7 @@ export const createStack = async (app: App, config: Config) => {
 			HOST_URL: config.host_url || 'https://arweave.net',
 			http_api_nodes: JSON.stringify(config.http_api_nodes),
 			http_api_nodes_url: config.http_api_nodes_url || '', //byte-ranges
-			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+			LISTS_BUCKET: listsBucket.bucketName,
 		},
 	})
 	/** create lambda to process incoming items */
@@ -121,7 +121,7 @@ export const createStack = async (app: App, config: Config) => {
 		environment: {
 			DB_HOST: rdsEndpoint,
 			SLACK_WEBHOOK: config.slack_webhook!,
-			LISTS_BUCKET: `shepherd-lists-${config.region}`,
+			LISTS_BUCKET: listsBucket.bucketName,
 		}
 	})
 	const fnTemp = createFn('fnTemp', stack, {
