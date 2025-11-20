@@ -24,13 +24,13 @@ const inputBucketName = await readParamSdk('InputBucket')
 
 
 export const createStack = async (app: App, config: Config) => {
-	const stack = new Stack(app, 'Next', {
+	const stack = new Stack(app, 'Services', {
 		env: {
 			account: process.env.CDK_DEFAULT_ACCOUNT,
 			region: config.region,
 		},
-		stackName: 'shepherd-next',
-		description: 'shepherd run as a private addon'
+		stackName: 'shepherd-classifier-services',
+		description: 'shepherd classifier services stack'
 	})
 
 	/** import shepherd infra */
