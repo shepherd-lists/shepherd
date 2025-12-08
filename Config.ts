@@ -45,3 +45,10 @@ export type Config = {
 	}
 
 }
+
+/** return the name of the output queue for a given classifier. important to centralize this logic for refactoring later */
+export const classifierQueueName = (config: Config, i: number) => ({
+	queueName: `shepherd2-output-${i+1}-${config.classifiers[i]}-q`,
+	dlqName: `shepherd2-output-${i+1}-${config.classifiers[i]}-dlq`,
+})
+

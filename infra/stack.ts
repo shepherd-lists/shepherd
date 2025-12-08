@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib'
 import { Construct } from 'constructs'
 import { inputQMetricAndNotifications } from './lib/queue-notifications'
 import { createTailscaleSubrouter } from './lib/tailscale-ec2-router'
-import { Config } from '../Config'
+import { Config, classifierQueueName } from '../Config'
 import { buildListsBucket } from './lib/listsBucket'
 
 
@@ -85,7 +85,7 @@ export class InfraStack extends cdk.Stack {
 		const { inputAgeMetricProps } = inputQMetricAndNotifications(stack, vpc, sqsInputQ.queueName, config.slack_public!, logGroupInfra)
 
 		/** create output Qs */
-		const { outputQs } = createOutputQs(stack, config.classifiers)
+		const { outputQs } = createOutputQs(stack, config)
 		if(outputQs.length <= 0) throw new Error('no output queues created')
 
 
@@ -256,18 +256,19 @@ const bucketAndNotificationQs = (stack: cdk.Stack) => {
 	}
 }
 
-const createOutputQs = (stack: cdk.Stack, classifiers: Array<string>): {outputQs: cdk.aws_sqs.Queue[]} => {
+const createOutputQs = (stack: cdk.Stack, config: Config): {outputQs: cdk.aws_sqs.Queue[]} => {
 	const outputQs = []
-	for (let i = 0; i < classifiers.length; i++) {
-		const classifier = classifiers[i]
-		const q = new cdk.aws_sqs.Queue(stack, `shepherd2-output-${i+1}-${classifier}-q`, {
-			queueName: `shepherd2-output-${i+1}-${classifier}-q`,
+	for (let i = 0; i < config.classifiers.length; i++) {
+		const classifier = config.classifiers[i]
+		const { queueName, dlqName } = classifierQueueName(config, i)
+		const q = new cdk.aws_sqs.Queue(stack, queueName, {
+			queueName,
 			retentionPeriod: cdk.Duration.days(14), //max value
 			visibilityTimeout: cdk.Duration.minutes(15),
 			deadLetterQueue: {
 				maxReceiveCount: 10,
-				queue: new cdk.aws_sqs.Queue(stack, `shepherd2-output-${i+1}-${classifier}-dlq`, {
-					queueName: `shepherd2-output-${i+1}-${classifier}-dlq`,
+				queue: new cdk.aws_sqs.Queue(stack, dlqName, {
+					queueName: dlqName,
 					retentionPeriod: cdk.Duration.days(14),
 				}),
 			},
