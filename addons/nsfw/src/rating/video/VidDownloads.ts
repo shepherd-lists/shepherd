@@ -1,10 +1,10 @@
-import {rimraf} from 'rimraf'
+import { rimraf } from 'rimraf'
 import { VID_TMPDIR } from '../../constants'
 import { logger } from '../../utils/logger'
 import { cleanupAfterProcessing } from '../../harness'
 
 
-export interface VidDownloadRecord  {
+export interface VidDownloadRecord {
 	txid: string
 	content_size: string
 	content_type: string
@@ -16,9 +16,9 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 
 	/* singleton boilerplate */
 	private static instance: VidDownloads
-	private constructor() {}
+	private constructor() { }
 	public static getInstance(): VidDownloads {
-		if(!VidDownloads.instance){
+		if (!VidDownloads.instance) {
 			VidDownloads.instance = new VidDownloads()
 		}
 		return VidDownloads.instance
@@ -28,11 +28,11 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 	private static array: VidDownloadRecord[] = []
 
 	/* expose methods/properties of internal array */
-	public [Symbol.iterator] = ()=> VidDownloads.array[Symbol.iterator]()
-	public length = ()=> VidDownloads.array.length	//it's become a function
-	public push = (vdl: VidDownloadRecord)=> {
-		for(const item of VidDownloads.array){
-			if(vdl.txid === item.txid){
+	public [Symbol.iterator] = () => VidDownloads.array[Symbol.iterator]()
+	public length = () => VidDownloads.array.length	//it's become a function
+	public push = (vdl: VidDownloadRecord) => {
+		for (const item of VidDownloads.array) {
+			if (vdl.txid === item.txid) {
 				throw new Error(`VidDownloadsError: item '${vdl.txid}' already in array.`)
 			}
 		}
@@ -40,21 +40,21 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 	}
 
 	/* extra methods */
-	public size = ()=> VidDownloads.array.reduce((acc, curr)=> acc + Number(curr.content_size), 0)
+	public size = () => VidDownloads.array.reduce((acc, curr) => acc + Number(curr.content_size), 0)
 
-	public cleanup = async(vdl: VidDownloadRecord)=> {
-		try{
+	public cleanup = async (vdl: VidDownloadRecord) => {
+		try {
 			await rimraf(VID_TMPDIR + vdl.txid)
-		}catch(e){
+		} catch (e) {
 			logger(vdl.txid, 'Error deleting temp folder', e)
 		}
 		VidDownloads.array = VidDownloads.array.filter(d => d !== vdl)
 		await cleanupAfterProcessing(vdl.receiptHandle, vdl.txid, +vdl.content_size)
 	}
 
-	public listIds = ()=> {
+	public listIds = () => {
 		const ids: string[] = []
-		for(const item of this){
+		for (const item of this) {
 			ids.push(item.txid)
 		}
 		return ids

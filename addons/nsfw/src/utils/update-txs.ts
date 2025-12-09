@@ -28,7 +28,7 @@ setInterval(() => {
 let count = 0
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-if(!process.env.HTTP_API_URL) throw new Error('HTTP_API_URL not defined')
+if (!process.env.HTTP_API_URL) throw new Error('HTTP_API_URL not defined')
 const HTTP_API_URL = process.env.HTTP_API_URL
 console.log('HTTP_API_URL', HTTP_API_URL)
 
@@ -38,21 +38,21 @@ const hostname = url.hostname
 const port = url.port
 const path = url.pathname
 
-export const updateTx = async(txid: string, filterResult: Partial<FilterResult | FilterErrorResult> )=> {
+export const updateTx = async (txid: string, filterResult: Partial<FilterResult | FilterErrorResult>) => {
 	const _count = ++count
-	try{
+	try {
 		const payload: APIFilterResult = {
 			txid,
 			filterResult: filterResult as FilterResult,
 		}
 		const payloadString = JSON.stringify(payload)
 
-		console.log(txid, `sending ${_count} ...`, )
-		let tries=3
-		while(true){
+		console.log(txid, `sending ${_count} ...`,)
+		let tries = 3
+		while (true) {
 			--tries
-			try{
-				const result = await new Promise<{statusCode: number, statusMessage: string}>((resolve, reject) => {
+			try {
+				const result = await new Promise<{ statusCode: number, statusMessage: string }>((resolve, reject) => {
 					const req = request({
 						hostname,
 						port,
@@ -97,13 +97,13 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 
 				console.info(txid, `sent ${_count}`, result.statusCode, result.statusMessage)
 				break;
-			}catch(err0:unknown){
+			} catch (err0: unknown) {
 				const e0 = err0 as Error
-				if(tries>0){
-					console.error(txid, 'error posting to http-api',e0.name, ':', e0.message, 'retrying...')
+				if (tries > 0) {
+					console.error(txid, 'error posting to http-api', e0.name, ':', e0.message, 'retrying...')
 					await sleep(2_000)
 					continue;
-				}else{
+				} else {
 					throw err0
 				}
 			}
@@ -113,7 +113,7 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 
 		return txid
 
-	}catch(err:unknown){
+	} catch (err: unknown) {
 		const e = err as Error
 		logger(txid, 'Error posting to http-api', e.name, ':', e.message, JSON.stringify(filterResult), e)
 		slackLogger(txid, ':warning: Error posting to http-api (nsfw) after 3 tries', e.name, ':', e.message, JSON.stringify(filterResult), e)
@@ -121,54 +121,54 @@ export const updateTx = async(txid: string, filterResult: Partial<FilterResult |
 	}
 }
 
-export const inflightDel = async(txid: string)=> {
-	return updateTx(txid,{
+export const inflightDel = async (txid: string) => {
+	return updateTx(txid, {
 		data_reason: 'retry',
 	})
 }
 
-export const corruptDataConfirmed = async(txid: string)=> {
-	return updateTx(txid,{
+export const corruptDataConfirmed = async (txid: string) => {
+	return updateTx(txid, {
 		data_reason: 'corrupt',
 	})
 }
 
-export const corruptDataMaybe = async(txid: string)=> {
-	return updateTx(txid,{
+export const corruptDataMaybe = async (txid: string) => {
+	return updateTx(txid, {
 		data_reason: 'corrupt-maybe',
 	})
 }
 
-export const partialImageFound = async(txid: string)=> {
-	return updateTx(txid,{
+export const partialImageFound = async (txid: string) => {
+	return updateTx(txid, {
 		data_reason: 'partial',
 	})
 }
 
-export const partialVideoFound = async(txid: string)=> {
-	return updateTx(txid,{
+export const partialVideoFound = async (txid: string) => {
+	return updateTx(txid, {
 		//@ts-expect-error data_reason doesn't include 'partial-seed'
 		data_reason: 'partial-seed', //check later if fully seeded
 	})
 }
 
-export const oversizedPngFound = async(txid: string)=> {
-	return updateTx(txid,{
+export const oversizedPngFound = async (txid: string) => {
+	return updateTx(txid, {
 		data_reason: 'oversized',
 	})
 }
 
 /** @deprecated */
-export const wrongMimeType = async(txid: string, content_type: string)=> {
+export const wrongMimeType = async (txid: string, content_type: string) => {
 	const nonMedia = !content_type.startsWith('image') && !content_type.startsWith('video')
-	return updateTx(txid,{
+	return updateTx(txid, {
 		err_message: content_type,
 		data_reason: 'mimetype',
 	})
 }
 
-export const unsupportedMimeType = async(txid: string)=> {
-	return updateTx(txid,{
+export const unsupportedMimeType = async (txid: string) => {
+	return updateTx(txid, {
 		data_reason: 'unsupported',
 	})
 }

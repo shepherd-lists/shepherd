@@ -7,12 +7,12 @@ import { Config } from '../../../Config'
 /** import stack params */
 const readParam = async (name: string) => {
 	const ssm = new SSMClient()
-	try{
+	try {
 		return (await ssm.send(new GetParameterCommand({
 			Name: `/shepherd/${name}`,
 			WithDecryption: true, // ignored if unencrypted
 		}))).Parameter!.Value as string // throw undefined
-	}catch(e){
+	} catch (e) {
 		throw new Error(`Failed to read parameter '${name}' from '${await ssm.config.region()}': ${e.name}:${e.message}`)
 	}
 }
@@ -107,7 +107,7 @@ export const createStack = (app: App, config: Config) => {
 	/** create the nsfw service */
 
 	const nsfw = createAddonService('nsfw', { stack, cluster, logGroup })
-	// nsfw.node.addDependency(httpApi)
+
 
 	/** permissions */
 	const inputQueueName = inputQueueUrl.split('/').pop()

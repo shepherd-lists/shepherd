@@ -9,10 +9,10 @@ const globalParam = async (name: string, ssm: SSMClient) => (await ssm.send(new 
 
 let TS_AUTHKEY: string
 const region = await (new SSMClient({})).config.region()
-if(region == 'ap-southeast-1'){
+if (region == 'ap-southeast-1') {
 	console.info('INFO: using dev authkey for tailscale')
 	TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'ap-southeast-1' })) //THIS IS FOR DEV ONLY.
-}else{
+} else {
 	console.info('INFO: using prod authkey for tailscale')
 	TS_AUTHKEY = await globalParam('TS_AUTHKEY', new SSMClient({ region: 'eu-west-2' }))
 }

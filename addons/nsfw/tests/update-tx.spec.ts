@@ -11,9 +11,9 @@ const knex = knexConn()
 
 console.log(`process.env.HTTP_API_URL: ${process.env.HTTP_API_URL}`)
 
-describe('update-tx', ()=>{
+describe('update-tx', () => {
 
-	it('should post a tx update to the http-api', async()=>{
+	it('should post a tx update to the http-api', async () => {
 		const txid = 'test-txid-test-txid-test-txid-test-txid-123'
 
 		await knex<TxRecord>('txs').insert({

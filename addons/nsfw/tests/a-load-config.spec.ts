@@ -3,8 +3,8 @@ import { expect } from 'chai'
 import fs from 'fs/promises'
 
 
-describe('load-config tests', ()=>{
-	it('tests that config gets loaded', async()=>{
+describe('load-config tests', () => {
+	it('tests that config gets loaded', async () => {
 		const config = await Config()
 		expect(config.lowmem).to.be.a('boolean')
 		expect(config.plugins.length).greaterThan(0)

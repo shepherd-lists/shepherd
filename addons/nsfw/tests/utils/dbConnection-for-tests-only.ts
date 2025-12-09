@@ -5,12 +5,12 @@ import { checkHeartbeat } from 'knex-utils'
 let cachedConnection: Knex<any, unknown[]>
 
 export default () => {
-	if(cachedConnection){
+	if (cachedConnection) {
 		console.log('using cached db connection')
 		return cachedConnection
 	}
 	let connTimeout = 60_000 //default value
-	if(process.env.NODE_ENV === 'test'){
+	if (process.env.NODE_ENV === 'test') {
 		connTimeout = 5_000
 	}
 
@@ -33,8 +33,8 @@ export default () => {
 	})
 
 	/** this isn't totally accurate */
-	checkHeartbeat(connection).then(res=>{
-		if(res.isOk){
+	checkHeartbeat(connection).then(res => {
+		if (res.isOk) {
 			console.log('db connection tested OK')
 			return
 		}

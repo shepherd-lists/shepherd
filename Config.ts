@@ -48,23 +48,23 @@ export type Config = {
 
 /** return the name of the output queue for a given classifier. important to centralize this logic for refactoring later */
 export const classifierQueueName = (config: Config, i: number) => ({
-	queueName: `shepherd2-output-${i+1}-${config.classifiers[i]}-q`,
-	dlqName: `shepherd2-output-${i+1}-${config.classifiers[i]}-dlq`,
+	queueName: `shepherd2-output-${i + 1}-${config.classifiers[i]}-q`,
+	dlqName: `shepherd2-output-${i + 1}-${config.classifiers[i]}-dlq`,
 })
 
 /** determine the i/o queues for a classifier */
 export const ioQueues = (config: Config, name: string) => {
 	const index = config.classifiers.indexOf(name)
-	if(index === -1) throw new Error(`Classifier '${name}' not found`)
-	if(index===0) return { 
+	if (index === -1) throw new Error(`Classifier '${name}' not found`)
+	if (index === 0) return {
 		input: 'shepherd2-input-q', //this is defined in infra/stack.ts
 		output: classifierQueueName(config, index).queueName,
 	}
-	return{
+	return {
 		input: classifierQueueName(config, index - 1).queueName,
 		output: classifierQueueName(config, index).queueName,
 	}
 }
 
 /** last output for http-api */
-export const finalQueue=(config: Config)=> classifierQueueName(config, config.classifiers.length - 1).queueName;
+export const finalQueue = (config: Config) => classifierQueueName(config, config.classifiers.length - 1).queueName;

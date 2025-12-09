@@ -16,9 +16,9 @@ export class InfraStack extends cdk.Stack {
 		const stack = this // idc for `this`
 
 		const { config } = props
-		if(!config) throw new Error('config not set')
-		if(!config.cidr) throw new Error('config.cidr not set')
-		if(!config.slack_public) throw new Error('config.slack_public not set')
+		if (!config) throw new Error('config not set')
+		if (!config.cidr) throw new Error('config.cidr not set')
+		if (!config.slack_public) throw new Error('config.slack_public not set')
 
 		/** create the main network stack */
 
@@ -86,7 +86,7 @@ export class InfraStack extends cdk.Stack {
 
 		/** create output Qs */
 		const { outputQs } = createOutputQs(stack, config)
-		if(outputQs.length <= 0) throw new Error('no output queues created')
+		if (outputQs.length <= 0) throw new Error('no output queues created')
 
 
 		/** SQS queue security */
@@ -256,7 +256,7 @@ const bucketAndNotificationQs = (stack: cdk.Stack) => {
 	}
 }
 
-const createOutputQs = (stack: cdk.Stack, config: Config): {outputQs: cdk.aws_sqs.Queue[]} => {
+const createOutputQs = (stack: cdk.Stack, config: Config): { outputQs: cdk.aws_sqs.Queue[] } => {
 	const outputQs = []
 	for (let i = 0; i < config.classifiers.length; i++) {
 		const { queueName, dlqName } = classifierQueueName(config, i) // q and dlq names for the classifier

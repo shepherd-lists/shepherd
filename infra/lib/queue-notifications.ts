@@ -47,7 +47,7 @@ export const inputQMetricAndNotifications = (
 	})
 	//directly override the cfn, linux synths are locally stuck on earlier nodejs runtime
 	const cfnHack = fnSlack.node.defaultChild as aws_lambda.CfnFunction
-	if(cfnHack){
+	if (cfnHack) {
 		cfnHack.addPropertyOverride('Runtime', 'nodejs22.x')
 	}
 

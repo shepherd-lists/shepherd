@@ -7,7 +7,7 @@ import { processVids } from '../src/rating/video/process-files'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { VidDownloadRecord, VidDownloads } from '../src/rating/video/VidDownloads'
 import { addToDownloads, videoDownload } from '../src/rating/video/downloader'
-import {rimraf} from 'rimraf'
+import { rimraf } from 'rimraf'
 import dbConnection from './utils/dbConnection-for-tests-only'
 import sinon from 'sinon'
 import { S3 } from 'aws-sdk'
@@ -18,7 +18,7 @@ import { VID_TMPDIR } from '../src/constants'
 
 const s3 = new S3({
 	apiVersion: '2006-03-01',
-	...(process.env.SQS_LOCAL==='yes' && {
+	...(process.env.SQS_LOCAL === 'yes' && {
 		endpoint: process.env.S3_LOCAL_ENDPOINT!,
 		region: 'dummy-value',
 		s3ForcePathStyle: true, // *** needed with minio ***
@@ -30,35 +30,35 @@ const knex = dbConnection()
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const s3Upload = async (txid:string) => s3.upload({
+const s3Upload = async (txid: string) => s3.upload({
 	Bucket: 'shepherd-input-mod-local',
 	Key: txid,
-	Body: readFileSync(`${__dirname}/`+`./fixtures/${txid}`),
+	Body: readFileSync(`${__dirname}/` + `./fixtures/${txid}`),
 }).promise()
-	.catch(e => {throw new Error(`ERROR IN TEST PREPARATION UPLOADING ${txid}`)})
+	.catch(e => { throw new Error(`ERROR IN TEST PREPARATION UPLOADING ${txid}`) })
 
 
-describe('video-prepare tests', ()=> {
+describe('video-prepare tests', () => {
 
-	before( async ()=> {
-		try{
-			await rimraf('temp-screencaps/**/*',{maxRetries:0,glob: true})
-		}catch(e){
+	before(async () => {
+		try {
+			await rimraf('temp-screencaps/**/*', { maxRetries: 0, glob: true })
+		} catch (e) {
 			console.log('error in before cleaning tempdir', e)
 		}
 	})
 
-	afterEach( async()=>{
-		try{
+	afterEach(async () => {
+		try {
 			await rimraf('temp-screencaps/./*')
-		}catch(e){
+		} catch (e) {
 			console.log('error in afterEach cleaning tempdir', e)
 		}
 	})
 
-	afterEach(()=> sinon.restore())
+	afterEach(() => sinon.restore())
 
-	it('1. videoDownload: downloads a video', async()=> {
+	it('1. videoDownload: downloads a video', async () => {
 		const smallvid: Partial<VidDownloadRecord> = {
 			complete: 'FALSE',
 			content_size: '10108',
@@ -67,9 +67,9 @@ describe('video-prepare tests', ()=> {
 		}
 		await s3Upload(smallvid.txid as VidDownloadRecord['txid'])
 		await knex<TxRecord>('txs').where('txid', smallvid.txid).delete()
-		await knex<TxRecord>('txs').insert({ txid: smallvid.txid, content_type: 'video/mp4', content_size: '10108'})
+		await knex<TxRecord>('txs').insert({ txid: smallvid.txid, content_type: 'video/mp4', content_size: '10108' })
 		const res = await videoDownload(smallvid as VidDownloadRecord)
-		while(smallvid.complete === 'FALSE') await sleep(500)
+		while (smallvid.complete === 'FALSE') await sleep(500)
 		expect(res).to.be.true
 	}).timeout(0)
 
@@ -96,7 +96,7 @@ describe('video-prepare tests', ()=> {
 	// 	sinon.restore()
 	// }).timeout(0)
 
-	it('3. videoDownload: incorrect file-type can be detected & download aborted', async()=> {
+	it('3. videoDownload: incorrect file-type can be detected & download aborted', async () => {
 		const notvid: Partial<VidDownloadRecord> = {
 			complete: 'FALSE',
 			content_size: '419080',
@@ -104,12 +104,12 @@ describe('video-prepare tests', ()=> {
 		}
 		await s3Upload(notvid.txid as VidDownloadRecord['txid'])
 		await knex<TxRecord>('txs').where('txid', notvid.txid).delete()
-		await knex<TxRecord>('txs').insert({ txid: notvid.txid, content_type: 'video/mp4', content_size: '123'})
+		await knex<TxRecord>('txs').insert({ txid: notvid.txid, content_type: 'video/mp4', content_size: '123' })
 		const res = await videoDownload(notvid as VidDownloadRecord)
 		expect(res).false
 	}).timeout(0)
 
-	it('4. createScreencaps: create screencaps from video', async()=> {
+	it('4. createScreencaps: create screencaps from video', async () => {
 		const vid: Partial<VidDownloadRecord> = {
 			complete: 'FALSE',
 			content_size: '229455',
@@ -117,7 +117,7 @@ describe('video-prepare tests', ()=> {
 			content_type: 'video/mp4',
 		}
 		await knex<TxRecord>('txs').where('txid', vid.txid).delete()
-		await knex<TxRecord>('txs').insert({ txid: vid.txid, content_type: 'video/mp4', content_size: '123'})
+		await knex<TxRecord>('txs').insert({ txid: vid.txid, content_type: 'video/mp4', content_size: '123' })
 
 		const folderpath = VID_TMPDIR + vid.txid + '/'
 		shelljs.mkdir('-p', folderpath)
@@ -128,15 +128,15 @@ describe('video-prepare tests', ()=> {
 		expect(frames.length).lessThanOrEqual(4) //ffmpeg sometimes creates 2,3,4 screencaps. not an error.
 	}).timeout(0)
 
-	it('5. checkFrames: check screencaps for nsfw content', async()=> {
-		const vid: Partial< VidDownloadRecord> = {
+	it('5. checkFrames: check screencaps for nsfw content', async () => {
+		const vid: Partial<VidDownloadRecord> = {
 			complete: 'FALSE',
 			content_size: '229455',
 			txid: 'MudCCqbbf--ktx1b0EMrhSdNWP3ZT9XnMJP-oC486cM',
 			content_type: 'video/mp4',
 		}
 		await knex<TxRecord>('txs').where('txid', vid.txid).delete()
-		await knex<TxRecord>('txs').insert({ txid: vid.txid, content_type: 'video/mp4', content_size: '123'})
+		await knex<TxRecord>('txs').insert({ txid: vid.txid, content_type: 'video/mp4', content_size: '123' })
 
 		const folderpath = VID_TMPDIR + vid.txid + '/'
 		shelljs.mkdir('-p', folderpath)
@@ -150,7 +150,7 @@ describe('video-prepare tests', ()=> {
 		// if(checkId){ expect(checkId).equal(vid.txid) }
 	}).timeout(0)
 
-	it('6. full processing of a video', async()=>{
+	it('6. full processing of a video', async () => {
 		const vid: Partial<TxRecord> = {
 			txid: 'nwIUNPF8R03uW0zrPHnR4aTAnDdExqv56fMbbMQoHCA',
 			content_type: 'video/mp4',
@@ -167,17 +167,17 @@ describe('video-prepare tests', ()=> {
 			txid: vid.txid as VidDownloadRecord['txid'],
 			receiptHandle: 'dummy-receiptHandle',
 		})
-		let dl: Partial< VidDownloadRecord> = {}
-		for(const d of VidDownloads.getInstance()){
-			if(d.txid === vid.txid) dl = d
+		let dl: Partial<VidDownloadRecord> = {}
+		for (const d of VidDownloads.getInstance()) {
+			if (d.txid === vid.txid) dl = d
 		}
-		while(dl.complete === 'FALSE') await sleep(500)
+		while (dl.complete === 'FALSE') await sleep(500)
 		expect(dl.complete).to.eq('TRUE')
 		sinon.stub(harness, 'cleanupAfterProcessing').resolves()
 		await processVids()
-		expect( VidDownloads.getInstance().length() ).eq(0)
+		expect(VidDownloads.getInstance().length()).eq(0)
 
-		const check = await knex<TxRecord>('txs').where({ txid: vid.txid})
+		const check = await knex<TxRecord>('txs').where({ txid: vid.txid })
 		expect(check.length).eq(1)
 		expect(check[0].valid_data).true
 		expect(check[0].flagged).false
