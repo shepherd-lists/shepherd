@@ -259,8 +259,7 @@ const bucketAndNotificationQs = (stack: cdk.Stack) => {
 const createOutputQs = (stack: cdk.Stack, config: Config): {outputQs: cdk.aws_sqs.Queue[]} => {
 	const outputQs = []
 	for (let i = 0; i < config.classifiers.length; i++) {
-		const classifier = config.classifiers[i]
-		const { queueName, dlqName } = classifierQueueName(config, i)
+		const { queueName, dlqName } = classifierQueueName(config, i) // q and dlq names for the classifier
 		const q = new cdk.aws_sqs.Queue(stack, queueName, {
 			queueName,
 			retentionPeriod: cdk.Duration.days(14), //max value
