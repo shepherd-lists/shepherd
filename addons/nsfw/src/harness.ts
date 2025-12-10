@@ -77,7 +77,7 @@ const getFileHead = memoize(
 				const e = err as AWSError
 				if (e.statusCode === 404 || e.statusCode === 403) {
 					logger('getFileHead', Key, `warning! ${e.name}(${e.statusCode}):${e.message}. deleting message...`)
-					deleteMessage(ReceiptHandle, Key)
+					deleteMessage(ReceiptHandle)
 					return undefined
 				}
 				logger('getFileHead', Key, `warning! ${e.name}(${e.statusCode}):${e.message}. retrying...`, e)
@@ -142,8 +142,6 @@ const messageHandler = async (message: SQS.Message) => {
 	) {
 		const key = s3event.Records[0].s3.object.key
 		const receiptHandle = message.ReceiptHandle!
-		// const bucket = s3Record.s3.bucket.name
-		// logger(prefix, `found s3 event for '${key}' in '${bucket}`)
 
 		/* process s3 event */
 
@@ -151,7 +149,7 @@ const messageHandler = async (message: SQS.Message) => {
 		const headRes = await getFileHead(key, receiptHandle)
 		if (!headRes) {
 			try {
-				const delSqs = await deleteMessage(receiptHandle, key)
+				const delSqs = await deleteMessage(receiptHandle)
 				logger(key, 'deleted message.', JSON.stringify(delSqs))
 			} catch (err: unknown) {
 				const e = err as AWSError
@@ -221,32 +219,21 @@ const messageHandler = async (message: SQS.Message) => {
 	}
 }
 
-/* processing succesful, so delete event message + object */
+/* processing succesful, so delete event message */
 export const cleanupAfterProcessing = async (ReceiptHandle: string, Key: string, videoLength: number) => {
 	logger(cleanupAfterProcessing.name, `called for ${Key}`)
 	_currentTotalSize -= videoLength
 
 	try {
-		const delSqs = await deleteMessage(ReceiptHandle, Key)
+		const delSqs = await deleteMessage(ReceiptHandle)
 		logger(Key, 'deleted message.', JSON.stringify(delSqs))
 	} catch (err: unknown) {
 		const e = err as AWSError
 		logger(Key, `Error! deleting message from AWS_SQS_INPUT_QUEUE ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`, e)
 	}
-
-	try {
-		const delObj = await s3.deleteObject({
-			Bucket: AWS_INPUT_BUCKET,
-			Key,
-		}).promise()
-		logger(Key, 'deleted object.', JSON.stringify(delObj))
-	} catch (err: unknown) {
-		const e = err as AWSError
-		logger(Key, `ERROR DELETING OBJECT! ${e.name}(${e.statusCode}):${e.message} => ${e.stack}`, e)
-	}
 }
 
-const deleteMessage = async (ReceiptHandle: string, Key: string) => sqs.deleteMessage({
+const deleteMessage = async (ReceiptHandle: string) => sqs.deleteMessage({
 	QueueUrl: AWS_SQS_INPUT_QUEUE,
 	ReceiptHandle,
 }).promise()
