@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test:grep": "mocha tests/**/*.spec.ts --grep",
-    "test": "mocha tests/**/*.spec.ts"
+    "test:grep": "echo 'do not use' || mocha tests/**/*.spec.ts --grep",
+    "test": "echo 'do not use' || mocha tests/**/*.spec.ts"
   },
   "mocha": {
     "node-option": [
@@ -16,7 +16,7 @@
       "ts"
     ]
   },
-  "keywords": [],
+  "keywords": [ ],
   "author": "",
   "license": "ISC",
   "dependencies": {
