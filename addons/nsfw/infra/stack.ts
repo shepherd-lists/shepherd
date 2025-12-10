@@ -1,8 +1,10 @@
 import { App, Aws, Duration, Stack, aws_cloudwatch, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
-import { Config } from '../../../Config'
+import { Config, ioQueues } from '../../../Config'
 
-
+/** allow renaming the installation folder to create a new stack */
+const addonRoot = new URL('..', import.meta.url).pathname.split('/').at(-2) //e.g. 'nsfw'
+const AddonRoot = addonRoot.charAt(0).toUpperCase() + addonRoot.slice(1)
 
 /** import stack params */
 const readParam = async (name: string) => {
@@ -26,12 +28,12 @@ const inputBucketName = await readParam('InputBucket')
 const inputAgeMetricProps: aws_cloudwatch.MetricProps = JSON.parse(await readParam('InputMetricProps'))
 
 export const createStack = (app: App, config: Config) => {
-	const stack = new Stack(app, 'Nsfw', {
+	const stack = new Stack(app, AddonRoot, {
 		env: {
 			account: process.env.CDK_DEFAULT_ACCOUNT,
 			region: config.region,
 		},
-		description: 'nsfw addon stack',
+		description: `${addonRoot} addon stack`,
 	})
 
 	/** import stack components from the shepherd stack */
@@ -59,10 +61,12 @@ export const createStack = (app: App, config: Config) => {
 		{ stack, cluster, logGroup }: FargateBuilderProps,
 	) => {
 		const Name = name.charAt(0).toUpperCase() + name.slice(1)
+		const ioQs = ioQueues(config, addonRoot)
+
 		const dockerImage = new aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
 			directory: new URL('../', import.meta.url).pathname,
 			exclude: ['cdk.out', 'infra'],
-			target: name,
+			target: name === 'nsfw' ? 'nsfw' : 'no-nsfw',
 			assetName: `${name}-image`,
 			platform: aws_ecr_assets.Platform.LINUX_AMD64,
 		})
@@ -84,10 +88,10 @@ export const createStack = (app: App, config: Config) => {
 				HOST_URL: config.host_url || 'https://arweave.net',
 				NUM_FILES: '50',
 				TOTAL_FILESIZE_GB: '10',
-				AWS_SQS_INPUT_QUEUE: inputQueueUrl,
+				AWS_SQS_INPUT_QUEUE: ioQs.input,
+				AWS_SQS_OUTPUT_QUEUE: ioQs.output,
 				AWS_INPUT_BUCKET: inputBucketName,
 				AWS_DEFAULT_REGION: Aws.REGION,
-				HTTP_API_URL: 'http://http-api.shepherd.local:84/postupdate',
 			},
 		})
 		const fg = new aws_ecs.FargateService(stack, `fg${Name}`, {
@@ -106,7 +110,7 @@ export const createStack = (app: App, config: Config) => {
 
 	/** create the nsfw service */
 
-	const nsfw = createAddonService('nsfw', { stack, cluster, logGroup })
+	const nsfw = createAddonService(addonRoot, { stack, cluster, logGroup })
 
 
 	/** permissions */
@@ -127,7 +131,7 @@ export const createStack = (app: App, config: Config) => {
 	nsfw.autoScaleTaskCount({
 		minCapacity: 1,
 		maxCapacity: 10,
-	}).scaleToTrackCustomMetric('NsfwScaling', {
+	}).scaleToTrackCustomMetric(`${AddonRoot}Scaling`, {
 		metric,
 		targetValue: 60,
 		scaleInCooldown: Duration.seconds(60),

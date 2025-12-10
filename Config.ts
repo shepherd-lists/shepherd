@@ -14,10 +14,10 @@ export type Config = {
 	gql_url?: string	//defaults to https://arweave.net/graphql
 	gql_url_secondary?: string	//defaults to https://arweave-search.goldsky.com/graphql
 
-	/** addonns to load. must be installed in ./addons/ */
+	/** addons to load. foldername must be installed in ./addons/ */
 	addons: Array<string>
 
-	/** classifiers and order for linking */
+	/** classifiers and order for linking (names must match `addons` and folder names) */
 	classifiers: Array<string>
 
 	// // ## whitelist IPs for http://webserver/blacklist.txt
