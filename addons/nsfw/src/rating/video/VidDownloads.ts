@@ -52,6 +52,15 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 		await cleanupAfterProcessing(vdl.receiptHandle, vdl.txid, +vdl.content_size)
 	}
 
+	public cleanupNoDelMsg = async (vdl: VidDownloadRecord) => {
+		try {
+			await rimraf(VID_TMPDIR + vdl.txid)
+		} catch (e) {
+			logger(vdl.txid, 'Error deleting temp folder', e)
+		}
+		VidDownloads.array = VidDownloads.array.filter(d => d !== vdl)
+	}
+
 	public listIds = () => {
 		const ids: string[] = []
 		for (const item of this) {

@@ -238,3 +238,7 @@ const deleteMessage = async (ReceiptHandle: string) => sqs.deleteMessage({
 	ReceiptHandle,
 }).promise()
 
+export const cleanupRelease = async (ReceiptHandle: string, videoLength: number) => {
+	_currentTotalSize -= videoLength
+	await releaseMessage(ReceiptHandle)
+}

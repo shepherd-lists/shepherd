@@ -1,10 +1,11 @@
 import { logger } from '../../utils/logger'
 import { FfmpegError, } from 'shepherd-plugin-interfaces/types'
-import { corruptDataConfirmed, corruptDataMaybe, inflightDel } from '../../utils/update-txs'
+import { corruptDataConfirmed, corruptDataMaybe } from '../../utils/update-txs'
 import { createScreencaps } from './screencaps'
 import { checkFrames } from './check-frames'
 import { VidDownloads } from './VidDownloads'
 import { slackLogger } from '../../utils/slackLogger'
+import { cleanupRelease } from '../../harness'
 
 /* Video download queue */
 const downloads = VidDownloads.getInstance()
@@ -61,8 +62,8 @@ export const processVids = async () => {
 					 * internal queues. better to retry using the SQS queues.
 					 */
 					logger(dl.txid, `${e.name}:${e.message}. Cleaning up and releasing back to SQS queue.`)
-					await inflightDel(dl.txid)
-					await downloads.cleanup(dl)
+					await downloads.cleanupNoDelMsg(dl)
+					await cleanupRelease(dl.receiptHandle, +dl.content_size)
 					continue //dont checkFrames
 				} else {
 					logger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
