@@ -1,5 +1,5 @@
 import {
-	corruptDataConfirmed, corruptDataMaybe, oversizedPngFound, partialImageFound, unsupportedMimeType, wrongMimeType, updateTx
+	corruptDataConfirmed, corruptDataMaybe, oversizedPngFound, partialImageFound, unsupportedMimeType, wrongMimeType, sendOutputMsg
 } from '../utils/update-txs'
 import { getImageMime } from './image-filetype'
 import { logger } from '../utils/logger'
@@ -91,7 +91,7 @@ const checkImagePluginResults = async (pic: Buffer, mime: string, txid: string) 
 			result.flagged = false
 		}
 
-		await updateTx(txid, {
+		await sendOutputMsg(txid, {
 			flagged: result.flagged,
 			...(result.top_score_name && {
 				top_score_name: result.top_score_name,

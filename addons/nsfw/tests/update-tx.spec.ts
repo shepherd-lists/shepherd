@@ -1,7 +1,7 @@
 process.env['NODE_ENV'] = 'test'
 import 'mocha'
 import { expect } from 'chai'
-import { updateTx } from '../src/utils/update-txs'
+import { sendOutputMsg } from '../src/utils/update-txs'
 import knexConn from './utils/dbConnection-for-tests-only'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 
@@ -20,7 +20,7 @@ describe('update-tx', () => {
 			txid, height: 123, content_type: 'text/plain', content_size: '123',
 		})
 
-		const res = await updateTx(txid, {
+		const res = await sendOutputMsg(txid, {
 			flagged: false,
 		})
 		expect(res).to.equal(txid)

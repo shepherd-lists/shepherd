@@ -1,6 +1,6 @@
 import { App, Aws, Duration, Stack, aws_cloudwatch, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
-import { Config, ioQueues } from '../../../Config'
+import { Config, ioQueues, finalQueue } from '../../../Config'
 
 /** allow renaming the installation folder to create a new stack */
 const addonRoot = new URL('..', import.meta.url).pathname.split('/').at(-2) //e.g. 'nsfw'
@@ -84,13 +84,15 @@ export const createStack = (app: App, config: Config) => {
 			}),
 			containerName: `${name}Container`,
 			environment: {
+				ADDON_NAME: name,
 				SLACK_WEBHOOK: config.slack_webhook!,
 				HOST_URL: config.host_url || 'https://arweave.net',
 				NUM_FILES: '50',
 				TOTAL_FILESIZE_GB: '10',
+				AWS_INPUT_BUCKET: inputBucketName,
 				AWS_SQS_INPUT_QUEUE: ioQs.input,
 				AWS_SQS_OUTPUT_QUEUE: ioQs.output,
-				AWS_INPUT_BUCKET: inputBucketName,
+				AWS_SQS_SINK_QUEUE: finalQueue(config),
 				AWS_DEFAULT_REGION: Aws.REGION,
 			},
 		})
