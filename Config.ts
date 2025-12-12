@@ -53,7 +53,7 @@ export const classifierQueueName = (config: Config, i: number) => ({
 })
 
 /** determine the i/o queues for a classifier */
-export const ioQueues = (config: Config, name: string) => {
+export const ioQueueNames = (config: Config, name: string) => {
 	const index = config.classifiers.indexOf(name)
 	if (index === -1) throw new Error(`Classifier '${name}' not found`)
 	if (index === 0) return {
@@ -67,7 +67,7 @@ export const ioQueues = (config: Config, name: string) => {
 }
 
 /** last output Q is for http-api input (n.b. may be no classifiers) */
-export const finalQueue = (config: Config) =>
+export const finalQueueName = (config: Config) =>
 	(config.classifiers.length > 0)
 		? classifierQueueName(config, config.classifiers.length - 1).queueName
 		: undefined
