@@ -1,6 +1,6 @@
 import {
 	corruptDataConfirmed, corruptDataMaybe, oversizedPngFound, partialImageFound, unsupportedMimeType, wrongMimeType, sendOutputMsg
-} from '../utils/update-txs'
+} from '../utils/sqs-output'
 import { getImageMime } from './image-filetype'
 import { logger } from '../utils/logger'
 import { slackLogger } from '../utils/slackLogger'

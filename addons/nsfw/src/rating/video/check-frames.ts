@@ -1,7 +1,7 @@
 import fs from 'fs'
 import { logger } from '../../utils/logger'
 import * as FilterHost from '../filter-host'
-import { sendOutputMsg } from '../../utils/update-txs'
+import { sendOutputMsg } from '../../utils/sqs-output'
 
 
 const prefix = 'check-frames'

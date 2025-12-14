@@ -1,6 +1,6 @@
 import { logger } from '../../utils/logger'
 import { FfmpegError, } from 'shepherd-plugin-interfaces/types'
-import { corruptDataConfirmed, corruptDataMaybe } from '../../utils/update-txs'
+import { corruptDataConfirmed, corruptDataMaybe } from '../../utils/sqs-output'
 import { createScreencaps } from './screencaps'
 import { checkFrames } from './check-frames'
 import { VidDownloads } from './VidDownloads'

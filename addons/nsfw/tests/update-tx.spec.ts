@@ -1,7 +1,7 @@
 process.env['NODE_ENV'] = 'test'
 import 'mocha'
 import { expect } from 'chai'
-import { sendOutputMsg } from '../src/utils/update-txs'
+import { sendOutputMsg } from '../src/utils/sqs-output'
 import knexConn from './utils/dbConnection-for-tests-only'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 

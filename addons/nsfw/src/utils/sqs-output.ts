@@ -1,4 +1,4 @@
-import { APIFilterResult, FilterErrorResult, FilterResult } from 'shepherd-plugin-interfaces'
+import { FilterErrorResult, FilterResult } from 'shepherd-plugin-interfaces'
 import { logger } from './logger'
 import { slackLogger } from './slackLogger'
 import { sqs, AWS_INPUT_BUCKET, AWS_SQS_OUTPUT_QUEUE, AWS_SQS_SINK_QUEUE } from './aws-services'
