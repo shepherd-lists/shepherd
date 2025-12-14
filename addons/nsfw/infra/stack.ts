@@ -69,7 +69,7 @@ export const createStack = (app: App, config: Config) => {
 		const qPrefix = `https://sqs.${config.region}.amazonaws.com/${Aws.ACCOUNT_ID}/`
 		const inputQUrl = qPrefix + ioQNames.input
 		const outputQUrl = qPrefix + ioQNames.output
-		const finalQUrl = qPrefix + finalQName
+		const finalQUrl = finalQName ? qPrefix + finalQName : undefined //may be undefined if no classifiers
 
 		const dockerImage = new aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
 			directory: new URL('../', import.meta.url).pathname,
@@ -100,7 +100,7 @@ export const createStack = (app: App, config: Config) => {
 				AWS_INPUT_BUCKET: inputBucketName,
 				AWS_SQS_INPUT_QUEUE: inputQUrl,
 				AWS_SQS_OUTPUT_QUEUE: outputQUrl,
-				AWS_SQS_SINK_QUEUE: finalQUrl,
+				AWS_SQS_SINK_QUEUE: finalQUrl, //may be undefined if no classifiers
 				AWS_DEFAULT_REGION: Aws.REGION,
 			},
 		})
