@@ -78,48 +78,40 @@ export const sendOutputMsg = async (txid: string, filterResult: Partial<FilterRe
 }
 
 
-export const corruptDataConfirmed = async (txid: string) => {
-	return sendOutputMsg(txid, {
-		data_reason: 'corrupt',
-	})
-}
-
-export const corruptDataMaybe = async (txid: string) => {
-	return sendOutputMsg(txid, {
-		data_reason: 'corrupt-maybe',
-	})
-}
-
-export const partialImageFound = async (txid: string) => {
-	return sendOutputMsg(txid, {
-		data_reason: 'partial',
-	})
-}
-
-export const partialVideoFound = async (txid: string) => {
-	return sendOutputMsg(txid, {
-		//@ts-expect-error data_reason doesn't include 'partial-seed'
-		data_reason: 'partial-seed', //check later if fully seeded
-	})
-}
-
-export const oversizedPngFound = async (txid: string) => {
-	return sendOutputMsg(txid, {
-		data_reason: 'oversized',
-	})
-}
-
-/** @deprecated */
-export const wrongMimeType = async (txid: string, content_type: string) => {
-	const nonMedia = !content_type.startsWith('image') && !content_type.startsWith('video')
-	return sendOutputMsg(txid, {
-		err_message: content_type,
-		data_reason: 'mimetype',
-	})
-}
+/** messages this addon cannot handle should be tried with next classifier so add flagged=>true 	*/
+const shouldSendToNextClassifier = (filterResult: Partial<FilterResult | FilterErrorResult>) => ({
+	...(AWS_SQS_OUTPUT_QUEUE !== AWS_SQS_SINK_QUEUE
+		? { flagged: true }
+		: filterResult)
+})
 
 export const unsupportedMimeType = async (txid: string) => {
 	return sendOutputMsg(txid, {
 		data_reason: 'unsupported',
+	})
+}
+
+export const corruptDataMaybe = async (txid: string) => {
+	return sendOutputMsg(txid, shouldSendToNextClassifier({
+		data_reason: 'corrupt-maybe',
+	}))
+}
+
+export const partialImageFound = async (txid: string) => {
+	return sendOutputMsg(txid, shouldSendToNextClassifier({
+		data_reason: 'partial',
+	}))
+}
+
+export const oversizedPngFound = async (txid: string) => {
+	return sendOutputMsg(txid, shouldSendToNextClassifier({
+		data_reason: 'oversized',
+	}))
+}
+
+/** this is different, more like a code for http-api which adds `flagged: false`. messy stuff. */
+export const corruptDataConfirmed = async (txid: string) => {
+	return sendOutputMsg(txid, {
+		data_reason: 'corrupt',
 	})
 }
