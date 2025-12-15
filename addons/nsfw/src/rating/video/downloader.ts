@@ -1,8 +1,6 @@
 import fs from 'fs'
-import filetype, { FileTypeResult } from 'file-type'
 import { network_EXXX_codes, VID_TMPDIR, VID_TMPDIR_MAXSIZE } from '../../constants'
 import { logger } from '../../utils/logger'
-import { partialVideoFound, wrongMimeType } from '../../utils/sqs-output'
 import { VidDownloadRecord, VidDownloads } from './VidDownloads'
 import { slackLogger } from '../../utils/slackLogger'
 import si from 'systeminformation'
@@ -47,37 +45,10 @@ export const videoDownload = async (vid: VidDownloadRecord) => {
 			const request = s3.getObject({ Bucket: AWS_INPUT_BUCKET, Key: vid.txid })
 			const stream = request.createReadStream() //.pipe(filewriter)
 
-			let mimeNotFound = true
 			let filehead = new Uint8Array(0)
 			let filesizeDownloaded = 0
 
-			const fileTypeGood = (res: FileTypeResult | undefined) => {
-				if (res && !(res.mime.startsWith('video') || res.mime.startsWith('audio'))) {
-					logger(vid.txid, 'invalid video file-type:', res.mime)
-					wrongMimeType(vid.txid, res.mime)
-					vid.content_type = res.mime
-					return false
-				}
-				logger(vid.txid, 'detected mime:', res?.mime)
-				return true
-			}
-
 			stream.on('data', async (chunk: Uint8Array) => {
-				// clearTimeout(timer!)
-				/* check the file head for mimetype & abort download if necessary */
-				if (mimeNotFound) {
-					filehead = Buffer.concat([filehead, chunk])
-					if (filehead.length > 16384) { //16kb
-						mimeNotFound = false
-						const res = await filetype.fromBuffer(filehead)
-						if (!fileTypeGood(res)) {
-							filesizeDownloaded = 0 //reset so no partial-seed detected
-							vid.complete = 'ERROR'
-							stream.emit('error', new Error('non-vid'))
-							return
-						}
-					}
-				}
 				filesizeDownloaded += chunk.length
 
 				if (filewriter.writable) filewriter.write(chunk)
@@ -86,18 +57,11 @@ export const videoDownload = async (vid: VidDownloadRecord) => {
 			stream.on('end', async () => {
 				filewriter.end()
 
-				if (mimeNotFound) {
-					mimeNotFound = false
-					const res = await filetype.fromBuffer(filehead)
-					logger(vid.txid, 'mime was not found during download:', res)
-					if (!fileTypeGood(res)) {
-						vid.complete = 'ERROR'
-					} else {
-						vid.complete = 'TRUE'
-					}
-				} else if (vid.complete !== 'ERROR') { //tiny bad files can get here
-					vid.complete = 'TRUE'
-				}
+				////not certain why this was here. related to mime-type detection.
+				// if (vid.complete !== 'ERROR') { //tiny bad files can get here
+				// 	vid.complete = 'TRUE'
+				// }
+
 				vid.complete === 'TRUE' ? resolve(true) : resolve(false)
 			})
 
@@ -116,16 +80,8 @@ export const videoDownload = async (vid: VidDownloadRecord) => {
 				filewriter.end()
 				if (e.message === 'aborted') {
 					logger(vid.txid, 'Error: aborted')
-					if (filesizeDownloaded > 0 && !mimeNotFound && vid.content_type.startsWith('video/')) {
-						logger(vid.txid, 'partial-seed video found')
-						slackLogger(vid.txid, 'CHECK THIS! being marked as partial-seed')
-						partialVideoFound(vid.txid)
-						vid.complete = 'TRUE'
-						resolve(true)
-					} else {
-						vid.complete = 'ERROR'
-						resolve('aborted')
-					}
+					vid.complete = 'ERROR'
+					resolve('aborted')
 				} else if (e.message === 'non-vid') {
 					logger(vid.txid, 'Error: non-vid')
 					vid.complete = 'ERROR'
@@ -144,9 +100,6 @@ export const videoDownload = async (vid: VidDownloadRecord) => {
 
 		} catch (err: unknown) {
 			const e = err as Error & { code?: string; response?: { code?: string } }
-			// if(timer){
-			// 	clearTimeout(timer)
-			// }
 			vid.complete = 'ERROR'
 			filewriter.end()
 

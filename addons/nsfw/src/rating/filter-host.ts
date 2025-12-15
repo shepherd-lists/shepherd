@@ -1,7 +1,6 @@
 import {
-	corruptDataConfirmed, corruptDataMaybe, oversizedPngFound, partialImageFound, unsupportedMimeType, wrongMimeType, sendOutputMsg
+	corruptDataConfirmed, corruptDataMaybe, oversizedPngFound, partialImageFound, unsupportedMimeType, sendOutputMsg
 } from '../utils/sqs-output'
-import { getImageMime } from './image-filetype'
 import { logger } from '../utils/logger'
 import { slackLogger } from '../utils/slackLogger'
 import loadConfig from '../utils/load-config'
@@ -23,25 +22,7 @@ export const checkImageTxid = async (txid: string, contentType: string) => {
 
 		const pic = (await s3.getObject({ Key: txid, Bucket: AWS_INPUT_BUCKET }).promise()).Body as Buffer
 
-		const mime = await getImageMime(pic)
-		if (mime === undefined) {
-			if (contentType.startsWith('image/')) {
-				logger(prefix, 'image mime-type found to be `undefined`. try rating anyway. Original:', contentType, txid)
-			} else {
-				const typeUpdated = contentType.startsWith('video') ? contentType : `video/${contentType}` //force to ffmpeg
-				logger(prefix, `image mime-type found to be '${mime}'. will be automatically requeued using:`, typeUpdated, txid)
-				await wrongMimeType(txid, typeUpdated) //shouldn't get here..
-				return true
-			}
-		} else if (!mime.startsWith('image/')) {
-			logger(prefix, `image mime-type found to be '${mime}'. updating record; will be automatically requeued. Original:`, contentType, txid)
-			await wrongMimeType(txid, mime)
-			return true
-		} else if (mime !== contentType) {
-			logger(prefix, `warning. expected '${contentType}' !== detected '${mime}'`, txid)
-		}
-
-		await checkImagePluginResults(pic, mime || contentType, txid)
+		await checkImagePluginResults(pic, contentType, txid)
 
 		return true
 	} catch (err: unknown) {
@@ -114,9 +95,6 @@ const checkImagePluginResults = async (pic: Buffer, mime: string, txid: string) 
 				break
 			case 'unsupported':
 				await unsupportedMimeType(txid)
-				break
-			case 'mimetype':
-				await wrongMimeType(txid, result.err_message!)
 				break
 
 			default:
