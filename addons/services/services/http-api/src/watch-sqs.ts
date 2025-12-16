@@ -93,8 +93,8 @@ const pollQueue = async (): Promise<void> => {
 			if (response.Messages && response.Messages.length > 0) {
 				console.log(prefix, `Received ${response.Messages.length} messages`)
 
-				// Process messages sequentially to avoid overwhelming the system
-				for (const message of response.Messages) {
+				// Process messages in parallel for better throughput
+				await Promise.all(response.Messages.map(async (message) => {
 					try {
 						const txid = await processMessage(message)
 
@@ -110,7 +110,7 @@ const pollQueue = async (): Promise<void> => {
 						// Message will become visible again after VisibilityTimeout
 						// and will be retried or sent to DLQ based on queue configuration
 					}
-				}
+				}))
 			} else {
 				// No messages received, continue polling
 				console.debug(prefix, 'No messages received, continuing to poll...')
