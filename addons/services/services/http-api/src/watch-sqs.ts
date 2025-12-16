@@ -64,7 +64,7 @@ const processMessage = async (message: Message): Promise<void> => {
 
 	} catch (err: unknown) {
 		const e = err as Error
-		console.error(prefix, 'Error processing message', message.MessageId, e.message)
+		slackLog(prefix, 'Error processing message', message.MessageId, e.message)
 		throw e // Re-throw to prevent message deletion
 	}
 }

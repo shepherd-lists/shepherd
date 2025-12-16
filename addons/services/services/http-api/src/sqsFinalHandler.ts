@@ -1,5 +1,5 @@
 import { getByteRange } from '../../../libs/byte-ranges/byteRanges'
-import { checkTxFresh, dbCorruptDataConfirmed, dbCorruptDataMaybe, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, updateTxsDb } from './utils/db-update-txs'
+import { checkTxFresh, dbCorruptDataConfirmed, dbCorruptDataMaybe, dbOversizedPngFound, dbPartialImageFound, dbUnsupportedMimeType, insertTxsDb } from './utils/db-insert-txs'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { slackLogPositive } from './utils/slackLogPositive'
 import { processFlagged } from './flagged'
@@ -50,7 +50,8 @@ export const sqsFinalHandler = async (txid: string, record: TxRecord) => {
 			}
 
 			/** prepare record updates */
-			const updates: Partial<TxRecord> = {
+			const updates: TxRecord = {
+				...record, //original record
 				flagged: record.flagged,
 				valid_data: true,
 				...(record.flag_type && { flag_type: record.flag_type }),
@@ -67,7 +68,7 @@ export const sqsFinalHandler = async (txid: string, record: TxRecord) => {
 				return processFlagged(txid, record!, updates)
 
 			} else {//flagged===false
-				await updateTxsDb(txid, updates)
+				await insertTxsDb(txid, updates)
 			}
 
 		} else if (record.data_reason === undefined) {
@@ -75,21 +76,21 @@ export const sqsFinalHandler = async (txid: string, record: TxRecord) => {
 		} else {
 			switch (record.data_reason) {
 				case 'corrupt':
-					await dbCorruptDataConfirmed(txid) //this is not an error
+					await dbCorruptDataConfirmed(record) //this is not an error
 					break
 				/** less than ideal to get to any of these 4 db updates below. 
 				 * that means the classifier pipeline failed to process these files. */
 				case 'corrupt-maybe':
-					await dbCorruptDataMaybe(txid)
+					await dbCorruptDataMaybe(record)
 					break
 				case 'oversized':
-					await dbOversizedPngFound(txid)
+					await dbOversizedPngFound(record)
 					break
 				case 'partial':
-					await dbPartialImageFound(txid)
+					await dbPartialImageFound(record)
 					break
 				case 'unsupported':
-					await dbUnsupportedMimeType(txid)
+					await dbUnsupportedMimeType(record)
 					break
 
 				default:

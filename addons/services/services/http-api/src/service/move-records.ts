@@ -44,6 +44,14 @@ export const mergeRulesObject = () => {
 					ELSE txs.??
 				END
 				`, [k, k, k, k])
+		} else if (k === 'flagged') {
+			// Once flagged is true, it cannot be changed to any other state
+			updateObject[k] = knex.raw(
+				`CASE
+					WHEN txs.?? = true THEN true
+					ELSE EXCLUDED.??
+				END
+				`, [k, k])
 		} else {
 			updateObject[k] = knex.raw('EXCLUDED.??', [k])
 		}
