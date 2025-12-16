@@ -1,5 +1,5 @@
-import { App, Duration, Stack, aws_ec2, aws_ecs, aws_elasticloadbalancingv2, aws_iam, aws_logs, aws_s3, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
-import { Config } from '../../../Config'
+import { App, Aws, Duration, Stack, aws_ec2, aws_ecs, aws_elasticloadbalancingv2, aws_iam, aws_logs, aws_s3, aws_servicediscovery, aws_ssm } from 'aws-cdk-lib'
+import { Config, finalQueueName } from '../../../Config'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { createAddonService } from './createService'
 import { createFn } from './createFn'
@@ -46,8 +46,9 @@ export const createStack = async (app: App, config: Config) => {
 	const namespaceArn = readParamCfn('NamespaceArn')
 	const namespaceId = readParamCfn('NamespaceId')
 	const alb = aws_elasticloadbalancingv2.ApplicationLoadBalancer.fromLookup(stack, 'alb', { loadBalancerArn })
-	// const listener80 = aws_elasticloadbalancingv2.ApplicationListener.fromLookup(stack, 'listener80', { listenerArn: await readParamSdk('Listener80') })
+	/** bucket permissions are granted at the end */
 	const listsBucket = aws_s3.Bucket.fromBucketArn(stack, 'listsBucket', readParamCfn('ListsBucketArn'))
+	const inputBucket = aws_s3.Bucket.fromBucketName(stack, 'inputBucket', readParamCfn('InputBucket'))
 
 	const cloudMapNamespace = aws_servicediscovery.PrivateDnsNamespace.fromPrivateDnsNamespaceAttributes(stack, 'shepherd.local', {
 		namespaceName: 'shepherd.local',
@@ -291,6 +292,8 @@ export const createStack = async (app: App, config: Config) => {
 			http_api_nodes: JSON.stringify(config.http_api_nodes), //for byte-ranges only
 			http_api_nodes_url: config.http_api_nodes_url || '', //for byte-ranges only
 			FN_TEMP: fnTemp.functionName,
+			AWS_INPUT_BUCKET: inputBucketName,
+			AWS_SQS_SINK_QUEUE: `https://sqs.${Aws.REGION}.amazonaws.com/${Aws.ACCOUNT_ID}/${finalQueueName(config)}`,
 		}
 	})
 	httpApi.connections.securityGroups[0].addIngressRule(
@@ -299,10 +302,6 @@ export const createStack = async (app: App, config: Config) => {
 		'allow traffic within vpc to port 84',
 	)
 	const taskRoleHttpApi = httpApi.taskDefinition.taskRole!
-	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
-		actions: ['s3:*'],
-		resources: [listsBucket.bucketArn + '/*'],
-	}))
 	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['lambda:InvokeFunction'],
 		resources: [
@@ -315,6 +314,12 @@ export const createStack = async (app: App, config: Config) => {
 		actions: ['ssm:GetParameter', 'ssm:PutParameter'],
 		resources: [`arn:aws:ssm:${config.region}:*:parameter/shepherd/*`],
 	}))
+	taskRoleHttpApi.addToPrincipalPolicy(new aws_iam.PolicyStatement({
+		actions: ['sqs:*'],
+		resources: [
+			`arn:aws:sqs:${Aws.REGION}:${Aws.ACCOUNT_ID}:${finalQueueName(config)}`,
+		],
+	}))
 
 
 	/** give various services listsBucket access */
@@ -324,5 +329,8 @@ export const createStack = async (app: App, config: Config) => {
 	listsBucket.grantReadWrite(fnInitLists.role!)
 	listsBucket.grantReadWrite(fnOwnerBlocking.role!)
 	listsBucket.grantReadWrite(fnTemp.role!)
+	listsBucket.grantReadWrite(taskRoleHttpApi)
 
+	/** give http-api access to input bucket */
+	inputBucket.grantReadWrite(taskRoleHttpApi)
 }

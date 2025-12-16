@@ -20,9 +20,8 @@ const sqsClient = new SQSClient({
 const AWS_SQS_SINK_QUEUE = process.env.AWS_SQS_SINK_QUEUE as string | undefined //undefined if no classifiers
 const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET as string
 
-[AWS_INPUT_BUCKET].forEach(env => {
-	if (!env) throw new Error(`${env} is not configured`)
-})
+if (!AWS_INPUT_BUCKET) throw new Error('AWS_INPUT_BUCKET is not configured')
+if (!AWS_SQS_SINK_QUEUE) console.warn('AWS_SQS_SINK_QUEUE is not configured. No classifiers will be processed.')
 
 
 /** Process a single SQS message */

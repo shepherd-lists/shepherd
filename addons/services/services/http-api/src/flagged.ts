@@ -56,7 +56,7 @@ export const processFlagged = async (
 	const trx = await knex.transaction()
 	try {
 		/** 1. item specific */
-		/** remove from inbox/inflights */
+		/** remove from inbox/inflights. N.B. DONT FORGET TO REMOVE THIS STEP LATER */
 		await trx('inflights')
 			.delete()
 			.where('txid', txid)
