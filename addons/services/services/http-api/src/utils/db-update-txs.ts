@@ -22,7 +22,8 @@ export const updateTxsDb = async (txid: string, updates: Partial<TxRecord>, tabl
 		// `throw e` does nothing, use the return
 	}
 }
-/** master update 'inbox' function */
+/** master update 'inbox' function
+ * @deprecated inbox will be removed after transistion to multiple classifiers */
 export const updateInboxDb = async (txid: string, updates: Partial<TxRecord>) => {
 	try {
 		const checkId = await knex<TxRecord>('inbox').where({ txid }).update(updates).returning(['txid', 'height'])
@@ -51,6 +52,7 @@ export const updateInboxDb = async (txid: string, updates: Partial<TxRecord>) =>
 	}
 }
 
+/** @deprecated inflights will be removed */
 export const dbInflightDel = async (txid: string) => {
 	try {
 		const ret = await knex<InflightsRecord>('inflights').where({ txid, }).del('txid')
@@ -66,6 +68,7 @@ export const dbInflightDel = async (txid: string) => {
 	}
 }
 
+/** @deprecated inflights will be removed */
 export const dbInflightAdd = async (txid: string) => {
 	try {
 		const ret = await knex<InflightsRecord>('inflights').insert({ txid }, 'txid')
@@ -83,7 +86,7 @@ export const dbInflightAdd = async (txid: string) => {
 
 
 export const dbNoDataFound404 = async (txid: string) => {
-	return updateInboxDb(txid, {
+	return updateTxsDb(txid, {
 		flagged: false,
 		valid_data: false,
 		data_reason: '404',
@@ -92,7 +95,7 @@ export const dbNoDataFound404 = async (txid: string) => {
 }
 
 export const dbNoDataFound = async (txid: string) => {
-	return updateInboxDb(txid, {
+	return updateTxsDb(txid, {
 		flagged: false,
 		valid_data: false,
 		data_reason: 'nodata',
@@ -100,7 +103,7 @@ export const dbNoDataFound = async (txid: string) => {
 	})
 }
 export const dbNegligibleData = async (txid: string) => {
-	return updateInboxDb(txid, {
+	return updateTxsDb(txid, {
 		flagged: false,
 		valid_data: false,
 		data_reason: 'negligible-data',
@@ -108,7 +111,7 @@ export const dbNegligibleData = async (txid: string) => {
 	})
 }
 export const dbMalformedXMLData = async (txid: string) => {
-	return updateInboxDb(txid, {
+	return updateTxsDb(txid, {
 		flagged: false,
 		valid_data: false,
 		data_reason: 'MalformedXML-data',
@@ -117,7 +120,7 @@ export const dbMalformedXMLData = async (txid: string) => {
 }
 
 export const dbCorruptDataConfirmed = async (txid: string) => {
-	return updateInboxDb(txid, {
+	return updateTxsDb(txid, {
 		flagged: false,
 		valid_data: false,
 		data_reason: 'corrupt',
@@ -126,8 +129,8 @@ export const dbCorruptDataConfirmed = async (txid: string) => {
 }
 
 export const dbCorruptDataMaybe = async (txid: string) => {
-	return updateInboxDb(txid, {
-		// flagged: false, <= try filetype detection first
+	return updateTxsDb(txid, {
+		// flagged: false, cannot flag
 		valid_data: false,
 		data_reason: 'corrupt-maybe',
 		last_update_date: new Date(),
@@ -135,26 +138,16 @@ export const dbCorruptDataMaybe = async (txid: string) => {
 }
 
 export const dbPartialImageFound = async (txid: string) => {
-	return updateInboxDb(txid, {
-		// flagged: <= cannot flag yet! display with puppeteer & rate again
-		valid_data: false, // this removes it from current queue
+	return updateTxsDb(txid, {
+		// flagged: <= cannot flag 
+		valid_data: false,
 		data_reason: 'partial',
 		last_update_date: new Date(),
 	})
 }
 
-export const dbPartialVideoFound = async (txid: string) => {
-	slackLog(txid, 'info: `partial-seed` video found, gets retried until done?') //check if these actually happen
-	return updateInboxDb(txid, {
-		// flagged: undefined,  // this gets set in the normal way in another call
-		// valid_data: undefined,
-		data_reason: 'partial-seed', //check later if fully seeded. these never occurred?
-		last_update_date: new Date(),
-	})
-}
-
 export const dbOversizedPngFound = async (txid: string) => {
-	return updateInboxDb(txid, {
+	return updateTxsDb(txid, {
 		// flagged: <= cannot flag yet! use tinypng, then rate again
 		valid_data: false, // this removes it from current queue
 		data_reason: 'oversized',
@@ -162,6 +155,7 @@ export const dbOversizedPngFound = async (txid: string) => {
 	})
 }
 
+/** @deprecated remove this after transition to SQS queues */
 export const dbWrongMimeType = async (txid: string, content_type: string) => {
 	const nonMedia = !content_type.startsWith('image') && !content_type.startsWith('video')
 	const updatedId = await updateInboxDb(txid, {
@@ -181,16 +175,18 @@ export const dbWrongMimeType = async (txid: string, content_type: string) => {
 	return updatedId
 }
 
+/** addon might not support. this is not an ideal ending point for a classifier pipeline. */
 export const dbUnsupportedMimeType = async (txid: string) => {
-	return updateInboxDb(txid, {
-		// flagged: <= cannot flag yet! display with puppeteer & rate again
-		valid_data: false, // this removes it from current queue
+	return updateTxsDb(txid, {
+		// flagged: <= cannot flag
+		valid_data: false,
 		data_reason: 'unsupported',
 		last_update_date: new Date(),
 	})
 }
 
-/** retrieve a single TxRecord by txid */
+/** retrieve a single TxRecord by txid
+ * @deprecated no more inbox soon */
 export const getTxFromInbox = async (txid: string) => {
 	try {
 		const ret = await knex<TxRecord>('inbox').where({ txid })
@@ -219,7 +215,7 @@ export const checkTxFresh = async (txid: string) => {
 		return fresh.length === 0
 	} catch (e) {
 		const { name, message } = e as Error
-		slackLog(txid, '❌ Error checking txs record', `${name}:${message}`, JSON.stringify(e))
+		slackLog(txid, '❌ Error checking txs record', checkTxFresh.name, `${name}:${message}`, JSON.stringify(e))
 	}
 }
 
