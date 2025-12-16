@@ -67,7 +67,7 @@ export const ioQueueNames = (config: Config, name: string) => {
 }
 
 /** last output Q is for http-api input (n.b. may be no classifiers) */
-export const finalQueueName = (config: Config) =>
+export const finalQueueName = (config: Config): string | undefined =>
 	(config.classifiers.length > 0)
 		? classifierQueueName(config, config.classifiers.length - 1).queueName
 		: undefined
