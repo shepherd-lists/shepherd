@@ -3,8 +3,9 @@ import { Socket } from 'net'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { network_EXXX_codes } from '../../../libs/constants'
 import { pluginResultHandler } from './pluginResultHandler'
-import './service/inbox2txs' //self starting
 import { addonHandler } from './addonHandler'
+import './service/inbox2txs' //self starting
+import './watch-sqs' //self starting
 
 
 const prefix = 'http-api'
