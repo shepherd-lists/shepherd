@@ -4,7 +4,7 @@ import { SQSClient, ReceiveMessageCommand, DeleteMessageCommand, Message } from 
 import { slackLog } from '../../../libs/utils/slackLog'
 import { FilterErrorResult, FilterResult } from 'shepherd-plugin-interfaces'
 import { S3EventRecord } from 'aws-lambda'
-import { s3HeadObject } from '../../../libs/utils/s3-services'
+import { s3DeleteObject, s3HeadObject } from '../../../libs/utils/s3-services'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { sqsFinalHandler } from './sqsFinalHandler'
 
@@ -25,7 +25,7 @@ if (!AWS_SQS_SINK_QUEUE) console.warn('AWS_SQS_SINK_QUEUE is not configured. No 
 
 
 /** Process a single SQS message */
-const processMessage = async (message: Message): Promise<void> => {
+const processMessage = async (message: Message) => {
 	if (!message.Body) {
 		slackLog(prefix, 'Received message without body', message.MessageId)
 		return
@@ -42,7 +42,7 @@ const processMessage = async (message: Message): Promise<void> => {
 	try {
 		const body: CustomS3Event = JSON.parse(message.Body)
 
-		console.debug(prefix, 'extra', body.extra)
+		console.debug(prefix, 'extra', JSON.stringify(body.extra))
 
 		if (!body.extra) {
 			throw new Error(`Invalid message format: extra is missing.${JSON.stringify(body)} `)
@@ -59,8 +59,9 @@ const processMessage = async (message: Message): Promise<void> => {
 
 		await sqsFinalHandler(txid, finalTxrecord)
 
-
 		console.log(prefix, `Successfully processed txid: ${txid} `)
+
+		return txid;
 
 	} catch (err: unknown) {
 		const e = err as Error
@@ -95,13 +96,14 @@ const pollQueue = async (): Promise<void> => {
 				// Process messages sequentially to avoid overwhelming the system
 				for (const message of response.Messages) {
 					try {
-						await processMessage(message)
+						const txid = await processMessage(message)
 
 						// Delete message only after successful processing
-						if (message.ReceiptHandle) {
-							await deleteMessage(message.ReceiptHandle)
-							console.log(prefix, `Deleted message ${message.MessageId} `)
-						}
+						await deleteMessage(message.ReceiptHandle!)
+						console.log(prefix, `Deleted message ${message.MessageId} `)
+
+						await s3DeleteObject(AWS_INPUT_BUCKET, txid!)
+
 					} catch (err: unknown) {
 						const e = err as Error
 						console.error(prefix, `Failed to process message ${message.MessageId}: `, e.message)
