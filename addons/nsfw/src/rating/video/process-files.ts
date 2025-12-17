@@ -18,10 +18,14 @@ export const processVids = async () => {
 	// /* debug */ for (const item of downloads) items.push(item)
 	// /* debug */ console.log(processVids.name, { items })
 
+	logger('[processVids] called, checking downloads...')
+	let foundCount = 0
 	for (const dl of downloads) {
+		logger(`[processVids] checking ${dl.txid}, complete: ${dl.complete}`)
 		if (dl.complete === 'TRUE') {
+			foundCount++
 			dl.complete = 'FALSE' //stop processing from beginning again
-			logger(dl.txid, 'begin processing')
+			logger(dl.txid, '[processVids] begin processing')
 
 			//create screencaps & handle errors
 			let frames: string[] = []
@@ -86,5 +90,6 @@ export const processVids = async () => {
 			await downloads.cleanup(dl)
 		}
 	}
+	logger(`[processVids] finished, found ${foundCount} videos to process`)
 }
 

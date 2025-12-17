@@ -13,7 +13,7 @@ const downloads = VidDownloads.getInstance()
 export const addToDownloads = async (vid: { txid: string; content_size: string, content_type: string, receiptHandle: string }) => {
 
 	// convert to a new VidDownloadRecord
-	const dl: VidDownloadRecord & { retried: boolean } = { ...vid, complete: 'FALSE', retried: false }
+	const dl: VidDownloadRecord = { ...vid, complete: 'FALSE' }
 	downloads.push(dl)
 
 	//ensure this is called async
@@ -49,7 +49,7 @@ export const videoDownload = async (vid: VidDownloadRecord): Promise<boolean> =>
 		const e = err as Error & { code?: string; response?: { code?: string } }
 		vid.complete = 'ERROR'
 
-		const code = e.response?.code || e.code || 'no-code'
+		const code = e.code || undefined
 		logger(vid.txid, 'ERROR in videoDownload', e.name, ':', code, ':', e.message)
 		slackLogger(vid.txid, 'ERROR in videoDownload', e.name, ':', code, ':', e.message)
 		logger(vid.txid, await si.mem())

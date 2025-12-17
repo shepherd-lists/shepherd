@@ -120,6 +120,8 @@ export const harness = async () => {
 
 		const messages = await getMessages(Math.max(0, NUM_FILES - numFiles))
 		if (messages.length === 0) {
+			logger(prefix, 'no messages, calling processVids...')
+			await processVids()
 			await sleep(5000)
 			continue
 		}
