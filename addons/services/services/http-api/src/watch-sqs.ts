@@ -27,7 +27,7 @@ if (!AWS_SQS_SINK_QUEUE) console.warn('AWS_SQS_SINK_QUEUE is not configured. No 
 /** Process a single SQS message */
 const processMessage = async (message: Message) => {
 	if (!message.Body) {
-		slackLog(prefix, 'Received message without body', message.MessageId)
+		slackLog(prefix, processMessage.name, 'Received message without body', message.MessageId)
 		return
 	}
 
@@ -51,10 +51,17 @@ const processMessage = async (message: Message) => {
 
 		/** compile final TxRecord from s3 metadata and plugin result */
 		txid = body.Records[0].s3.object.key
-		const s3Head = await s3HeadObject(AWS_INPUT_BUCKET, txid)
-		const s3Txrecord = JSON.parse(s3Head.Metadata!.txrecord!) as TxRecord
+		let finalTxrecord;
+		try {
+			const s3Head = await s3HeadObject(AWS_INPUT_BUCKET, txid)
+			const s3Txrecord = JSON.parse(s3Head.Metadata!.txrecord!) as TxRecord
 
-		const finalTxrecord = { ...s3Txrecord, ...body.extra.filterResult } as TxRecord //there's potential for a type mismatch here, nothing serious
+			finalTxrecord = { ...s3Txrecord, ...body.extra.filterResult } as TxRecord //there's potential for a type mismatch here, nothing serious
+		} catch (err) {
+			const e = err as Error
+			slackLog(prefix, txid, 'Error retrieving metadata for txid. Object probably deleted long ago. Deleting message...', e.name, ':', e.message)
+			return
+		}
 
 		console.log(prefix, `Processing message for txid: ${txid} ...`)
 
@@ -66,7 +73,7 @@ const processMessage = async (message: Message) => {
 
 	} catch (err: unknown) {
 		const e = err as Error
-		slackLog(prefix, txid, 'Error processing message', message.MessageId, e.message)
+		slackLog(prefix, txid, 'Error processing message', message.MessageId, e.name, ':', e.message)
 		throw e // Re-throw to prevent message deletion
 	}
 }
