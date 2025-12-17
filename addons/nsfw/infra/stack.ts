@@ -1,4 +1,4 @@
-import { App, Aws, Duration, Stack, aws_cloudwatch, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
+import { App, Aws, Duration, Stack, aws_applicationautoscaling, aws_cloudwatch, aws_ec2, aws_ecr_assets, aws_ecs, aws_iam, aws_logs, aws_servicediscovery } from 'aws-cdk-lib'
 import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { Config, ioQueueNames, finalQueueName } from '../../../Config'
 
@@ -23,9 +23,7 @@ const logGroupName = await readParam('LogGroup')
 const clusterName = await readParam('ClusterName')
 const namespaceArn = await readParam('NamespaceArn')
 const namespaceId = await readParam('NamespaceId')
-const inputQueueUrl = await readParam('InputQueueUrl')
 const inputBucketName = await readParam('InputBucket')
-const inputAgeMetricProps: aws_cloudwatch.MetricProps = JSON.parse(await readParam('InputMetricProps'))
 
 export const createStack = (app: App, config: Config) => {
 	const stack = new Stack(app, AddonRoot, {
@@ -52,6 +50,10 @@ export const createStack = (app: App, config: Config) => {
 	/** i/o queue names */
 	const ioQNames = ioQueueNames(config, addonRoot)
 	const finalQName = finalQueueName(config)
+	const qPrefix = `https://sqs.${config.region}.amazonaws.com/${Aws.ACCOUNT_ID}/`
+	const inputQUrl = qPrefix + ioQNames.input
+	const outputQUrl = qPrefix + ioQNames.output
+	const finalQUrl = finalQName ? qPrefix + finalQName : undefined //may be undefined if no classifiers
 
 
 	/** template for a standard addon service */
@@ -66,10 +68,6 @@ export const createStack = (app: App, config: Config) => {
 		{ stack, cluster, logGroup }: FargateBuilderProps,
 	) => {
 		const Name = name.charAt(0).toUpperCase() + name.slice(1)
-		const qPrefix = `https://sqs.${config.region}.amazonaws.com/${Aws.ACCOUNT_ID}/`
-		const inputQUrl = qPrefix + ioQNames.input
-		const outputQUrl = qPrefix + ioQNames.output
-		const finalQUrl = finalQName ? qPrefix + finalQName : undefined //may be undefined if no classifiers
 
 		const dockerImage = new aws_ecr_assets.DockerImageAsset(stack, `image${Name}`, {
 			directory: new URL('../', import.meta.url).pathname,
@@ -124,7 +122,6 @@ export const createStack = (app: App, config: Config) => {
 
 
 	/** permissions */
-	const inputQueueName = inputQueueUrl.split('/').pop()
 	nsfw.taskDefinition.taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['sqs:*'],
 		resources: [
@@ -141,14 +138,46 @@ export const createStack = (app: App, config: Config) => {
 	}))
 
 	/** auto-scaling */
-	const metric = new aws_cloudwatch.Metric(inputAgeMetricProps)
-	nsfw.autoScaleTaskCount({
-		minCapacity: 1,
-		maxCapacity: 10,
-	}).scaleToTrackCustomMetric(`${AddonRoot}Scaling`, {
-		metric,
-		targetValue: 60,
-		scaleInCooldown: Duration.seconds(60),
-		scaleOutCooldown: Duration.seconds(60),
+
+	const metric = new aws_cloudwatch.Metric({
+		namespace: 'AWS/SQS',
+		metricName: 'ApproximateNumberOfMessagesVisible',
+		statistic: 'Average',
+		dimensionsMap: {
+			QueueName: ioQNames.input,
+		},
+		period: Duration.minutes(1),
 	})
+
+	const scaling = nsfw.autoScaleTaskCount({
+		minCapacity: 0,
+		maxCapacity: 10,
+	})
+
+	scaling.scaleOnMetric(`${AddonRoot}ScaleOut`, {
+		metric,
+		scalingSteps: [
+			{ lower: 1, change: +1 },      // Start with 1 task
+			{ lower: 300, change: +1 },    // Add 1 more at 300 msgs
+			{ lower: 600, change: +1 },    // Add 1 more at 600 msgs
+			{ lower: 1000, change: +2 },   // Add 2 more at 1000 msgs
+			{ lower: 1500, change: +2 },   // Add 2 more at 1500 msgs
+			{ lower: 2000, change: +3 },   // Add 3 more at 2000 msgs
+		],
+		adjustmentType: aws_applicationautoscaling.AdjustmentType.CHANGE_IN_CAPACITY,
+	})
+
+	scaling.scaleOnMetric(`${AddonRoot}ScaleDown`, {
+		metric: metric,
+		scalingSteps: [
+			{ upper: 0, change: -10 },     // 0 messages: remove all tasks
+			{ upper: 300, change: -2 },    // <300 messages: remove 2 tasks
+			{ upper: 600, change: -1 },    // <600 messages: remove 1 task
+			{ upper: 1000, change: -1 },   // <1000 messages: remove 1 task
+		],
+		adjustmentType: aws_applicationautoscaling.AdjustmentType.CHANGE_IN_CAPACITY,
+		evaluationPeriods: 2,  // Wait longer before scaling down (mins)
+	})
+
+
 }
