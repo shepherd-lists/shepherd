@@ -39,6 +39,7 @@ const processMessage = async (message: Message) => {
 		}
 	}
 
+	let txid;
 	try {
 		const body: CustomS3Event = JSON.parse(message.Body)
 
@@ -49,7 +50,7 @@ const processMessage = async (message: Message) => {
 		}
 
 		/** compile final TxRecord from s3 metadata and plugin result */
-		const txid = body.Records[0].s3.object.key
+		txid = body.Records[0].s3.object.key
 		const s3Head = await s3HeadObject(AWS_INPUT_BUCKET, txid)
 		const s3Txrecord = JSON.parse(s3Head.Metadata!.txrecord!) as TxRecord
 
@@ -65,7 +66,7 @@ const processMessage = async (message: Message) => {
 
 	} catch (err: unknown) {
 		const e = err as Error
-		slackLog(prefix, 'Error processing message', message.MessageId, e.message)
+		slackLog(prefix, txid, 'Error processing message', message.MessageId, e.message)
 		throw e // Re-throw to prevent message deletion
 	}
 }
@@ -78,44 +79,66 @@ const deleteMessage = async (receiptHandle: string) => sqsClient.send(new Delete
 
 /** Poll SQS for messages and process them */
 const pollQueue = async (): Promise<void> => {
+	const MAX_CONCURRENT = 10 // Maximum concurrent message processing
+	const activeWorkers = new Set<Promise<void>>()
 
-	console.info(prefix, `Starting to poll queue: ${AWS_SQS_SINK_QUEUE} `)
+	console.info(prefix, `Starting to poll queue: ${AWS_SQS_SINK_QUEUE} (max concurrent: ${MAX_CONCURRENT})`)
 
 	while (true) {
 		try {
+			// Wait if at capacity - this provides backpressure
+			while (activeWorkers.size >= MAX_CONCURRENT) {
+				console.debug(prefix, `At capacity (${activeWorkers.size}/${MAX_CONCURRENT}), waiting for worker to finish...`)
+				// Wait for ANY worker to finish
+				await Promise.race(activeWorkers)
+			}
+
+			// Calculate how many messages we can fetch based on available capacity
+			const availableSlots = MAX_CONCURRENT - activeWorkers.size
+			const messagesToFetch = Math.min(availableSlots, 10) // SQS max is 10
+
 			const response = await sqsClient.send(new ReceiveMessageCommand({
 				QueueUrl: AWS_SQS_SINK_QUEUE,
-				MaxNumberOfMessages: 10, // Process up to 10 messages at a time
+				MaxNumberOfMessages: messagesToFetch,
 				WaitTimeSeconds: 20, // Long polling to reduce empty responses
 				VisibilityTimeout: 300, // 5 minutes to process the message
 			}))
 
 			if (response.Messages && response.Messages.length > 0) {
-				console.log(prefix, `Received ${response.Messages.length} messages`)
+				console.log(prefix, `Received ${response.Messages.length} messages (active: ${activeWorkers.size}/${MAX_CONCURRENT})`)
 
-				// Process messages in parallel for better throughput
-				await Promise.all(response.Messages.map(async (message) => {
-					try {
-						const txid = await processMessage(message)
-
-						// Delete message only after successful processing
-						await deleteMessage(message.ReceiptHandle!)
-						console.log(prefix, `Deleted message ${message.MessageId} `)
-
+				// Process each message independently (fire-and-forget with tracking)
+				response.Messages.forEach(message => {
+					const processMessageWorker = async () => {
+						let txid
 						try {
-							await s3DeleteObject(AWS_INPUT_BUCKET, txid!)
-						} catch (e) {
-							//object probably already deleted
-							console.error(prefix, `Failed to delete object ${txid}: `, (e as Error).message)
-						}
+							txid = await processMessage(message)
 
-					} catch (err: unknown) {
-						const e = err as Error
-						console.error(prefix, `Failed to process message ${message.MessageId}: `, e.message)
-						// Message will become visible again after VisibilityTimeout
-						// and will be retried or sent to DLQ based on queue configuration
+							// Delete message only after successful processing
+							await deleteMessage(message.ReceiptHandle!)
+							console.log(prefix, txid, `Deleted message ${message.MessageId}`)
+
+							try {
+								await s3DeleteObject(AWS_INPUT_BUCKET, txid!)
+							} catch (e) {
+								//object probably already deleted
+								console.error(prefix, txid, `Failed to delete object ${txid}:`, (e as Error).message)
+							}
+
+						} catch (err: unknown) {
+							const e = err as Error
+							console.error(prefix, txid, `Failed to process message ${message.MessageId}:`, e.message)
+							// Message will become visible again after VisibilityTimeout
+							// and will be retried or sent to DLQ based on queue configuration
+						} finally {
+							// Always remove worker from set, even on error
+							activeWorkers.delete(worker)
+						}
 					}
-				}))
+
+					const worker = processMessageWorker()
+					activeWorkers.add(worker)
+				})
 			} else {
 				// No messages received, continue polling
 				console.debug(prefix, 'No messages received, continuing to poll...')
