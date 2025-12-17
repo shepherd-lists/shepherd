@@ -102,7 +102,12 @@ const pollQueue = async (): Promise<void> => {
 						await deleteMessage(message.ReceiptHandle!)
 						console.log(prefix, `Deleted message ${message.MessageId} `)
 
-						await s3DeleteObject(AWS_INPUT_BUCKET, txid!)
+						try {
+							await s3DeleteObject(AWS_INPUT_BUCKET, txid!)
+						} catch (e) {
+							//object probably already deleted
+							console.error(prefix, `Failed to delete object ${txid}: `, (e as Error).message)
+						}
 
 					} catch (err: unknown) {
 						const e = err as Error
