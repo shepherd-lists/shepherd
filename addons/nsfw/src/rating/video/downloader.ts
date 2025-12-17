@@ -1,10 +1,10 @@
 import fs from 'fs'
-import { network_EXXX_codes, VID_TMPDIR, VID_TMPDIR_MAXSIZE } from '../../constants'
+import { pipeline } from 'stream/promises'
+import { VID_TMPDIR, VID_TMPDIR_MAXSIZE } from '../../constants'
 import { logger } from '../../utils/logger'
 import { VidDownloadRecord, VidDownloads } from './VidDownloads'
 import { slackLogger } from '../../utils/slackLogger'
 import si from 'systeminformation'
-import { AWSError } from 'aws-sdk'
 import { s3, AWS_INPUT_BUCKET } from '../../utils/aws-services'
 
 
@@ -31,86 +31,29 @@ export const addToDownloads = async (vid: { txid: string; content_size: string, 
 	logger(vid.txid, vid.content_size, `downloading video ${(downloads.size() / mb).toFixed(1)}MB/${VID_TMPDIR_MAXSIZE / mb}MB`, `${downloads.length()} vids in process.`)
 }
 
-export const videoDownload = async (vid: VidDownloadRecord) => {
-	// eslint-disable-next-line no-async-promise-executor
-	return new Promise(async (resolve, reject) => {
+export const videoDownload = async (vid: VidDownloadRecord): Promise<boolean> => {
+	const folderpath = VID_TMPDIR + vid.txid + '/'
+	fs.mkdirSync(folderpath, { recursive: true })
 
-		// const url = HOST_URL + '/' + vid.txid
-		const folderpath = VID_TMPDIR + vid.txid + '/'
-		fs.mkdirSync(folderpath, { recursive: true })
-		const filewriter = fs.createWriteStream(folderpath + vid.txid, { encoding: 'binary' })
+	try {
+		const filewriter = fs.createWriteStream(folderpath + vid.txid)
+		const stream = s3.getObject({ Bucket: AWS_INPUT_BUCKET, Key: vid.txid }).createReadStream()
 
-		try {
+		// pipeline handles all stream cleanup and error propagation automatically
+		await pipeline(stream, filewriter)
 
-			const request = s3.getObject({ Bucket: AWS_INPUT_BUCKET, Key: vid.txid })
-			const stream = request.createReadStream() //.pipe(filewriter)
+		vid.complete = 'TRUE'
+		return true
 
-			let filehead = new Uint8Array(0)
-			let filesizeDownloaded = 0
+	} catch (err: unknown) {
+		const e = err as Error & { code?: string; response?: { code?: string } }
+		vid.complete = 'ERROR'
 
-			stream.on('data', async (chunk: Uint8Array) => {
-				filesizeDownloaded += chunk.length
+		const code = e.response?.code || e.code || 'no-code'
+		logger(vid.txid, 'ERROR in videoDownload', e.name, ':', code, ':', e.message)
+		slackLogger(vid.txid, 'ERROR in videoDownload', e.name, ':', code, ':', e.message)
+		logger(vid.txid, await si.mem())
 
-				if (filewriter.writable) filewriter.write(chunk)
-			})
-
-			stream.on('end', async () => {
-				filewriter.end()
-
-				////not certain why this was here. related to mime-type detection.
-				// if (vid.complete !== 'ERROR') { //tiny bad files can get here
-				// 	vid.complete = 'TRUE'
-				// }
-
-				vid.complete === 'TRUE' ? resolve(true) : resolve(false)
-			})
-
-			stream.on('error', (e: AWSError) => {
-				if (process.env.NODE_ENV !== 'test') {
-					logger(`** DEBUG **:${videoDownload.name}`, JSON.stringify(e), JSON.stringify(vid))
-				}
-				if (['TimeoutError', ...network_EXXX_codes].includes(e.code)) {
-					logger(vid.txid, `Warning. ${e.name}(${e.code}):${e.message}`)
-					// slackLogger(vid.txid, `WARNING! ${e.name}(${e.code}):${e.message}`, e)
-					return
-				}
-				if (vid.complete === 'TRUE') return
-				/* end streams */
-				request.abort()
-				filewriter.end()
-				if (e.message === 'aborted') {
-					logger(vid.txid, 'Error: aborted')
-					vid.complete = 'ERROR'
-					resolve('aborted')
-				} else if (e.message === 'non-vid') {
-					logger(vid.txid, 'Error: non-vid')
-					vid.complete = 'ERROR'
-					resolve(false)
-				} else {
-					vid.complete = 'ERROR'
-					logger(vid.txid, 'potentially improperly unhandled rejection', `${e.name}:${e.message}`, { vid, e })
-					slackLogger(vid.txid, 'potentially improperly unhandled rejection', `${e.name}:${e.message}`, { vid, e })
-					reject(e)
-				}
-			})
-
-			stream.on('close', () => {
-				filewriter.close()
-			})
-
-		} catch (err: unknown) {
-			const e = err as Error & { code?: string; response?: { code?: string } }
-			vid.complete = 'ERROR'
-			filewriter.end()
-
-			const code = e.response?.code || e.code || 'no-code'
-
-			logger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', code, ':', e.message)
-			logger(vid.txid, 'Full error e:', e)
-			if (e.response) { logger(vid.txid, 'Full error e.response:', e.response) }
-			slackLogger(vid.txid, 'UNHANDLED ERROR in videoDownload', e.name, ':', code, ':', e.message)
-			logger(vid.txid, await si.mem())
-			reject(e)
-		}
-	})//end Promise
+		throw e
+	}
 }
