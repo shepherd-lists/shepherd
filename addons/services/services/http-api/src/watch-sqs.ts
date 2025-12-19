@@ -59,7 +59,7 @@ const processMessage = async (message: Message) => {
 			finalTxrecord = { ...s3Txrecord, ...body.extra.filterResult } as TxRecord //there's potential for a type mismatch here, nothing serious
 		} catch (err) {
 			const e = err as Error
-			slackLog(prefix, txid, 'Error retrieving metadata for txid. Object probably deleted long ago. Deleting message...', e.name, ':', e.message)
+			console.warn(prefix, txid, 'Error retrieving metadata for txid. Object probably deleted long ago. Deleting message...', e.name, ':', e.message)
 			return
 		}
 
