@@ -139,12 +139,31 @@ export const createStack = (app: App, config: Config) => {
 
 	/** auto-scaling */
 
-	const metric = new aws_cloudwatch.Metric({
+	const visibleMetric = new aws_cloudwatch.Metric({
 		namespace: 'AWS/SQS',
 		metricName: 'ApproximateNumberOfMessagesVisible',
-		statistic: 'Average',
+		statistic: 'Maximum',
 		dimensionsMap: {
 			QueueName: ioQNames.input,
+		},
+		period: Duration.minutes(1),
+	})
+
+	const notVisibleMetric = new aws_cloudwatch.Metric({
+		namespace: 'AWS/SQS',
+		metricName: 'ApproximateNumberOfMessagesNotVisible',
+		statistic: 'Maximum',
+		dimensionsMap: {
+			QueueName: ioQNames.input,
+		},
+		period: Duration.minutes(1),
+	})
+
+	const totalMessagesMetric = new aws_cloudwatch.MathExpression({
+		expression: 'visible + notVisible',
+		usingMetrics: {
+			visible: visibleMetric,
+			notVisible: notVisibleMetric,
 		},
 		period: Duration.minutes(1),
 	})
@@ -154,29 +173,19 @@ export const createStack = (app: App, config: Config) => {
 		maxCapacity: 10,
 	})
 
-	scaling.scaleOnMetric(`${AddonRoot}ScaleOut`, {
-		metric,
+	scaling.scaleOnMetric(`${AddonRoot}Scale`, {
+		metric: totalMessagesMetric,
 		scalingSteps: [
-			{ lower: 1, change: +1 },      // Start with 1 task
-			{ lower: 300, change: +1 },    // Add 1 more at 300 msgs
-			{ lower: 600, change: +1 },    // Add 1 more at 600 msgs
-			{ lower: 1000, change: +2 },   // Add 2 more at 1000 msgs
-			{ lower: 1500, change: +2 },   // Add 2 more at 1500 msgs
-			{ lower: 2000, change: +3 },   // Add 3 more at 2000 msgs
+			{ upper: 0, change: 0 },       // No work → 0 tasks
+			{ lower: 1, change: 1 },       // Any work → 1 task
+			{ lower: 500, change: 2 },     // 300+ messages → 2 tasks
+			{ lower: 1000, change: 3 },    // 1000+ messages → 5 tasks
+			{ lower: 1500, change: 5 },    // 1500+ messages → 7 tasks
+			{ lower: 2000, change: 10 },   // 2000+ messages → 10 tasks
 		],
-		adjustmentType: aws_applicationautoscaling.AdjustmentType.CHANGE_IN_CAPACITY,
-	})
-
-	scaling.scaleOnMetric(`${AddonRoot}ScaleDown`, {
-		metric: metric,
-		scalingSteps: [
-			{ upper: 0, change: -10 },     // 0 messages: remove all tasks
-			{ upper: 300, change: -2 },    // <300 messages: remove 2 tasks
-			{ upper: 600, change: -1 },    // <600 messages: remove 1 task
-			{ upper: 1000, change: -1 },   // <1000 messages: remove 1 task
-		],
-		adjustmentType: aws_applicationautoscaling.AdjustmentType.CHANGE_IN_CAPACITY,
-		evaluationPeriods: 2,  // Wait longer before scaling down (mins)
+		adjustmentType: aws_applicationautoscaling.AdjustmentType.EXACT_CAPACITY,
+		evaluationPeriods: 1,
+		cooldown: Duration.minutes(2),
 	})
 
 
