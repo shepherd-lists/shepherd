@@ -95,7 +95,7 @@ export const createStack = async (app: App, config: Config) => {
 		vpc,
 		securityGroups: [sgPgdb],
 		logGroup: logGroupServices,
-		memorySize: 1024, //batchSize 50 records, just parallel chunk & s3 buffers 384mb + overhead
+		memorySize: 2048, //batchSize 50 records, just parallel chunk & s3 buffers 384mb + overhead
 		//timeout: Duration.minutes(15), //there is an internal timeout for processRecord
 		environment: {
 			DB_HOST: rdsEndpoint,
