@@ -122,6 +122,7 @@ export const createStack = (app: App, config: Config) => {
 
 
 	/** permissions */
+
 	nsfw.taskDefinition.taskRole.addToPrincipalPolicy(new aws_iam.PolicyStatement({
 		actions: ['sqs:*'],
 		resources: [
@@ -187,6 +188,4 @@ export const createStack = (app: App, config: Config) => {
 		evaluationPeriods: 1,
 		cooldown: Duration.minutes(2),
 	})
-
-
 }
