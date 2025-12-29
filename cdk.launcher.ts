@@ -27,7 +27,7 @@ program.parse(process.argv)
 console.debug(program.args)
 
 const options = program.opts()
-if(options.help || !options.config){
+if (options.help || !options.config) {
 	program.help()
 }
 
@@ -40,14 +40,14 @@ console.info(config)
 logHeading(`exec cdk commands on stacks... (${config.region})`)
 let cdkCommand = `AWS_REGION=${config.region} npx cdk -a 'npx tsx app.ts ${options.config}' ${program.args.join(' ')}`
 
-if(program.args.length > 0){
-	if(program.args[0] === 'deploy'){
+if (program.args.length > 0) {
+	if (program.args[0] === 'deploy') {
 		cdkCommand += ' --require-approval never '
 		// --hotswap-fallback
-	}else if(program.args[0] === 'destroy'){
+	} else if (program.args[0] === 'destroy') {
 		cdkCommand += ' --force '
 	}
-	if(['synth', 'deploy', 'diff'].includes(program.args[0])){
+	if (['synth', 'deploy', 'diff'].includes(program.args[0])) {
 		cdkCommand += ` --output='./cdk.out.${config.region}' --change-set-name 'change-name-${config.region}' `
 	}
 }

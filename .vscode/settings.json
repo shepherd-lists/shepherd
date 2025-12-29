@@ -1,20 +1,14 @@
 {
+	"eslint.enable": false,
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"editor.formatOnSave": true,
 	"[typescript]": {
-		"editor.defaultFormatter": "dbaeumer.vscode-eslint"
+		"editor.defaultFormatter": "vscode.typescript-language-features"
 	},
-	"editor.codeActionsOnSave": {
-		"source.fixAll.eslint": "always"
-	},
-	"eslint.enable": true,
-	"typescript.format.enable": false,
+	"typescript.format.enable": true,
 	"files.watcherExclude": {
-		"**/.git/objects/**": true,
-		"**/.git/subtree-cache/**": true,
-		"**/node_modules/*/**": true,
-		"**/.hg/store/**": true,
-		"**/cdk.out*/*/**": true,
-		"node_modules/*/**": true
+		"**/.git/**": true,
+		"**/node_modules/**": true,
+		"**/cdk.out*/**": true,
 	}
 }

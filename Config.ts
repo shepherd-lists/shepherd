@@ -14,8 +14,11 @@ export type Config = {
 	gql_url?: string	//defaults to https://arweave.net/graphql
 	gql_url_secondary?: string	//defaults to https://arweave-search.goldsky.com/graphql
 
-	/** addonns to load. must be installed in ./addons/ */
+	/** addons to load. foldername must be installed in ./addons/ */
 	addons: Array<string>
+
+	/** classifiers and order for linking (names must match `addons` and folder names) */
+	classifiers: Array<string>
 
 	// // ## whitelist IPs for http://webserver/blacklist.txt
 	txids_whitelist: Array<string>
@@ -42,3 +45,29 @@ export type Config = {
 	}
 
 }
+
+/** return the name of the output queue for a given classifier. important to centralize this logic for refactoring later */
+export const classifierQueueName = (config: Config, i: number) => ({
+	queueName: `shepherd2-output-${i + 1}-${config.classifiers[i]}-q`,
+	dlqName: `shepherd2-output-${i + 1}-${config.classifiers[i]}-dlq`,
+})
+
+/** determine the i/o queues for a classifier */
+export const ioQueueNames = (config: Config, name: string) => {
+	const index = config.classifiers.indexOf(name)
+	if (index === -1) throw new Error(`Classifier '${name}' not found`)
+	if (index === 0) return {
+		input: 'shepherd2-input-q', //this is defined in infra/stack.ts
+		output: classifierQueueName(config, index).queueName,
+	}
+	return {
+		input: classifierQueueName(config, index - 1).queueName,
+		output: classifierQueueName(config, index).queueName,
+	}
+}
+
+/** last output Q is for http-api input (n.b. may be no classifiers) */
+export const finalQueueName = (config: Config): string | undefined =>
+	(config.classifiers.length > 0)
+		? classifierQueueName(config, config.classifiers.length - 1).queueName
+		: undefined

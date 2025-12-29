@@ -1,0 +1,173 @@
+/** fetch messages from final SQS and process them. using aws-sdk v3 and keep waiting for new messages. */
+
+import { SQSClient, ReceiveMessageCommand, DeleteMessageCommand, Message } from '@aws-sdk/client-sqs'
+import { slackLog } from '../../../libs/utils/slackLog'
+import { FilterErrorResult, FilterResult } from 'shepherd-plugin-interfaces'
+import { S3EventRecord } from 'aws-lambda'
+import { s3DeleteObject, s3HeadObject } from '../../../libs/utils/s3-services'
+import { TxRecord } from 'shepherd-plugin-interfaces/types'
+import { sqsFinalHandler } from './sqsFinalHandler'
+
+const prefix = 'watch-sqs'
+
+const sqsClient = new SQSClient({
+	// ...(process.env.SQS_LOCAL === 'yes' && { endpoint: 'http://sqs-local:9324', region: 'dummy-value' }),
+	maxAttempts: 10,
+	// retryMode: 'adaptive',
+})
+
+
+const AWS_SQS_SINK_QUEUE = process.env.AWS_SQS_SINK_QUEUE as string | undefined //undefined if no classifiers
+const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET as string
+
+if (!AWS_INPUT_BUCKET) throw new Error('AWS_INPUT_BUCKET is not configured')
+if (!AWS_SQS_SINK_QUEUE) console.warn('AWS_SQS_SINK_QUEUE is not configured. No classifiers will be processed.')
+
+
+/** Process a single SQS message */
+const processMessage = async (message: Message) => {
+	if (!message.Body) {
+		slackLog(prefix, processMessage.name, 'Received message without body', message.MessageId)
+		return
+	}
+
+	interface CustomS3Event {
+		Records: S3EventRecord[] //we only use 1 record ever.
+		extra: {
+			addonName: string
+			filterResult: Partial<FilterResult | FilterErrorResult>
+		}
+	}
+
+	let txid;
+	try {
+		const body: CustomS3Event = JSON.parse(message.Body)
+
+		console.debug(prefix, 'extra', JSON.stringify(body.extra))
+
+		if (!body.extra) {
+			throw new Error(`Invalid message format: extra is missing.${JSON.stringify(body)} `)
+		}
+
+		/** compile final TxRecord from s3 metadata and plugin result */
+		txid = body.Records[0].s3.object.key
+		let finalTxrecord;
+		try {
+			const s3Head = await s3HeadObject(AWS_INPUT_BUCKET, txid)
+			const s3Txrecord = JSON.parse(s3Head.Metadata!.txrecord!) as TxRecord
+
+			finalTxrecord = { ...s3Txrecord, ...body.extra.filterResult } as TxRecord //there's potential for a type mismatch here, nothing serious
+		} catch (err) {
+			const e = err as Error
+			console.warn(prefix, txid, 'Error retrieving metadata for txid. Object probably deleted long ago. Deleting message...', e.name, ':', e.message)
+			return
+		}
+
+		console.log(prefix, `Processing message for txid: ${txid} ...`)
+
+		await sqsFinalHandler(txid, finalTxrecord)
+
+		console.log(prefix, `Successfully processed txid: ${txid} `)
+
+		return txid;
+
+	} catch (err: unknown) {
+		const e = err as Error
+		slackLog(prefix, txid, 'Error processing message', message.MessageId, e.name, ':', e.message)
+		throw e // Re-throw to prevent message deletion
+	}
+}
+
+/** Delete a message from the queue after successful processing */
+const deleteMessage = async (receiptHandle: string) => sqsClient.send(new DeleteMessageCommand({
+	QueueUrl: AWS_SQS_SINK_QUEUE,
+	ReceiptHandle: receiptHandle,
+}))
+
+/** Poll SQS for messages and process them */
+const pollQueue = async (): Promise<void> => {
+	const MAX_CONCURRENT = 10 // Maximum concurrent message processing
+	const activeWorkers = new Set<Promise<void>>()
+
+	console.info(prefix, `Starting to poll queue: ${AWS_SQS_SINK_QUEUE} (max concurrent: ${MAX_CONCURRENT})`)
+
+	while (true) {
+		try {
+			// Wait if at capacity - this provides backpressure
+			while (activeWorkers.size >= MAX_CONCURRENT) {
+				console.debug(prefix, `At capacity (${activeWorkers.size}/${MAX_CONCURRENT}), waiting for worker to finish...`)
+				// Wait for ANY worker to finish
+				await Promise.race(activeWorkers)
+			}
+
+			// Calculate how many messages we can fetch based on available capacity
+			const availableSlots = MAX_CONCURRENT - activeWorkers.size
+			const messagesToFetch = Math.min(availableSlots, 10) // SQS max is 10
+
+			const response = await sqsClient.send(new ReceiveMessageCommand({
+				QueueUrl: AWS_SQS_SINK_QUEUE,
+				MaxNumberOfMessages: messagesToFetch,
+				WaitTimeSeconds: 20, // Long polling to reduce empty responses
+				VisibilityTimeout: 300, // 5 minutes to process the message
+			}))
+
+			if (response.Messages && response.Messages.length > 0) {
+				console.log(prefix, `Received ${response.Messages.length} messages (active: ${activeWorkers.size}/${MAX_CONCURRENT})`)
+
+				// Process each message independently (fire-and-forget with tracking)
+				response.Messages.forEach(message => {
+					const processMessageWorker = async () => {
+						let txid
+						try {
+							txid = await processMessage(message)
+
+							// Delete message only after successful processing
+							await deleteMessage(message.ReceiptHandle!)
+							console.log(prefix, txid, `Deleted message ${message.MessageId}`)
+
+							try {
+								await s3DeleteObject(AWS_INPUT_BUCKET, txid!)
+							} catch (e) {
+								//object probably already deleted
+								console.error(prefix, txid, `Failed to delete object ${txid}:`, (e as Error).message)
+							}
+
+						} catch (err: unknown) {
+							const e = err as Error
+							console.error(prefix, txid, `Failed to process message ${message.MessageId}:`, e.message)
+							// Message will become visible again after VisibilityTimeout
+							// and will be retried or sent to DLQ based on queue configuration
+						} finally {
+							// Always remove worker from set, even on error
+							activeWorkers.delete(worker)
+						}
+					}
+
+					const worker = processMessageWorker()
+					activeWorkers.add(worker)
+				})
+			} else {
+				// No messages received, continue polling
+				console.debug(prefix, 'No messages received, continuing to poll...')
+			}
+		} catch (err: unknown) {
+			const e = err as Error
+			console.error(prefix, 'Error polling queue:', e.message)
+			await slackLog(prefix, 'Error polling SQS queue', e.message)
+
+			// Wait before retrying to avoid tight error loop
+			await new Promise(resolve => setTimeout(resolve, 5000))
+		}
+	}
+}
+
+/** Start the SQS watcher (self-starting) */
+if (AWS_SQS_SINK_QUEUE) {
+	console.info(prefix, 'SQS watcher enabled')
+	pollQueue().catch(err => {
+		slackLog(prefix, 'Fatal error in SQS watcher', String(err))
+		throw err //crash the service?
+	})
+} else {
+	console.info(prefix, 'SQS watcher disabled (no classifiers). AWS_SQS_SINK_QUEUE =', AWS_SQS_SINK_QUEUE)
+}

@@ -2,7 +2,8 @@ import * as cdk from 'aws-cdk-lib'
 import { Construct } from 'constructs'
 import { inputQMetricAndNotifications } from './lib/queue-notifications'
 import { createTailscaleSubrouter } from './lib/tailscale-ec2-router'
-import { Config } from '../Config'
+import { Config, classifierQueueName } from '../Config'
+import { buildListsBucket } from './lib/listsBucket'
 
 
 interface InfraStackProps extends cdk.StackProps {
@@ -15,9 +16,9 @@ export class InfraStack extends cdk.Stack {
 		const stack = this // idc for `this`
 
 		const { config } = props
-		if(!config) throw new Error('config not set')
-		if(!config.cidr) throw new Error('config.cidr not set')
-		if(!config.slack_public) throw new Error('config.slack_public not set')
+		if (!config) throw new Error('config not set')
+		if (!config.cidr) throw new Error('config.cidr not set')
+		if (!config.slack_public) throw new Error('config.slack_public not set')
 
 		/** create the main network stack */
 
@@ -83,8 +84,9 @@ export class InfraStack extends cdk.Stack {
 		/** inputQ metric and notifications */
 		const { inputAgeMetricProps } = inputQMetricAndNotifications(stack, vpc, sqsInputQ.queueName, config.slack_public!, logGroupInfra)
 
-		/** create feeder Q */
-		const { feederQ } = feederQs(stack)
+		/** create output Qs */
+		const { outputQs } = createOutputQs(stack, config)
+		if (outputQs.length <= 0) throw new Error('no output queues created')
 
 
 		/** SQS queue security */
@@ -98,13 +100,13 @@ export class InfraStack extends cdk.Stack {
 		})
 
 		/* grant vpc resources access to the queues */
-		const queues = [sqsInputQ, feederQ]
-		queues.map(q => {
+		const queues = [sqsInputQ, ...outputQs]
+		queues.forEach(q => {
 			q.addToResourcePolicy(new cdk.aws_iam.PolicyStatement({
 				effect: cdk.aws_iam.Effect.ALLOW,
 				principals: [new cdk.aws_iam.AccountPrincipal(cdk.Aws.ACCOUNT_ID)],
 				actions: ['sqs:*'],
-				resources: [q.queueArn],
+				resources: [q.queueArn!],
 				conditions: {
 					StringEquals: {
 						'aws:SourceVpce': sqsVpcEndpoint.vpcEndpointId,
@@ -130,6 +132,16 @@ export class InfraStack extends cdk.Stack {
 				},
 			},
 		}))
+
+		/** create a single cluster to export for services */
+		const cluster = new cdk.aws_ecs.Cluster(stack, 'shepherd-services-cluster', {
+			vpc,
+			clusterName: 'shepherd-services',
+			defaultCloudMapNamespace: { name: 'shepherd.local' },
+		})
+
+		/** create s3 for lists */
+		const listsBucket = buildListsBucket(stack, config)
 
 
 		/** cfn outputs. unused, but handy to have in aws console */
@@ -159,11 +171,14 @@ export class InfraStack extends cdk.Stack {
 		writeParam('LogGroup', logGroupServices.logGroupName)		 	//LOG_GROUP_NAME
 		writeParam('InputQueueUrl', sqsInputQ.queueUrl)		// AWS_SQS_INPUT_QUEUE
 		writeParam('InputQueueName', sqsInputQ.queueName)
-		writeParam('FeederQueueUrl', feederQ.queueUrl)		// AWS_FEEDER_QUEUE
 		writeParam('RdsEndpoint', pgdb.dbInstanceEndpointAddress)
 		writeParam('AlbDnsName', alb.loadBalancerDnsName)
 		writeParam('AlbArn', alb.loadBalancerArn)					// LB_ARN
 		writeParam('InputMetricProps', inputAgeMetricProps)	// object to re-create the metric
+		writeParam('ClusterName', cluster.clusterName)
+		writeParam('NamespaceArn', cluster.defaultCloudMapNamespace!.namespaceArn)
+		writeParam('NamespaceId', cluster.defaultCloudMapNamespace!.namespaceId)
+		writeParam('ListsBucketArn', listsBucket.bucketArn)
 
 	}
 }
@@ -241,21 +256,26 @@ const bucketAndNotificationQs = (stack: cdk.Stack) => {
 	}
 }
 
-const feederQs = (stack: cdk.Stack) => {
-	const feederQ = new cdk.aws_sqs.Queue(stack, 'shepherd2-feeder-q', {
-		queueName: 'shepherd2-feeder-q',
-		retentionPeriod: cdk.Duration.days(14), //max value
-		visibilityTimeout: cdk.Duration.minutes(15),
-		deadLetterQueue: {
-			maxReceiveCount: 10,
-			queue: new cdk.aws_sqs.Queue(stack, 'shepherd2-feeder-dlq', {
-				queueName: 'shepherd2-feeder-dlq',
-				retentionPeriod: cdk.Duration.days(14),
-			}),
-		},
-	})
+const createOutputQs = (stack: cdk.Stack, config: Config): { outputQs: cdk.aws_sqs.Queue[] } => {
+	const outputQs = []
+	for (let i = 0; i < config.classifiers.length; i++) {
+		const { queueName, dlqName } = classifierQueueName(config, i) // q and dlq names for the classifier
+		const q = new cdk.aws_sqs.Queue(stack, queueName, {
+			queueName,
+			retentionPeriod: cdk.Duration.days(14), //max value
+			visibilityTimeout: cdk.Duration.minutes(15),
+			deadLetterQueue: {
+				maxReceiveCount: 10,
+				queue: new cdk.aws_sqs.Queue(stack, dlqName, {
+					queueName: dlqName,
+					retentionPeriod: cdk.Duration.days(14),
+				}),
+			},
+		})
+		outputQs.push(q)
+	}
 
 	return {
-		feederQ,
+		outputQs,
 	}
 }

@@ -38,9 +38,9 @@ export const handler: Handler = async (event: SNSEvent) => {
 
 	const parseMessage = () => {
 		const m = event.Records[0].Sns.Message
-		try{
+		try {
 			return JSON.parse(m)
-		}catch(e){
+		} catch (e) {
 			return m
 		}
 	}
@@ -48,13 +48,13 @@ export const handler: Handler = async (event: SNSEvent) => {
 
 	console.log('message: ', event.Records[0].Sns.Message)
 	let text = ''
-	if(message.AlarmName){
+	if (message.AlarmName) {
 		const alarmMsg: AlarmMessage = message
 		const icon = alarmMsg.NewStateValue === 'ALARM' ? '❌' : '✅'
 		const stateChangeMins = ((+alarmMsg.Trigger?.Period * +alarmMsg.Trigger?.EvaluationPeriods) / 60).toFixed(1)
 		text = `${alarmMsg.AlarmDescription} ${icon} ${alarmMsg.NewStateValue} triggered in last ${stateChangeMins} minutes\n`
 			+ `${alarmMsg.NewStateReason} @ ${alarmMsg.StateChangeTime}`
-	}else{
+	} else {
 		text = message
 	}
 
@@ -70,6 +70,6 @@ export const handler: Handler = async (event: SNSEvent) => {
 		body: await res.text(),
 	}
 	console.log('slackRes: ', JSON.stringify(slackRes, null, 2))
-	if(!res.ok) throw new Error('error sending to slack', { cause: slackRes })
+	if (!res.ok) throw new Error('error sending to slack', { cause: slackRes })
 	return slackRes
 }

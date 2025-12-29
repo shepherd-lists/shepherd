@@ -1,10 +1,10 @@
 import { FilterPluginInterface, FilterResult } from 'shepherd-plugin-interfaces'
 
 const mockPlugin: FilterPluginInterface = {
-	init: async()=>console.log('mock init called'),
-	checkImage: async(buffer: Buffer, mimetype: string, txid: string):Promise<FilterResult>=>{
+	init: async () => console.log('mock init called'),
+	checkImage: async (buffer: Buffer, mimetype: string, txid: string): Promise<FilterResult> => {
 		console.log('mock checkImage called')
-		return { flagged: false	}
+		return { flagged: false }
 	}
 }
 

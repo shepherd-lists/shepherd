@@ -1,12 +1,11 @@
 import { App } from 'aws-cdk-lib'
 import { Config } from './Config'
 import { InfraStack } from './infra/stack'
-import { ServicesStack } from './services/infra/stack'
 
 const configName = process.argv[2]
 
 const config: Config = (await import(`./config.${configName}.ts`)).config
-if(!config) throw new Error(`config not set. configName: ${configName}`)
+if (!config) throw new Error(`config not set. configName: ${configName}`)
 
 const app = new App()
 
@@ -20,15 +19,9 @@ new InfraStack(app, 'InfraStack', {
 	config,
 })
 
-new ServicesStack(app, 'ServicesStack', {
-	env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
-	stackName: 'shepherd-services',
-	description: 'Shepherd services stack: ecs, lambdas, etc',
-	config,
-})
 
 /** addons. these get imported a little differently as they don't use classes. */
-for(const addon of config.addons){
+for (const addon of config.addons) {
 	const { createStack } = await import(`./addons/${addon}/infra/stack`)
 	createStack(app, config)
 }

@@ -1,0 +1,166 @@
+import pool from '../../libs/utils/pgClient'
+import QueryStream from "pg-query-stream"
+import { slackLog } from '../../libs/utils/slackLog'
+import { s3UploadReadable } from '../../libs/utils/s3-services'
+import { ByteRange, mergeErlangRanges } from "../../libs/s3-lists/merge-ranges"
+import { getAddonTablenames } from './addon-tablenames'
+import { processAddonTable } from './table-processing'
+
+
+
+const LISTS_BUCKET = process.env.LISTS_BUCKET as string
+if (!LISTS_BUCKET) throw new Error('LISTS_BUCKET is not set')
+
+const highWaterMark = 200 // 100/50s, 200/43,46s, 300/47s, 400/47s, 1_000/46s, 10_000/66s
+
+export const handler = async (event: any) => {
+	console.info(JSON.stringify(event, null, 2))
+
+	const t0 = Date.now()
+
+	/** prepare output streams to s3 */
+	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'blacklist.txt')
+	const s3TxidFlagged = s3UploadReadable(LISTS_BUCKET, 'txidflagged.txt')
+	const s3TxidOwners = s3UploadReadable(LISTS_BUCKET, 'txidowners.txt')
+	const s3RangeFlagged = s3UploadReadable(LISTS_BUCKET, 'rangeflagged.txt')
+	const s3RangesOwners = s3UploadReadable(LISTS_BUCKET, 'rangeowners.txt')
+	/** addons handled differently. n.b. in the future everything will be an addon */
+	const addonTablenames = await getAddonTablenames()
+
+	/** rangelist needs sort & merge processing before upload */
+	const ranges: Array<ByteRange> = []
+
+	const t1Prep = Date.now()
+	console.info(`prepared s3 streams in ${(t1Prep - t0).toLocaleString()} ms`)
+
+	let count = 0 //all items
+
+	/** flagged streams */
+	const flaggedProcess = async () => {
+		const flaggedStream = new QueryStream('SELECT txid, "byte_start", "byte_end" FROM txs WHERE flagged = true', [], { highWaterMark })
+
+		/** N.B. need to handle connections manually for pg-query-stream */
+		const cnn = await pool.connect() //using one connection per query
+		cnn.query(flaggedStream)
+
+		console.debug('flagged stream starting')
+		const t = Date.now()
+		let c = 0
+		for await (const row of flaggedStream) {
+			// console.debug('row', row)
+			c++
+			s3Txids.write(`${row.txid}\n`)
+			s3TxidFlagged.write(`${row.txid}\n`)
+			if (!row.byte_start) {
+				slackLog(`"flagged txs" bad byte-range`, JSON.stringify(row))
+				continue;
+			} else if (row.byte_start === '-1') {
+				console.info(`"flagged txs" bad byte-range`, JSON.stringify(row))
+				continue;
+			}
+			s3RangeFlagged.write(`${row.byte_start},${row.byte_end}\n`)
+			ranges.push([+row.byte_start, +row.byte_end])
+		}
+		console.debug(`time to stream flagged ${(Date.now() - t).toLocaleString()}ms`)
+		s3RangeFlagged.end()
+		count += c
+		cnn.release() //release connection back to pool
+
+		console.debug('flaggedStream', c)
+	}
+
+	/** process owner tables */
+	const ownerTablenames = await getOwnersTablenames()
+	console.debug(`ownersTablenames, count=${ownerTablenames.length} ${JSON.stringify(ownerTablenames)}`)
+
+	const ownerProcessing = async (tablename: string) => {
+		const stream = new QueryStream(`SELECT txid, byte_start, byte_end FROM "${tablename}"`, [], { highWaterMark })
+		const cnn = await pool.connect() //1 cnn per table
+		try {
+			cnn.query(stream)
+			console.debug(tablename, 'stream starting')
+			let c = 0
+			const t = Date.now()
+			for await (const row of stream) {
+				// console.debug('row', row)
+				c++
+				s3Txids.write(`${row.txid}\n`)
+				s3TxidOwners.write(`${row.txid}\n`)
+				if (!row.byte_start) {
+					slackLog(`${tablename} missing byte-range`, JSON.stringify(row))
+					continue;
+				} else if (row.byte_start === '-1') {
+					console.info(tablename, `bad byte-range`, JSON.stringify(row))
+					continue;
+				}
+				s3RangesOwners.write(`${row.byte_start},${row.byte_end}\n`)
+				ranges.push([+row.byte_start, +row.byte_end])
+			}
+			console.debug(tablename, `stream done. ${c} items in ${(Date.now() - t).toLocaleString()}ms`)
+			count += c
+		} finally {
+			cnn.release()
+		}
+	}
+
+	/** await all promises */
+	await Promise.all([
+		flaggedProcess(),
+		...ownerTablenames.map(ownerProcessing),
+		...addonTablenames.map(tablename =>
+			processAddonTable({ tablename, LISTS_BUCKET, highWaterMark, ranges }).then(c => count += c)
+		)
+	])
+
+	const t2Process = Date.now()
+	console.debug(`time to finish db reads ${(t2Process - t1Prep).toLocaleString()}ms`)
+	console.info('count', count, Date())
+
+
+	/** close the output streams */
+	s3Txids.end()
+	s3TxidFlagged.end()
+	s3TxidOwners.end()
+	s3RangesOwners.end()
+	await Promise.all([
+		s3Txids.promise,
+		s3TxidFlagged.promise,
+		s3TxidOwners.promise,
+		s3RangeFlagged.promise,
+		s3RangesOwners.promise,
+	])
+
+	const t3CloseS3 = Date.now()
+	console.info(`time to close s3 streams ${(t3CloseS3 - t2Process).toLocaleString()} ms`)
+
+	/** process ranges and write out */
+	const s3Ranges = s3UploadReadable(LISTS_BUCKET, 'rangelist.txt')
+	for await (const range of mergeErlangRanges(ranges)) {
+		s3Ranges.write(`${range[0]},${range[1]}\n`)
+	}
+	ranges.length = 0 //side-effects, dont use again
+	s3Ranges.end()
+	await s3Ranges.promise
+
+	console.info(`merge and close ranges in ${(Date.now() - t3CloseS3).toLocaleString()} ms`)
+
+	return count
+}
+
+
+/** get a list of all the tables with blocked owners items.
+ * - N.B. omit whitelisted owners
+ */
+const getOwnersTablenames = async () => {
+
+	const { rows } = await pool.query<{ tablename: string }>(`
+		SELECT tablename FROM pg_catalog.pg_tables
+		WHERE tablename LIKE 'owner\\_%'
+		AND NOT EXISTS (
+				SELECT 1 FROM owners_whitelist
+				WHERE pg_catalog.pg_tables.tablename = 'owner_' || REPLACE(owners_whitelist.owner, '-', '~')
+		);
+	`)
+
+	return rows.map(row => row.tablename)
+}

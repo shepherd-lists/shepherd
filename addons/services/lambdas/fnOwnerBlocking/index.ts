@@ -1,0 +1,126 @@
+import pg, { batchInsertFnOwner, ownerToTablename } from './utils/pgClient'
+import { slackLog } from './utils/slackLog'
+import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
+import { OwnerTableRecord } from '../../types'
+import { getByteRange } from '../../libs/byte-ranges/byteRanges'
+import { GQLEdgeInterface, GQLError } from 'ar-gql/dist/faces'
+import { gqlTx } from '../../libs/byte-ranges/gqlTx'
+import { updateS3Lists, UpdateItem } from '../../libs/s3-lists/update-lists'
+
+const gql = arGql({ endpointUrl: process.env.GQL_URL_SECONDARY, retries: 3 }) //defaults to goldsky
+const gqlBackup = arGql({ endpointUrl: process.env.GQL_URL, retries: 3 }) //defaults to arweave
+
+
+/** the handler will receive 1 page of blocked wallet results. 
+ * potentially for different wallets, but at scale only from 1 wallet.
+ */
+export const handler = async (event: any) => {
+	try {
+		console.info('event', JSON.stringify(event))
+		const inputs = event as { page: GQLEdgeInterface[], pageNumber: number }
+		if (!inputs.page || !Array.isArray(inputs.page) || inputs.page.length === 0) {
+			throw new Error('missing inputs. should have { "page": "GQLEdgeInterface[non-zero]", "pageNumber": "number" }')
+		}
+		console.info(`processing page ${inputs.pageNumber}`)
+
+		/** new plan:
+		 * receive page of gql nodes for different blocked wallets
+		 * build records for each node
+		 * add them to separate record arrays for each wallet
+		 * batch insert each wallet"s records
+		 */
+
+		let records: { [owner: string]: OwnerTableRecord[] } = {}
+
+		await Promise.all(inputs.page.map(async ({ node }) => {
+
+			/** skip small files */
+			if (+node.data.size < 1_000) {
+				console.log(`file too small, size: ${node.data.size}, txid: ${node.id}`)
+				return;
+			}
+
+			/** build records */
+			const txid = node.id
+			const parent = node.parent?.id || null
+			let parents: string[] | undefined = []
+			const owner = node.owner.address.padEnd(43, ' ') //pad non-arweave addresses to 43
+
+			// loop to find all nested parents
+			if (parent) {
+				let p: string | null = parent
+				do {
+					const p0: string = p
+
+					try {
+						p = (await gqlTx(p0, gql)).parent?.id || null
+					} catch (eOuter: unknown) {
+						console.error(`getParent warning: "${(eOuter as Error).message}" while fetching parent: "${p}" for dataItem: ${txid} using gqlProvider: ${gql.endpointUrl}. Trying gqlBackup now.`)
+						try {
+							p = (await gqlTx(p0, gqlBackup)).parent?.id || null
+						} catch (eInner: unknown) {
+							slackLog(`getParent error: "${(eInner as Error).message}" while fetching parent: ${p0} for dataItem: ${txid} Tried both gql endpoints. ${(eInner as GQLError).cause.gqlError}`)
+						}
+					}
+				} while (p && parents.push(p))
+			}
+			parents = parents.length === 0 ? undefined : parents
+
+			/** calculate byte-range */
+			const range = await getByteRange(txid, parent, parents)
+
+			if (range.start === -1n) {
+				console.error(`Error in range calculation for txid: ${txid}`)
+				return;
+			}
+
+			/** add to records */
+			if (!records[owner]) records[owner] = []
+
+			records[owner].push({
+				txid,
+				parent,
+				parents,
+				byte_start: range.start.toString(),
+				byte_end: range.end.toString(),
+			})
+		})) //eo promise.all(map)
+
+		/** batch insert this pages results */
+		const counts: { [owner: string]: number; total: number } = { total: 0 }
+		let listRecords: UpdateItem[] = []
+		for (const key of Object.keys(records)) {
+			const inserted = await batchInsertFnOwner(records[key], ownerToTablename(key))
+
+			/** add to lists update also */
+			const items = records[key].map<UpdateItem>(({ txid, byte_start, byte_end }) => ({
+				txid,
+				range: [Number(byte_start), Number(byte_end)],
+			}))
+			listRecords.push(...items)
+
+			if (!counts[key]) counts[key] = 0
+			counts[key] += inserted!
+			counts.total += inserted!
+		}
+		/** update s3 lists, but dont create empty files */
+		if (counts.total > 0) {
+			await Promise.all([
+				updateS3Lists('owners/', listRecords),
+				updateS3Lists('list/', listRecords),
+			])
+		}
+
+
+		//@ts-expect-error null is incorrect type, but we just want gc
+		records = null; listRecords = null
+
+		console.info(`completed processing page ${inputs.pageNumber} ${JSON.stringify(counts)}`)
+
+		return counts
+	} catch (err: unknown) {
+		const e = err as Error
+		await slackLog('fnOwner.handler', `Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
+		throw e
+	}
+}

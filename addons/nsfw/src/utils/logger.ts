@@ -2,7 +2,7 @@
 
 export const logger = (...args: unknown[]) => {
 	let prefix = '[logger]'
-	if(args.length > 1){
+	if (args.length > 1) {
 		prefix = '[' + args[0] + ']'
 		args.shift()
 	}

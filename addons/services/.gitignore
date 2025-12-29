@@ -1,0 +1,6 @@
+node_modules
+*.DS_Store
+services/checks/src/quicktest-rangesOverlap.ts
+compose.yml
+tests/assets/lib-rangelist.txt
+*.log
