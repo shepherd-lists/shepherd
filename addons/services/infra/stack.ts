@@ -156,7 +156,7 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			FN_OWNER_BLOCKING: fnOwnerBlocking.functionName,
-			FN_INDEXER: fnIndex.functionName,
+			FN_TEMP: fnTemp.functionName,
 			FN_INIT_LISTS: fnInitLists.functionName,
 			LISTS_BUCKET: listsBucket.bucketName,
 			FN_INGRESS: fnIngress.functionName,
