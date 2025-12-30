@@ -3,6 +3,7 @@ import http from 'node:http'
 import { ReadableStream, ReadableByteStreamController } from 'node:stream/web'
 import { httpApiNodes } from '../../libs/utils/update-range-nodes'
 import { CHUNK_ALIGN_GENESIS } from '../../libs/byte-ranges/txidToRange/constants-byteRange'
+import { ingressNodes } from './ingress-nodes'
 
 
 /** backend buffered parallel arweave chunk streaming.
@@ -31,10 +32,7 @@ export const chunkStream = async (
 
 	const nodes = [
 		...httpApiNodes(),
-		//manually adding these for now
-		{ url: 'http://tip-2.arweave.xyz:1984', name: 'tip-2.arweave.xyz' },
-		{ url: 'http://tip-3.arweave.xyz:1984', name: 'tip-3.arweave.xyz' },
-		{ url: 'http://tip-4.arweave.xyz:1984', name: 'tip-4.arweave.xyz' },
+		...ingressNodes(),
 	]
 	let nodeIndex = nodes.length - 1
 

@@ -103,9 +103,10 @@ export const createStack = async (app: App, config: Config) => {
 			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
 			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
 			HOST_URL: config.host_url || 'https://arweave.net',
-			http_api_nodes: JSON.stringify(config.http_api_nodes),
-			http_api_nodes_url: config.http_api_nodes_url || '', //byte-ranges
 			AWS_INPUT_BUCKET: inputBucketName,
+			http_api_nodes: JSON.stringify(config.http_api_nodes),
+			http_api_nodes_url: config.http_api_nodes_url || '',
+			ingress_nodes: JSON.stringify(config.ingress_nodes),
 		},
 	})
 	fnIngress.addToRolePolicy(new aws_iam.PolicyStatement({
