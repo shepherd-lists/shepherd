@@ -1,5 +1,6 @@
 import pg from 'pg'
 import { slackLog } from './slackLog'
+import { TxRecord } from 'shepherd-plugin-interfaces/types'
 
 
 const DB_HOST = process.env.DB_HOST as string
@@ -29,7 +30,7 @@ const pool = new pg.Pool({
 export default pool
 
 export const batchInsert = async <T extends object>(records: T[], tableName: string) => {
-	console.info(`batchInsert inserting  ${records.length} records.`)
+	console.info(`batchInsert inserting ${records.length} records.`)
 	if (records.length === 0) return
 
 	/** we'll be using the placeholder method where data is sent separately AKA parameterized query.
@@ -39,30 +40,85 @@ export const batchInsert = async <T extends object>(records: T[], tableName: str
 	*/
 	const columns = Object.keys(records[0]).map(k => `"${k}"`).join(', ')
 
+	let index = 0
+	const query = `INSERT INTO "${tableName}" (${columns}) `
+		+ `VALUES `
+		+ records.map(r => `(${Object.keys(r).map(() => '$' + ++index).join(', ')})`).join(', ')
+		+ ' RETURNING *'
+
+	const values = records.map(r => Object.values(r)).flat()
+
+	console.debug('query', query)
+	console.debug('values', JSON.stringify(values, null, 2))
+
 	try {
-		await pool.query('BEGIN')
-		let index = 0
-		const query = `INSERT INTO "${tableName}" (${columns}) `
-			+ `VALUES `
-			+ records.map(r => `(${Object.keys(r).map(() => '$' + ++index).join(', ')})`).join(', ')
-			+ ' RETURNING *'
 
-		console.debug('query', query)
-
-		const values = records.map(r => Object.values(r)).flat()
-
-		console.debug('values', JSON.stringify(values, null, 2))
-
-		const res = await pool.query(query, values) // query is a template string, values is an array
+		const res = await pool.query(query, values) // query is a template string, values is an array. 1 single query
 
 		console.debug(`batch inserted ${res.rowCount} records`)
 
-		await pool.query('COMMIT')
 		return res.rowCount;
 	} catch (err: unknown) {
 		const e = err as Error
 		console.error(`pg-error: ${e.name} ${e.message}`)
-		await pool.query('ROLLBACK')
 		throw e
 	}
 }
+
+/** similar to batchInsert, but with merge rules
+ * merge rules:
+ * flagged: once true, always stays true. (important! flagged files will become 404!)
+ * byte_start/byte_end: don't overwrite valid values with null or -1.
+ * other columns: only update if not null.
+ * dont update unchanged records (where clause)
+ */
+export const batchUpsertTxsWithRules = async (records: TxRecord[], tableName: string = 'txs') => {
+	console.info(batchUpsertTxsWithRules.name, `upserting ${records.length} records.`)
+	if (records.length === 0) return
+
+	//n.b. the keys are derived from the first record
+	const columns = Object.keys(records[0]).map(k => `"${k}"`).join(', ')
+
+	let index = 0
+	const query = `INSERT INTO "${tableName}" (${columns}) `
+		+ `VALUES `
+		+ records.map(r => `(${Object.keys(r).map(() => '$' + ++index).join(', ')})`).join(', ')
+		+ ' ON CONFLICT ("txid") DO UPDATE SET '
+		+ Object.keys(records[0])
+			.filter(k => k !== 'txid')
+			.map(k => {
+				//preserve flagged=true
+				if (k === 'flagged') {
+					return `"${k}" = CASE WHEN "${tableName}"."flagged" = true THEN true ELSE EXCLUDED."${k}" END`
+				}
+				//don't overwrite valid values with null or -1
+				if (k === 'byte_start' || k === 'byte_end') {
+					return `"${k}" = CASE WHEN EXCLUDED."${k}" IS NOT NULL AND EXCLUDED."${k}"::bigint != -1 THEN EXCLUDED."${k}" ELSE "${tableName}"."${k}" END`
+				}
+				//other columns: only update if not null
+				return `"${k}" = CASE WHEN EXCLUDED."${k}" IS NOT NULL THEN EXCLUDED."${k}" ELSE "${tableName}"."${k}" END`
+			})
+			.join(', ')
+		+ ' WHERE '
+		+ Object.keys(records[0])
+			.filter(k => k !== 'txid')
+			.map(k => `"${tableName}"."${k}" IS DISTINCT FROM EXCLUDED."${k}"`).join(' OR ')
+		+ ' RETURNING *';
+
+	const values = records.map(r => Object.values(r)).flat()
+
+	console.debug('query', query)
+	console.debug('values', JSON.stringify(values, null, 2))
+
+	try {
+		const res = await pool.query(query, values)
+
+		console.debug(`batch upserted ${res.rowCount} records`)
+		return res.rows;
+	} catch (err: unknown) {
+		const e = err as Error
+		console.error(`pg-error: ${e.name} ${e.message}`)
+		throw e
+	}
+}
+

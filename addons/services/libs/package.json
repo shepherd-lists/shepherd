@@ -21,6 +21,7 @@
     "moize": "^6.1.6",
     "p-limit": "^6.1.0",
     "pg": "^8.14.0",
-    "pg-query-stream": "^4.8.0"
+    "pg-query-stream": "^4.8.0",
+    "shepherd-plugin-interfaces": "^2.1.0"
   }
 }
