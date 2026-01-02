@@ -3,7 +3,7 @@ import { arGql, ArGqlInterface } from 'ar-gql'
 import { GQLEdgeInterface, GQLError } from 'ar-gql/dist/faces'
 import moize from 'moize'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import pool, { batchInsert } from '../../libs/utils/pgClient'
+import pool, { batchUpsertTxsWithRules } from '../../libs/utils/pgClient'
 import { min_data_size } from '../../libs/constants'
 import { downloadWithChecks } from './downloadWithChecks'
 import { chunkTxDataStream } from './chunkTxDataStream'
@@ -93,7 +93,7 @@ export const handler = async (event: Inputs) => {
 
 		//upsert updated records
 		console.debug(indexName, `starting database batch insert for ${updated.length} records`)
-		const numInserted = await batchInsert(updated.map(r => ({
+		const numInserted = await batchUpsertTxsWithRules(updated.map(r => ({
 			//initial fields
 			txid: r.txid,
 			content_type: r.content_type,
