@@ -5,6 +5,7 @@ import { GQLError } from 'ar-gql/dist/faces'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
+import { batchUpsertTxsWithRules } from '../../../../libs/utils/pgClient'
 
 
 const ARIO_DELAY_MS = 500
@@ -197,8 +198,21 @@ export const gqlPages = async ({
 		console.info(`pending retries: ${pendingRetries.length}, errored retries: ${erroredRetries.length}`)
 
 		/** write out	retried records to db with flagged=null */
-		//we'll use batchUpsert, but not sure what values to fill in yet for data_reason, valid_data, etc.
-
+		const recordsToUpsert = [...pendingRetries, ...erroredRetries].map((r: TxRecord & { errorId?: string }): TxRecord => ({
+			txid: r.txid,
+			content_type: r.content_type,
+			content_size: r.content_size,
+			height: r.height,
+			parent: r.parent,
+			parents: r.parents,
+			owner: r.owner,
+			last_update_date: new Date(),
+			data_reason: r.errorId as TxRecord['data_reason'] || 'timeout',
+			//@ts-expect-error flagged: null is valid for retry records.
+			flagged: null, valid_data: null,
+		}))
+		const upserted = await batchUpsertTxsWithRules(recordsToUpsert, 'txs')
+		console.info(`upserted ${upserted?.length || 0} records`)
 	}
 
 
