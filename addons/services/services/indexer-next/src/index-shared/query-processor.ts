@@ -156,7 +156,7 @@ export const gqlPages = async ({
 	const results = await Promise.all(promises)
 
 	const [pending, errored] = results.reduce((acc, result) => {
-		result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push(value.record))
+		result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push({ ...value.record, errorId: value.errorId } as TxRecord))
 		return acc
 	}, [[], []] as [TxRecord[], TxRecord[]])
 
@@ -185,16 +185,19 @@ export const gqlPages = async ({
 
 		const resultsRetries = await Promise.all(promisesRetries)
 		const [pendingRetries, erroredRetries] = resultsRetries.reduce((acc, result) => {
-			result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push(value.record))
+			result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push({ ...value.record, errorId: value.errorId } as TxRecord))
 			return acc
 		}, [[], []] as [TxRecord[], TxRecord[]])
 
 		console.info(`retried ${batchCount} batches [${batchSizes.join(', ')}] for pending/errored records using 'gateway' stream source`)
 
-		if (pendingRetries.length > 0) slackLog(`DEBUG pending retries ${pendingRetries.length}/${resultsRetries.length}.`, JSON.stringify(pendingRetries))
-		if (erroredRetries.length > 0) slackLog(`DEBUG errored retries ${erroredRetries.length}/${resultsRetries.length}.`, JSON.stringify(erroredRetries))
+		if (pendingRetries.length > 0) slackLog(`DEBUG pending retries 💀❌ ${pendingRetries.length}/${resultsRetries.length}.`, JSON.stringify(pendingRetries))
+		if (erroredRetries.length > 0) slackLog(`DEBUG errored retries 💀❌ ${erroredRetries.length}/${resultsRetries.length}.`, JSON.stringify(erroredRetries))
 
 		console.info(`pending retries: ${pendingRetries.length}, errored retries: ${erroredRetries.length}`)
+
+		/** write out	retried records to db with flagged=null */
+		//we'll use batchUpsert, but not sure what values to fill in yet for data_reason, valid_data, etc.
 
 	}
 
