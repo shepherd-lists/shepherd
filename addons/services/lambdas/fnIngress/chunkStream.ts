@@ -77,7 +77,7 @@ export const chunkStream = async (
 
 	const startChunk = async (index: number, chunkInfo: ChunkInfo) => {
 		try {
-			if (abortSignal.aborted) return;
+			if (abortSignal.aborted || isCancelled) return;
 
 			console.info(txid, `chunk ${index}, offset ${chunkInfo.offset} starting...`)
 
@@ -216,7 +216,9 @@ export const chunkStream = async (
 				}
 			}
 		} catch (e) {
+			isCancelled = true
 			controller?.error(e)
+
 		}
 	}//end of startChunk
 

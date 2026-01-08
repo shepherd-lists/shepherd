@@ -5,6 +5,7 @@ import { GQLError } from 'ar-gql/dist/faces'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
+import { batchUpsertTxsWithRules } from '../../../../libs/utils/pgClient'
 
 
 const ARIO_DELAY_MS = 500
@@ -156,13 +157,13 @@ export const gqlPages = async ({
 	const results = await Promise.all(promises)
 
 	const [pending, errored] = results.reduce((acc, result) => {
-		result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push(value.record))
+		result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push({ ...value.record, errorId: value.errorId } as TxRecord))
 		return acc
 	}, [[], []] as [TxRecord[], TxRecord[]])
 
 	//temporary debug slacks
-	if (errored.length > 0) slackLog(`DEBUG errored ${errored.length}/${results.length}.`, JSON.stringify(errored))
-	if (pending.length > 0) slackLog(`DEBUG pending ${pending.length}/${results.length}.`, JSON.stringify(pending.map(({ txid, content_size, content_type }) => ({ txid, content_size, content_type }))))
+	if (errored.length > 0) slackLog(`DEBUG errored ${errored.length}.`, JSON.stringify(errored))
+	if (pending.length > 0) slackLog(`DEBUG pending ${pending.length}.`, JSON.stringify(pending.map(({ txid, content_size, content_type }) => ({ txid, content_size, content_type }))))
 
 	console.info(`pending: ${pending.length}, errored: ${errored.length}`)
 
@@ -185,17 +186,33 @@ export const gqlPages = async ({
 
 		const resultsRetries = await Promise.all(promisesRetries)
 		const [pendingRetries, erroredRetries] = resultsRetries.reduce((acc, result) => {
-			result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push(value.record))
+			result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push({ ...value.record, errorId: value.errorId } as TxRecord))
 			return acc
 		}, [[], []] as [TxRecord[], TxRecord[]])
 
 		console.info(`retried ${batchCount} batches [${batchSizes.join(', ')}] for pending/errored records using 'gateway' stream source`)
 
-		if (pendingRetries.length > 0) slackLog(`DEBUG pending retries ${pendingRetries.length}/${resultsRetries.length}.`, JSON.stringify(pendingRetries))
-		if (erroredRetries.length > 0) slackLog(`DEBUG errored retries ${erroredRetries.length}/${resultsRetries.length}.`, JSON.stringify(erroredRetries))
+		if (pendingRetries.length > 0) slackLog(`DEBUG pending retries 💀❌ ${pendingRetries.length}.`, JSON.stringify(pendingRetries))
+		if (erroredRetries.length > 0) slackLog(`DEBUG errored retries 💀❌ ${erroredRetries.length}.`, JSON.stringify(erroredRetries))
 
 		console.info(`pending retries: ${pendingRetries.length}, errored retries: ${erroredRetries.length}`)
 
+		/** write out	retried records to db with flagged=null */
+		const recordsToUpsert = [...pendingRetries, ...erroredRetries].map((r: TxRecord & { errorId?: string }): TxRecord => ({
+			txid: r.txid,
+			content_type: r.content_type,
+			content_size: r.content_size,
+			height: r.height,
+			parent: r.parent,
+			parents: r.parents,
+			owner: r.owner,
+			last_update_date: new Date(),
+			data_reason: r.errorId as TxRecord['data_reason'] || 'timeout',
+			//@ts-expect-error flagged: null is valid for retry records.
+			flagged: null, valid_data: null,
+		}))
+		const upserted = await batchUpsertTxsWithRules(recordsToUpsert, 'txs')
+		console.info(`upserted ${upserted?.length || 0} records`)
 	}
 
 

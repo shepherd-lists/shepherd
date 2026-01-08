@@ -31,6 +31,12 @@ describe('chunkStream', () => {
 			const offset = offsetMatch ? Number(offsetMatch[1]) - Number(chunkStart) : 0
 			const delay = chunkDelays.get(offset) || 0
 
+			// delay of -1 indicates this chunk should error
+			if (delay === -1) {
+				new Promise(resolve => setTimeout(resolve, 500))
+				throw new Error('404 Not Found')
+			}
+
 			// Signal chunk size immediately
 			onSize(chunkSize)
 
@@ -226,7 +232,36 @@ describe('chunkStream', () => {
 			const totalBytes = chunks.reduce((acc, c) => acc + c.length, 0)
 			assert.equal(totalBytes, mockDataEnd, 'Should handle complete reverse order')
 		})
-	})
 
+		it('should handle the middle chunk erroring, but others completing', async () => {
+			const delays = new Map([
+				[0, 100],         // chunk 0: 
+				[262144, -1],     // chunk 1: error
+				[524288, 2_000]     // chunk 2: 
+			])
+			const mockFetch = createMockFetch(delays)
 
+			const stream = await chunkStream(
+				chunkStart,
+				mockDataEnd,
+				txid,
+				(new AbortController()).signal,
+				10,
+				mockFetch
+			)
+
+			try {
+				for await (const chunk of stream) {
+					//just read we expect to error
+				}
+				assert.fail('should have thrown an error')
+			} catch (e) {
+				assert(e instanceof Error)
+				assert(e.message.includes('ran out of nodes to try'))
+				assert(e.message.includes('404 Not Found'))
+			}
+
+		})
+
+	})//end subsection
 })
