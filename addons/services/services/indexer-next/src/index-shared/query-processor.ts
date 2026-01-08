@@ -162,8 +162,8 @@ export const gqlPages = async ({
 	}, [[], []] as [TxRecord[], TxRecord[]])
 
 	//temporary debug slacks
-	if (errored.length > 0) slackLog(`DEBUG errored ${errored.length}/${results.length}.`, JSON.stringify(errored))
-	if (pending.length > 0) slackLog(`DEBUG pending ${pending.length}/${results.length}.`, JSON.stringify(pending.map(({ txid, content_size, content_type }) => ({ txid, content_size, content_type }))))
+	if (errored.length > 0) slackLog(`DEBUG errored ${errored.length}.`, JSON.stringify(errored))
+	if (pending.length > 0) slackLog(`DEBUG pending ${pending.length}.`, JSON.stringify(pending.map(({ txid, content_size, content_type }) => ({ txid, content_size, content_type }))))
 
 	console.info(`pending: ${pending.length}, errored: ${errored.length}`)
 
@@ -192,8 +192,8 @@ export const gqlPages = async ({
 
 		console.info(`retried ${batchCount} batches [${batchSizes.join(', ')}] for pending/errored records using 'gateway' stream source`)
 
-		if (pendingRetries.length > 0) slackLog(`DEBUG pending retries 💀❌ ${pendingRetries.length}/${resultsRetries.length}.`, JSON.stringify(pendingRetries))
-		if (erroredRetries.length > 0) slackLog(`DEBUG errored retries 💀❌ ${erroredRetries.length}/${resultsRetries.length}.`, JSON.stringify(erroredRetries))
+		if (pendingRetries.length > 0) slackLog(`DEBUG pending retries 💀❌ ${pendingRetries.length}.`, JSON.stringify(pendingRetries))
+		if (erroredRetries.length > 0) slackLog(`DEBUG errored retries 💀❌ ${erroredRetries.length}.`, JSON.stringify(erroredRetries))
 
 		console.info(`pending retries: ${pendingRetries.length}, errored retries: ${erroredRetries.length}`)
 
