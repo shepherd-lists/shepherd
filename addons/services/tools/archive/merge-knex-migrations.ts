@@ -2,7 +2,7 @@
  * i'm keeping this simple. it needs to be run at this commit, and before any other database schema changes occur.
  * if your installation is after this commit, ignore this script.
  */
-import knexCreate from '../libs/utils/knexCreate'
+import knexCreate from '../../libs/utils/knexCreate'
 
 const knex = knexCreate()
 

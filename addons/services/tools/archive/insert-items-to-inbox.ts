@@ -4,8 +4,8 @@ import { execSync } from 'node:child_process'
 import moize from 'moize'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { TxRecord, TxScanned } from 'shepherd-plugin-interfaces/types'
-import { slackLog } from '../libs/utils/slackLog'
-import createKnex from '../libs/utils/knexCreate'
+import { slackLog } from '../../libs/utils/slackLog'
+import createKnex from '../../libs/utils/knexCreate'
 
 /**
  * Note Well!
