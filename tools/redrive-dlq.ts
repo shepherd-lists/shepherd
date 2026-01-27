@@ -12,6 +12,11 @@ const sqsClient = new SQSClient();
 const srcQueueUrl = process.env.src_url //e.g. `dlq-url`;
 const destQueueUrl = process.env.dest_url // e.g. `q-url`; 
 
+if (!srcQueueUrl || !destQueueUrl) {
+  console.error('src_url and dest_url are required');
+  process.exit(1);
+}
+
 /** so you need to call this like:
  * AWS_REGION=your_region src_url=x dest_url=y npx tsx redrive-dlq.ts
  * => use the .env file <=

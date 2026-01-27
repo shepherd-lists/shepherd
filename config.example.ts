@@ -6,6 +6,7 @@ export const config: Config = {
 
 	addons: [
 		'nsfw',
+		'services',
 	],
 
 	/** classifiers and order for linking */
@@ -17,6 +18,8 @@ export const config: Config = {
 
 	/* required for performing weave range calculations, fallback is host_url */
 	http_api_nodes: [],
+
+	ingress_nodes: [],
 
 	ranges_whitelist: [],
 

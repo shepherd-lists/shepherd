@@ -1,6 +1,6 @@
 import 'dotenv/config'
-import { getByteRange } from '../libs/byte-ranges/byteRanges'
-import { httpApiNodes, clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
+import { getByteRange } from '../../libs/byte-ranges/byteRanges'
+import { httpApiNodes, clearTimerHttpApiNodes } from '../../libs/utils/update-range-nodes'
 import { writeFileSync } from 'node:fs'
 import { extractChunkOnly } from './fetchNodes_chunk2-parser'
 
@@ -44,9 +44,6 @@ const getDataFromChunks = async (id: string, parent: string | null, parents?: st
 		const httpNodes = [
 			...httpApiNodes(),
 			{ url: 'https://arweave.net', name: 'arweave.net' },
-			{ url: 'http://tip-4.arweave.xyz:1984', name: 'tip-4.arweave.xyz' },
-			{ url: 'http://tip-2.arweave.xyz:1984', name: 'tip-2.arweave.xyz' },
-			{ url: 'http://tip-3.arweave.xyz:1984', name: 'tip-3.arweave.xyz' },
 		]
 		const totalHttpNodes = httpNodes.length
 		console.debug({ totalHttpNodes })
