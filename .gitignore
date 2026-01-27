@@ -15,3 +15,7 @@ cdk.out*
 .nx/cache
 config.*.ts
 !config.example.ts
+
+# rust artifacts
+.build
+target

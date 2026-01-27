@@ -17,7 +17,7 @@ const syncS3ToSQS = async (bucketName: string, queueUrl: string, region: string)
 		res.Contents?.forEach(obj => obj.Key && s3Keys.add(obj.Key));
 		token = res.NextContinuationToken;
 		console.info(`Found ${s3Keys.size} objects in S3`);
-	} while (token);
+	} while (token) // && s3Keys.size < 1_000);
 
 	// Get object keys from queue messages (concurrent polling)
 	const queueKeys = new Set<string>();
@@ -46,13 +46,13 @@ const syncS3ToSQS = async (bucketName: string, queueUrl: string, region: string)
 					body.Records?.forEach((r: any) => queueKeys.add(r.s3.object.key));
 				});
 			});
-			console.info(`Found ${queueKeys.size} objects in queue`);
 		}
 	}
+	console.info(`Found ${queueKeys.size} messages already in queue`);
 
 
 	// Send messages for missing objects (concurrent)
-	const missing = [...s3Keys].filter(key => !queueKeys.has(key));
+	const missing = [...s3Keys].filter(key => !queueKeys.has(key))//.slice(0, 1)
 	const concurrency = 100;
 	let done = 0;
 
@@ -92,5 +92,5 @@ const syncS3ToSQS = async (bucketName: string, queueUrl: string, region: string)
 syncS3ToSQS(
 	process.env.AWS_INPUT_BUCKET!,
 	process.env.AWS_SQS_INPUT_QUEUE!,
-	'ap-southeast-1'
+	process.env.AWS_REGION!
 )
