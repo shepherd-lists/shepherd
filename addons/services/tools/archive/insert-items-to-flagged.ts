@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { arGql, ArGqlInterface, GQLUrls } from 'ar-gql'
 import { fileTypeFromBuffer, fileTypeFromStream } from 'file-type'
 import { execSync } from 'node:child_process'
@@ -38,7 +39,7 @@ const getParent = moize(
 )
 
 const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: IndexName, gqlProvider: string, gqlBackup: ArGqlInterface) => {
-	const records: TxScanned[] = []
+	const records: TxRecord[] = []
 
 	for (const item of metas) {
 		const txid = item.node.id
@@ -96,6 +97,8 @@ const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, inde
 			parent,
 			...(parents.length > 0 && { parents }), //leave `parents` null if not nested
 			owner,
+			//@ts-expect-error data_reason will actually accept any string
+			data_reason: 'reported',
 		})
 	}
 
@@ -108,67 +111,10 @@ const insertRecords = async (records: TxScanned[], indexName: IndexName, gqlProv
 
 	let alteredCount = 0
 	try {
-		if (indexName === 'indexer_pass1') {
-			/** expecting almost zero conflicts here */
 
-			// console.log('pass1 inserting records', records.length, {records})
-
-			await knex<TxRecord>('inbox').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byte_start', 'byte_end'])
-			alteredCount = records.length
-		} else {
-			/** generally speaking, it's the norm to not see updates on pass2.
-			 * we would be expecting mostly conflicts here, so we will only update
-			 * records with newer height, and insert missing records
-			 */
-
-			const recordsInInbox = await knex<TxRecord>('inbox').whereIn('txid', records.map(r => r.txid))
-			const recordsInTxs = await knex<TxRecord>('txs').whereIn('txid', records.map(r => r.txid))
-			const recordsInDb = [...recordsInInbox, ...recordsInTxs]
-
-			/** need to account for records that have already been processed and moved to txs */
-
-
-			/* step 1: update records with newer height */
-
-			/* filter out records with same or less height */
-			const updateRecords = records.filter(r => recordsInDb.some(exist => (r.txid === exist.txid && r.height > exist.height)))
-
-			const updatedIds = await Promise.all(updateRecords.map(async r =>
-				(
-					await knex<TxRecord>('inbox')
-						.update({
-							height: r.height,
-							parent: r.parent,
-							parents: r.parents,
-							byte_start: undefined,
-							byte_end: undefined,
-						})
-						.where('txid', r.txid)
-						.returning('txid')
-				)[0]
-			))
-
-			alteredCount += updatedIds.length
-
-			if (updatedIds.length > 0) console.log(`updated ${updatedIds.length}/${updateRecords.length} records.`, 'updatedIds', JSON.stringify(updatedIds))
-
-			/* step 2: insert missing records */
-
-			const missingRecords = records.filter(r => !recordsInDb.map(r => r.txid).includes(r.txid))
-			alteredCount += missingRecords.length
-
-			console.log(`missingRecords: length ${missingRecords.length}`)
-
-			if (missingRecords.length > 0) {
-				const res = await knex<TxRecord>('inbox')
-					.insert(missingRecords)
-					.onConflict().ignore() //can occur in restart during half finished height
-					.returning('txid')
-				console.log(`inserted ${res.length}/${missingRecords.length} missingRecords`, JSON.stringify(missingRecords))
-			}
-
-			console.info(indexName, `inserted ${alteredCount}/${records.length} records`)
-		}
+		const insertedRecords = await knex<TxRecord>('inbox').insert(records).onConflict('txid').merge(['height', 'parent', 'parents', 'byte_start', 'byte_end', 'data_reason']).returning('*')
+		console.debug('insertedRecords', JSON.stringify(insertedRecords, null, 2))
+		alteredCount = insertedRecords.length
 
 	} catch (err: unknown) {
 		const e = err as Error & { code?: string, detail: string }
@@ -186,7 +132,7 @@ const insertRecords = async (records: TxScanned[], indexName: IndexName, gqlProv
 }
 
 
-/** end blind import */
+/** step 1, insert items into inbox */
 
 const gql = arGql({ endpointUrl: GQLUrls.goldsky, retries: 3 })
 
@@ -247,6 +193,14 @@ while (hasNextPage) {
 
 	hasNextPage = res.data.transactions.pageInfo.hasNextPage
 	cursor = edges[edges.length - 1]!.cursor
+}
+
+/** step 2, directly process using http-api code */
+
+import { pluginResultHandler } from '../../services/http-api/src/pluginResultHandler'
+
+for (const txid of ids) {
+	await pluginResultHandler({ txid, filterResult: { flagged: true, flag_type: 'matched' } })
 }
 
 knex.destroy()
