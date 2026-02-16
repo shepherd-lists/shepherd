@@ -13,6 +13,9 @@ const agent = new https.Agent({
 })
 const no_data_timeout = 30_000
 
+const HOST_URL = process.env.HOST_URL!
+if (!HOST_URL) throw new Error('HOST_URL is not set')
+
 
 //export function to destroy agent after tests
 export const destroyGatewayAgent = () => agent.destroy()
@@ -24,10 +27,10 @@ export const gatewayStream = async (
 ): Promise<ReadableStream<Uint8Array>> => {
 	//try raw endpoint first (no redirects)
 	try {
-		return await httpsStream(`https://arweave.net/raw/${txid}`, httpsGet, abortSignal)
+		return await httpsStream(`${HOST_URL}/raw/${txid}`, httpsGet, abortSignal)
 	} catch {
 		//fallback to regular endpoint
-		return httpsStream(`https://arweave.net/${txid}`, httpsGet, abortSignal)
+		return httpsStream(`${HOST_URL}/${txid}`, httpsGet, abortSignal)
 	}
 }
 
@@ -40,7 +43,7 @@ const httpsStream = (url: string, httpsGet: typeof https.get, abortSignal?: Abor
 			}
 
 			if (res.statusCode !== 200) {
-				return reject(new Error(`${url} failed: ${res.statusCode}`))
+				return reject(new Error(`${url} failed: ${res.statusCode}`, { cause: res }))
 			}
 
 			let bytesReceived = 0
