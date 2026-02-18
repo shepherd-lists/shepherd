@@ -22,7 +22,7 @@ export const sqsFinalHandler = async (txid: string, record: TxRecord) => {
 			if (record.flag_type === 'test') {
 				slackLog('✅ *Test Message* ✅', JSON.stringify(record))
 			}
-			if (record.flag_type === 'classified' && Number(record.top_score_value) > 0.9 && record.top_score_name === 'csam' && await checkTxFresh(txid)) {
+			if (record.top_score_name && record.flagged === false && Number(record.top_score_value) > 0.975 && await checkTxFresh(txid)) {
 				//we use checkTxFresh so as not to bombard Slack during SQS retries and recheck cronjobs
 
 				slackLog(`:warning: *!!! classified !!!* :warning: \`${txid}\``, JSON.stringify(record))
