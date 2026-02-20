@@ -13,8 +13,9 @@ const MAX_INGRESS_LAMBDAS = 10
 const limit = pLimit(MAX_INGRESS_LAMBDAS)
 const MISSING_HEIGHT = 'MISSING_HEIGHT'
 const CHUNKS_BATCH_SIZE = 50
-const PASS1_DOWNLOAD_TIMEOUT = 60_000 //ms
+const SHORT_DOWNLOAD_TIMEOUT = 60_000 //ms
 const LONG_DOWNLOAD_TIMEOUT = 14 * 60_000 //14 mins
+const LARGE_DATA_SIZE = 500 * 1024 * 1024 //500MB
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -48,7 +49,7 @@ export const gqlPages = async ({
 }) => {
 
 	const gql = arGql({ endpointUrl: gqlUrl, retries: 3 })
-	const gqlProvider = gqlUrl.includes('arweave.net') ? 'arweave.net' : 'goldsky.com'
+	const gqlProvider = gqlUrl.includes('goldsky') ? 'goldsky.com' : 'arweave.net'
 
 
 	let hasNextPage = true
@@ -118,23 +119,57 @@ export const gqlPages = async ({
 			//store for our retries
 			edges.forEach(edge => allEdges.set(edge.node.id, edge))
 
+			//separate out large files
+			const { small, large } = edges.reduce((acc, edge) => {
+				if (+edge.node.data.size < LARGE_DATA_SIZE) {
+					acc.small.push(edge)
+				} else {
+					acc.large.push(edge)
+				}
+				return acc;
+			}, { small: [], large: [] } as { small: GQLEdgeInterface[], large: GQLEdgeInterface[] })
+
+			if (large.length > 0) {
+				console.info(indexName, `large files: ${large.length}`)
+			}
+
 			/* split page into batches to process in lambda */
-			const { batchCount, batchSizes } = batchAndDispatchEdges(
-				edges,
-				pageCount.toString(),
-				streamSourceName,
-				gqlUrl,
-				gqlUrlBackup,
-				gqlProvider,
-				indexName,
-				promises,
-				/* downloadTimeout: */ PASS1_DOWNLOAD_TIMEOUT, //ms (adjust this later)
-			)
+			let batchCountTot = 0, batchSizesTot = []
+			if (small.length > 0) {
+				const { batchCount, batchSizes } = batchAndDispatchEdges(
+					small,
+					pageCount.toString(),
+					streamSourceName,
+					gqlUrl,
+					gqlUrlBackup,
+					gqlProvider,
+					indexName,
+					promises,
+					SHORT_DOWNLOAD_TIMEOUT, //this is what we are separating really
+				)
+				batchCountTot += batchCount
+				batchSizesTot.push(...batchSizes)
+			}
+			if (large.length > 0) {
+				const { batchCount, batchSizes } = batchAndDispatchEdges(
+					large,
+					pageCount.toString(),
+					streamSourceName,
+					gqlUrl,
+					gqlUrlBackup,
+					gqlProvider,
+					indexName,
+					promises,
+					LONG_DOWNLOAD_TIMEOUT,
+				)
+				batchCountTot += batchCount
+				batchSizesTot.push(...batchSizes)
+			}
 
 			pageCount++
 			tPage = performance.now() - p0
 
-			logstring = `retrieved & dispatched gql page into ${batchCount} batches [${batchSizes.join(', ')}] in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
+			logstring = `retrieved & dispatched gql page into ${batchCountTot} batches [${batchSizesTot.join(', ')}] in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
 		} else {
 			logstring = `no pages to dispatch. cursor: ${cursor}`
 		}
