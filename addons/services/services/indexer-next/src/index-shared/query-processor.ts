@@ -13,8 +13,9 @@ const MAX_INGRESS_LAMBDAS = 10
 const limit = pLimit(MAX_INGRESS_LAMBDAS)
 const MISSING_HEIGHT = 'MISSING_HEIGHT'
 const CHUNKS_BATCH_SIZE = 50
-const PASS1_DOWNLOAD_TIMEOUT = 60_000 //ms
+const SHORT_DOWNLOAD_TIMEOUT = 60_000 //ms
 const LONG_DOWNLOAD_TIMEOUT = 14 * 60_000 //14 mins
+const LARGE_DATA_SIZE = 500 * 1024 * 1024 //500MB
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -30,6 +31,13 @@ interface FnIngressReturn {
 	numUpdated: number;
 	errored: { queued: boolean; record: TxRecord; errorId?: string }[];
 }
+
+/* function to split ingress results into timeout-pending vs hard-errored records */
+const splitPendingErrored = (results: FnIngressReturn[]) => results.reduce((acc, result) => {
+	result.errored.forEach(value => value.errorId === 'timeout' ? acc.pending.push(value.record) : acc.errored.push({ ...value.record, errorId: value.errorId } as TxRecord))
+	return acc
+}, { pending: [], errored: [] } as { pending: TxRecord[], errored: TxRecord[] })
+
 
 export const gqlPages = async ({
 	query,
@@ -48,12 +56,12 @@ export const gqlPages = async ({
 }) => {
 
 	const gql = arGql({ endpointUrl: gqlUrl, retries: 3 })
-	const gqlProvider = gqlUrl.includes('arweave.net') ? 'arweave.net' : 'goldsky.com'
+	const gqlProvider = gqlUrl.includes('goldsky') ? 'goldsky.com' : 'arweave.net'
 
 
 	let hasNextPage = true
 	let cursor = ''
-	const promises: Promise<FnIngressReturn>[] = []
+	const lambdaPromises: Promise<FnIngressReturn>[] = []
 	const t0 = performance.now()
 	let pageCount = 0, itemCount = 0
 
@@ -115,26 +123,56 @@ export const gqlPages = async ({
 			/* filter dupes from edges. batch insert does not like dupes */
 			edges = [...new Map(edges.map(edge => [edge.node.id, edge])).values()]
 
-			//store for our retries
+			/* store for our retries */
 			edges.forEach(edge => allEdges.set(edge.node.id, edge))
 
+			/* separate out large files */
+			const { small, large } = edges.reduce((acc, edge) => {
+				+edge.node.data.size < LARGE_DATA_SIZE ? acc.small.push(edge) : acc.large.push(edge)
+				return acc;
+			}, { small: [], large: [] } as { small: GQLEdgeInterface[], large: GQLEdgeInterface[] })
+
+			if (large.length > 0) {
+				console.info(indexName, `large files: ${large.length}`)
+			}
+
 			/* split page into batches to process in lambda */
-			const { batchCount, batchSizes } = batchAndDispatchEdges(
-				edges,
-				pageCount.toString(),
-				streamSourceName,
-				gqlUrl,
-				gqlUrlBackup,
-				gqlProvider,
-				indexName,
-				promises,
-				/* downloadTimeout: */ PASS1_DOWNLOAD_TIMEOUT, //ms (adjust this later)
-			)
+			let batchCountTot = 0, batchSizesTot = []
+			if (small.length > 0) {
+				const { batchCount, batchSizes } = batchAndDispatchEdges(
+					small,
+					pageCount.toString(),
+					streamSourceName,
+					gqlUrl,
+					gqlUrlBackup,
+					gqlProvider,
+					indexName,
+					lambdaPromises,
+					SHORT_DOWNLOAD_TIMEOUT, //this is what we are separating really
+				)
+				batchCountTot += batchCount
+				batchSizesTot.push(...batchSizes)
+			}
+			if (large.length > 0) {
+				const { batchCount, batchSizes } = batchAndDispatchEdges(
+					large,
+					pageCount.toString(),
+					streamSourceName,
+					gqlUrl,
+					gqlUrlBackup,
+					gqlProvider,
+					indexName,
+					lambdaPromises,
+					LONG_DOWNLOAD_TIMEOUT,
+				)
+				batchCountTot += batchCount
+				batchSizesTot.push(...batchSizes)
+			}
 
 			pageCount++
 			tPage = performance.now() - p0
 
-			logstring = `retrieved & dispatched gql page into ${batchCount} batches [${batchSizes.join(', ')}] in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
+			logstring = `retrieved & dispatched gql page into ${batchCountTot} batches [${batchSizesTot.join(', ')}] in ${tPage.toFixed(0)} ms. cursor: ${cursor}. ${gqlProvider}`
 		} else {
 			logstring = `no pages to dispatch. cursor: ${cursor}`
 		}
@@ -154,20 +192,19 @@ export const gqlPages = async ({
 		hasNextPage = res.data.transactions.pageInfo.hasNextPage
 	}//end while(hasNextPage)
 
-	const results = await Promise.all(promises)
+	/** wait for all lambda invocations to complete */
+	const results = await Promise.all(lambdaPromises)
 
-	const [pending, errored] = results.reduce((acc, result) => {
-		result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push({ ...value.record, errorId: value.errorId } as TxRecord))
-		return acc
-	}, [[], []] as [TxRecord[], TxRecord[]])
+	const { pending, errored } = splitPendingErrored(results)
 
-	//temporary debug slacks
-	if (errored.length > 0) slackLog(`DEBUG errored ${errored.length}.`, JSON.stringify(errored))
-	if (pending.length > 0) slackLog(`DEBUG pending ${pending.length}.`, JSON.stringify(pending.map(({ txid, content_size, content_type }) => ({ txid, content_size, content_type }))))
+	//debug slacks
+	if (errored.length > 0) slackLog(`DEBUG chunks errored ${errored.length}.`, JSON.stringify(errored))
+	if (pending.length > 0) slackLog(`DEBUG chunks pending ${pending.length}.`, JSON.stringify(pending.map(({ txid, content_size, content_type }) => ({ txid, content_size, content_type }))))
 
 	console.info(`pending: ${pending.length}, errored: ${errored.length}`)
 
-	//now retry the pending/errored records with a longer download timeout
+	/** retry the pending/errored records with a longer download timeout on HOST_URL gateway */
+
 	if (pending.length > 0 || errored.length > 0) {
 		const promisesRetries: Promise<FnIngressReturn>[] = []
 		const toRetry = [...pending, ...errored].map(record => allEdges.get(record.txid)).filter(Boolean) as GQLEdgeInterface[]
@@ -185,20 +222,19 @@ export const gqlPages = async ({
 		)
 
 		const resultsRetries = await Promise.all(promisesRetries)
-		const [pendingRetries, erroredRetries] = resultsRetries.reduce((acc, result) => {
-			result.errored.forEach(value => value.errorId === 'timeout' ? acc[0].push(value.record) : acc[1].push({ ...value.record, errorId: value.errorId } as TxRecord))
-			return acc
-		}, [[], []] as [TxRecord[], TxRecord[]])
+		const retried = splitPendingErrored(resultsRetries)
 
 		console.info(`retried ${batchCount} batches [${batchSizes.join(', ')}] for pending/errored records using 'gateway' stream source`)
 
-		if (pendingRetries.length > 0) slackLog(`DEBUG pending retries 💀❌ ${pendingRetries.length}.`, JSON.stringify(pendingRetries))
-		if (erroredRetries.length > 0) slackLog(`DEBUG errored retries 💀❌ ${erroredRetries.length}.`, JSON.stringify(erroredRetries))
+		/** if items are still failing, make some noise, they need to be manually attempted currently! */
 
-		console.info(`pending retries: ${pendingRetries.length}, errored retries: ${erroredRetries.length}`)
+		if (retried.pending.length > 0) slackLog(`DEBUG retried pending 💀❌ ${retried.pending.length}.`, JSON.stringify(retried.pending))
+		if (retried.errored.length > 0) slackLog(`DEBUG retried errored 💀❌ ${retried.errored.length}.`, JSON.stringify(retried.errored))
 
-		/** write out	retried records to db with flagged=null */
-		const recordsToUpsert = [...pendingRetries, ...erroredRetries].map((r: TxRecord & { errorId?: string }): TxRecord => ({
+		console.info(`retried pending: ${retried.pending.length}, retried errored: ${retried.errored.length}`)
+
+		/** write out	*failed* retried records to db with flagged=null <- need to re-check! */
+		const recordsToUpsert = [...retried.pending, ...retried.errored].map((r: TxRecord & { errorId?: string }): TxRecord => ({
 			txid: r.txid,
 			content_type: r.content_type,
 			content_size: r.content_size,
@@ -215,11 +251,10 @@ export const gqlPages = async ({
 		console.info(`upserted ${upserted?.length || 0} records`)
 	}
 
+	/** final log for current query processor run */
 
 	const numProgressed = results.reduce((acc, result) => acc + result.numQueued + result.numUpdated, 0)
 	console.info(indexName, `finished ${pageCount} pages, ${numProgressed}/${itemCount} items progressed in ${(performance.now() - t0).toFixed(0)} ms`)
-
-	return;
 }
 
 /** N.B. `inputs` must match fnIngress `event` */
