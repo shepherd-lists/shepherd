@@ -2,9 +2,8 @@
  * this needs pgdb port 5432 opened in docker-compose.override.yml
  * run with: npx ts-node db-scripts/insert-heights.ts
  */
-import axios from 'axios'
 import { TxRecord } from '../../shepherd-plugin-interfaces/types'
-import dbConnection from '../../services/src/common/utils/db-connection'
+import dbConnection from '../../addons/services/libs/utils/knexCreate'
 import col from 'ansi-colors'
 import { performance } from 'perf_hooks'
 

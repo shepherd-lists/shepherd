@@ -1,8 +1,8 @@
-import knexCreate from '../../services/src/common/utils/db-connection'
+import knexCreate from '../../addons/services/libs/utils/knexCreate'
 import { arGql, GQLUrls } from 'ar-gql'
 
 const knex = knexCreate()
-const gql = arGql(GQLUrls.goldsky)
+const gql = arGql({ endpointUrl: GQLUrls.goldsky })
 
 const query = `
 query($ids: [ID!]) {

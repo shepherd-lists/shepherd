@@ -10,7 +10,7 @@ if (!process.env.DB_HOST) throw new Error('DB_HOST env var not set')
 
 import { readFileSync } from 'fs'
 import { TxRecord, TxScanned } from '../../shepherd-plugin-interfaces/types'
-import dbConnection from '../../services/src/common/utils/db-connection'
+import dbConnection from '../../addons/services/libs/utils/knexCreate'
 
 const knex = dbConnection()
 

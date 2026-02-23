@@ -4,9 +4,9 @@ process.env.GQL_URL = 'https://arweave-search.goldsky.com/graphql'
 process.env.GQL_URL_SECONDARY = 'https://arweave-search.goldsky.com/graphql'
 if (!process.env.DB_HOST) throw new Error('DB_HOST env var not set')
 
-import { getByteRange } from '../../services/src/byte-ranges/byteRanges'
+import { getByteRange } from '../../addons/services/libs/byte-ranges/byteRanges'
 import { TxRecord } from '../../shepherd-plugin-interfaces/types'
-import dbConnection from '../../services/src/common/utils/db-connection'
+import dbConnection from '../../addons/services/libs/utils/knexCreate'
 
 const knex = dbConnection()
 
