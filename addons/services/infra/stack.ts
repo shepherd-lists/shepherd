@@ -75,22 +75,6 @@ export const createStack = async (app: App, config: Config) => {
 		},
 	})
 	/** create lambda to process incoming items */
-	const fnIndex = createFn('fnIndex', stack, {
-		vpc,
-		securityGroups: [sgPgdb],
-		logGroup: logGroupServices,
-		// memorySize: 128,
-		// timeout: Duration.minutes(15),
-		environment: {
-			DB_HOST: rdsEndpoint,
-			SLACK_WEBHOOK: config.slack_webhook!,
-			GQL_URL_SECONDARY: config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql',
-			GQL_URL: config.gql_url || 'https://arweave.net/graphql',
-			HOST_URL: config.host_url || 'https://arweave.net',
-			http_api_nodes: JSON.stringify(config.http_api_nodes),
-			http_api_nodes_url: config.http_api_nodes_url || '', //byte-ranges
-		},
-	})
 	const fnIngress = createFn('fnIngress', stack, {
 		vpc,
 		securityGroups: [sgPgdb],

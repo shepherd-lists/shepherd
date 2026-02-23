@@ -40,8 +40,6 @@ export type Config = {
 	/** disable core services */
 	services: {
 		indexer: boolean
-		feeder: boolean
-		fetchers: boolean
 		httpApi: boolean
 		webserver: boolean
 		checks: boolean
