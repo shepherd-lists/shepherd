@@ -29,6 +29,7 @@ export const chunkStream = async (
 	let writePos = 0
 	let boundaryPos = 0
 	let isCancelled = false
+	let isStreamClosed = false
 
 	const nodes = [
 		...httpApiNodes(),
@@ -190,7 +191,8 @@ export const chunkStream = async (
 					}
 
 					//check complete
-					if (writePos === dataEnd) {
+					if (writePos === dataEnd && !isStreamClosed) {
+						isStreamClosed = true
 						console.info(txid, `chunkStream completed: ${writePos}/${dataEnd} bytes`)
 						controller?.close()
 					}
