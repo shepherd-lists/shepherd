@@ -17,7 +17,7 @@ describe('chunkStream', () => {
 	const dataEnd = 584685
 
 	/** Mock fetchChunkData factory - controls chunk completion order via delays */
-	const createMockFetch = (chunkDelays: Map<number, number>) => {
+	const createMockFetch = (chunkDelays: Map<number, number>, postSegmentDelays?: Map<number, number>) => {
 		return async (
 			txid: string,
 			url: string,
@@ -52,6 +52,12 @@ describe('chunkStream', () => {
 			for (let i = 0; i < chunkSize; i += segmentSize) {
 				if (abortSignal.aborted) throw new Error('AbortError')
 				onSegment(new Uint8Array(segmentSize).fill(i % 256))
+			}
+
+			// Simulate connection lingering after data is fully sent
+			const postDelay = postSegmentDelays?.get(offset) ?? 0
+			if (postDelay > 0) {
+				await new Promise(resolve => setTimeout(resolve, postDelay))
 			}
 
 			return chunkSize
@@ -231,6 +237,51 @@ describe('chunkStream', () => {
 
 			const totalBytes = chunks.reduce((acc, c) => acc + c.length, 0)
 			assert.equal(totalBytes, mockDataEnd, 'Should handle complete reverse order')
+		})
+
+		it('should not double-close when last chunk is fully buffered before stream completes', async () => {
+			// Reproduces ERR_INVALID_STATE bug.
+			// dataEnd = 314320 creates exactly 2 dynamic chunks:
+			//   chunk 0: offset 0,      size 262144 (full)
+			//   chunk 1: offset 262144, size 52176  (partial last chunk)
+			//
+			// chunk 1 is started in parallel inside chunk 0's onSize callback. With no
+			// pre-delay it buffers all 52176 bytes synchronously before chunk 0's segment
+			// loop even starts. chunk 0 then resolves first (no post-delay), its completion
+			// handler sees chunk 1 fully buffered, flushes it, and calls controller.close().
+			//
+			// chunk 1's fetchChunkData then resolves (postDelay expires) and — without a
+			// guard — also hits the writePos===dataEnd check and calls controller.close()
+			// on an already-closed stream → ERR_INVALID_STATE → spurious node retries.
+			const mockDataEnd = 314320 // 262144 < 314320 < 524288 → exactly 2 dynamic chunks
+			let fetchCallCount = 0
+
+			const delays = new Map([[0, 0], [262144, 0]])
+			const postSegmentDelays = new Map([
+				[262144, 100], // chunk 1 lingers after sending its data
+				               // chunk 0 has no post-delay → resolves first →
+				               // writes chunk 1's buffer → closes controller →
+				               // then chunk 1 resolves and finds stream already closed
+			])
+
+			const baseFetch = createMockFetch(delays, postSegmentDelays)
+			const mockFetch: typeof baseFetch = async (txid, url, abortSignal, onSegment, onSize, onReq) => {
+				fetchCallCount++
+				return baseFetch(txid, url, abortSignal, onSegment, onSize, onReq)
+			}
+
+			const stream = await chunkStream(chunkStart, mockDataEnd, txid, (new AbortController()).signal, 10, mockFetch)
+			const chunks: Uint8Array[] = []
+			for await (const chunk of stream) {
+				chunks.push(chunk)
+			}
+
+			// Wait for any spurious async retries triggered by the bug to settle
+			await new Promise(resolve => setTimeout(resolve, 500))
+
+			const totalBytes = chunks.reduce((acc, c) => acc + c.length, 0)
+			assert.equal(totalBytes, mockDataEnd, 'should receive all bytes')
+			assert.equal(fetchCallCount, 2, 'should not retry due to double-close (ERR_INVALID_STATE)')
 		})
 
 		it('should handle the middle chunk erroring, but others completing', async () => {
