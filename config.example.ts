@@ -25,8 +25,6 @@ export const config: Config = {
 
 	services: {
 		indexer: true,
-		feeder: true,
-		fetchers: true,
 		httpApi: true,
 		webserver: true,
 		checks: false,
