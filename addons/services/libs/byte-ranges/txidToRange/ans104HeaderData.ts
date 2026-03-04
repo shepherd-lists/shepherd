@@ -57,7 +57,7 @@ const fetchHeader = async (parent: string) => {
 
 			let header = new Uint8Array(0)
 
-			const { aborter, res } = await fetchRetryConnection(`/${parent}`)
+			const { aborter, res } = await fetchRetryConnection(`/raw/${parent}`)
 
 			// Set timeout for stream reading operations
 			const streamTimeout = setTimeout(() => {
