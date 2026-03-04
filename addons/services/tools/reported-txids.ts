@@ -1,30 +1,32 @@
 /**
- * Insert reported txids into the `reported_txids` table,
- * then sync reported/txids.txt and reported/addresses.txt to S3.
+ * Manage reported txids: insert into DB and sync S3 lists.
  *
  * Usage:
- *   npx tsx reported-txids.ts <txid1> <txid2> ...
+ *   npx tsx reported-txids.ts add <txid1> <txid2> ...   — insert txids & sync S3
+ *   npx tsx reported-txids.ts update                     — sync S3 from current DB state
  *
  * Required env vars: DB_HOST, LISTS_BUCKET
  */
 import 'dotenv/config'
 import { arGql, GQLUrls } from 'ar-gql'
-import knexCreate from '../libs/utils/knexCreate'
+import pool from '../libs/utils/pgClient'
 import { s3PutObject, s3ObjectTagging } from '../libs/utils/s3-services'
 
-const [, , ...txids] = process.argv
+const [, , command, ...args] = process.argv
 
-if (!txids.length) {
-	console.error('Usage: npx tsx reported-txids.ts <txid1> <txid2> ...')
+if (!command || !['add', 'update'].includes(command)) {
+	console.error('Usage:')
+	console.error('  npx tsx reported-txids.ts add <txid1> <txid2> ...')
+	console.error('  npx tsx reported-txids.ts update')
+	process.exit(1)
+}
+if (command === 'add' && !args.length) {
+	console.error('Usage: npx tsx reported-txids.ts add <txid1> <txid2> ...')
 	process.exit(1)
 }
 
 const LISTS_BUCKET = process.env.LISTS_BUCKET as string
 if (!LISTS_BUCKET) throw new Error('LISTS_BUCKET is not set')
-console.info(`DB_HOST=${process.env.DB_HOST}`)
-
-const gql = arGql({ endpointUrl: GQLUrls.goldsky, retries: 3 })
-const knex = knexCreate()
 
 const BATCH_SIZE = 100
 
@@ -55,8 +57,9 @@ const putIfChanged = async (key: string, text: string) => {
 	return true
 }
 
-try {
-	console.info(`Processing ${txids.length} txids using ${gql.endpointUrl} ...`)
+const add = async (txids: string[]) => {
+	const gql = arGql({ endpointUrl: GQLUrls.goldsky, retries: 3 })
+	console.info(`Adding ${txids.length} txids using ${gql.endpointUrl} ...`)
 
 	for (let i = 0; i < txids.length; i += BATCH_SIZE) {
 		const batch = txids.slice(i, i + BATCH_SIZE)
@@ -84,28 +87,41 @@ try {
 
 		if (!found.size) continue
 
-		const rows = [...found.entries()].map(([txid, owner]) => ({ txid, owner }))
+		const rows = [...found.entries()]
+		let idx = 0
+		const values = rows.flat()
+		const placeholders = rows.map(() => `($${++idx}, $${++idx})`).join(', ')
 
-		await knex('reported_txids')
-			.insert(rows)
-			.onConflict('txid')
-			.merge({ last_update: knex.fn.now() })
+		const inserted = await pool.query(
+			`INSERT INTO reported_txids (txid, owner) VALUES ${placeholders} ON CONFLICT DO NOTHING RETURNING *`,
+			values,
+		)
 
-		console.info(`Inserted ${rows.length} rows (batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(txids.length / BATCH_SIZE)})`)
+		console.info(`Upserted ${inserted.rowCount}/${rows.length} rows (batch size ${BATCH_SIZE}`)
 	}
+}
 
-	/** sync full reported lists to S3 */
+const syncLists = async () => {
 	console.info('Syncing reported lists to S3...')
 
-	const allTxids: string[] = (await knex('reported_txids').select('txid').orderBy('txid'))
-		.map((r: { txid: string }) => r.txid)
-	const allOwners: string[] = (await knex('reported_txids').distinct('owner').orderBy('owner'))
-		.map((r: { owner: string }) => r.owner)
+	const allTxids: string[] = (await pool.query('SELECT txid FROM reported_txids ORDER BY txid'))
+		.rows.map((r: { txid: string }) => r.txid)
+	const allOwners: string[] = (await pool.query('SELECT DISTINCT owner FROM reported_txids ORDER BY owner'))
+		.rows.map((r: { owner: string }) => r.owner)
 
 	await putIfChanged('reported/txids.txt', allTxids.join('\n') + '\n')
 	await putIfChanged('reported/addresses.txt', allOwners.join('\n') + '\n')
 
-	console.info(`Done. reported_txids table: ${allTxids.length} txids, ${allOwners.length} distinct owners.`)
+	console.info(`reported_txids table: ${allTxids.length} txids, ${allOwners.length} distinct owners.`)
+}
+
+try {
+	if (command === 'add') {
+		await add(args)
+	}
+	//command === 'update' falls thru to here, they both need to sync db to the lists
+	await syncLists()
+	console.info('Done.')
 } finally {
-	await knex.destroy()
+	await pool.end()
 }
