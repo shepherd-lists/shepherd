@@ -137,7 +137,8 @@ const getParent = moize(
 	},
 )
 
-const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: string, gqlProvider: string, gqlBackup: ArGqlInterface) => {
+/** exported for manual flagging tool */
+export const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: string, gqlProvider: string, gqlBackup: ArGqlInterface) => {
 
 	const records: TxRecord[] = []
 

@@ -108,6 +108,17 @@ app.get('/rangelist.txt', ipAllowMiddleware('ranges'), async (req, res) => {
 	}
 })
 
+/* reported txids, addresses also watched by fnOwner */
+app.head('/reported/txids.txt', ipAllowMiddleware('txids'), async (req, res) => {
+	res.setHeader('eTag', await getETag(req.path as GetListPath))
+	res.sendStatus(200)
+})
+app.get('/reported/txids.txt', ipAllowMiddleware('txids'), async (req, res) => {
+	res.setHeader('Content-Type', 'text/plain')
+	await getList(res, '/reported/txids.txt')
+	res.status(200).end()
+})
+
 /** used by shep-v */
 app.head(/^\/range(flagged|owners).txt$/, ipAllowMiddleware('ranges'), async (req, res) => {
 	res.setHeader('eTag', await getETag(req.path as GetListPath))

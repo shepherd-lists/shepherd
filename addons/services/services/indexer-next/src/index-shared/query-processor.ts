@@ -199,7 +199,7 @@ export const gqlPages = async ({
 
 	//debug slacks
 	if (errored.length > 0) slackLog(`DEBUG chunks errored ${errored.length}.`, JSON.stringify(errored))
-	if (pending.length > 0) slackLog(`DEBUG chunks pending ${pending.length}.`, JSON.stringify(pending.map(({ txid, content_size, content_type }) => ({ txid, content_size, content_type }))))
+	if (pending.length > 0) slackLog(`DEBUG chunks pending ${pending.length}.`, JSON.stringify(pending))//.map(({ txid, content_size, content_type }) => ({ txid, content_size, content_type }))))
 
 	console.info(`pending: ${pending.length}, errored: ${errored.length}`)
 

@@ -12,6 +12,7 @@ const testNames = [
 	'./your-file2.jpg',
 	'./your-file3.jpg',
 ]
+const content_type = 'image/jpeg' //this needs to be correct!
 
 const s3client = new S3Client({
 	maxAttempts: 3,
@@ -23,12 +24,12 @@ for (const testName of testNames) {
 	const data = readFileSync(new URL(testName, import.meta.url).pathname)
 	const record: Partial<TxRecord> = {
 		txid: testName,
-		content_type: 'image/jpeg',
+		content_type,
 		content_size: data.length.toString(),
 		height: 0,
 		parent: null,
 		parents: undefined,
-		owner: 'test',
+		owner: 'test'.padEnd(43, '-'),
 		valid_data: true,
 		last_update_date: new Date(),
 	}
@@ -40,7 +41,7 @@ for (const testName of testNames) {
 			Bucket: AWS_INPUT_BUCKET,
 			Key: testName.split('/').pop()!,
 			Body: data, //fussy types, we want the nodejs iterator version
-			ContentType: 'image/jpeg',
+			ContentType: content_type,
 			Metadata: { txrecord: JSON.stringify(record) } //only lowercase supported in key name!!
 		},
 		// partSize: default & minimum is 5MB
