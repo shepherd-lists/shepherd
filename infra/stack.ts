@@ -1,7 +1,7 @@
 import * as cdk from 'aws-cdk-lib'
 import { Construct } from 'constructs'
 import { inputQMetricAndNotifications } from './lib/queue-notifications'
-import { createTailscaleSubrouter } from './lib/tailscale-ec2-router'
+import { createTailscaleSubrouter } from './lib/tailscale-fargate-router'
 import { Config, classifierQueueName } from '../Config'
 import { buildListsBucket } from './lib/listsBucket'
 
@@ -72,9 +72,6 @@ export class InfraStack extends cdk.Stack {
 			removalPolicy: cdk.RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
 		})
 
-		/** create tailscale subrouter for the vpc */
-		createTailscaleSubrouter(stack, vpc)
-
 		/** create the postgres rds database */
 		const { sgPgdb, pgdb } = pgdbAndAccess(stack, vpc, config.region)
 
@@ -142,6 +139,9 @@ export class InfraStack extends cdk.Stack {
 
 		/** create s3 for lists */
 		const listsBucket = buildListsBucket(stack, config)
+
+		/** create tailscale subrouter for the vpc */
+		createTailscaleSubrouter(stack, vpc, cluster)
 
 
 		/** cfn outputs. unused, but handy to have in aws console */
