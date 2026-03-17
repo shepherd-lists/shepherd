@@ -1,8 +1,8 @@
 import { fetchChunkData as fetchChunkDataOriginal } from './chunkFetch'
 import http from 'node:http'
 import { ReadableStream, ReadableByteStreamController } from 'node:stream/web'
-import { httpApiNodes } from '../../libs/utils/update-range-nodes'
-import { CHUNK_ALIGN_GENESIS } from '../../libs/byte-ranges/txidToRange/constants-byteRange'
+import { httpApiNodes } from '../utils/update-range-nodes'
+import { CHUNK_ALIGN_GENESIS } from '../byte-ranges/txidToRange/constants-byteRange'
 import { ingressNodes } from './ingress-nodes'
 
 

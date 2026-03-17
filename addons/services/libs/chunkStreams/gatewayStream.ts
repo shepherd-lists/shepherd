@@ -1,6 +1,6 @@
 import https from 'node:https'
 import { ReadableStream } from 'node:stream/web'
-import { min_data_size } from '../../libs/constants'
+import { min_data_size } from '../constants'
 
 
 
