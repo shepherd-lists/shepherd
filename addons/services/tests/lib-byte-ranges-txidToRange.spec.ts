@@ -7,6 +7,11 @@ import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from '../libs/byte-ranges/txidToRange
 import { ans104HeaderData } from '../libs/byte-ranges/txidToRange/ans104HeaderData'
 import { byteRange102 } from '../libs/byte-ranges/txidToRange/byteRange102'
 
+import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
+
+after(() => {
+	clearTimerHttpApiNodes()
+})
 
 describe('txidToRange tests', () => {
 	it('tests an L1 gets processed', async () => {

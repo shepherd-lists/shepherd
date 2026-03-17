@@ -1,8 +1,13 @@
 import 'dotenv/config'
 import assert from "node:assert/strict";
-import { describe, it } from 'node:test'
+import { after, describe, it } from 'node:test'
+import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 
 import { txidToRange } from '../libs/byte-ranges/txidToRange/txidToRange'
+
+after(() => {
+	clearTimerHttpApiNodes()
+})
 
 
 describe('byte-ranges-nested tests', () => {
