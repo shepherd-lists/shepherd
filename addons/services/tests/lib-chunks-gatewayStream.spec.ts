@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { after, describe, it, skip } from 'node:test'
 import assert from 'node:assert/strict'
-import { gatewayStream, destroyGatewayAgent } from '../lambdas/fnIngress/gatewayStream'
+import { gatewayStream, destroyGatewayAgent } from '../libs/chunkStreams/gatewayStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 import { ReadableStream } from 'node:stream/web'
 import { min_data_size } from '../libs/constants'

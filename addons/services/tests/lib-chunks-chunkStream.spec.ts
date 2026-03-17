@@ -1,8 +1,8 @@
 import 'dotenv/config'
 import { after, describe, it, skip } from 'node:test'
 import assert from 'node:assert/strict'
-import { destroyChunkStreamAgent } from '../lambdas/fnIngress/chunkFetch'
-import { chunkStream } from '../lambdas/fnIngress/chunkStream'
+import { destroyChunkStreamAgent } from '../libs/chunkStreams/chunkFetch'
+import { chunkStream } from '../libs/chunkStreams/chunkStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 import http from 'node:http'
 
@@ -259,9 +259,9 @@ describe('chunkStream', () => {
 			const delays = new Map([[0, 0], [262144, 0]])
 			const postSegmentDelays = new Map([
 				[262144, 100], // chunk 1 lingers after sending its data
-				               // chunk 0 has no post-delay → resolves first →
-				               // writes chunk 1's buffer → closes controller →
-				               // then chunk 1 resolves and finds stream already closed
+				// chunk 0 has no post-delay → resolves first →
+				// writes chunk 1's buffer → closes controller →
+				// then chunk 1 resolves and finds stream already closed
 			])
 
 			const baseFetch = createMockFetch(delays, postSegmentDelays)

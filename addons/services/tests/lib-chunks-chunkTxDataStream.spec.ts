@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import { describe, it, skip, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { chunkTxDataStream } from '../lambdas/fnIngress/chunkTxDataStream'
+import { chunkTxDataStream } from '../libs/chunkStreams/chunkTxDataStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 import { writeFileSync } from 'node:fs'
 

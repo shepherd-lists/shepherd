@@ -1,12 +1,12 @@
 import 'dotenv/config'
 import { after, describe, it, skip } from 'node:test'
 import assert from 'node:assert/strict'
-import { destroyGatewayAgent, gatewayStream } from '../lambdas/fnIngress/gatewayStream'
+import { destroyGatewayAgent, gatewayStream } from '../libs/chunkStreams/gatewayStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 import { processRecord, downloadWithChecks } from '../lambdas/fnIngress/downloadWithChecks'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { s3HeadObject } from '../libs/utils/s3-services'
-import { chunkTxDataStream } from '../lambdas/fnIngress/chunkTxDataStream'
+import { chunkTxDataStream } from '../libs/chunkStreams/chunkTxDataStream'
 import { createMockHttpsGet } from './mocks/mock-httpsGet'
 
 
