@@ -88,12 +88,12 @@ describe('downloadWithChecks', () => {
 		const resGw = await processRecord(
 			{ txid: 'error', content_type: 'unknown', } as TxRecord,
 			(new AbortController().signal),
-			gatewayStream,
+			() => gatewayStream('error', new AbortController().signal, createMockHttpsGet({ statusCode: 500 }) as any),
 		)
 
 		assert(resGw.queued === false, 'queued should be false')
 		assert.deepEqual(resGw.record, { txid: 'error', content_type: 'unknown', }, 'record should be passed through')
-		assert(resGw.errorId?.includes('failed: 400'), `errorId: "${resGw.errorId}" didnt match`)
+		assert(resGw.errorId?.includes('failed: 500'), `errorId: "${resGw.errorId}" didnt match`)
 
 		//chunkTxDataStream
 		const resChunk = await processRecord(
