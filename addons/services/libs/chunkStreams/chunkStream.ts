@@ -31,11 +31,6 @@ export const chunkStream = async (
 	let isCancelled = false
 	let isStreamClosed = false
 
-	const nodes = [
-		...httpApiNodes(),
-		...ingressNodes(),
-	]
-	let nodeIndex = nodes.length - 1
 
 	interface ChunkInfo {
 		offset: number
@@ -77,6 +72,12 @@ export const chunkStream = async (
 
 
 	const startChunk = async (index: number, chunkInfo: ChunkInfo) => {
+		const nodes = [
+			...httpApiNodes(),
+			...ingressNodes(),
+		]
+		let nodeIndex = nodes.length - 1
+
 		try {
 			if (abortSignal.aborted || isCancelled) return;
 
