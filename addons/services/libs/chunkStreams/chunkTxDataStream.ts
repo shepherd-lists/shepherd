@@ -86,7 +86,7 @@ export const chunkTxDataStream = async (
 						combined.set(data, headerBuffer.length)
 						headerBuffer = combined
 
-						const headerSize = parseDataItemHeader(headerBuffer)
+						const headerSize = parseDataItemHeader(headerBuffer, txid)
 						if (headerSize !== null) {
 							headerParsed = true
 							console.debug(`${txid} data-item header parsed, headerSize:${headerSize}`)
@@ -131,15 +131,15 @@ export const chunkTxDataStream = async (
 	})
 }
 
-const parseDataItemHeader = (buffer: Uint8Array): number | null => {
+const parseDataItemHeader = (buffer: Uint8Array, txid: string): number | null => {
 	try {
-		return dataItemDataOffset(buffer)
+		return dataItemDataOffset(buffer, txid)
 	} catch {
 		return null // Not enough bytes yet
 	}
 }
 
-const dataItemDataOffset = (dataItem: Uint8Array) => {
+const dataItemDataOffset = (dataItem: Uint8Array, txid: string) => {
 	let offset = 0
 
 	// Signature type (2 bytes)
@@ -148,6 +148,7 @@ const dataItemDataOffset = (dataItem: Uint8Array) => {
 
 	// Get signature configuration
 	const sigConfig = SIG_CONFIG[sigType as SignatureConfig]
+	console.debug(`${txid} sigType=${sigType} (${sigConfig?.sigName ?? 'unknown'}), sigLength=${sigConfig?.sigLength}, pubLength=${sigConfig?.pubLength}`)
 	if (!sigConfig) {
 		throw new Error(`Unknown signature type: ${sigType}`)
 	}
