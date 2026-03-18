@@ -27,7 +27,7 @@ export const chunkTxDataStream = async (
 	console.debug(`${txid} byte range obtained - dataStart:${dataStart}, dataEnd:${dataEnd}, chunkStart:${chunkStart}`)
 
 	//simple case, base tx: no initial bytes to skip.
-	if (dataStart === 0) {
+	if (parent === null) {
 		console.debug(`${txid} base tx - returning chunkStream directly`)
 		return chunkStream(chunkStart, dataEnd, txid, abortSignal)
 	}
