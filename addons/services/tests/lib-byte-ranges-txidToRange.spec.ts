@@ -92,7 +92,7 @@ describe('extra tests', () => {
 describe('stream ans104 header tests', () => {
 	it('can read stream ans104', async () => {
 
-		const res = await ans104HeaderData('MemPKvViQVcXnJdQWRlg9-jwNhSpTDH7g97MtzaQgEY')
+		const res = await ans104HeaderData('MemPKvViQVcXnJdQWRlg9-jwNhSpTDH7g97MtzaQgEY', null, undefined)
 		assert.equal(res.numDataItems, 10000, 'should be 10000 dataItems')
 		assert.equal(res.diIds.length, res.diSizes.length, 'should be same numbers of sizes and ids')
 
