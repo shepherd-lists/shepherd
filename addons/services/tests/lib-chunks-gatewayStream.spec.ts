@@ -47,6 +47,7 @@ describe('gatewayStream', () => {
 			assert.fail('Should have thrown an error for invalid txid')
 		} catch (error) {
 			assert(error instanceof Error)
+			console.debug(error.message)
 			assert(error.message.includes('404'))
 		}
 	})
