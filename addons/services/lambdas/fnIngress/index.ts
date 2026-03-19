@@ -6,8 +6,8 @@ import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import pool, { batchUpsertTxsWithRules } from '../../libs/utils/pgClient'
 import { min_data_size } from '../../libs/constants'
 import { downloadWithChecks } from './downloadWithChecks'
-import { chunkTxDataStream } from './chunkTxDataStream'
-import { gatewayStream } from './gatewayStream'
+import { chunkTxDataStream } from '../../libs/chunkStreams/chunkTxDataStream'
+import { gatewayStream } from '../../libs/chunkStreams/gatewayStream'
 
 
 const ARIO_DELAY_MS = 500

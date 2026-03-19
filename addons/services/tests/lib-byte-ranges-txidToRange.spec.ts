@@ -7,6 +7,11 @@ import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from '../libs/byte-ranges/txidToRange
 import { ans104HeaderData } from '../libs/byte-ranges/txidToRange/ans104HeaderData'
 import { byteRange102 } from '../libs/byte-ranges/txidToRange/byteRange102'
 
+import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
+
+after(() => {
+	clearTimerHttpApiNodes()
+})
 
 describe('txidToRange tests', () => {
 	it('tests an L1 gets processed', async () => {
@@ -87,7 +92,7 @@ describe('extra tests', () => {
 describe('stream ans104 header tests', () => {
 	it('can read stream ans104', async () => {
 
-		const res = await ans104HeaderData('MemPKvViQVcXnJdQWRlg9-jwNhSpTDH7g97MtzaQgEY')
+		const res = await ans104HeaderData('MemPKvViQVcXnJdQWRlg9-jwNhSpTDH7g97MtzaQgEY', null, undefined)
 		assert.equal(res.numDataItems, 10000, 'should be 10000 dataItems')
 		assert.equal(res.diIds.length, res.diSizes.length, 'should be same numbers of sizes and ids')
 

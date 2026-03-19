@@ -1,8 +1,8 @@
 import { fetchChunkData as fetchChunkDataOriginal } from './chunkFetch'
 import http from 'node:http'
 import { ReadableStream, ReadableByteStreamController } from 'node:stream/web'
-import { httpApiNodes } from '../../libs/utils/update-range-nodes'
-import { CHUNK_ALIGN_GENESIS } from '../../libs/byte-ranges/txidToRange/constants-byteRange'
+import { httpApiNodes } from '../utils/update-range-nodes'
+import { CHUNK_ALIGN_GENESIS } from '../byte-ranges/txidToRange/constants-byteRange'
 import { ingressNodes } from './ingress-nodes'
 
 
@@ -31,11 +31,6 @@ export const chunkStream = async (
 	let isCancelled = false
 	let isStreamClosed = false
 
-	const nodes = [
-		...httpApiNodes(),
-		...ingressNodes(),
-	]
-	let nodeIndex = nodes.length - 1
 
 	interface ChunkInfo {
 		offset: number
@@ -77,6 +72,12 @@ export const chunkStream = async (
 
 
 	const startChunk = async (index: number, chunkInfo: ChunkInfo) => {
+		const nodes = [
+			...httpApiNodes(),
+			...ingressNodes(),
+		]
+		let nodeIndex = nodes.length - 1
+
 		try {
 			if (abortSignal.aborted || isCancelled) return;
 

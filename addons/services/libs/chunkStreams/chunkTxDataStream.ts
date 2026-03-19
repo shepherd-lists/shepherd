@@ -1,4 +1,4 @@
-import { getByteRange } from '../../libs/byte-ranges/byteRanges'
+import { getByteRange } from '../byte-ranges/byteRanges'
 import { chunkStream } from './chunkStream'
 import { ReadableStream } from 'node:stream/web'
 import { SIG_CONFIG, SignatureConfig, byteArrayToLong } from './ANS-104-constants'
@@ -27,13 +27,13 @@ export const chunkTxDataStream = async (
 	console.debug(`${txid} byte range obtained - dataStart:${dataStart}, dataEnd:${dataEnd}, chunkStart:${chunkStart}`)
 
 	//simple case, base tx: no initial bytes to skip.
-	if (dataStart === 0) {
+	if (parent === null) {
 		console.debug(`${txid} base tx - returning chunkStream directly`)
 		return chunkStream(chunkStart, dataEnd, txid, abortSignal)
 	}
 
 	//complex case, data-item: need to skip initial bytes + data-item header
-	console.debug(`${txid} data-item tx - creating filtered stream`)
+	console.debug(`${txid} data-item tx - dataStart:${dataStart}, dataEnd:${dataEnd}, chunkStart:${chunkStart}`)
 	const rawStream = await chunkStream(chunkStart, dataEnd, txid, abortSignal)
 	const reader = rawStream.getReader()
 
@@ -86,7 +86,7 @@ export const chunkTxDataStream = async (
 						combined.set(data, headerBuffer.length)
 						headerBuffer = combined
 
-						const headerSize = parseDataItemHeader(headerBuffer)
+						const headerSize = parseDataItemHeader(headerBuffer, txid)
 						if (headerSize !== null) {
 							headerParsed = true
 							console.debug(`${txid} data-item header parsed, headerSize:${headerSize}`)
@@ -131,15 +131,15 @@ export const chunkTxDataStream = async (
 	})
 }
 
-const parseDataItemHeader = (buffer: Uint8Array): number | null => {
+const parseDataItemHeader = (buffer: Uint8Array, txid: string): number | null => {
 	try {
-		return dataItemDataOffset(buffer)
+		return dataItemDataOffset(buffer, txid)
 	} catch {
 		return null // Not enough bytes yet
 	}
 }
 
-const dataItemDataOffset = (dataItem: Uint8Array) => {
+const dataItemDataOffset = (dataItem: Uint8Array, txid: string) => {
 	let offset = 0
 
 	// Signature type (2 bytes)
@@ -151,6 +151,7 @@ const dataItemDataOffset = (dataItem: Uint8Array) => {
 	if (!sigConfig) {
 		throw new Error(`Unknown signature type: ${sigType}`)
 	}
+
 
 	// Signature length based on type
 	offset += sigConfig.sigLength
@@ -185,6 +186,8 @@ const dataItemDataOffset = (dataItem: Uint8Array) => {
 	if (dataItem.length < offset) {
 		throw new Error(`Not enough bytes: need ${offset}, have ${dataItem.length}`)
 	}
+
+	console.info(`${txid} sigType=${sigType} (${sigConfig.sigName}), sigLength=${sigConfig.sigLength}, pubLength=${sigConfig.pubLength}`)
 
 	// Remaining is content
 	return offset;

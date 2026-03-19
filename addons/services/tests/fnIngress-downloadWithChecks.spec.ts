@@ -1,12 +1,12 @@
 import 'dotenv/config'
 import { after, describe, it, skip } from 'node:test'
 import assert from 'node:assert/strict'
-import { destroyGatewayAgent, gatewayStream } from '../lambdas/fnIngress/gatewayStream'
+import { destroyGatewayAgent, gatewayStream } from '../libs/chunkStreams/gatewayStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 import { processRecord, downloadWithChecks } from '../lambdas/fnIngress/downloadWithChecks'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { s3HeadObject } from '../libs/utils/s3-services'
-import { chunkTxDataStream } from '../lambdas/fnIngress/chunkTxDataStream'
+import { chunkTxDataStream } from '../libs/chunkStreams/chunkTxDataStream'
 import { createMockHttpsGet } from './mocks/mock-httpsGet'
 
 
@@ -88,12 +88,12 @@ describe('downloadWithChecks', () => {
 		const resGw = await processRecord(
 			{ txid: 'error', content_type: 'unknown', } as TxRecord,
 			(new AbortController().signal),
-			gatewayStream,
+			() => gatewayStream('error', new AbortController().signal, createMockHttpsGet({ statusCode: 500 }) as any),
 		)
 
 		assert(resGw.queued === false, 'queued should be false')
 		assert.deepEqual(resGw.record, { txid: 'error', content_type: 'unknown', }, 'record should be passed through')
-		assert(resGw.errorId?.includes('failed: 400'), `errorId: "${resGw.errorId}" didnt match`)
+		assert(resGw.errorId?.includes('failed: 500'), `errorId: "${resGw.errorId}" didnt match`)
 
 		//chunkTxDataStream
 		const resChunk = await processRecord(

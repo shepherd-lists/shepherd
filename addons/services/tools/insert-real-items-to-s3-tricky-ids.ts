@@ -6,7 +6,7 @@ import 'dotenv/config'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { processRecord } from '../lambdas/fnIngress/downloadWithChecks';
 import { s3HeadObject } from '../libs/utils/s3-services';
-import { destroyGatewayAgent } from '../lambdas/fnIngress/gatewayStream';
+import { destroyGatewayAgent } from '../libs/chunkStreams/gatewayStream';
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes';
 
 

@@ -5,11 +5,10 @@
  * The license of the shepherd repo is LGPL-3.0-or-later which is compatible.
  */
 import Arweave from 'arweave'
-import { fetchRetryConnection } from './fetch-retry'
+import { chunkTxDataStream } from '../../chunkStreams/chunkTxDataStream'
+import { ReadableStreamDefaultReader } from 'node:stream/web'
 import moize from 'moize'
 
-
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 //bundlr style conversion
 const byteArrayToNumber = (buffer: Uint8Array): number => {
@@ -25,8 +24,6 @@ const readEnoughBytes = async (
 	buffer: Uint8Array<ArrayBuffer>,
 	length: number,
 ): Promise<Uint8Array<ArrayBuffer>> => {
-	// process.env['NODE_ENV'] === 'test' && console.log(buffer.byteLength)
-
 	if (buffer.byteLength > length) return buffer!
 
 	let { done, value } = await reader.read()
@@ -47,94 +44,42 @@ const concatByteArray = (a: Uint8Array, b: Uint8Array) => {
 	return temp
 }
 
-/* handle errors during the stream */
-const fetchHeader = async (parent: string) => {
-	const BUNDLE_DATA_CONTAINS_TEXT_HTML = "bundle data contains 'text/html'"
-	while (true) {
-		let reader: ReadableStreamDefaultReader<Uint8Array>
-		try {
-			/* start the stream connection */
+const fetchHeader = async (bundleId: string, parent: string | null, parents: string[] | undefined) => {
+	const abortController = new AbortController()
+	try {
+		const stream = await chunkTxDataStream(bundleId, parent, parents, abortController.signal)
+		const reader = stream.getReader()
 
-			let header = new Uint8Array(0)
+		let header = new Uint8Array(0)
 
-			const { aborter, res } = await fetchRetryConnection(`/raw/${parent}`)
+		header = await readEnoughBytes(reader, header, 32)
+		const numDataItems = byteArrayToNumber(header.slice(0, 32))
+		const totalHeaderLength = 64 * numDataItems + 32
 
-			// Set timeout for stream reading operations
-			const streamTimeout = setTimeout(() => {
-				aborter?.abort()
-			}, 30_000) // 30 second timeout
+		if (process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`, { numDataItems, totalHeaderLength })
 
-			try {
-				//pass 404s up
-				if (res.status === 404) return {
-					status: res.status,
-					header,
-					numDataItems: -1,
-					headerLength: 0n,
-				}
+		header = await readEnoughBytes(reader, header, totalHeaderLength)
 
-				/** gateway bug, where wrong data present. report it! */
-				if (res.headers.get('content-type')?.includes('text/html')) {
-					throw new Error(`${BUNDLE_DATA_CONTAINS_TEXT_HTML}. id: ${parent}`)
-				}
+		if (process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`)
 
-				/* fetch the bytes we're interested in */
+		reader.releaseLock()
 
-				//read bytes for numDataItems and calculate header size
-				reader = res.body!.getReader()
-				header = await readEnoughBytes(reader, header, 32)
-				const numDataItems = byteArrayToNumber(header.slice(0, 32))
-				const totalHeaderLength = 64 * numDataItems + 32
-
-				if (process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`, { numDataItems, totalHeaderLength })
-
-				//read bytes for the rest of the header index
-				header = await readEnoughBytes(reader, header, totalHeaderLength)
-
-				if (process.env['NODE_ENV'] === 'test') console.log(`bytes read ${header.length}`)
-
-				/* close the stream & return results */
-				// aborter!.abort() this changed around nodejs v20.13.0, throws abort error event
-				reader?.releaseLock()
-				res.body?.cancel() //twice to be sure?
-
-				return {
-					status: res.status,
-					header,
-					numDataItems,
-					headerLength: BigInt(totalHeaderLength),
-				}
-			} finally {
-				// Clear timeout whether success or failure
-				clearTimeout(streamTimeout)
-			}
-
-		} catch (e) {
-			if (reader!) reader.releaseLock() //non-null assertion testing for null. keeps ts happy :shrug:
-			if ((e as Error).message.startsWith(BUNDLE_DATA_CONTAINS_TEXT_HTML)) {
-				throw e;
-			}
-			//can we just retry everything?
-			const retryMs = 10_000
-			console.log(fetchHeader.name, `Error for '${parent}'. Retrying in ${retryMs} ms...`)
-			console.log(e)
-			await sleep(retryMs)
+		return {
+			status: 200,
+			header,
+			numDataItems,
+			headerLength: BigInt(totalHeaderLength),
 		}
+	} finally {
+		abortController.abort()
 	}
 }
 
-const ans104HeaderDataUnmemoized = async (parent: string) => {
+const ans104HeaderDataUnmemoized = async (bundleId: string, parent: string | null, parents: string[] | undefined) => {
 
 	/* get data stream */
 
-	let { status, header, numDataItems, headerLength } = await fetchHeader(parent)
-	if (status === 404) return {
-		status,
-		numDataItems,
-		diIds: [] as string[],
-		diSizes: [] as number[],
-		headerLength: 0n,
-	}
+	let { status, header, numDataItems, headerLength } = await fetchHeader(bundleId, parent, parents)
 
 	/* process the return data */
 

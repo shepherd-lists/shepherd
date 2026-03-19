@@ -30,10 +30,8 @@ export const txidToRange = async (id: string, parent: string | null, parents: st
 	 * 	L1 call `/tx/{id}/offset`. end.
 	 * 	L2 check bundle ans102|ans104
 	 * 		ans104
-	 * 			fetch first chunk, get numDataItems
-	 * 			get enough header chunks for entire bundle index
-	 * 			-- we've reverted to using arweave.net cache. much faster
-	 * 			-- open a stream, then cancel it when have enough header bytes
+	 * 			stream bundle data via chunkTxDataStream (chunk nodes)
+	 * 			read enough header bytes, then abort the stream
 	 * 			get size & id arrays from bundle
 	 * 			determine byte ranges to blacklist
 	 * 		ans102 (these are rare)
@@ -124,7 +122,11 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 	}[] = []
 
 
-	const header0 = await ans104HeaderData(parent)
+	const header0 = await ans104HeaderData(
+		parent,
+		parents ? parents[0] : null,
+		parents && parents.length > 1 ? parents.slice(1) : undefined,
+	)
 	if (header0.status === 404) return {
 		status: header0.status,
 		start: -1n, end: -1n,
@@ -133,7 +135,11 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 
 	if (parents) {
 		for (let i = 0; i < parents.length; i++) {
-			const header = await ans104HeaderData(parents[i])
+			const header = await ans104HeaderData(
+				parents[i],
+				i + 1 < parents.length ? parents[i + 1] : null,
+				i + 2 < parents.length ? parents.slice(i + 2) : undefined,
+			)
 			if (header.status === 404) return {
 				status: header0.status,
 				start: -1n, end: -1n,
@@ -159,8 +165,15 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 	//loop through nested parents if they exist
 	if (parents) {
 		for (let i = 0; i < headerDatas.length; i++) {
-			start += headerDatas[i].headerLength
 			const indexParent = i == 0 ? headerDatas[i].diIds.indexOf(parent) : headerDatas[i].diIds.indexOf(parents[i - 1])
+
+			// add the data item header of the bundle at this nesting level
+			// = full size in grandparent bundle - (inner bundle header + sum of all inner items)
+			const innerHeader = i === 0 ? header0 : headerDatas[i - 1]
+			const innerBundleSize = innerHeader.headerLength + BigInt(innerHeader.diSizes.reduce((a, b) => a + b, 0))
+			start += BigInt(headerDatas[i].diSizes[indexParent]) - innerBundleSize
+
+			start += headerDatas[i].headerLength
 			for (let j = 0; j < indexParent; j++) {
 				start += BigInt(headerDatas[i].diSizes[j])
 			}
