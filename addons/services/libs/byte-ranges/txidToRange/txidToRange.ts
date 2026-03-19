@@ -62,8 +62,8 @@ export const txidToRange = async (id: string, parent: string | null, parents: st
 	}
 
 	if (
-		txParent.tags.some(tag => tag.name === 'Bundle-Format' && tag.value === 'binary')
-		&& txParent.tags.some(tag => tag.name === 'Bundle-Version' && tag.value === '2.0.0')
+		txParent.tags.some(tag => tag.name.toLowerCase() === 'bundle-format' && tag.value === 'binary')
+		&& txParent.tags.some(tag => tag.name.toLowerCase() === 'bundle-version' && tag.value === '2.0.0')
 	) {
 		console.log(id, txidToRange.name, `ans104 detected. parent ${txParent.id}`)
 		return byteRange104(id, parent, parents)
