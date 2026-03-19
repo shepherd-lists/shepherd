@@ -33,7 +33,7 @@ export const chunkTxDataStream = async (
 	}
 
 	//complex case, data-item: need to skip initial bytes + data-item header
-	console.debug(`${txid} data-item tx - creating filtered stream`)
+	console.debug(`${txid} data-item tx - dataStart:${dataStart}, dataEnd:${dataEnd}, chunkStart:${chunkStart}`)
 	const rawStream = await chunkStream(chunkStart, dataEnd, txid, abortSignal)
 	const reader = rawStream.getReader()
 
@@ -148,10 +148,10 @@ const dataItemDataOffset = (dataItem: Uint8Array, txid: string) => {
 
 	// Get signature configuration
 	const sigConfig = SIG_CONFIG[sigType as SignatureConfig]
-	console.debug(`${txid} sigType=${sigType} (${sigConfig?.sigName ?? 'unknown'}), sigLength=${sigConfig?.sigLength}, pubLength=${sigConfig?.pubLength}`)
 	if (!sigConfig) {
 		throw new Error(`Unknown signature type: ${sigType}`)
 	}
+
 
 	// Signature length based on type
 	offset += sigConfig.sigLength
@@ -186,6 +186,8 @@ const dataItemDataOffset = (dataItem: Uint8Array, txid: string) => {
 	if (dataItem.length < offset) {
 		throw new Error(`Not enough bytes: need ${offset}, have ${dataItem.length}`)
 	}
+
+	console.info(`${txid} sigType=${sigType} (${sigConfig.sigName}), sigLength=${sigConfig.sigLength}, pubLength=${sigConfig.pubLength}`)
 
 	// Remaining is content
 	return offset;
