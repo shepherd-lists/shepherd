@@ -165,8 +165,15 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 	//loop through nested parents if they exist
 	if (parents) {
 		for (let i = 0; i < headerDatas.length; i++) {
-			start += headerDatas[i].headerLength
 			const indexParent = i == 0 ? headerDatas[i].diIds.indexOf(parent) : headerDatas[i].diIds.indexOf(parents[i - 1])
+
+			// add the data item header of the bundle at this nesting level
+			// = full size in grandparent bundle - (inner bundle header + sum of all inner items)
+			const innerHeader = i === 0 ? header0 : headerDatas[i - 1]
+			const innerBundleSize = innerHeader.headerLength + BigInt(innerHeader.diSizes.reduce((a, b) => a + b, 0))
+			start += BigInt(headerDatas[i].diSizes[indexParent]) - innerBundleSize
+
+			start += headerDatas[i].headerLength
 			for (let j = 0; j < indexParent; j++) {
 				start += BigInt(headerDatas[i].diSizes[j])
 			}
