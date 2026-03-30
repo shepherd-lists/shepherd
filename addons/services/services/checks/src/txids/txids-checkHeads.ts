@@ -74,7 +74,7 @@ const newAlarmHandler = async (gw_domain: string, ids: TxidItem, reqId: number) 
 	try {
 		const { status, headers } = await headRequest(gw_domain, ids, reqId)
 
-		if (status === 404) {
+		if ([404, 451].includes(status)) {
 			//this is what we want
 			return;
 		}
