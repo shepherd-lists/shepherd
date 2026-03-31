@@ -15,7 +15,7 @@ import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes';
  * you may want to move them to another queue?
  */
 
-const records: Array<{ txid: string; parent?: string | null; parents?: string[]; content_size: string; owner?: string;[key: string]: unknown }> =
+const records: Array<{ txid: string; parent?: string | null; parents?: string[] | null; content_size: string; owner?: string;[key: string]: unknown }> =
 	//paste errors from slack here
 
 	[{ "txid": "fpVz7DNonW2ly-ogNie-KUZxZAPM54w05VjKNM55b0I", "content_type": "image/png", "content_size": "320109", "height": 1865496, "parent": "cKPgVAy9UfKflpOMYJ0GG2ZaYsbNXUH0snXjAbgpREA", "parents": ["J89fBCw_3XEdwQsSOBpv_TJo3Gc5zLotU1sBv0nCE2w"], "owner": "n_NFtpofwDTlL_YHGblOsSJo9BZNLBdiP5v7417h9mY" }]
@@ -55,6 +55,7 @@ try {
 			break;
 		}
 	}
+	console.info('===== completed all processing successfuly ======')
 } finally {
 	//cleanup
 	destroyGatewayAgent()
