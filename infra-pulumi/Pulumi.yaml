@@ -1,0 +1,6 @@
+name: shepherd
+runtime:
+  name: nodejs
+  options:
+    nodeargs: "--import tsx"
+description: Shepherd self-hosted infrastructure
