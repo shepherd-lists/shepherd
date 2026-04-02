@@ -1,7 +1,11 @@
 export type Config = {
-	region: string
-	// # vpc cidr. private subnets between regions/stacks will be shared by tailscale
-	cidr: string
+	// region: string
+	// // # vpc cidr. private subnets between regions/stacks will be shared by tailscale
+	// cidr: string
+
+	/** self-hosted deployment */
+	dockerHost?: string   // omit for local Docker
+	repoPath?: string     // absolute path to repo root on the Docker host
 
 	/** optional slack channel notifications */
 	slack_webhook?: string

@@ -15,6 +15,7 @@ cdk.out*
 .nx/cache
 config.*.ts
 !config.example.ts
+**/Pulumi.*.yaml
 
 # rust artifacts
 .build
