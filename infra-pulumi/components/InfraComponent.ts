@@ -72,6 +72,7 @@ export class InfraComponent extends pulumi.ComponentResource {
         { hostPath: elasticMqConfPath, containerPath: '/opt/elasticmq.conf', readOnly: true },
       ],
       command: ['-Dconfig.file=/opt/elasticmq.conf'],
+      labels: [{ label: 'shepherd.classifiers', value: args.config.classifiers.join(',') }],
       ports: [
         { internal: 9324, external: 9324 },  // SQS API
         { internal: 9325, external: 9325 },  // UI
