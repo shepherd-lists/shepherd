@@ -129,7 +129,7 @@ export class InfraComponent extends pulumi.ComponentResource {
         `MINIO_SECRET_KEY=${minioPw}`,
         `MINIO_BUCKET=shepherd-input`,
         `SQS_ENDPOINT=http://${n('elasticmq')}:9324`,
-        `SQS_QUEUE_URL=http://${n('elasticmq')}:9324/000000000000/shepherd2-input-q`,
+        `SQS_INPUT_QUEUE_URL=http://${n('elasticmq')}:9324/000000000000/shepherd2-input-q`,
         ...(args.config.slack_webhook ? [`SLACK_WEBHOOK=${args.config.slack_webhook}`] : []),
       ]),
       restart: 'unless-stopped',
