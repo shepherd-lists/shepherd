@@ -1,6 +1,8 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
+import * as path from 'path'
 import type { Config } from '../../Config'
+import { generateElasticMqConfig } from '../elasticmq/generate-config'
 
 export interface InfraComponentArgs {
   config: Config
@@ -26,6 +28,9 @@ export class InfraComponent extends pulumi.ComponentResource {
     if (!args.repoPath) {
       throw new Error('config.repoPath is required')
     }
+
+    const elasticMqConfPath = path.join(args.repoPath, 'infra-pulumi/elasticmq/elasticmq.conf')
+    generateElasticMqConfig(args.config, elasticMqConfPath)
 
     const pgVolume = new docker.Volume('pg-data', { name: n('pg-data') }, childOpts)
     const minioVolume = new docker.Volume('minio-data', { name: n('minio-data') }, childOpts)
@@ -62,7 +67,11 @@ export class InfraComponent extends pulumi.ComponentResource {
       name: n('elasticmq'),
       image: 'softwaremill/elasticmq-native',
       networksAdvanced: [{ name: network.name }],
-      volumes: [{ volumeName: elasticMqVolume.name, containerPath: '/data' }],
+      volumes: [
+        { volumeName: elasticMqVolume.name, containerPath: '/data' },
+        { hostPath: elasticMqConfPath, containerPath: '/opt/elasticmq.conf', readOnly: true },
+      ],
+      command: ['-Dconfig.file=/opt/elasticmq.conf'],
       ports: [
         { internal: 9324, external: 9324 },  // SQS API
         { internal: 9325, external: 9325 },  // UI
