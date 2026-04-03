@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@pulumi/docker": "^4.11.2",
+    "@pulumi/minio": "^0.16.8",
     "@pulumi/pulumi": "^3.0.0"
   }
 }

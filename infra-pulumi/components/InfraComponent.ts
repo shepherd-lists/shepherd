@@ -1,5 +1,6 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
+import * as minio from '@pulumi/minio'
 import * as path from 'path'
 import type { Config } from '../../Config'
 import { generateElasticMqConfig } from '../elasticmq/generate-config'
@@ -49,7 +50,7 @@ export class InfraComponent extends pulumi.ComponentResource {
       restart: 'unless-stopped',
     }, childOpts)
 
-    new docker.Container('minio', {
+    const minioContainer = new docker.Container('minio', {
       name: n('minio'),
       image: 'minio/minio',
       networksAdvanced: [{ name: network.name }],
@@ -59,11 +60,40 @@ export class InfraComponent extends pulumi.ComponentResource {
       ],
       volumes: [{ volumeName: minioVolume.name, containerPath: '/data' }],
       command: ['server', '/data', '--console-address', ':9001'],
-      ports: [{ internal: 9001, external: 9001 }],
+      ports: [
+        { internal: 9000, external: 9000 },  // API
+        { internal: 9001, external: 9001 },  // UI
+      ],
       restart: 'unless-stopped',
     }, childOpts)
 
-    new docker.Container('elasticmq', {
+    const minioProvider = new minio.Provider('minio', {
+      minioServer: 'localhost:9000',
+      minioUser: 'shepherd',
+      minioPassword: minioPassword,
+      minioSsl: false,
+    }, { ...childOpts, dependsOn: [minioContainer] })
+
+    const minioProviderOpts = { ...childOpts, provider: minioProvider, dependsOn: [minioContainer] }
+
+    const inputBucket = new minio.S3Bucket('shepherd-input', { bucket: 'shepherd-input' }, minioProviderOpts)
+    const listsBucket = new minio.S3Bucket('shepherd-lists', { bucket: 'shepherd-lists' }, minioProviderOpts)
+
+    // allow public read on shepherd-lists (nodes download blacklists)
+    new minio.S3BucketPolicy('shepherd-lists-policy', {
+      bucket: listsBucket.bucket,
+      policy: JSON.stringify({
+        Version: '2012-10-17',
+        Statement: [{
+          Effect: 'Allow',
+          Principal: { AWS: ['*'] },
+          Action: ['s3:GetObject'],
+          Resource: [`arn:aws:s3:::shepherd-lists/*`],
+        }],
+      }),
+    }, minioProviderOpts)
+
+    const elasticmqContainer = new docker.Container('elasticmq', {
       name: n('elasticmq'),
       image: 'softwaremill/elasticmq-native',
       networksAdvanced: [{ name: network.name }],
@@ -79,6 +109,31 @@ export class InfraComponent extends pulumi.ComponentResource {
       ],
       restart: 'unless-stopped',
     }, childOpts)
+
+    const minio2mqImage = new docker.Image('minio2mq', {
+      build: {
+        context: path.join(args.repoPath, 'infra-pulumi/minio2mq'),
+        builderVersion: docker.BuilderVersion.BuilderV1,
+      },
+      imageName: n('minio2mq'),
+      skipPush: true,
+    }, childOpts)
+
+    new docker.Container('minio2mq', {
+      name: n('minio2mq'),
+      image: minio2mqImage.imageName,
+      networksAdvanced: [{ name: network.name }],
+      envs: pulumi.all([minioPassword]).apply(([minioPw]) => [
+        `MINIO_ENDPOINT=${n('minio')}`,
+        `MINIO_ACCESS_KEY=shepherd`,
+        `MINIO_SECRET_KEY=${minioPw}`,
+        `MINIO_BUCKET=shepherd-input`,
+        `SQS_ENDPOINT=http://${n('elasticmq')}:9324`,
+        `SQS_QUEUE_URL=http://${n('elasticmq')}:9324/000000000000/shepherd2-input-q`,
+        ...(args.config.slack_webhook ? [`SLACK_WEBHOOK=${args.config.slack_webhook}`] : []),
+      ]),
+      restart: 'unless-stopped',
+    }, { ...childOpts, dependsOn: [minio2mqImage, minioContainer, inputBucket, elasticmqContainer] })
 
     new docker.Container('nginx', {
       name: n('nginx'),
