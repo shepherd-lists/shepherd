@@ -30,7 +30,7 @@ export class InfraComponent extends pulumi.ComponentResource {
       throw new Error('config.repoPath is required')
     }
 
-    const elasticMqConfPath = path.join(args.repoPath, 'infra-pulumi/elasticmq/elasticmq.conf')
+    const elasticMqConfPath = path.join(args.repoPath, 'infra/elasticmq/elasticmq.conf')
     generateElasticMqConfig(args.config, elasticMqConfPath)
 
     const pgVolume = new docker.Volume('pg-data', { name: n('pg-data') }, childOpts)
@@ -112,7 +112,7 @@ export class InfraComponent extends pulumi.ComponentResource {
 
     const minio2mqImage = new docker.Image('minio2mq', {
       build: {
-        context: path.join(args.repoPath, 'infra-pulumi/minio2mq'),
+        context: path.join(args.repoPath, 'infra/minio2mq'),
         builderVersion: docker.BuilderVersion.BuilderV1,
       },
       imageName: n('minio2mq'),
@@ -143,7 +143,7 @@ export class InfraComponent extends pulumi.ComponentResource {
         { internal: 80, external: 80 },
         { internal: 443, external: 443 },
       ],
-      volumes: [{ hostPath: `${args.repoPath}/infra-pulumi/nginx/nginx.conf`, containerPath: '/etc/nginx/nginx.conf', readOnly: true }],
+      volumes: [{ hostPath: `${args.repoPath}/infra/nginx/nginx.conf`, containerPath: '/etc/nginx/nginx.conf', readOnly: true }],
       restart: 'unless-stopped',
     }, childOpts)
 

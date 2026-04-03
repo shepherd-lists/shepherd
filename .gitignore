@@ -16,7 +16,7 @@ cdk.out*
 config.*.ts
 !config.example.ts
 **/Pulumi.*.yaml
-infra-pulumi/elasticmq/elasticmq.conf
+infra/elasticmq/elasticmq.conf
 
 # rust artifacts
 .build

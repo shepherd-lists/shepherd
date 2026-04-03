@@ -21,6 +21,9 @@
     "esbuild": "^0.25.1",
     "husky": "^9.0.11",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "@pulumi/docker": "^4.11.2",
+    "@pulumi/minio": "^0.16.8",
+    "@pulumi/pulumi": "^3.229.0"
   }
 }

@@ -1,6 +1,6 @@
 import { App } from 'aws-cdk-lib'
 import { Config } from './Config'
-import { InfraStack } from './infra/stack'
+import { InfraStack } from './infra-cdk/stack'
 
 const configName = process.argv[2]
 
