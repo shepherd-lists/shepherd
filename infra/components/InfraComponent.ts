@@ -54,7 +54,7 @@ export class InfraComponent extends pulumi.ComponentResource {
 
     const minioContainer = new docker.Container('minio', {
       name: n('minio'),
-      image: 'minio/minio',
+      image: 'minio/minio:RELEASE.2025-09-07T16-13-09Z', //latest @2026-04-06
       networksAdvanced: [{ name: network.name }],
       envs: [
         'MINIO_ROOT_USER=shepherd',
@@ -72,7 +72,7 @@ export class InfraComponent extends pulumi.ComponentResource {
     // create MinIO buckets via mc one-shot container
     new docker.Container('minio-setup', {
       name: n('minio-setup'),
-      image: 'minio/mc',
+      image: 'minio/mc:RELEASE.2025-08-13T08-35-41Z', //latest @2026-04-06
       networksAdvanced: [{ name: network.name }],
       envs: [
         `MC_HOST_local=http://shepherd:${config.minioPassword}@${n('minio')}:9000`,
@@ -88,7 +88,7 @@ export class InfraComponent extends pulumi.ComponentResource {
 
     const elasticmqContainer = new docker.Container('elasticmq', {
       name: n('elasticmq'),
-      image: 'softwaremill/elasticmq-native',
+      image: 'softwaremill/elasticmq-native:1.7.1', //latest @2026-04-06
       networksAdvanced: [{ name: network.name }],
       volumes: [
         { volumeName: elasticMqVolume.name, containerPath: '/data' },
@@ -104,7 +104,7 @@ export class InfraComponent extends pulumi.ComponentResource {
 
     new docker.Container('elasticmq-ui', {
       name: n('elasticmq-ui'),
-      image: 'softwaremill/elasticmq-ui',
+      image: 'softwaremill/elasticmq-ui:1.7.1', //latest @2026-04-06
       networksAdvanced: [{ name: network.name }],
       envs: [`SQS_ENDPOINT=http://${n('elasticmq')}:9324`],
       ports: [{ internal: 3000, external: 9325 }],
