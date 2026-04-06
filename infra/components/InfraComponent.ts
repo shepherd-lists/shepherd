@@ -32,7 +32,7 @@ export class InfraComponent extends pulumi.ComponentResource {
     const elasticMqConf = generateElasticMqConfigString(config)
     const elasticMqConfContainer = new docker.Container('elasticmq-config', {
       name: n('elasticmq-config'),
-      image: 'alpine',
+      image: 'alpine:3', //might want to pin this further?
       volumes: [{ volumeName: configVolume.name, containerPath: '/config' }],
       command: ['sh', '-c', `cat > /config/elasticmq.conf << 'EOF'\n${elasticMqConf}EOF`],
       labels: [{ label: 'shepherd.classifiers', value: config.classifiers.join(',') }],
@@ -139,7 +139,7 @@ export class InfraComponent extends pulumi.ComponentResource {
 
     new docker.Container('nginx', {
       name: n('nginx'),
-      image: 'nginx:alpine',
+      image: 'nginx:stable-alpine',
       networksAdvanced: [{ name: network.name }],
       ports: [
         { internal: 80, external: 80 },
