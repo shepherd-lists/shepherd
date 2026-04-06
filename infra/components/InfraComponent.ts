@@ -1,16 +1,12 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
-import * as minio from '@pulumi/minio'
 import * as path from 'path'
 import type { Config } from '../../Config'
-import { generateElasticMqConfig } from '../elasticmq/generate-config'
+import { generateElasticMqConfigString } from '../elasticmq/generate-config'
 
 export interface InfraComponentArgs {
   config: Config
   network: docker.Network
-  dbPassword: pulumi.Output<string>
-  minioPassword: pulumi.Output<string>
-  repoPath?: string
   stackName: string
 }
 
@@ -24,18 +20,24 @@ export class InfraComponent extends pulumi.ComponentResource {
     super('shepherd:infra:InfraComponent', name, {}, opts)
 
     const childOpts = { ...opts, parent: this }
-    const { network, dbPassword, minioPassword, stackName } = args
+    const { config, network, stackName } = args
     const n = (s: string) => `${s}-shep-${stackName}`
-    if (!args.repoPath) {
-      throw new Error('config.repoPath is required')
-    }
-
-    const elasticMqConfPath = path.join(args.repoPath, 'infra/elasticmq/elasticmq.conf')
-    generateElasticMqConfig(args.config, elasticMqConfPath)
 
     const pgVolume = new docker.Volume('pg-data', { name: n('pg-data') }, childOpts)
     const minioVolume = new docker.Volume('minio-data', { name: n('minio-data') }, childOpts)
     const elasticMqVolume = new docker.Volume('elasticmq-data', { name: n('elasticmq-data') }, childOpts)
+    const configVolume = new docker.Volume('config', { name: n('config') }, childOpts)
+
+    // write elasticmq.conf into shared config volume via one-shot alpine container
+    const elasticMqConf = generateElasticMqConfigString(config)
+    const elasticMqConfContainer = new docker.Container('elasticmq-config', {
+      name: n('elasticmq-config'),
+      image: 'alpine',
+      volumes: [{ volumeName: configVolume.name, containerPath: '/config' }],
+      command: ['sh', '-c', `cat > /config/elasticmq.conf << 'EOF'\n${elasticMqConf}EOF`],
+      labels: [{ label: 'shepherd.classifiers', value: config.classifiers.join(',') }],
+      mustRun: false,
+    }, childOpts)
 
     new docker.Container('postgres', {
       name: n('postgres'),
@@ -43,7 +45,7 @@ export class InfraComponent extends pulumi.ComponentResource {
       networksAdvanced: [{ name: network.name }],
       envs: [
         'POSTGRES_USER=shepherd',
-        pulumi.interpolate`POSTGRES_PASSWORD=${dbPassword}`,
+        `POSTGRES_PASSWORD=${config.dbPassword}`,
         'POSTGRES_DB=arblacklist',
       ],
       volumes: [{ volumeName: pgVolume.name, containerPath: '/var/lib/postgresql' }],
@@ -56,42 +58,33 @@ export class InfraComponent extends pulumi.ComponentResource {
       networksAdvanced: [{ name: network.name }],
       envs: [
         'MINIO_ROOT_USER=shepherd',
-        pulumi.interpolate`MINIO_ROOT_PASSWORD=${minioPassword}`,
+        `MINIO_ROOT_PASSWORD=${config.minioPassword}`,
       ],
       volumes: [{ volumeName: minioVolume.name, containerPath: '/data' }],
       command: ['server', '/data', '--console-address', ':9001'],
       ports: [
-        { internal: 9000, external: 9000 },  // API
-        { internal: 9001, external: 9001 },  // UI
+        { internal: 9000, external: 9000 },
+        { internal: 9001, external: 9001 },
       ],
       restart: 'unless-stopped',
     }, childOpts)
 
-    const minioProvider = new minio.Provider('minio', {
-      minioServer: 'localhost:9000',
-      minioUser: 'shepherd',
-      minioPassword: minioPassword,
-      minioSsl: false,
+    // create MinIO buckets via mc one-shot container
+    new docker.Container('minio-setup', {
+      name: n('minio-setup'),
+      image: 'minio/mc',
+      networksAdvanced: [{ name: network.name }],
+      envs: [
+        `MC_HOST_local=http://shepherd:${config.minioPassword}@${n('minio')}:9000`,
+      ],
+      entrypoints: ['sh', '-c', [
+        'until mc ls local > /dev/null 2>&1; do sleep 1; done',
+        'mc mb --ignore-existing local/shepherd-input',
+        'mc mb --ignore-existing local/shepherd-lists',
+        `mc anonymous set download local/shepherd-lists`,
+      ].join(' && ')],
+      mustRun: false,
     }, { ...childOpts, dependsOn: [minioContainer] })
-
-    const minioProviderOpts = { ...childOpts, provider: minioProvider, dependsOn: [minioContainer] }
-
-    const inputBucket = new minio.S3Bucket('shepherd-input', { bucket: 'shepherd-input' }, minioProviderOpts)
-    const listsBucket = new minio.S3Bucket('shepherd-lists', { bucket: 'shepherd-lists' }, minioProviderOpts)
-
-    // allow public read on shepherd-lists (nodes download blacklists)
-    new minio.S3BucketPolicy('shepherd-lists-policy', {
-      bucket: listsBucket.bucket,
-      policy: JSON.stringify({
-        Version: '2012-10-17',
-        Statement: [{
-          Effect: 'Allow',
-          Principal: { AWS: ['*'] },
-          Action: ['s3:GetObject'],
-          Resource: [`arn:aws:s3:::shepherd-lists/*`],
-        }],
-      }),
-    }, minioProviderOpts)
 
     const elasticmqContainer = new docker.Container('elasticmq', {
       name: n('elasticmq'),
@@ -99,21 +92,30 @@ export class InfraComponent extends pulumi.ComponentResource {
       networksAdvanced: [{ name: network.name }],
       volumes: [
         { volumeName: elasticMqVolume.name, containerPath: '/data' },
-        { hostPath: elasticMqConfPath, containerPath: '/opt/elasticmq.conf', readOnly: true },
+        { volumeName: configVolume.name, containerPath: '/config', readOnly: true },
       ],
-      command: ['-Dconfig.file=/opt/elasticmq.conf'],
-      labels: [{ label: 'shepherd.classifiers', value: args.config.classifiers.join(',') }],
+      command: ['-Dconfig.file=/config/elasticmq.conf'],
+      labels: [{ label: 'shepherd.classifiers', value: config.classifiers.join(',') }],
       ports: [
-        { internal: 9324, external: 9324 },  // SQS API
-        { internal: 9325, external: 9325 },  // UI
+        { internal: 9324, external: 9324 },
       ],
       restart: 'unless-stopped',
-    }, childOpts)
+    }, { ...childOpts, dependsOn: [elasticMqConfContainer] })
+
+    new docker.Container('elasticmq-ui', {
+      name: n('elasticmq-ui'),
+      image: 'softwaremill/elasticmq-ui',
+      networksAdvanced: [{ name: network.name }],
+      envs: [`SQS_ENDPOINT=http://${n('elasticmq')}:9324`],
+      ports: [{ internal: 3000, external: 9325 }],
+      restart: 'unless-stopped',
+    }, { ...childOpts, dependsOn: [elasticmqContainer] })
 
     const minio2mqImage = new docker.Image('minio2mq', {
       build: {
-        context: path.join(args.repoPath, 'infra/minio2mq'),
+        context: path.join(import.meta.dirname, '../minio2mq'),
         builderVersion: docker.BuilderVersion.BuilderV1,
+        platform: config.buildPlatform,
       },
       imageName: n('minio2mq'),
       skipPush: true,
@@ -123,17 +125,17 @@ export class InfraComponent extends pulumi.ComponentResource {
       name: n('minio2mq'),
       image: minio2mqImage.imageName,
       networksAdvanced: [{ name: network.name }],
-      envs: pulumi.all([minioPassword]).apply(([minioPw]) => [
+      envs: [
         `MINIO_ENDPOINT=${n('minio')}`,
         `MINIO_ACCESS_KEY=shepherd`,
-        `MINIO_SECRET_KEY=${minioPw}`,
+        `MINIO_SECRET_KEY=${config.minioPassword}`,
         `MINIO_BUCKET=shepherd-input`,
         `SQS_ENDPOINT=http://${n('elasticmq')}:9324`,
         `SQS_INPUT_QUEUE_URL=http://${n('elasticmq')}:9324/000000000000/shepherd2-input-q`,
-        ...(args.config.slack_webhook ? [`SLACK_WEBHOOK=${args.config.slack_webhook}`] : []),
-      ]),
+        ...(config.slack_webhook ? [`SLACK_WEBHOOK=${config.slack_webhook}`] : []),
+      ],
       restart: 'unless-stopped',
-    }, { ...childOpts, dependsOn: [minio2mqImage, minioContainer, inputBucket, elasticmqContainer] })
+    }, { ...childOpts, dependsOn: [minio2mqImage, minioContainer, elasticmqContainer] })
 
     new docker.Container('nginx', {
       name: n('nginx'),
@@ -143,7 +145,6 @@ export class InfraComponent extends pulumi.ComponentResource {
         { internal: 80, external: 80 },
         { internal: 443, external: 443 },
       ],
-      volumes: [{ hostPath: `${args.repoPath}/infra/nginx/nginx.conf`, containerPath: '/etc/nginx/nginx.conf', readOnly: true }],
       restart: 'unless-stopped',
     }, childOpts)
 

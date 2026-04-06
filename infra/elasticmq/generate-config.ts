@@ -1,9 +1,7 @@
 import type { Config } from '../../Config'
 import { classifierQueueName } from '../../Config'
-import * as fs from 'fs'
-import * as path from 'path'
 
-export function generateElasticMqConfig(config: Config, outputPath: string) {
+export function generateElasticMqConfigString(config: Pick<Config, 'classifiers'>): string {
   const queues: string[] = []
 
   // input queue + dlq
@@ -20,7 +18,7 @@ export function generateElasticMqConfig(config: Config, outputPath: string) {
 
   // classifier output queues + dlqs
   for (let i = 0; i < config.classifiers.length; i++) {
-    const { queueName, dlqName } = classifierQueueName(config, i)
+    const { queueName, dlqName } = classifierQueueName(config as Config, i)
     queues.push(`
   ${queueName} {
     deadLettersQueue {
@@ -33,11 +31,9 @@ export function generateElasticMqConfig(config: Config, outputPath: string) {
   ${dlqName} {}`)
   }
 
-  const conf = `include classpath("application.conf")
+  return `include classpath("application.conf")
 
 queues {${queues.join('')}
 }
 `
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true })
-  fs.writeFileSync(outputPath, conf)
 }

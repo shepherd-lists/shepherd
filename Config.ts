@@ -4,8 +4,10 @@ export type Config = {
 	// cidr: string
 
 	/** self-hosted deployment */
-	dockerHost?: string   // omit for local Docker
-	repoPath?: string     // absolute path to repo root on the Docker host
+	dockerHost: string
+	buildPlatform?: string  // e.g. 'linux/amd64' for remote x86 servers
+	dbPassword: string
+	minioPassword: string
 
 	/** optional slack channel notifications */
 	slack_webhook?: string
