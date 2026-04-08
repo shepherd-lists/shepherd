@@ -53,6 +53,9 @@ export type Config = {
 
 }
 
+/** Docker resource naming convention: `{name}-shep-{stackName}` */
+export const naming = (stackName: string, s: string) => `${s}-shep-${stackName}`
+
 /** return the name of the output queue for a given classifier. important to centralize this logic for refactoring later */
 export const classifierQueueName = (config: Config, i: number) => ({
 	queueName: `shepherd2-output-${i + 1}-${config.classifiers[i]}-q`,

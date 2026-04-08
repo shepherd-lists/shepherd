@@ -1,7 +1,7 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
 import * as path from 'path'
-import type { Config } from '../../Config'
+import { naming, type Config } from '../../Config'
 import { generateElasticMqConfigString } from '../elasticmq/generate-config'
 
 export interface InfraComponentArgs {
@@ -21,7 +21,7 @@ export class InfraComponent extends pulumi.ComponentResource {
 
     const childOpts = { ...opts, parent: this }
     const { config, network, stackName } = args
-    const n = (s: string) => `${s}-shep-${stackName}`
+    const n = (s: string) => naming(stackName, s)
 
     const pgVolume = new docker.Volume('pg-data', { name: n('pg-data') }, childOpts)
     const minioVolume = new docker.Volume('minio-data', { name: n('minio-data') }, childOpts)
