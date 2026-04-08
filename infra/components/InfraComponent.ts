@@ -15,6 +15,7 @@ export class InfraComponent extends pulumi.ComponentResource {
   public readonly postgresHost: string
   public readonly minioEndpoint: string
   public readonly sqsEndpoint: string
+  public readonly redisHost: string
 
   constructor(name: string, args: InfraComponentArgs, opts?: pulumi.ComponentResourceOptions) {
     super('shepherd:infra:InfraComponent', name, {}, opts)
@@ -137,6 +138,17 @@ export class InfraComponent extends pulumi.ComponentResource {
       restart: 'unless-stopped',
     }, { ...childOpts, dependsOn: [minio2mqImage, minioContainer, elasticmqContainer] })
 
+    const redisVolume = new docker.Volume('redis-data', { name: n('redis-data') }, childOpts)
+    new docker.Container('redis', {
+      name: n('redis'),
+      image: 'redis:7-alpine',
+      networksAdvanced: [{ name: network.name }],
+      volumes: [{ volumeName: redisVolume.name, containerPath: '/data' }],
+      command: ['redis-server', '--appendonly', 'yes'],
+      ports: [{ internal: 6379, external: 6379 }],
+      restart: 'unless-stopped',
+    }, childOpts)
+
     new docker.Container('nginx', {
       name: n('nginx'),
       image: 'nginx:stable-alpine',
@@ -152,11 +164,13 @@ export class InfraComponent extends pulumi.ComponentResource {
     this.postgresHost = n('postgres')
     this.minioEndpoint = `http://${n('minio')}:9000`
     this.sqsEndpoint = `http://${n('elasticmq')}:9324`
+    this.redisHost = n('redis')
 
     this.registerOutputs({
       postgresHost: this.postgresHost,
       minioEndpoint: this.minioEndpoint,
       sqsEndpoint: this.sqsEndpoint,
+      redisHost: this.redisHost,
     })
   }
 }

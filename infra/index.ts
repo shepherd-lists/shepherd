@@ -15,4 +15,5 @@ const infra = new InfraComponent('infra', { config, network, stackName }, opts)
 export const postgresHost = infra.postgresHost
 export const minioEndpoint = infra.minioEndpoint
 export const sqsEndpoint = infra.sqsEndpoint
+export const redisHost = infra.redisHost
 export const networkName = network.name
