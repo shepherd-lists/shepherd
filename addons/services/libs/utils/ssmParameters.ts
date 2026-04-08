@@ -1,30 +1,26 @@
-import { GetParameterCommand, SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm'
-import { slackLog } from './slackLog'
+import Redis from 'ioredis'
 
+const REDIS_HOST = process.env.REDIS_HOST
+if (!REDIS_HOST) throw new Error('missing env var: REDIS_HOST')
 
-const ssm = new SSMClient() //current region
+const redis = new Redis({ host: REDIS_HOST, keyPrefix: 'shepherd:live:' })
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-/** n.b. json is the default */
-export const readParamJsonLive = async (name: string) => JSON.parse(
-	(await ssm.send(new GetParameterCommand({
-		Name: `/shepherd/live/${name}`,
-		WithDecryption: true, // ignored if unencrypted
-	}))).Parameter!.Value as string // throw when undefined
-)
-/** standard tier string max of 4kb */
+export const readParamJsonLive = async (name: string) => {
+	const value = await redis.get(name)
+	if (value === null) {
+		const err = new Error(`Parameter '${name}' not found`)
+		err.name = 'ParameterNotFound'
+		throw err
+	}
+	return JSON.parse(value)
+}
+
 export const writeParamJsonLive = async (name: string, value: object) => {
-	const Value = JSON.stringify(value)
-	if (Value.length > 4096) throw new Error(`Value too long: ${Value.length}`)
-
-	console.info(writeParamJsonLive.name, `DEBUG '/shepherd/live/${name}' <= ${Value}`)
-
-	await ssm.send(new PutParameterCommand({
-		Name: `/shepherd/live/${name}`,
-		Value,
-		Type: 'String',
-		Overwrite: true,
-	}))
+	const serialized = JSON.stringify(value)
+	console.info(writeParamJsonLive.name, `DEBUG 'shepherd:live:${name}' <= ${serialized}`)
+	await redis.set(name, serialized)
 }
 
 /** 
