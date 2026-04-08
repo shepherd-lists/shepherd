@@ -52,7 +52,7 @@ export class ServicesComponent extends pulumi.ComponentResource {
     const buildImage = (target: string) => new docker.Image(`image-${target}`, {
       build: {
         context: serviceDir,
-        builderVersion: docker.BuilderVersion.BuilderV1,
+        builderVersion: docker.BuilderVersion.BuilderBuildKit,
         platform: config.buildPlatform,
         target,
         args: { targetArg: target },

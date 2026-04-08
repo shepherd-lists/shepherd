@@ -53,7 +53,3 @@ COPY ./services/${targetArg}/src ./src
 RUN npx tsc --noEmit
 ENTRYPOINT npx tsx ./src/index.ts
 
-#unused?
-FROM node:22-slim AS test 
-WORKDIR /test
-COPY . .
