@@ -39,6 +39,7 @@ export class ServicesComponent extends pulumi.ComponentResource {
       ...(config.slack_webhook ? [`SLACK_WEBHOOK=${config.slack_webhook}`] : []),
       ...(config.slack_positive ? [`SLACK_POSITIVE=${config.slack_positive}`] : []),
       ...(config.slack_probe ? [`SLACK_PROBE=${config.slack_probe}`] : []),
+      ...(config.pagerduty_key ? [`PAGERDUTY_KEY=${config.pagerduty_key}`] : []),
       `HOST_URL=${config.host_url || 'https://arweave.net'}`,
       `GQL_URL=${config.gql_url || 'https://arweave.net/graphql'}`,
       `GQL_URL_SECONDARY=${config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql'}`,

@@ -8,12 +8,15 @@ export type Config = {
 	buildPlatform?: string  // e.g. 'linux/amd64' for remote x86 servers
 	dbPassword: string
 	minioPassword: string
+	/** optional pagerduty integration */
+	pagerduty_key?: string
 
 	/** optional slack channel notifications */
 	slack_webhook?: string
 	slack_positive?: string
 	slack_probe?: string
 	slack_public?: string
+
 
 	/** options for general endpoints */
 	host_url?: string	//defaults to https://arweave.net
