@@ -22,14 +22,16 @@ export class ServicesComponent extends pulumi.ComponentResource {
     const postgresHost = infraRef.getOutput('postgresHost') as pulumi.Output<string>
     const minioEndpoint = infraRef.getOutput('minioEndpoint') as pulumi.Output<string>
     const sqsEndpoint = infraRef.getOutput('sqsEndpoint') as pulumi.Output<string>
+    const redisHost = infraRef.getOutput('redisHost') as pulumi.Output<string>
 
     // shared env vars for AWS SDK compatibility with MinIO/ElasticMQ
-    const awsCompatEnvs = pulumi.all([minioEndpoint, sqsEndpoint]).apply(([minio, sqs]) => [
+    const awsCompatEnvs = pulumi.all([minioEndpoint, sqsEndpoint, redisHost]).apply(([minio, sqs, redis]) => [
       `AWS_ACCESS_KEY_ID=shepherd`,
       `AWS_SECRET_ACCESS_KEY=${config.minioPassword}`,
       `AWS_ENDPOINT_URL_S3=${minio}`,
       `AWS_ENDPOINT_URL_SQS=${sqs}`,
       `AWS_REGION=us-east-1`,
+      `REDIS_HOST=${redis}`,
     ])
 
     // shared env vars from config
