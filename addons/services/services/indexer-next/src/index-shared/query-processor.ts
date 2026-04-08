@@ -3,7 +3,7 @@ import { slackLog } from '../../../../libs/utils/slackLog'
 import { arGql } from 'ar-gql'
 import { GQLError } from 'ar-gql/dist/faces'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
+import { handler as fnIngressHandler } from '../../../../lambdas/fnIngress/index'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { batchUpsertTxsWithRules } from '../../../../libs/utils/pgClient'
 
@@ -19,12 +19,6 @@ const LARGE_DATA_SIZE = 500 * 1024 * 1024 //500MB
 
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-const lambdaClient = new LambdaClient({})
-
-
-const FN_INGRESS = process.env.FN_INGRESS as string
-console.info(`FN_INDEXER: ${FN_INGRESS}`)
-if (!FN_INGRESS) throw new Error('FN_INDEXER not set')
 
 interface FnIngressReturn {
 	numQueued: number;
@@ -269,30 +263,17 @@ const fnIngressInvoker = async (inputs: {
 	downloadTimeout: number,
 }) => {
 	const { indexName, pageNumber, metas, streamSourceName } = inputs
-	/* invoke lambdas, retry on errors, return count */
 	console.log(`${indexName} fnIngressInvoker starting for page ${pageNumber}`)
 	while (true) {
 		try {
-			const res = await lambdaClient.send(new InvokeCommand({
-				FunctionName: FN_INGRESS as string,
-				Payload: JSON.stringify(inputs),
-				InvocationType: 'RequestResponse',
-			}))
-			if (res.FunctionError) {
-				let payloadMsg = ''
-				try { payloadMsg = new TextDecoder().decode(res.Payload) }
-				catch (e) { payloadMsg = 'error decoding Payload with res.FunctionError' }
-				throw new Error(`Lambda error '${res.FunctionError}' for ${JSON.stringify({ indexName, pageNumber })}, payload: ${payloadMsg}`)
-			}
-
-			const processed: FnIngressReturn = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
+			const processed: FnIngressReturn = await fnIngressHandler(inputs)
 
 			console.info(indexName, fnIngressInvoker.name, `page ${pageNumber}, total records ${metas.length}, ${processed.numQueued} queued in s3, ${processed.numUpdated} inserts, ${processed.errored.length} errored.`, streamSourceName)
 
 			return processed;
 		} catch (err: unknown) {
 			const e = err as Error
-			await slackLog(indexName, fnIngressInvoker.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds...`, JSON.stringify(e))
+			await slackLog(indexName, fnIngressInvoker.name, `HANDLER ERROR ${e.name}:${e.message}. retrying after 10 seconds...`, JSON.stringify(e))
 			await sleep(10_000)
 			continue;
 		}

@@ -1,5 +1,5 @@
 import { arGql } from 'ar-gql'
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
+import { handler as fnOwnerBlockingHandler } from '../../../../lambdas/fnOwnerBlocking/index'
 import pool from '../../../../libs/utils/pgClient'
 import { s3GetObject, s3HeadObject } from '../../../../libs/utils/s3-services'
 import { performance } from 'perf_hooks'
@@ -12,8 +12,6 @@ if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
 const LISTS_BUCKET = process.env.LISTS_BUCKET!
 if (!process.env.GQL_URL_SECONDARY) throw new Error('missing env var: GQL_URL_SECONDARY')
 const GQL_URL_SECONDARY = process.env.GQL_URL_SECONDARY!
-
-const lambdaClient = new LambdaClient({})
 const gql = arGql({ endpointUrl: GQL_URL_SECONDARY, retries: 3 }) //defaults to goldsky
 
 const ingestQuery = `
@@ -126,15 +124,8 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 			const pageNumber = ++counts.page
 			console.info(blockOwnerIngest.name, 'processing page', pageNumber)
 
-			/** fire off the generic lambdas */
-			const res = await lambdaClient.send(new InvokeCommand({
-				FunctionName: process.env.FN_OWNER_BLOCKING as string,
-				Payload: JSON.stringify({ page, pageNumber }),
-				InvocationType: 'RequestResponse',
-			}))
-
-			/** update stats */
-			const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
+			/** invoke handler directly */
+			const lambdaCounts: { [owner: string]: number; total: number } = await fnOwnerBlockingHandler({ page, pageNumber })
 			for (const owner in lambdaCounts) {
 				if (owner === 'total') continue
 				ingestedOwners[owner] = (ingestedOwners[owner] || 0) + lambdaCounts[owner]

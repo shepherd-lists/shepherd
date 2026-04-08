@@ -1,7 +1,7 @@
 import { createOwnerTable } from './owner-table-utils'
 import { arGql } from 'ar-gql'
 import { GQLEdgeInterface, GQLError } from 'ar-gql/dist/faces'
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda'
+import { handler as fnOwnerBlockingHandler } from '../../lambdas/fnOwnerBlocking/index'
 import pool from '../utils/pgClient'
 import { slackLog } from '../utils/slackLog'
 import { readBlockOwnerQueue, updateBlockOwnerQueue } from '../utils/ssmParameters'
@@ -9,15 +9,12 @@ import { ownerTotalCount } from './owner-totalCount'
 import { OwnersListRecord } from '../../types'
 import plimit from 'p-limit'
 
-const limit = plimit(10) //concurrency limit for adding lambdas
+const limit = plimit(10) //concurrency limit
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var: FN_OWNER_BLOCKING')
 if (!process.env.GQL_URL_SECONDARY) throw new Error('missing env var: GQL_URL_SECONDARY')
 if (!process.env.GQL_URL) throw new Error('missing env var: GQL_URL')
-
-const lambdaClient = new LambdaClient({})
 
 const gql = arGql({ endpointUrl: process.env.GQL_URL_SECONDARY, retries: 3 }) //defaults to goldsky
 const gqlBackup = arGql({ endpointUrl: process.env.GQL_URL, retries: 3 }) //defaults to arweave
@@ -157,19 +154,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 	const lambdaRetry = async (page: GQLEdgeInterface[], pageNumber: number) => {
 		while (true) {
 			try {
-				const res = await lambdaClient.send(new InvokeCommand({
-					FunctionName: process.env.FN_OWNER_BLOCKING as string,
-					Payload: JSON.stringify({ page, pageNumber }),
-					InvocationType: 'RequestResponse',
-				}))
-				if (res.FunctionError) {
-					let payloadMsg = ''
-					try { payloadMsg = new TextDecoder().decode(res.Payload) }
-					catch (e) { payloadMsg = 'error decoding Payload with res.FunctionError' }
-					throw new Error(`Lambda error '${res.FunctionError}' for ${JSON.stringify({ owner, pageNumber })}, payload: ${payloadMsg}`)
-				}
-
-				const lambdaCounts: { [owner: string]: number; total: number } = JSON.parse(new TextDecoder().decode(res.Payload as Uint8Array))
+				const lambdaCounts: { [owner: string]: number; total: number } = await fnOwnerBlockingHandler({ page, pageNumber })
 				counts.inserts += lambdaCounts.total
 
 				console.info(blockOwnerHistory.name, owner, 'processed page', pageNumber)
@@ -177,7 +162,7 @@ const blockOwnerHistory = async (owner: string, method: 'auto' | 'manual') => {
 			} catch (err: unknown) {
 				console.debug(blockOwnerHistory.name, err)
 				const e = err as Error
-				slackLog(blockOwnerHistory.name, `LAMBDA ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
+				slackLog(blockOwnerHistory.name, `HANDLER ERROR ${e.name}:${e.message}. retrying after 10 seconds`, JSON.stringify(e))
 				await sleep(10_000)
 				continue;
 			}

@@ -4,7 +4,6 @@ import { processBlockedOwnersQueue } from '../../../../libs/block-owner/owner-bl
 import { lambdaInvokerFnTemp } from '../../../../libs/utils/lambda-invoker'
 
 
-if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var, FN_OWNER_BLOCKING')
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

@@ -9,7 +9,6 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 
 const LISTS_BUCKET = process.env.LISTS_BUCKET as string
-const FN_INIT_LISTS = process.env.FN_INIT_LISTS as string
 
 
 /** this is called once on service start */
@@ -46,7 +45,7 @@ export const initLists = async () => {
 		if (exists.every(exist => exist === false)) {
 			console.info('s3 folders do not exist. initialising all lists...')
 			//call the fnInitLists invoker 
-			count = await lambdaInvoker(FN_INIT_LISTS, {}, 0) //no retries, it's "pass" or "fail" and needs to be cleaned up
+			count = await lambdaInvoker('fnInitLists', {}, 0) //no retries, it's "pass" or "fail" and needs to be cleaned up
 		}
 
 	} finally {
