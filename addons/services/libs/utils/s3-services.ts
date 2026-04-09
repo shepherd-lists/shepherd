@@ -14,6 +14,7 @@ const s3client = new S3Client({
 		requestTimeout: 0,
 	}),
 	maxAttempts: 3,
+	forcePathStyle: true, // required for MinIO (path-style: endpoint/bucket/key instead of bucket.endpoint/key)
 })
 
 
