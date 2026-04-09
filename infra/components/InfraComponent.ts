@@ -50,6 +50,7 @@ export class InfraComponent extends pulumi.ComponentResource {
         'POSTGRES_DB=arblacklist',
       ],
       volumes: [{ volumeName: pgVolume.name, containerPath: '/var/lib/postgresql' }],
+      ports: [{ internal: 5432, external: 5432 }],
       restart: 'unless-stopped',
     }, childOpts)
 
