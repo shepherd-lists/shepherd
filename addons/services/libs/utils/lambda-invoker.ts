@@ -1,20 +1,21 @@
-import { handler as fnInitListsHandler } from '../../lambdas/fnInitLists/index'
-import { handler as fnTempHandler } from '../../lambdas/fnTemp/index'
 import { slackLog } from './slackLog'
 import { readParamJsonLive, writeParamJsonLive } from './ssmParameters'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-const handlers: Record<string, (event: any) => Promise<any>> = {
-	fnInitLists: fnInitListsHandler,
-	fnTemp: fnTempHandler,
+/** lazy-load handlers to avoid circular dependency (lambdas import from libs/) */
+const getHandler = async (name: string): Promise<(event: any) => Promise<any>> => {
+	switch (name) {
+		case 'fnInitLists': return (await import('../../lambdas/fnInitLists/index')).handler
+		case 'fnTemp': return (await import('../../lambdas/fnTemp/index')).handler
+		default: throw new Error(`Unknown handler: '${name}'. Available: fnInitLists, fnTemp`)
+	}
 }
 
 /** invoke a lambda handler directly. N.B. defaults to infinite retries */
 export const lambdaInvoker = async (handlerName: string, payload: object, retries?: number) => {
 	const totalRetries = retries
-	const handler = handlers[handlerName]
-	if (!handler) throw new Error(`Unknown handler: '${handlerName}'. Available: ${Object.keys(handlers).join(', ')}`)
+	const handler = await getHandler(handlerName)
 
 	while (true) {
 		try {
