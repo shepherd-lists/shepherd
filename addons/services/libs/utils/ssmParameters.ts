@@ -3,7 +3,7 @@ import Redis from 'ioredis'
 const REDIS_HOST = process.env.REDIS_HOST
 if (!REDIS_HOST) throw new Error('missing env var: REDIS_HOST')
 
-const redis = new Redis({ host: REDIS_HOST, keyPrefix: 'shepherd:live:' })
+export const redis = new Redis({ host: REDIS_HOST, keyPrefix: 'shepherd:live:' })
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
