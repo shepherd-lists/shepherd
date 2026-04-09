@@ -1,5 +1,5 @@
 import { slackLog } from './slackLog'
-import { readParamJsonLive, writeParamJsonLive } from './ssmParameters'
+import { readParamJsonLive, writeParamJsonLive } from './redis-state'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
