@@ -18,6 +18,7 @@ const s3client = new S3Client({
 	}),
 	maxAttempts: 3,
 	retryMode: 'adaptive', // handles varying AWS load conditions
+	forcePathStyle: true, // required for MinIO (path-style: endpoint/bucket/key instead of bucket.endpoint/key)
 })
 const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET!
 
