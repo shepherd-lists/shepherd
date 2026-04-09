@@ -1,7 +1,5 @@
 export type Config = {
-	// region: string
-	// // # vpc cidr. private subnets between regions/stacks will be shared by tailscale
-	// cidr: string
+	region: 'us-east-1', //dummy but required
 
 	/** self-hosted deployment */
 	dockerHost: string
