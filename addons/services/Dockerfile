@@ -13,6 +13,16 @@ COPY types.d.ts types.d.ts
 COPY ./libs ./libs
 WORKDIR /app/libs
 RUN npm ci --omit=dev
+# lambda handlers (inlined, imported directly by services)
+COPY ./lambdas /app/lambdas
+WORKDIR /app/lambdas/fnIngress
+RUN npm ci --omit=dev
+WORKDIR /app/lambdas/fnInitLists
+RUN npm ci --omit=dev
+WORKDIR /app/lambdas/fnOwnerBlocking
+RUN npm ci --omit=dev
+WORKDIR /app/lambdas/fnTemp
+RUN npm ci --omit=dev
 
 FROM base AS indexer-next
 ARG targetArg # same value as target
