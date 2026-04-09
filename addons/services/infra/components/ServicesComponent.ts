@@ -69,6 +69,10 @@ export class ServicesComponent extends pulumi.ComponentResource {
           `GQL_URL=${config.gql_url || 'https://arweave.net/graphql'}`,
           `GQL_URL_SECONDARY=${config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql'}`,
           `LISTS_BUCKET=shepherd-lists`,
+          `AWS_INPUT_BUCKET=shepherd-input`,
+          `ingress_nodes=${JSON.stringify(config.ingress_nodes)}`,
+          `http_api_nodes=${JSON.stringify(config.http_api_nodes)}`,
+          `http_api_nodes_url=${config.http_api_nodes_url || ''}`,
         ]),
         restart: 'unless-stopped',
       }, { ...childOpts, dependsOn: [image] })
