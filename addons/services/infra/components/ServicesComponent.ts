@@ -24,31 +24,22 @@ export class ServicesComponent extends pulumi.ComponentResource {
     const sqsEndpoint = infraRef.getOutput('sqsEndpoint') as pulumi.Output<string>
     const redisHost = infraRef.getOutput('redisHost') as pulumi.Output<string>
 
-    // shared env vars for AWS SDK compatibility with MinIO/ElasticMQ
-    const awsCompatEnvs = pulumi.all([minioEndpoint, sqsEndpoint, redisHost]).apply(([minio, sqs, redis]) => [
+    /** AWS SDK compatibility with MinIO/ElasticMQ */
+    const awsCompat = pulumi.all([minioEndpoint, sqsEndpoint]).apply(([minio, sqs]) => [
       `AWS_ACCESS_KEY_ID=shepherd`,
       `AWS_SECRET_ACCESS_KEY=${config.minioPassword}`,
       `AWS_ENDPOINT_URL_S3=${minio}`,
       `AWS_ENDPOINT_URL_SQS=${sqs}`,
       `AWS_REGION=us-east-1`,
-      `REDIS_HOST=${redis}`,
     ])
 
-    // shared env vars from config
-    const configEnvs = [
-      ...(config.slack_webhook ? [`SLACK_WEBHOOK=${config.slack_webhook}`] : []),
-      ...(config.slack_positive ? [`SLACK_POSITIVE=${config.slack_positive}`] : []),
-      ...(config.slack_probe ? [`SLACK_PROBE=${config.slack_probe}`] : []),
-      ...(config.pagerduty_key ? [`PAGERDUTY_KEY=${config.pagerduty_key}`] : []),
-      `HOST_URL=${config.host_url || 'https://arweave.net'}`,
-      `GQL_URL=${config.gql_url || 'https://arweave.net/graphql'}`,
-      `GQL_URL_SECONDARY=${config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql'}`,
-      `LISTS_BUCKET=shepherd-lists`,
-      `AWS_INPUT_BUCKET=shepherd-input`,
-      `http_api_nodes=${JSON.stringify(config.http_api_nodes)}`,
-      `http_api_nodes_url=${config.http_api_nodes_url || ''}`,
-      `ingress_nodes=${JSON.stringify(config.ingress_nodes)}`,
-    ]
+    /** common db + redis env vars */
+    const storageEnvs = pulumi.all([postgresHost, redisHost]).apply(([pgHost, redis]) => [
+      `DB_HOST=${pgHost}`,
+      `DB_USER=shepherd`,
+      `DB_PASSWORD=${config.dbPassword}`,
+      `REDIS_HOST=${redis}`,
+    ])
 
     // build the multi-stage Dockerfile once per service target
     const serviceDir = path.join(import.meta.dirname, '../../')
@@ -64,22 +55,20 @@ export class ServicesComponent extends pulumi.ComponentResource {
       skipPush: true,
     }, childOpts)
 
-    // SQS sink queue URL for http-api (last classifier output queue)
-    const finalQueue = finalQueueName(config)
-    const sqsSinkQueueEnv = finalQueue
-      ? sqsEndpoint.apply(ep => `AWS_SQS_SINK_QUEUE=${ep}/000000000000/${finalQueue}`)
-      : undefined
-
     if (config.services.indexer) {
       const image = buildImage('indexer-next')
       new docker.Container('indexer-next', {
         name: n('indexer-next'),
         image: image.imageName,
         networksAdvanced: [{ name: networkName }],
-        envs: pulumi.all([postgresHost, awsCompatEnvs]).apply(([dbHost, awsEnvs]) => [
-          `DB_HOST=${dbHost}`,
-          ...awsEnvs,
-          ...configEnvs,
+        envs: pulumi.all([storageEnvs, awsCompat]).apply(([storage, aws]) => [
+          ...storage,
+          ...aws,
+          ...(config.slack_webhook ? [`SLACK_WEBHOOK=${config.slack_webhook}`] : []),
+          `HOST_URL=${config.host_url || 'https://arweave.net'}`,
+          `GQL_URL=${config.gql_url || 'https://arweave.net/graphql'}`,
+          `GQL_URL_SECONDARY=${config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql'}`,
+          `LISTS_BUCKET=shepherd-lists`,
         ]),
         restart: 'unless-stopped',
       }, { ...childOpts, dependsOn: [image] })
@@ -91,12 +80,19 @@ export class ServicesComponent extends pulumi.ComponentResource {
         name: n('webserver-next'),
         image: image.imageName,
         networksAdvanced: [{ name: networkName }],
-        envs: pulumi.all([postgresHost, awsCompatEnvs]).apply(([dbHost, awsEnvs]) => [
-          `DB_HOST=${dbHost}`,
-          ...awsEnvs,
-          ...configEnvs,
+        envs: pulumi.all([storageEnvs, awsCompat]).apply(([storage, aws]) => [
+          ...storage,
+          ...aws,
+          ...(config.slack_webhook ? [`SLACK_WEBHOOK=${config.slack_webhook}`] : []),
+          ...(config.slack_probe ? [`SLACK_PROBE=${config.slack_probe}`] : []),
+          `HOST_URL=${config.host_url || 'https://arweave.net'}`,
+          `GQL_URL=${config.gql_url || 'https://arweave.net/graphql'}`,
+          `GQL_URL_SECONDARY=${config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql'}`,
+          `LISTS_BUCKET=shepherd-lists`,
           `BLACKLIST_ALLOWED=${JSON.stringify(config.txids_whitelist) || ''}`,
           `RANGELIST_ALLOWED=${JSON.stringify(config.ranges_whitelist) || ''}`,
+          `http_api_nodes=${JSON.stringify(config.http_api_nodes)}`,
+          `http_api_nodes_url=${config.http_api_nodes_url || ''}`,
         ]),
         restart: 'unless-stopped',
       }, { ...childOpts, dependsOn: [image] })
@@ -104,14 +100,27 @@ export class ServicesComponent extends pulumi.ComponentResource {
 
     if (config.services.httpApi) {
       const image = buildImage('http-api')
+      const finalQueue = finalQueueName(config)
+      const sqsSinkQueueEnv = finalQueue
+        ? sqsEndpoint.apply(ep => `AWS_SQS_SINK_QUEUE=${ep}/000000000000/${finalQueue}`)
+        : undefined
+
       new docker.Container('http-api', {
         name: n('http-api'),
         image: image.imageName,
         networksAdvanced: [{ name: networkName }],
-        envs: pulumi.all([postgresHost, awsCompatEnvs, sqsSinkQueueEnv ?? pulumi.output('')]).apply(([dbHost, awsEnvs, sinkQueue]) => [
-          `DB_HOST=${dbHost}`,
-          ...awsEnvs,
-          ...configEnvs,
+        envs: pulumi.all([storageEnvs, awsCompat, sqsSinkQueueEnv ?? pulumi.output('')]).apply(([storage, aws, sinkQueue]) => [
+          ...storage,
+          ...aws,
+          ...(config.slack_webhook ? [`SLACK_WEBHOOK=${config.slack_webhook}`] : []),
+          ...(config.slack_positive ? [`SLACK_POSITIVE=${config.slack_positive}`] : []),
+          `HOST_URL=${config.host_url || 'https://arweave.net'}`,
+          `GQL_URL=${config.gql_url || 'https://arweave.net/graphql'}`,
+          `GQL_URL_SECONDARY=${config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql'}`,
+          `LISTS_BUCKET=shepherd-lists`,
+          `AWS_INPUT_BUCKET=shepherd-input`,
+          `http_api_nodes=${JSON.stringify(config.http_api_nodes)}`,
+          `http_api_nodes_url=${config.http_api_nodes_url || ''}`,
           ...(sinkQueue ? [sinkQueue] : []),
         ]),
         restart: 'unless-stopped',
@@ -124,13 +133,17 @@ export class ServicesComponent extends pulumi.ComponentResource {
         name: n('checks'),
         image: image.imageName,
         networksAdvanced: [{ name: networkName }],
-        envs: pulumi.all([postgresHost, awsCompatEnvs]).apply(([dbHost, awsEnvs]) => [
-          `DB_HOST=${dbHost}`,
-          ...awsEnvs,
-          ...configEnvs,
+        envs: pulumi.all([storageEnvs, awsCompat]).apply(([storage, aws]) => [
+          ...storage,
+          ...aws,
+          ...(config.slack_webhook ? [`SLACK_WEBHOOK=${config.slack_webhook}`] : []),
+          ...(config.slack_probe ? [`SLACK_PROBE=${config.slack_probe}`] : []),
+          ...(config.pagerduty_key ? [`PAGERDUTY_KEY=${config.pagerduty_key}`] : []),
+          `LISTS_BUCKET=shepherd-lists`,
           `BLACKLIST_ALLOWED=${JSON.stringify(config.txids_whitelist) || ''}`,
           `RANGELIST_ALLOWED=${JSON.stringify(config.ranges_whitelist) || ''}`,
           `GW_DOMAINS=${JSON.stringify(config.gw_domains) || ''}`,
+          `http_api_nodes_url=${config.http_api_nodes_url || ''}`,
         ]),
         restart: 'unless-stopped',
       }, { ...childOpts, dependsOn: [image] })
