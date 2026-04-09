@@ -12,8 +12,8 @@ if (!DB_HOST) {
 const config: pg.PoolConfig = {
 	host: process.env.DB_HOST,
 	port: 5432,
-	user: 'postgres',
-	password: 'postgres',
+	user: process.env.DB_USER || 'shepherd',
+	password: process.env.DB_PASSWORD || '',
 	database: 'arblacklist',
 	max: 200,
 	idleTimeoutMillis: 30_000,

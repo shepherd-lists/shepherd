@@ -26,8 +26,8 @@ export default function knexCreate() {
 		connection: {
 			host: process.env.DB_HOST,
 			port: 5432,
-			user: 'postgres',
-			password: 'postgres',
+			user: process.env.DB_USER || 'shepherd',
+			password: process.env.DB_PASSWORD || '',
 			database: 'arblacklist',
 		},
 		acquireConnectionTimeout: connTimeout

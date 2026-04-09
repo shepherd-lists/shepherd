@@ -11,8 +11,8 @@ if (!DB_HOST) {
 const config = {
 	host: process.env.DB_HOST,
 	port: 5432,
-	user: 'postgres',
-	password: 'postgres',
+	user: process.env.DB_USER || 'shepherd',
+	password: process.env.DB_PASSWORD || '',
 	database: 'arblacklist',
 	max: 10,
 	idleTimeoutMillis: 120_000,
@@ -20,9 +20,9 @@ const config = {
 
 const pool = new pg.Pool({
 	...config,
-	ssl: process.env.NODE_ENV === 'test' ? false : {
-		rejectUnauthorized: false, //ignore ssl cert (firewalls and a private network)
-	},
+	// ssl: process.env.NODE_ENV === 'test' ? false : {
+	// 	rejectUnauthorized: false, //ignore ssl cert (firewalls and a private network)
+	// },
 })
 
 export default pool
