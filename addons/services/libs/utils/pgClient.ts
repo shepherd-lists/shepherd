@@ -22,9 +22,9 @@ const config: pg.PoolConfig = {
 //note: ok to ignore ssl cert (firewalls and a private network)
 const pool = new pg.Pool({
 	...config,
-	ssl: process.env.NODE_ENV === 'test' ? false : {
-		rejectUnauthorized: false,
-	},
+	// ssl: process.env.NODE_ENV === 'test' ? false : {
+	// 	rejectUnauthorized: false,
+	// },
 })
 
 export default pool
