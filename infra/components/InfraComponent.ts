@@ -16,6 +16,7 @@ export class InfraComponent extends pulumi.ComponentResource {
   public readonly minioEndpoint: string
   public readonly sqsEndpoint: string
   public readonly redisHost: string
+  public readonly lokiEndpoint: string
 
   constructor(name: string, args: InfraComponentArgs, opts?: pulumi.ComponentResourceOptions) {
     super('shepherd:infra:InfraComponent', name, {}, opts)
@@ -161,6 +162,106 @@ export class InfraComponent extends pulumi.ComponentResource {
       restart: 'unless-stopped',
     }, childOpts)
 
+    /** Loki + Grafana for log aggregation */
+
+    const lokiVolume = new docker.Volume('loki-data', { name: n('loki-data') }, childOpts)
+    const grafanaVolume = new docker.Volume('grafana-data', { name: n('grafana-data') }, childOpts)
+    const lokiConfigVolume = new docker.Volume('loki-config', { name: n('loki-config') }, childOpts)
+
+    const lokiConfig = `
+auth_enabled: false
+server:
+  http_listen_port: 3100
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+schema_config:
+  configs:
+    - from: "2024-01-01"
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+limits_config:
+  retention_period: 2160h
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_cancel_period: 10m
+  delete_request_store: filesystem
+`
+
+    const lokiConfigContainer = new docker.Container('loki-config', {
+      name: n('loki-config'),
+      image: 'alpine:3',
+      volumes: [{ volumeName: lokiConfigVolume.name, containerPath: '/config' }],
+      command: ['sh', '-c', `cat > /config/loki.yaml << 'EOF'\n${lokiConfig}EOF`],
+      mustRun: false,
+    }, childOpts)
+
+    const lokiContainer = new docker.Container('loki', {
+      name: n('loki'),
+      image: 'grafana/loki:3.4.2',
+      networksAdvanced: [{ name: network.name }],
+      volumes: [
+        { volumeName: lokiVolume.name, containerPath: '/loki' },
+        { volumeName: lokiConfigVolume.name, containerPath: '/config', readOnly: true },
+      ],
+      command: ['-config.file=/config/loki.yaml'],
+      ports: [{ internal: 3100, external: 3100 }],
+      restart: 'unless-stopped',
+    }, { ...childOpts, dependsOn: [lokiConfigContainer] })
+
+    // Grafana datasource provisioning config
+    const grafanaDatasourceConfig = `
+apiVersion: 1
+datasources:
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://${n('loki')}:3100
+    isDefault: true
+`
+
+    const grafanaConfigVolume = new docker.Volume('grafana-config', { name: n('grafana-config') }, childOpts)
+    const grafanaConfigContainer = new docker.Container('grafana-config', {
+      name: n('grafana-config'),
+      image: 'alpine:3',
+      volumes: [{ volumeName: grafanaConfigVolume.name, containerPath: '/config' }],
+      command: ['sh', '-c', `mkdir -p /config/datasources && cat > /config/datasources/loki.yaml << 'EOF'\n${grafanaDatasourceConfig}EOF`],
+      mustRun: false,
+    }, childOpts)
+
+    new docker.Container('grafana', {
+      name: n('grafana'),
+      image: 'grafana/grafana:11.6.0',
+      networksAdvanced: [{ name: network.name }],
+      envs: [
+        'GF_AUTH_ANONYMOUS_ENABLED=true',
+        'GF_AUTH_ANONYMOUS_ORG_ROLE=Admin',
+        'GF_AUTH_DISABLE_LOGIN_FORM=true',
+      ],
+      volumes: [
+        { volumeName: grafanaVolume.name, containerPath: '/var/lib/grafana' },
+        { volumeName: grafanaConfigVolume.name, containerPath: '/etc/grafana/provisioning', readOnly: true },
+      ],
+      ports: [{ internal: 3000, external: 3001 }],
+      restart: 'unless-stopped',
+    }, { ...childOpts, dependsOn: [lokiContainer, grafanaConfigContainer] })
+
+    this.lokiEndpoint = `http://${n('loki')}:3100`
+
     this.network = network
     this.postgresHost = n('postgres')
     this.minioEndpoint = `http://${n('minio')}:9000`
@@ -172,6 +273,7 @@ export class InfraComponent extends pulumi.ComponentResource {
       minioEndpoint: this.minioEndpoint,
       sqsEndpoint: this.sqsEndpoint,
       redisHost: this.redisHost,
+      lokiEndpoint: this.lokiEndpoint,
     })
   }
 }

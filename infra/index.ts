@@ -16,4 +16,5 @@ export const postgresHost = infra.postgresHost
 export const minioEndpoint = infra.minioEndpoint
 export const sqsEndpoint = infra.sqsEndpoint
 export const redisHost = infra.redisHost
+export const lokiEndpoint = infra.lokiEndpoint
 export const networkName = network.name

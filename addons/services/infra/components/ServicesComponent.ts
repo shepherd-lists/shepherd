@@ -23,6 +23,19 @@ export class ServicesComponent extends pulumi.ComponentResource {
     const minioEndpoint = infraRef.getOutput('minioEndpoint') as pulumi.Output<string>
     const sqsEndpoint = infraRef.getOutput('sqsEndpoint') as pulumi.Output<string>
     const redisHost = infraRef.getOutput('redisHost') as pulumi.Output<string>
+    const lokiEndpoint = infraRef.getOutput('lokiEndpoint') as pulumi.Output<string>
+
+    /** Loki logging driver config for all service containers */
+    const lokiLogDriver = 'loki'
+    const lokiLogOpts = lokiEndpoint.apply(_ep => ({
+      'loki-url': 'http://localhost:3100/loki/api/v1/push',
+      'loki-batch-size': '400',
+      'mode': 'non-blocking',
+      'max-buffer-size': '5m',
+      'loki-retries': '2',
+      'loki-max-backoff': '1s',
+      'loki-timeout': '3s',
+    }))
 
     /** AWS SDK compatibility with MinIO/ElasticMQ */
     const awsCompat = pulumi.all([minioEndpoint, sqsEndpoint]).apply(([minio, sqs]) => [
@@ -74,6 +87,8 @@ export class ServicesComponent extends pulumi.ComponentResource {
           `http_api_nodes=${JSON.stringify(config.http_api_nodes)}`,
           `http_api_nodes_url=${config.http_api_nodes_url || ''}`,
         ]),
+        logDriver: lokiLogDriver,
+        logOpts: lokiLogOpts,
         restart: 'unless-stopped',
       }, { ...childOpts, dependsOn: [image] })
     }
@@ -98,6 +113,8 @@ export class ServicesComponent extends pulumi.ComponentResource {
           `http_api_nodes=${JSON.stringify(config.http_api_nodes)}`,
           `http_api_nodes_url=${config.http_api_nodes_url || ''}`,
         ]),
+        logDriver: lokiLogDriver,
+        logOpts: lokiLogOpts,
         restart: 'unless-stopped',
       }, { ...childOpts, dependsOn: [image] })
     }
@@ -127,6 +144,8 @@ export class ServicesComponent extends pulumi.ComponentResource {
           `http_api_nodes_url=${config.http_api_nodes_url || ''}`,
           ...(sinkQueue ? [sinkQueue] : []),
         ]),
+        logDriver: lokiLogDriver,
+        logOpts: lokiLogOpts,
         restart: 'unless-stopped',
       }, { ...childOpts, dependsOn: [image] })
     }
@@ -149,6 +168,8 @@ export class ServicesComponent extends pulumi.ComponentResource {
           `GW_DOMAINS=${JSON.stringify(config.gw_domains) || ''}`,
           `http_api_nodes_url=${config.http_api_nodes_url || ''}`,
         ]),
+        logDriver: lokiLogDriver,
+        logOpts: lokiLogOpts,
         restart: 'unless-stopped',
       }, { ...childOpts, dependsOn: [image] })
     }
