@@ -41,7 +41,7 @@ export class InfraComponent extends pulumi.ComponentResource {
       mustRun: false,
     }, childOpts)
 
-    new docker.Container('postgres', {
+    const postgresContainer = new docker.Container('postgres', {
       name: n('postgres'),
       image: 'postgres:18',
       networksAdvanced: [{ name: network.name }],
@@ -54,6 +54,27 @@ export class InfraComponent extends pulumi.ComponentResource {
       ports: [{ internal: 5432, external: 5432 }],
       restart: 'unless-stopped',
     }, childOpts)
+
+    new docker.Container('pg-backup', {
+      name: n('pg-backup'),
+      image: 'alpine:3',
+      networksAdvanced: [{ name: network.name }],
+      envs: [
+        `PGHOST=${n('postgres')}`,
+        `PGUSER=shepherd`,
+        `PGPASSWORD=${config.dbPassword}`,
+        `PGDATABASE=arblacklist`,
+      ],
+      volumes: [{ hostPath: `${process.env.HOME}/backups/shepherd`, containerPath: '/backups' }],
+      command: ['sh', '-c', [
+        'apk add --no-cache postgresql-client',
+        // append backup crontab: daily at midnight UTC, weekly on Sundays
+        `echo '0 0 * * * pg_dump -Fc > /backups/daily-$(date +\\%Y\\%m\\%d).dump && find /backups -name "daily-*.dump" -mtime +7 -delete' >> /etc/crontabs/root`,
+        `echo '0 0 * * 0 pg_dump -Fc > /backups/weekly-$(date +\\%Y\\%m\\%d).dump && find /backups -name "weekly-*.dump" -mtime +90 -delete' >> /etc/crontabs/root`,
+        'crond -f -l 2',
+      ].join(' && ')],
+      restart: 'unless-stopped',
+    }, { ...childOpts, dependsOn: [postgresContainer] })
 
     const minioContainer = new docker.Container('minio', {
       name: n('minio'),
