@@ -10,17 +10,16 @@ export const AWS_SQS_SINK_QUEUE = process.env.AWS_SQS_SINK_QUEUE as string
 
 export const sqs = new SQS({
 	apiVersion: '2012-11-05',
-	...(process.env.SQS_LOCAL === 'yes' && { endpoint: 'http://sqs-local:9324', region: 'dummy-value' }),
-	maxRetries: 10, //default 3
+	endpoint: process.env.AWS_ENDPOINT_URL_SQS,
+	region: process.env.AWS_REGION || 'us-east-1',
+	maxRetries: 10,
 })
 
 export const s3 = new S3({
 	apiVersion: '2006-03-01',
-	...(process.env.S3_LOCAL === 'yes' && {
-		endpoint: process.env.S3_LOCAL_ENDPOINT!,
-		region: 'dummy-value',
-		s3ForcePathStyle: true, // *** needed with minio ***
-	}),
+	endpoint: process.env.AWS_ENDPOINT_URL_S3,
+	s3ForcePathStyle: true,
+	region: process.env.AWS_REGION || 'us-east-1',
 	maxRetries: 10,
 })
 
@@ -34,12 +33,5 @@ console.log('process.env.AWS_SQS_OUTPUT_QUEUE', process.env.AWS_SQS_OUTPUT_QUEUE
 console.log('process.env.AWS_INPUT_BUCKET', process.env.AWS_INPUT_BUCKET)
 console.log('process.env.AWS_SQS_SINK_QUEUE', process.env.AWS_SQS_SINK_QUEUE)
 
-//check aws role (dont call locally)
-const checkAwsRole = async () => {
-	const sts = new STS({ apiVersion: '2011-06-15' })
-	const identity = await sts.getCallerIdentity().promise()
-	console.log(`CALLER IDENTITY: Arn: ${identity.Arn}`)
-}
-process.env.SQS_LOCAL !== 'yes' && checkAwsRole()
 console.log('sqs.config.endpoint', sqs.config.endpoint)
 console.log('s3.config.endpoint', s3.config.endpoint)
