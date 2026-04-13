@@ -214,6 +214,7 @@ schema_config:
         period: 24h
 limits_config:
   retention_period: 2160h
+  max_query_length: 2160h
 compactor:
   working_directory: /loki/compactor
   compaction_interval: 10m
