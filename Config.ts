@@ -52,6 +52,9 @@ export type Config = {
 		checks: boolean
 	}
 
+	/** per-addon external config, passed as env vars to cron containers */
+	externalConfig?: { [addonName: string]: { key: string, value: string }[] }
+
 }
 
 /** Docker resource naming convention: `{name}-shep-{stackName}` */
