@@ -60,7 +60,7 @@ export class AddonComponent extends pulumi.ComponentResource {
 
 		new docker.Container(name, {
 			name: n(name),
-			image: image.imageName,
+			image: image.repoDigest,
 			networksAdvanced: [{ name: networkName }],
 			envs: pulumi.all([awsCompat, sqsEndpoint]).apply(([aws, sqs]) => [
 				...aws,

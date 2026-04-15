@@ -72,7 +72,7 @@ export class ServicesComponent extends pulumi.ComponentResource {
       const image = buildImage('indexer-next')
       new docker.Container('indexer-next', {
         name: n('indexer-next'),
-        image: image.imageName,
+        image: image.repoDigest,
         networksAdvanced: [{ name: networkName }],
         envs: pulumi.all([storageEnvs, awsCompat]).apply(([storage, aws]) => [
           ...storage,
@@ -97,7 +97,7 @@ export class ServicesComponent extends pulumi.ComponentResource {
       const image = buildImage('webserver-next')
       new docker.Container('webserver-next', {
         name: n('webserver-next'),
-        image: image.imageName,
+        image: image.repoDigest,
         networksAdvanced: [{ name: networkName }],
         envs: pulumi.all([storageEnvs, awsCompat]).apply(([storage, aws]) => [
           ...storage,
@@ -128,7 +128,7 @@ export class ServicesComponent extends pulumi.ComponentResource {
 
       new docker.Container('http-api', {
         name: n('http-api'),
-        image: image.imageName,
+        image: image.repoDigest,
         networksAdvanced: [{ name: networkName }],
         envs: pulumi.all([storageEnvs, awsCompat, sqsSinkQueueEnv ?? pulumi.output('')]).apply(([storage, aws, sinkQueue]) => [
           ...storage,
@@ -154,7 +154,7 @@ export class ServicesComponent extends pulumi.ComponentResource {
       const image = buildImage('checks')
       new docker.Container('checks', {
         name: n('checks'),
-        image: image.imageName,
+        image: image.repoDigest,
         networksAdvanced: [{ name: networkName }],
         envs: pulumi.all([storageEnvs, awsCompat]).apply(([storage, aws]) => [
           ...storage,
