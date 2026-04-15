@@ -215,6 +215,7 @@ schema_config:
 limits_config:
   retention_period: 2160h
   max_query_length: 2160h
+  max_entries_limit_per_query: 50000
 compactor:
   working_directory: /loki/compactor
   compaction_interval: 10m
@@ -236,6 +237,7 @@ compactor:
       name: n('loki'),
       image: 'grafana/loki:3.4.2',
       networksAdvanced: [{ name: network.name }],
+      labels: [{ label: 'config-hash', value: Buffer.from(lokiConfig).toString('base64url').slice(0, 32) }],
       volumes: [
         { volumeName: lokiVolume.name, containerPath: '/loki' },
         { volumeName: lokiConfigVolume.name, containerPath: '/config', readOnly: true },
