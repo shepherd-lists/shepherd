@@ -15,6 +15,8 @@ export type Config = {
 	slack_probe?: string
 	slack_public?: string
 
+	/** per-addon external config, passed as env vars to cron containers */
+	externalConfig?: { [addonName: string]: Record<string, string> }
 
 	/** options for general endpoints */
 	host_url?: string	//defaults to https://arweave.net
@@ -51,9 +53,6 @@ export type Config = {
 		webserver: boolean
 		checks: boolean
 	}
-
-	/** per-addon external config, passed as env vars to cron containers */
-	externalConfig?: { [addonName: string]: { key: string, value: string }[] }
 
 }
 
