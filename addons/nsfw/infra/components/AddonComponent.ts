@@ -2,6 +2,7 @@ import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
 import * as path from 'path'
 import { naming, ioQueueNames, finalQueueName, type Config } from '../../../../Config'
+import { lokiLogDriver, lokiLogOpts } from '../../../../infra/components/lokiLogConfig'
 
 export interface AddonComponentArgs {
 	config: Config
@@ -21,7 +22,6 @@ export class AddonComponent extends pulumi.ComponentResource {
 
 		const minioEndpoint = infraRef.getOutput('minioEndpoint') as pulumi.Output<string>
 		const sqsEndpoint = infraRef.getOutput('sqsEndpoint') as pulumi.Output<string>
-		const lokiEndpoint = infraRef.getOutput('lokiEndpoint') as pulumi.Output<string>
 
 		/** derive i/o queue names from config */
 		const ioQNames = ioQueueNames(config, name)
@@ -35,17 +35,6 @@ export class AddonComponent extends pulumi.ComponentResource {
 			`AWS_ENDPOINT_URL_SQS=${sqs}`,
 			`AWS_REGION=us-east-1`,
 		])
-
-		/** Loki logging */
-		const lokiLogOpts = lokiEndpoint.apply(_ep => ({
-			'loki-url': 'http://localhost:3100/loki/api/v1/push',
-			'loki-batch-size': '400',
-			'mode': 'non-blocking',
-			'max-buffer-size': '5m',
-			'loki-retries': '2',
-			'loki-max-backoff': '1s',
-			'loki-timeout': '3s',
-		}))
 
 		const image = new docker.Image(`image-${name}`, {
 			build: {
@@ -74,7 +63,7 @@ export class AddonComponent extends pulumi.ComponentResource {
 				`AWS_SQS_OUTPUT_QUEUE=${sqs}/000000000000/${ioQNames.output}`,
 				...(finalQName ? [`AWS_SQS_SINK_QUEUE=${sqs}/000000000000/${finalQName}`] : []),
 			]),
-			logDriver: 'loki',
+			logDriver: lokiLogDriver,
 			logOpts: lokiLogOpts,
 			restart: 'unless-stopped',
 		}, { ...childOpts, dependsOn: [image] })
