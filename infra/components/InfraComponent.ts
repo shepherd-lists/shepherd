@@ -53,6 +53,8 @@ export class InfraComponent extends pulumi.ComponentResource {
       ],
       volumes: [{ volumeName: pgVolume.name, containerPath: '/var/lib/postgresql' }],
       ports: [{ internal: 5432, external: 5432 }],
+      logDriver: lokiLogDriver,
+      logOpts: lokiLogOpts,
       restart: 'unless-stopped',
     }, childOpts)
 
@@ -91,6 +93,8 @@ export class InfraComponent extends pulumi.ComponentResource {
         { internal: 9000, external: 9000 },
         { internal: 9001, external: 9001 },
       ],
+      logDriver: lokiLogDriver,
+      logOpts: lokiLogOpts,
       restart: 'unless-stopped',
     }, childOpts)
 
@@ -124,6 +128,8 @@ export class InfraComponent extends pulumi.ComponentResource {
       ports: [
         { internal: 9324, external: 9324 },
       ],
+      logDriver: lokiLogDriver,
+      logOpts: lokiLogOpts,
       restart: 'unless-stopped',
     }, { ...childOpts, dependsOn: [elasticMqConfContainer] })
 
