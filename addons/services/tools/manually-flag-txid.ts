@@ -60,7 +60,7 @@ const [record] = await buildRecords([meta], gql, 'flag-txid', 'flag-txid.ts', gq
 if (!record) throw new Error(`buildRecords returned no record for ${txid}`)
 
 // Upload the S3 object with real TxRecord metadata
-const s3Client = new S3Client({})
+const s3Client = new S3Client({ forcePathStyle: true })
 await s3Client.send(new PutObjectCommand({
 	Bucket: AWS_INPUT_BUCKET,
 	Key: txid,

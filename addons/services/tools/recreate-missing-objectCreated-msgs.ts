@@ -3,7 +3,7 @@ import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { SQSClient, ReceiveMessageCommand, SendMessageCommand } from "@aws-sdk/client-sqs";
 
 const syncS3ToSQS = async (bucketName: string, queueUrl: string, region: string) => {
-	const s3 = new S3Client({ region });
+	const s3 = new S3Client({ region, forcePathStyle: true });
 	const sqs = new SQSClient({ region });
 
 	// Get all S3 object keys

@@ -17,6 +17,7 @@ const content_type = 'image/jpeg' //this needs to be correct!
 const s3client = new S3Client({
 	maxAttempts: 3,
 	retryMode: 'adaptive', // handles varying AWS load conditions
+	forcePathStyle: true,
 })
 const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET!
 
