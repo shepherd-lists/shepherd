@@ -3,6 +3,7 @@ import * as docker from '@pulumi/docker'
 import * as path from 'path'
 import { naming, type Config } from '../../Config'
 import { generateElasticMqConfigString } from '../elasticmq/generate-config'
+import { lokiLogDriver, lokiLogOpts } from './lokiLogConfig'
 
 export interface InfraComponentArgs {
   config: Config
@@ -169,16 +170,8 @@ export class InfraComponent extends pulumi.ComponentResource {
       volumes: [{ volumeName: redisVolume.name, containerPath: '/data' }],
       command: ['redis-server', '--appendonly', 'yes'],
       ports: [{ internal: 6379, external: 6379 }],
-      logDriver: 'loki',
-      logOpts: {
-        'loki-url': 'http://localhost:3100/loki/api/v1/push',
-        'loki-batch-size': '400',
-        'mode': 'non-blocking',
-        'max-buffer-size': '5m',
-        'loki-retries': '2',
-        'loki-max-backoff': '1s',
-        'loki-timeout': '3s',
-      },
+      logDriver: lokiLogDriver,
+      logOpts: lokiLogOpts,
       restart: 'unless-stopped',
     }, childOpts)
 
