@@ -2,6 +2,7 @@ import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
 import * as path from 'path'
 import { naming, finalQueueName, type Config } from '../../../../Config'
+import { lokiLogDriver, lokiLogOpts } from '../../../../infra/components/lokiLogConfig'
 
 export interface ServicesComponentArgs {
   config: Config
@@ -23,19 +24,6 @@ export class ServicesComponent extends pulumi.ComponentResource {
     const minioEndpoint = infraRef.getOutput('minioEndpoint') as pulumi.Output<string>
     const sqsEndpoint = infraRef.getOutput('sqsEndpoint') as pulumi.Output<string>
     const redisHost = infraRef.getOutput('redisHost') as pulumi.Output<string>
-    const lokiEndpoint = infraRef.getOutput('lokiEndpoint') as pulumi.Output<string>
-
-    /** Loki logging driver config for all service containers */
-    const lokiLogDriver = 'loki'
-    const lokiLogOpts = lokiEndpoint.apply(_ep => ({
-      'loki-url': 'http://localhost:3100/loki/api/v1/push',
-      'loki-batch-size': '400',
-      'mode': 'non-blocking',
-      'max-buffer-size': '5m',
-      'loki-retries': '2',
-      'loki-max-backoff': '1s',
-      'loki-timeout': '3s',
-    }))
 
     /** AWS SDK compatibility with MinIO/ElasticMQ */
     const awsCompat = pulumi.all([minioEndpoint, sqsEndpoint]).apply(([minio, sqs]) => [
