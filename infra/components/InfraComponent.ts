@@ -169,6 +169,16 @@ export class InfraComponent extends pulumi.ComponentResource {
       volumes: [{ volumeName: redisVolume.name, containerPath: '/data' }],
       command: ['redis-server', '--appendonly', 'yes'],
       ports: [{ internal: 6379, external: 6379 }],
+      logDriver: 'loki',
+      logOpts: {
+        'loki-url': 'http://localhost:3100/loki/api/v1/push',
+        'loki-batch-size': '400',
+        'mode': 'non-blocking',
+        'max-buffer-size': '5m',
+        'loki-retries': '2',
+        'loki-max-backoff': '1s',
+        'loki-timeout': '3s',
+      },
       restart: 'unless-stopped',
     }, childOpts)
 
