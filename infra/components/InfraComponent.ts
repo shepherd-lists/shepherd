@@ -52,7 +52,7 @@ export class InfraComponent extends pulumi.ComponentResource {
         'POSTGRES_DB=arblacklist',
       ],
       volumes: [{ volumeName: pgVolume.name, containerPath: '/var/lib/postgresql' }],
-      ports: [{ internal: 5432, external: 5432 }],
+      ports: [{ internal: 5432, external: 5432, ip: '127.0.0.1' }],
       logDriver: lokiLogDriver,
       logOpts: lokiLogOpts,
       restart: 'unless-stopped',
@@ -90,8 +90,8 @@ export class InfraComponent extends pulumi.ComponentResource {
       volumes: [{ volumeName: minioVolume.name, containerPath: '/data' }],
       command: ['server', '/data', '--console-address', ':9001'],
       ports: [
-        { internal: 9000, external: 9000 },
-        { internal: 9001, external: 9001 },
+        { internal: 9000, external: 9000, ip: '127.0.0.1' },
+        { internal: 9001, external: 9001, ip: '127.0.0.1' },
       ],
       logDriver: lokiLogDriver,
       logOpts: lokiLogOpts,
@@ -126,7 +126,7 @@ export class InfraComponent extends pulumi.ComponentResource {
       command: ['-Dconfig.file=/config/elasticmq.conf'],
       labels: [{ label: 'shepherd.classifiers', value: config.classifiers.join(',') }],
       ports: [
-        { internal: 9324, external: 9324 },
+        { internal: 9324, external: 9324, ip: '127.0.0.1' },
       ],
       logDriver: lokiLogDriver,
       logOpts: lokiLogOpts,
@@ -138,7 +138,7 @@ export class InfraComponent extends pulumi.ComponentResource {
       image: 'softwaremill/elasticmq-ui:1.7.1', //latest @2026-04-06
       networksAdvanced: [{ name: network.name }],
       envs: [`SQS_ENDPOINT=http://${n('elasticmq')}:9324`],
-      ports: [{ internal: 3000, external: 9325 }],
+      ports: [{ internal: 3000, external: 9325, ip: '127.0.0.1' }],
       restart: 'unless-stopped',
     }, { ...childOpts, dependsOn: [elasticmqContainer] })
 
@@ -175,7 +175,7 @@ export class InfraComponent extends pulumi.ComponentResource {
       networksAdvanced: [{ name: network.name }],
       volumes: [{ volumeName: redisVolume.name, containerPath: '/data' }],
       command: ['redis-server', '--appendonly', 'yes'],
-      ports: [{ internal: 6379, external: 6379 }],
+      ports: [{ internal: 6379, external: 6379, ip: '127.0.0.1' }],
       logDriver: lokiLogDriver,
       logOpts: lokiLogOpts,
       restart: 'unless-stopped',
@@ -252,7 +252,7 @@ compactor:
         { volumeName: lokiConfigVolume.name, containerPath: '/config', readOnly: true },
       ],
       command: ['-config.file=/config/loki.yaml'],
-      ports: [{ internal: 3100, external: 3100 }],
+      ports: [{ internal: 3100, external: 3100, ip: '127.0.0.1' }],
       restart: 'unless-stopped',
     }, { ...childOpts, dependsOn: [lokiConfigContainer] })
 
@@ -289,7 +289,7 @@ datasources:
         { volumeName: grafanaVolume.name, containerPath: '/var/lib/grafana' },
         { volumeName: grafanaConfigVolume.name, containerPath: '/etc/grafana/provisioning', readOnly: true },
       ],
-      ports: [{ internal: 3000, external: 3001 }],
+      ports: [{ internal: 3000, external: 3001, ip: '127.0.0.1' }],
       restart: 'unless-stopped',
     }, { ...childOpts, dependsOn: [lokiContainer, grafanaConfigContainer] })
 
