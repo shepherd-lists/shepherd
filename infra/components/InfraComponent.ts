@@ -40,18 +40,8 @@ export class InfraComponent extends pulumi.ComponentResource {
     const pgVolume = new docker.Volume('pg-data', { name: n('pg-data') }, volOpts)
     const minioVolume = new docker.Volume('minio-data', { name: n('minio-data') }, volOpts)
     const elasticMqVolume = new docker.Volume('elasticmq-data', { name: n('elasticmq-data') }, volOpts)
-    const configVolume = new docker.Volume('config', { name: n('config') }, volOpts)
 
-    // write elasticmq.conf into shared config volume via one-shot alpine container
     const elasticMqConf = generateElasticMqConfigString(config)
-    const elasticMqConfContainer = new docker.Container('elasticmq-config', {
-      name: n('elasticmq-config'),
-      image: 'alpine:3', //might want to pin this further?
-      volumes: [{ volumeName: configVolume.name, containerPath: '/config' }],
-      command: ['sh', '-c', `cat > /config/elasticmq.conf << 'EOF'\n${elasticMqConf}EOF`],
-      labels: [{ label: 'shepherd.classifiers', value: config.classifiers.join(',') }],
-      mustRun: false,
-    }, childOpts)
 
     /** postgres & backup */
 
@@ -138,17 +128,16 @@ export class InfraComponent extends pulumi.ComponentResource {
       networksAdvanced: [{ name: network.name }],
       volumes: [
         { volumeName: elasticMqVolume.name, containerPath: '/data' },
-        { volumeName: configVolume.name, containerPath: '/config', readOnly: true },
       ],
-      command: ['-Dconfig.file=/config/elasticmq.conf'],
-      labels: [{ label: 'shepherd.classifiers', value: config.classifiers.join(',') }],
+      uploads: [{ file: '/opt/elasticmq.conf', content: elasticMqConf }],
+      command: ['-Dconfig.file=/opt/elasticmq.conf'],
       ports: [
         { internal: 9324, external: 9324, ip: '127.0.0.1' },
       ],
       logDriver: lokiLogDriver,
       logOpts: lokiLogOpts,
       restart: 'unless-stopped',
-    }, { ...childOpts, dependsOn: [elasticMqConfContainer] })
+    }, childOpts)
 
     new docker.Container('elasticmq-ui', {
       name: n('elasticmq-ui'),
@@ -223,7 +212,6 @@ export class InfraComponent extends pulumi.ComponentResource {
 
     const lokiVolume = new docker.Volume('loki-data', { name: n('loki-data') }, volOpts)
     const grafanaVolume = new docker.Volume('grafana-data', { name: n('grafana-data') }, volOpts)
-    const lokiConfigVolume = new docker.Volume('loki-config', { name: n('loki-config') }, volOpts)
 
     const lokiConfig = `
 auth_enabled: false
@@ -261,27 +249,18 @@ compactor:
   delete_request_store: filesystem
 `
 
-    const lokiConfigContainer = new docker.Container('loki-config', {
-      name: n('loki-config'),
-      image: 'alpine:3',
-      volumes: [{ volumeName: lokiConfigVolume.name, containerPath: '/config' }],
-      command: ['sh', '-c', `cat > /config/loki.yaml << 'EOF'\n${lokiConfig}EOF`],
-      mustRun: false,
-    }, childOpts)
-
     const lokiContainer = new docker.Container('loki', {
       name: n('loki'),
       image: 'grafana/loki:3.4.2',
       networksAdvanced: [{ name: network.name }],
-      labels: [{ label: 'config-hash', value: Buffer.from(lokiConfig).toString('base64url').slice(0, 32) }],
       volumes: [
         { volumeName: lokiVolume.name, containerPath: '/loki' },
-        { volumeName: lokiConfigVolume.name, containerPath: '/config', readOnly: true },
       ],
-      command: ['-config.file=/config/loki.yaml'],
+      uploads: [{ file: '/etc/loki/loki.yaml', content: lokiConfig }],
+      command: ['-config.file=/etc/loki/loki.yaml'],
       ports: [{ internal: 3100, external: 3100, ip: '127.0.0.1' }],
       restart: 'unless-stopped',
-    }, { ...childOpts, dependsOn: [lokiConfigContainer] })
+    }, childOpts)
 
     // Grafana datasource provisioning config
     const grafanaDatasourceConfig = `
@@ -294,15 +273,6 @@ datasources:
     isDefault: true
 `
 
-    const grafanaConfigVolume = new docker.Volume('grafana-config', { name: n('grafana-config') }, volOpts)
-    const grafanaConfigContainer = new docker.Container('grafana-config', {
-      name: n('grafana-config'),
-      image: 'alpine:3',
-      volumes: [{ volumeName: grafanaConfigVolume.name, containerPath: '/config' }],
-      command: ['sh', '-c', `mkdir -p /config/datasources && cat > /config/datasources/loki.yaml << 'EOF'\n${grafanaDatasourceConfig}EOF`],
-      mustRun: false,
-    }, childOpts)
-
     new docker.Container('grafana', {
       name: n('grafana'),
       image: 'grafana/grafana:11.6.0',
@@ -314,11 +284,11 @@ datasources:
       ],
       volumes: [
         { volumeName: grafanaVolume.name, containerPath: '/var/lib/grafana' },
-        { volumeName: grafanaConfigVolume.name, containerPath: '/etc/grafana/provisioning', readOnly: true },
       ],
+      uploads: [{ file: '/etc/grafana/provisioning/datasources/loki.yaml', content: grafanaDatasourceConfig }],
       ports: [{ internal: 3000, external: 3001, ip: '127.0.0.1' }],
       restart: 'unless-stopped',
-    }, { ...childOpts, dependsOn: [lokiContainer, grafanaConfigContainer] })
+    }, { ...childOpts, dependsOn: [lokiContainer] })
 
     this.lokiEndpoint = `http://${n('loki')}:3100`
 
