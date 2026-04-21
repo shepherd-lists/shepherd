@@ -86,7 +86,7 @@ export class ServicesComponent extends pulumi.ComponentResource {
       new docker.Container('webserver-next', {
         name: n('webserver-next'),
         image: image.repoDigest,
-        networksAdvanced: [{ name: networkName }],
+        networksAdvanced: [{ name: networkName, aliases: ['webserver'] }],
         envs: pulumi.all([storageEnvs, awsCompat]).apply(([storage, aws]) => [
           ...storage,
           ...aws,
