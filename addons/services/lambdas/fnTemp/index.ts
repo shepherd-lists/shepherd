@@ -144,6 +144,9 @@ export const handler = async (event: any) => {
 
 	console.info(`merge and close ranges in ${(Date.now() - t3CloseS3).toLocaleString()} ms`)
 
+	/** populate reported lists */
+	await populateReportedLists()
+
 	return count
 }
 
@@ -163,4 +166,26 @@ const getOwnersTablenames = async () => {
 	`)
 
 	return rows.map(row => row.tablename)
+}
+
+
+const populateReportedLists = async () => {
+	const { rows } = await pool.query<{ txid: string; owner: string }>(`
+		SELECT txid, owner FROM reported_txids
+	`)
+
+	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'reported/txids.txt')
+	const s3Addresses = s3UploadReadable(LISTS_BUCKET, 'reported/addresses.txt')
+	for await (const row of rows) {
+		s3Txids.write(`${row.txid}\n`)
+		s3Addresses.write(`${row.owner}\n`)
+	}
+	s3Txids.end()
+	s3Addresses.end()
+	await Promise.all([
+		s3Txids.promise,
+		s3Addresses.promise,
+	])
+
+	console.info('reported lists populated')
 }
