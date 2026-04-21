@@ -1,6 +1,16 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
 import * as path from 'path'
+import { readFileSync } from 'fs'
+import { createHash } from 'crypto'
+import { execSync } from 'child_process'
+
+/** resolve $HOME on the docker host — local if same machine, over ssh if remote */
+const resolveDockerHostHome = (dockerHost: string) => {
+  if (!dockerHost.startsWith('ssh://')) return process.env.HOME!
+  const sshHost = dockerHost.replace(/^ssh:\/\//, '')
+  return execSync(`ssh ${sshHost} 'echo $HOME'`).toString().trim()
+}
 import { naming, type Config } from '../../Config'
 import { generateElasticMqConfigString } from '../elasticmq/generate-config'
 import { lokiLogDriver, lokiLogOpts } from './lokiLogConfig'
@@ -26,10 +36,11 @@ export class InfraComponent extends pulumi.ComponentResource {
     const { config, network, stackName } = args
     const n = (s: string) => naming(stackName, s)
 
-    const pgVolume = new docker.Volume('pg-data', { name: n('pg-data') }, childOpts)
-    const minioVolume = new docker.Volume('minio-data', { name: n('minio-data') }, childOpts)
-    const elasticMqVolume = new docker.Volume('elasticmq-data', { name: n('elasticmq-data') }, childOpts)
-    const configVolume = new docker.Volume('config', { name: n('config') }, childOpts)
+    const volOpts = { ...childOpts, retainOnDelete: true }
+    const pgVolume = new docker.Volume('pg-data', { name: n('pg-data') }, volOpts)
+    const minioVolume = new docker.Volume('minio-data', { name: n('minio-data') }, volOpts)
+    const elasticMqVolume = new docker.Volume('elasticmq-data', { name: n('elasticmq-data') }, volOpts)
+    const configVolume = new docker.Volume('config', { name: n('config') }, volOpts)
 
     // write elasticmq.conf into shared config volume via one-shot alpine container
     const elasticMqConf = generateElasticMqConfigString(config)
@@ -68,7 +79,7 @@ export class InfraComponent extends pulumi.ComponentResource {
         `PGPASSWORD=${config.dbPassword}`,
         `PGDATABASE=arblacklist`,
       ],
-      volumes: [{ hostPath: `${process.env.HOME}/backups/shepherd`, containerPath: '/backups' }],
+      volumes: [{ hostPath: `${resolveDockerHostHome(config.dockerHost)}/backups/shepherd`, containerPath: '/backups' }],
       command: ['sh', '-c', [
         'apk add --no-cache postgresql-client',
         // append backup crontab: daily at midnight UTC, weekly on Sundays
@@ -168,7 +179,7 @@ export class InfraComponent extends pulumi.ComponentResource {
       restart: 'unless-stopped',
     }, { ...childOpts, dependsOn: [minio2mqImage, minioContainer, elasticmqContainer] })
 
-    const redisVolume = new docker.Volume('redis-data', { name: n('redis-data') }, childOpts)
+    const redisVolume = new docker.Volume('redis-data', { name: n('redis-data') }, volOpts)
     new docker.Container('redis', {
       name: n('redis'),
       image: 'redis:7-alpine',
@@ -181,22 +192,28 @@ export class InfraComponent extends pulumi.ComponentResource {
       restart: 'unless-stopped',
     }, childOpts)
 
+    const nginxConfigPath = path.join(import.meta.dirname, '../nginx/nginx.conf')
+    const nginxConfigHash = createHash('sha256').update(readFileSync(nginxConfigPath)).digest('hex').slice(0, 16)
     new docker.Container('nginx', {
       name: n('nginx'),
       image: 'nginx:stable-alpine',
       networksAdvanced: [{ name: network.name }],
+      labels: [{ label: 'config-hash', value: nginxConfigHash }],
+      uploads: [{ file: '/etc/nginx/nginx.conf', source: nginxConfigPath }],
       ports: [
         { internal: 80, external: 80 },
-        { internal: 443, external: 443 },
+        // { internal: 443, external: 443 },
       ],
+      logDriver: lokiLogDriver,
+      logOpts: lokiLogOpts,
       restart: 'unless-stopped',
     }, childOpts)
 
     /** Loki + Grafana for log aggregation */
 
-    const lokiVolume = new docker.Volume('loki-data', { name: n('loki-data') }, childOpts)
-    const grafanaVolume = new docker.Volume('grafana-data', { name: n('grafana-data') }, childOpts)
-    const lokiConfigVolume = new docker.Volume('loki-config', { name: n('loki-config') }, childOpts)
+    const lokiVolume = new docker.Volume('loki-data', { name: n('loki-data') }, volOpts)
+    const grafanaVolume = new docker.Volume('grafana-data', { name: n('grafana-data') }, volOpts)
+    const lokiConfigVolume = new docker.Volume('loki-config', { name: n('loki-config') }, volOpts)
 
     const lokiConfig = `
 auth_enabled: false
@@ -267,7 +284,7 @@ datasources:
     isDefault: true
 `
 
-    const grafanaConfigVolume = new docker.Volume('grafana-config', { name: n('grafana-config') }, childOpts)
+    const grafanaConfigVolume = new docker.Volume('grafana-config', { name: n('grafana-config') }, volOpts)
     const grafanaConfigContainer = new docker.Container('grafana-config', {
       name: n('grafana-config'),
       image: 'alpine:3',
