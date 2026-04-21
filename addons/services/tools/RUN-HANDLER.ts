@@ -23,7 +23,7 @@ const handlers: Record<string, (event: any) => Promise<any>> = {
 
 const name = process.argv[2]
 if (!name || !handlers[name]) {
-	console.error(`Usage: npx tsx tools/run-handler.ts <${Object.keys(handlers).join('|')}>`)
+	console.error(`Usage: npx tsx tools/run-handler.ts <${Object.keys(handlers).join('|')}>. n.b. indexer runs fnInitLists on startup`)
 	process.exit(1)
 }
 

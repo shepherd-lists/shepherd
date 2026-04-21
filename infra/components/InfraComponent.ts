@@ -53,6 +53,8 @@ export class InfraComponent extends pulumi.ComponentResource {
       mustRun: false,
     }, childOpts)
 
+    /** postgres & backup */
+
     const postgresContainer = new docker.Container('postgres', {
       name: n('postgres'),
       image: 'postgres:18',
@@ -90,6 +92,8 @@ export class InfraComponent extends pulumi.ComponentResource {
       restart: 'unless-stopped',
     }, { ...childOpts, dependsOn: [postgresContainer] })
 
+    /** minio & setup */
+
     const minioContainer = new docker.Container('minio', {
       name: n('minio'),
       image: 'minio/minio:RELEASE.2025-09-07T16-13-09Z', //latest @2026-04-06
@@ -125,6 +129,8 @@ export class InfraComponent extends pulumi.ComponentResource {
       ].join(' && ')],
       mustRun: false,
     }, { ...childOpts, dependsOn: [minioContainer] })
+
+    /** elasticmq & related */
 
     const elasticmqContainer = new docker.Container('elasticmq', {
       name: n('elasticmq'),
@@ -179,6 +185,8 @@ export class InfraComponent extends pulumi.ComponentResource {
       restart: 'unless-stopped',
     }, { ...childOpts, dependsOn: [minio2mqImage, minioContainer, elasticmqContainer] })
 
+    /** redis */
+
     const redisVolume = new docker.Volume('redis-data', { name: n('redis-data') }, volOpts)
     new docker.Container('redis', {
       name: n('redis'),
@@ -191,6 +199,8 @@ export class InfraComponent extends pulumi.ComponentResource {
       logOpts: lokiLogOpts,
       restart: 'unless-stopped',
     }, childOpts)
+
+    /** nginx */
 
     const nginxConfigPath = path.join(import.meta.dirname, '../nginx/nginx.conf')
     const nginxConfigHash = createHash('sha256').update(readFileSync(nginxConfigPath)).digest('hex').slice(0, 16)
