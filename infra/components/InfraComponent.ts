@@ -1,8 +1,6 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
 import * as path from 'path'
-import { readFileSync } from 'fs'
-import { createHash } from 'crypto'
 import { execSync } from 'child_process'
 
 /** resolve $HOME on the docker host — local if same machine, over ssh if remote */
@@ -192,12 +190,10 @@ export class InfraComponent extends pulumi.ComponentResource {
     /** nginx */
 
     const nginxConfigPath = path.join(import.meta.dirname, '../nginx/nginx.conf')
-    const nginxConfigHash = createHash('sha256').update(readFileSync(nginxConfigPath)).digest('hex').slice(0, 16)
     new docker.Container('nginx', {
       name: n('nginx'),
       image: 'nginx:stable-alpine',
       networksAdvanced: [{ name: network.name }],
-      labels: [{ label: 'config-hash', value: nginxConfigHash }],
       uploads: [{ file: '/etc/nginx/nginx.conf', source: nginxConfigPath }],
       ports: [
         { internal: 80, external: 80 },
