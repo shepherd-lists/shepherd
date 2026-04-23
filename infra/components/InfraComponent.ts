@@ -213,41 +213,7 @@ export class InfraComponent extends pulumi.ComponentResource {
     const lokiVolume = new docker.Volume('loki-data', { name: n('loki-data') }, volOpts)
     const grafanaVolume = new docker.Volume('grafana-data', { name: n('grafana-data') }, volOpts)
 
-    const lokiConfig = `
-auth_enabled: false
-server:
-  http_listen_port: 3100
-common:
-  path_prefix: /loki
-  storage:
-    filesystem:
-      chunks_directory: /loki/chunks
-      rules_directory: /loki/rules
-  replication_factor: 1
-  ring:
-    kvstore:
-      store: inmemory
-schema_config:
-  configs:
-    - from: "2024-01-01"
-      store: tsdb
-      object_store: filesystem
-      schema: v13
-      index:
-        prefix: index_
-        period: 24h
-limits_config:
-  retention_period: 2160h
-  max_query_length: 2160h
-  max_entries_limit_per_query: 50000
-compactor:
-  working_directory: /loki/compactor
-  compaction_interval: 10m
-  retention_enabled: true
-  retention_delete_delay: 2h
-  delete_request_cancel_period: 10m
-  delete_request_store: filesystem
-`
+    const lokiConfigPath = path.join(import.meta.dirname, '../loki/loki.yaml')
 
     const lokiContainer = new docker.Container('loki', {
       name: n('loki'),
@@ -256,7 +222,7 @@ compactor:
       volumes: [
         { volumeName: lokiVolume.name, containerPath: '/loki' },
       ],
-      uploads: [{ file: '/etc/loki/loki.yaml', content: lokiConfig }],
+      uploads: [{ file: '/etc/loki/loki.yaml', source: lokiConfigPath }],
       command: ['-config.file=/etc/loki/loki.yaml'],
       ports: [{ internal: 3100, external: 3100, ip: '127.0.0.1' }],
       restart: 'unless-stopped',
