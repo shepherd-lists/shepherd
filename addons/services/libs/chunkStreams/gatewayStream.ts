@@ -36,7 +36,7 @@ export const gatewayStream = async (
 
 const httpsStream = (url: string, httpsGet: typeof https.get, abortSignal?: AbortSignal): Promise<ReadableStream<Uint8Array>> => {
 	return new Promise((resolve, reject) => {
-		httpsGet(url, { agent, signal: abortSignal }, (res) => {
+		httpsGet(url, { agent, signal: abortSignal, headers: { 'User-Agent': 'shepherd/1.0' } }, (res) => {
 			//handle redirects
 			if (res.statusCode && [301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
 				return resolve(httpsStream(res.headers.location, httpsGet, abortSignal))
