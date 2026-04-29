@@ -6,6 +6,13 @@ export type Config = {
 	buildPlatform?: string  // e.g. 'linux/amd64' for remote x86 servers
 	dbPassword: string
 	minioPassword: string
+
+	/** optional Backblaze B2 off-site backup for pg dumps. all three required to enable */
+	b2?: {
+		keyId: string
+		appKey: string
+		bucket: string
+	}
 	/** optional pagerduty integration */
 	pagerduty_key?: string
 

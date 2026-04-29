@@ -59,6 +59,13 @@ export class InfraComponent extends pulumi.ComponentResource {
       restart: 'unless-stopped',
     }, childOpts)
 
+    // b2 off-site backup: after dumps run, rclone mirrors /backups to a per-stack prefix
+    // in the bucket. local retention has already pruned old files, so sync mirrors that too.
+    const b2 = config.b2
+    const b2SyncCron = b2
+      ? `echo '5 0 * * * rclone sync /backups b2:${b2.bucket}/${stackName}' >> /etc/crontabs/root`
+      : ''
+
     new docker.Container('pg-backup', {
       name: n('pg-backup'),
       image: 'alpine:3',
@@ -68,13 +75,19 @@ export class InfraComponent extends pulumi.ComponentResource {
         `PGUSER=shepherd`,
         `PGPASSWORD=${config.dbPassword}`,
         `PGDATABASE=arblacklist`,
+        ...(b2 ? [
+          'RCLONE_CONFIG_B2_TYPE=b2',
+          `RCLONE_CONFIG_B2_ACCOUNT=${b2.keyId}`,
+          `RCLONE_CONFIG_B2_KEY=${b2.appKey}`,
+        ] : []),
       ],
       volumes: [{ hostPath: `${resolveDockerHostHome(config.dockerHost)}/backups/shepherd`, containerPath: '/backups' }],
       command: ['sh', '-c', [
-        'apk add --no-cache postgresql-client',
+        `apk add --no-cache postgresql-client${b2 ? ' rclone' : ''}`,
         // append backup crontab: daily at midnight UTC, weekly on Sundays
         `echo '0 0 * * * pg_dump -Fc > /backups/daily-$(date +\\%Y\\%m\\%d).dump && find /backups -name "daily-*.dump" -mtime +7 -delete' >> /etc/crontabs/root`,
         `echo '0 0 * * 0 pg_dump -Fc > /backups/weekly-$(date +\\%Y\\%m\\%d).dump && find /backups -name "weekly-*.dump" -mtime +90 -delete' >> /etc/crontabs/root`,
+        ...(b2 ? [b2SyncCron] : []),
         'crond -f -l 2',
       ].join(' && ')],
       restart: 'unless-stopped',
