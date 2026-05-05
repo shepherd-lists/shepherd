@@ -13,13 +13,13 @@ COPY types.d.ts types.d.ts
 COPY ./libs ./libs
 WORKDIR /app/libs
 RUN npm ci --omit=dev
-# lambda handlers (inlined, imported directly by services)
-COPY ./lambdas /app/lambdas
-WORKDIR /app/lambdas/fnInitLists
+# lib function handlers (inlined, imported directly by services)
+COPY ./libFunctions /app/libFunctions
+WORKDIR /app/libFunctions/fnInitLists
 RUN npm ci --omit=dev
-WORKDIR /app/lambdas/fnOwnerBlocking
+WORKDIR /app/libFunctions/fnOwnerBlocking
 RUN npm ci --omit=dev
-WORKDIR /app/lambdas/fnTemp
+WORKDIR /app/libFunctions/fnTemp
 RUN npm ci --omit=dev
 
 FROM base AS indexer-next
