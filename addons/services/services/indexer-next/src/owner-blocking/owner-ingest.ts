@@ -1,5 +1,5 @@
 import { arGql } from 'ar-gql'
-import { handler as fnOwnerBlockingHandler } from '../../../../lambdas/fnOwnerBlocking/index'
+import { handler as fnOwnerBlockingHandler } from '../../../../libFunctions/fnOwnerBlocking/index'
 import pool from '../../../../libs/utils/pgClient'
 import { s3GetObject, s3HeadObject } from '../../../../libs/utils/s3-services'
 import { performance } from 'perf_hooks'

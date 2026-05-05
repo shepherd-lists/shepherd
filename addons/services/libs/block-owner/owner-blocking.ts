@@ -1,7 +1,7 @@
 import { createOwnerTable } from './owner-table-utils'
 import { arGql } from 'ar-gql'
 import { GQLEdgeInterface, GQLError } from 'ar-gql/dist/faces'
-import { handler as fnOwnerBlockingHandler } from '../../lambdas/fnOwnerBlocking/index'
+import { handler as fnOwnerBlockingHandler } from '../../libFunctions/fnOwnerBlocking/index'
 import pool from '../utils/pgClient'
 import { slackLog } from '../utils/slackLog'
 import { readBlockOwnerQueue, updateBlockOwnerQueue } from '../utils/redis-state'

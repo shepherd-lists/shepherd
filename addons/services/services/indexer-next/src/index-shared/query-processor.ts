@@ -3,7 +3,7 @@ import { slackLog } from '../../../../libs/utils/slackLog'
 import { arGql } from 'ar-gql'
 import { GQLError } from 'ar-gql/dist/faces'
 import { GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { handler as fnIngressHandler } from './fnIngress/index'
+import { handler as fnIngressHandler } from './ingress/index'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { batchUpsertTxsWithRules } from '../../../../libs/utils/pgClient'
 

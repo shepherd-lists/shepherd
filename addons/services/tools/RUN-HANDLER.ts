@@ -8,8 +8,8 @@
  * Required env vars: DB_HOST, LISTS_BUCKET, REDIS_HOST (+ AWS S3 credentials)
  */
 import 'dotenv/config'
-import { handler as fnInitLists } from '../lambdas/fnInitLists/index'
-import { handler as fnTemp } from '../lambdas/fnTemp/index'
+import { handler as fnInitLists } from '../libFunctions/fnInitLists/index'
+import { handler as fnTemp } from '../libFunctions/fnTemp/index'
 //make it stop
 import pgClient from '../libs/utils/pgClient'
 import { redis } from '../libs/utils/redis-state'

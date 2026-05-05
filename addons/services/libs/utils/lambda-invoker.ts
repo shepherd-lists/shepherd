@@ -6,8 +6,8 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 /** lazy-load handlers to avoid circular dependency (lambdas import from libs/) */
 const getHandler = async (name: string): Promise<(event: any) => Promise<any>> => {
 	switch (name) {
-		case 'fnInitLists': return (await import('../../lambdas/fnInitLists/index')).handler
-		case 'fnTemp': return (await import('../../lambdas/fnTemp/index')).handler
+		case 'fnInitLists': return (await import('../../libFunctions/fnInitLists/index')).handler
+		case 'fnTemp': return (await import('../../libFunctions/fnTemp/index')).handler
 		default: throw new Error(`Unknown handler: '${name}'. Available: fnInitLists, fnTemp`)
 	}
 }
