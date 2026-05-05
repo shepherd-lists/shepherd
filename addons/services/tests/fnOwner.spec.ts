@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { handler } from '../lambdas/fnOwnerBlocking/index'
+import { handler } from '../libFunctions/fnOwnerBlocking/index'
 import { ownerBlockingEvent, ownerBlockingEventOwners } from './assets/fnOwner-page-event'
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it, mock } from 'node:test'
