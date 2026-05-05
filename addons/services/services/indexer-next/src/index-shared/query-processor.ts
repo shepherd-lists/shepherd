@@ -1,8 +1,7 @@
 import pLimit from 'p-limit'
 import { slackLog } from '../../../../libs/utils/slackLog'
 import { arGql } from 'ar-gql'
-import { GQLError } from 'ar-gql/dist/faces'
-import { GQLEdgeInterface } from 'ar-gql/dist/faces'
+import GQLResultInterface, { GQLError, GQLEdgeInterface } from 'ar-gql/dist/faces'
 import { handler as fnIngressHandler } from './ingress/index'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { batchUpsertTxsWithRules } from '../../../../libs/utils/pgClient'
@@ -64,7 +63,7 @@ export const gqlPages = async ({
 	while (hasNextPage) {
 		const p0 = performance.now()
 
-		let edges, res
+		let edges, res!: GQLResultInterface
 		while (true) {
 			try {
 				res = await gql.run(query, {
