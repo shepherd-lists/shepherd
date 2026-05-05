@@ -1,13 +1,13 @@
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import { gatewayStream } from '../../libs/chunkStreams/gatewayStream'
+import { gatewayStream } from '../../../../../libs/chunkStreams/gatewayStream'
 import { fileTypeStream } from 'file-type'
 import { Upload } from '@aws-sdk/lib-storage'
 import { S3Client } from '@aws-sdk/client-s3'
 import { ReadableStream } from 'node:stream/web'
-import { slackLog } from '../../libs/utils/slackLog'
-import { chunkTxDataStream } from '../../libs/chunkStreams/chunkTxDataStream'
+import { slackLog } from '../../../../../libs/utils/slackLog'
+import { chunkTxDataStream } from '../../../../../libs/chunkStreams/chunkTxDataStream'
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler'
-import { s3HeadObject } from '../../libs/utils/s3-services'
+import { s3HeadObject } from '../../../../../libs/utils/s3-services'
 
 
 

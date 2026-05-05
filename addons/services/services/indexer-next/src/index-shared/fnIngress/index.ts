@@ -1,13 +1,13 @@
-import { slackLog } from '../../libs/utils/slackLog'
+import { slackLog } from '../../../../../libs/utils/slackLog'
 import { arGql, ArGqlInterface } from 'ar-gql'
 import { GQLEdgeInterface, GQLError } from 'ar-gql/dist/faces'
 import moize from 'moize'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import pool, { batchUpsertTxsWithRules } from '../../libs/utils/pgClient'
-import { min_data_size } from '../../libs/constants'
+import pool, { batchUpsertTxsWithRules } from '../../../../../libs/utils/pgClient'
+import { min_data_size } from '../../../../../libs/constants'
 import { downloadWithChecks } from './downloadWithChecks'
-import { chunkTxDataStream } from '../../libs/chunkStreams/chunkTxDataStream'
-import { gatewayStream } from '../../libs/chunkStreams/gatewayStream'
+import { chunkTxDataStream } from '../../../../../libs/chunkStreams/chunkTxDataStream'
+import { gatewayStream } from '../../../../../libs/chunkStreams/gatewayStream'
 
 
 const ARIO_DELAY_MS = 500
