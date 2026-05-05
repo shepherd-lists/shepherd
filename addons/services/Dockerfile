@@ -15,8 +15,6 @@ WORKDIR /app/libs
 RUN npm ci --omit=dev
 # lambda handlers (inlined, imported directly by services)
 COPY ./lambdas /app/lambdas
-WORKDIR /app/lambdas/fnIngress
-RUN npm ci --omit=dev
 WORKDIR /app/lambdas/fnInitLists
 RUN npm ci --omit=dev
 WORKDIR /app/lambdas/fnOwnerBlocking
