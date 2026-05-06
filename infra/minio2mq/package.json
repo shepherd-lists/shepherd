@@ -1,0 +1,13 @@
+{
+  "name": "localbridge",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-sqs": "^3.0.0",
+    "@slack/webhook": "^7.0.0",
+    "@types/aws-lambda": "^8.10.104",
+    "minio": "^8.0.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}

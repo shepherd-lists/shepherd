@@ -16,7 +16,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { SQSClient, SendMessageCommand, GetQueueUrlCommand } from '@aws-sdk/client-sqs'
 import { arGql } from 'ar-gql'
 import type { GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { buildRecords } from '../lambdas/fnIngress/index'
+import { buildRecords } from '../services/indexer-next/src/index-shared/ingress/index'
 import { finalQueueName } from '../../../Config'
 import type { Config } from '../../../Config'
 import type { FilterResult } from 'shepherd-plugin-interfaces'
@@ -60,7 +60,7 @@ const [record] = await buildRecords([meta], gql, 'flag-txid', 'flag-txid.ts', gq
 if (!record) throw new Error(`buildRecords returned no record for ${txid}`)
 
 // Upload the S3 object with real TxRecord metadata
-const s3Client = new S3Client({})
+const s3Client = new S3Client({ forcePathStyle: true })
 await s3Client.send(new PutObjectCommand({
 	Bucket: AWS_INPUT_BUCKET,
 	Key: txid,

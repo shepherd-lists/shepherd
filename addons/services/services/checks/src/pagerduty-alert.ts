@@ -1,56 +1,17 @@
-import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm'
 import { slackLog } from '../../../libs/utils/slackLog'
-
-const ssmClient = new SSMClient()
-
-const readPagerdutyKey = async () => (await ssmClient.send(new GetParameterCommand({
-	Name: '/shepherd/PAGERDUTY_KEY',
-	WithDecryption: true, // ignored if unencrypted
-}))).Parameter!.Value as string // throws if undefined
-
 
 /** rate-limit our calls to pagerduty */
 const rateLimit = 60_000
 const _callArgs: { [serverName: string]: { lastCall: number } } = {}
 
-let _PAGERDUTY_KEY: string
-let _region: string
-let _enabled: boolean
-
-const setup = async () => {
-	try {
-		_region = await ssmClient.config.region()
-		console.log(`pagerdutyAlerts region: ${_region}`)
-	} catch (err: unknown) {
-		const e = err as Error
-		console.error(`Error fetching region. ${e.name}:${e.message}`)
-	}
-	if (_region === 'eu-west-2') {
-		try {
-			_PAGERDUTY_KEY = await readPagerdutyKey()
-			console.log('pagerdutyAlerts: key was retrieved.')
-			return true
-		} catch (err: unknown) {
-			const e = err as Error
-			await slackLog(`Error fetching PAGERDUTY_KEY. ${e.message}`)
-		}
-	}
-	return false
-}
-/** setup these values early in case there is a problem */
-setup().then(res => _enabled = res)
+const _PAGERDUTY_KEY = process.env.PAGERDUTY_KEY
+const _enabled = !!_PAGERDUTY_KEY
+if (_enabled) console.log('pagerdutyAlerts: key configured.')
+else console.log('pagerdutyAlerts: disabled (no PAGERDUTY_KEY env var).')
 
 export const pagerdutyAlert = async (alertString: string, serverName: string) => {
 
-	/** check pagerduty setup and enabled in this region */
-	if (_enabled === false) {
-		return
-	} else if (_enabled === undefined) {
-		_enabled = await setup()
-		if (_enabled === false) {
-			return
-		}
-	}
+	if (!_enabled) return
 
 	/** don't get rate-limited by PagerDuty */
 	if (_callArgs[serverName] && (Date.now() - _callArgs[serverName].lastCall) < rateLimit) {
@@ -68,10 +29,10 @@ export const pagerdutyAlert = async (alertString: string, serverName: string) =>
 		body: JSON.stringify({
 			routing_key: _PAGERDUTY_KEY,
 			event_action: 'trigger',
-			dedup_key: `${_region} ${serverName}`,
+			dedup_key: `shepherd ${serverName}`,
 			payload: {
-				summary: `Shepherd (${_region}) Alert. Content showing on: ${serverName}`,
-				source: `Shepherd ${_region}`,
+				summary: `Shepherd Alert. Content showing on: ${serverName}`,
+				source: 'Shepherd',
 				severity: 'critical',
 				custom_details: {
 					'All Current Alert Details': alertString,
@@ -82,7 +43,7 @@ export const pagerdutyAlert = async (alertString: string, serverName: string) =>
 	if (res.ok) {
 		console.log(`PagerDuty alert sent. ${await res.text()}`)
 	} else {
-		const errMsg = `PagerDuty alert failed. ${res.status}, a${res.statusText}, ${await res.text()}`
+		const errMsg = `PagerDuty alert failed. ${res.status}, ${res.statusText}, ${await res.text()}`
 		await slackLog(errMsg)
 	}
 }

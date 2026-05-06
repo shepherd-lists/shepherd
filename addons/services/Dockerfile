@@ -13,6 +13,14 @@ COPY types.d.ts types.d.ts
 COPY ./libs ./libs
 WORKDIR /app/libs
 RUN npm ci --omit=dev
+# lib function handlers (inlined, imported directly by services)
+COPY ./libFunctions /app/libFunctions
+WORKDIR /app/libFunctions/fnInitLists
+RUN npm ci --omit=dev
+WORKDIR /app/libFunctions/fnOwnerBlocking
+RUN npm ci --omit=dev
+WORKDIR /app/libFunctions/fnTemp
+RUN npm ci --omit=dev
 
 FROM base AS indexer-next
 ARG targetArg # same value as target
@@ -53,7 +61,3 @@ COPY ./services/${targetArg}/src ./src
 RUN npx tsc --noEmit
 ENTRYPOINT npx tsx ./src/index.ts
 
-#unused?
-FROM node:22-slim AS test 
-WORKDIR /test
-COPY . .

@@ -1,0 +1,6 @@
+name: shepherd-infra
+runtime:
+  name: nodejs
+  options:
+    nodeargs: "--import tsx"
+description: Shepherd base infrastructure (postgres, minio, nats, nginx)

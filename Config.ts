@@ -1,13 +1,29 @@
 export type Config = {
-	region: string
-	// # vpc cidr. private subnets between regions/stacks will be shared by tailscale
-	cidr: string
+	region: 'us-east-1', //dummy but required
+
+	/** self-hosted deployment */
+	dockerHost: string
+	buildPlatform?: string  // e.g. 'linux/amd64' for remote x86 servers
+	dbPassword: string
+	minioPassword: string
+
+	/** optional Backblaze B2 off-site backup for pg dumps. all three required to enable */
+	b2?: {
+		keyId: string
+		appKey: string
+		bucket: string
+	}
+	/** optional pagerduty integration */
+	pagerduty_key?: string
 
 	/** optional slack channel notifications */
 	slack_webhook?: string
 	slack_positive?: string
 	slack_probe?: string
 	slack_public?: string
+
+	/** per-addon external config, passed as env vars to cron containers */
+	externalConfig?: { [addonName: string]: Record<string, string> }
 
 	/** options for general endpoints */
 	host_url?: string	//defaults to https://arweave.net
@@ -46,6 +62,9 @@ export type Config = {
 	}
 
 }
+
+/** Docker resource naming convention: `{name}-shep-{stackName}` */
+export const naming = (stackName: string, s: string) => `${s}-shep-${stackName}`
 
 /** return the name of the output queue for a given classifier. important to centralize this logic for refactoring later */
 export const classifierQueueName = (config: Config, i: number) => ({

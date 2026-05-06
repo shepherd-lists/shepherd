@@ -1,0 +1,6 @@
+name: shepherd-nsfw
+runtime:
+  name: nodejs
+  options:
+    nodeargs: "--import tsx"
+description: Shepherd NSFW classifier addon

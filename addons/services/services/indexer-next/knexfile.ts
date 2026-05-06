@@ -5,8 +5,8 @@ module.exports = {
 		host: process.env.DB_HOST,
 		port: 5432,
 		database: 'arblacklist',
-		user: 'postgres',
-		password: 'postgres'
+		user: process.env.DB_USER || 'shepherd',
+		password: process.env.DB_PASSWORD || ''
 	},
 	pool: {
 		min: 0,

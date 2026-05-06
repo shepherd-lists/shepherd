@@ -1,0 +1,6 @@
+name: shepherd-services
+runtime:
+  name: nodejs
+  options:
+    nodeargs: "--import tsx"
+description: Shepherd core services addon

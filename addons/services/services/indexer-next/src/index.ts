@@ -18,7 +18,6 @@ process.on('unhandledRejection', (reason, promise) => {
 
 
 /** check this stuff right at the entrypoint */
-if (!process.env.FN_OWNER_BLOCKING) throw new Error('missing env var, FN_OWNER_BLOCKING')
 if (!process.env.LISTS_BUCKET) throw new Error('missing env var, LISTS_BUCKET')
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

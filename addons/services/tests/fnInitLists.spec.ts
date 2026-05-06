@@ -1,9 +1,9 @@
 import 'dotenv/config'
-import { handler } from '../lambdas/fnInitLists/index'
+import { handler } from '../libFunctions/fnInitLists/index'
 import assert from "node:assert/strict";
 import { after, afterEach, beforeEach, describe, it, mock } from 'node:test'
 import { s3DeleteFolder, s3HeadObject } from '../libs/utils/s3-services'
-import { processAddonTable } from '../lambdas/fnInitLists/table-processing'
+import { processAddonTable } from '../libFunctions/fnInitLists/table-processing'
 import pg from '../libs/utils/pgClient'
 import { ByteRange } from '../libs/s3-lists/merge-ranges';
 
