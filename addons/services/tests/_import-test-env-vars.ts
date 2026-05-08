@@ -1,0 +1,25 @@
+import { config } from '../../../config.dev'
+
+process.env.NODE_ENV = 'test'
+process.env.AWS_DEFAULT_REGION = 'us-east-1'
+process.env.AWS_REGION = 'us-east-1'
+process.env.AWS_ACCESS_KEY_ID = 'shepherd'
+process.env.AWS_SECRET_ACCESS_KEY = config.minioPassword
+process.env.DB_HOST = 'localhost'
+process.env.DB_PASSWORD = config.dbPassword
+process.env.LISTS_BUCKET = 'shepherd-lists'
+process.env.AWS_INPUT_BUCKET = 'shepherd-input'
+process.env.HOST_URL = 'https://arweave.net'
+process.env.GQL_URL = 'https://arweave.net/graphql'
+process.env.GQL_URL_SECONDARY = 'https://arweave-search.goldsky.com/graphql'
+process.env.AWS_ENDPOINT_URL_S3 = 'http://127.0.0.1:9000'// #minio'
+process.env.AWS_ENDPOINT_URL_SQS = 'http://127.0.0.1:9324'// #elasticmq'
+process.env.REDIS_HOST = 'localhost'
+process.env.ingress_nodes = '[{"url":"http://tip-2.arweave.xyz:1984","name":"tip-2.arweave.xyz"},{"url":"http://tip-3.arweave.xyz:1984","name":"tip-3.arweave.xyz"},{"url":"http://tip-4.arweave.xyz:1984","name":"tip-4.arweave.xyz"}]'
+// process.env.http_api_nodes_url = 'https://arweave-shepherd-list.s3.amazonaws.com/a0793c62ec8d844819d6f3135a9e3790.json'
+
+
+// #used?
+// FN_OWNER_BLOCKING='dummy'
+// FN_INDEXER='dummy'
+// FN_INIT_LISTS='use temp dev'

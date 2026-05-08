@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import { s3DeleteObject, s3HeadObject, s3GetObject, s3GetObjectWebStream, s3PutObject, s3UploadStream, s3CheckFolderExists, s3ListFolderObjects, s3DeleteFolder } from '../libs/utils/s3-services'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'

@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import assert from 'node:assert/strict'
 import { after, afterEach, beforeEach, describe, it } from 'node:test'
 import { idToBase32 } from '../libs/utils/id-to-base32'

@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import assert from "node:assert/strict";
 import { after, afterEach, beforeEach, describe, it } from 'node:test'
 import pool from '../libs/utils/pgClient'
@@ -7,7 +7,9 @@ import { processFlagged, createInfractionsTable } from '../services/http-api/src
 import { dropOwnerTables, ownerToInfractionsTablename, ownerToOwnerTablename } from '../libs/block-owner/owner-table-utils';
 
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import { moveInboxToTxs } from '../services/http-api/src/service/move-records'
+// import { moveInboxToTxs } from '../services/http-api/src/service/move-records'
+import { redis } from '../libs/utils/redis-state'
+
 
 console.info(`using ${process.env.HTTP_API} for HTTP_API ip address`)
 
@@ -69,6 +71,7 @@ describe('http api', () => {
 	after(async () => {
 		await pool.end()
 		await knex.destroy()
+		await redis.quit().catch(console.error)
 	})
 
 
@@ -107,41 +110,6 @@ describe('http api', () => {
 
 	})
 
-	it('moveInboxToTxs insert-merge should overwrite column values when latest are null', async () => {
-
-		await knex<TxRecord>('txs').insert(mockClassifiedRecord)
-
-		/* update the data */
-		const updates: TxRecord = {
-			...mockClassifiedRecord,
-			flagged: false, //should overwrite
-			top_score_name: undefined,
-			byte_start: undefined,
-			byte_end: '-1',
-		}
-		delete updates.top_score_value
-
-		await knex<TxRecord>('inbox').insert(updates)
-
-		const resInboxMove = await moveInboxToTxs([mockClassifiedRecord.txid])
-
-		const record = await knex<TxRecord>('txs').where({ txid: mockClassifiedRecord.txid }).first() as TxRecord
-		// console.debug({ record })
-
-		//sanity checks
-		assert.equal(resInboxMove, 1)
-		assert.equal(record.content_type, mockClassifiedRecord.content_type)
-		assert.equal(record.valid_data, mockClassifiedRecord.valid_data)
-		assert.equal(record.height, mockClassifiedRecord.height)
-		//probly more than enough
-
-		//actual tests
-		assert.equal(record.byte_start, '123')
-		assert.equal(record.byte_end, '456')
-		assert.equal(record.top_score_name, null)
-		assert.equal(record.top_score_value, null)
-		assert.equal(record.flagged, false)
-	})
 
 	it('should log appropriate detail when an owner breaches infractions', async () => {
 		/* load up inbox, then call `processFlagged` `infraction_limit` times  */

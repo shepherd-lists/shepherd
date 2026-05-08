@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import { after, describe, it, skip } from 'node:test'
 import assert from 'node:assert/strict'
 import { destroyChunkStreamAgent } from '../libs/chunkStreams/chunkFetch'

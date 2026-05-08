@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 

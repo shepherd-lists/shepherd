@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import { tipLoop } from '../services/indexer-next/src/index-by-height'
 import assert from "node:assert/strict";
 import { after, afterEach, beforeEach, describe, it, mock } from 'node:test'
@@ -40,9 +40,10 @@ describe('indexer-next tests', {}, () => {
 			if ((e as Error).message !== 'test finished') throw e
 		}
 
-		assert.deepEqual(gqlQueryMock.mock.calls[0].arguments, [{ min: 0, max: 1 }])
-		assert.deepEqual(gqlQueryMock.mock.calls[1].arguments, [{ min: 1, max: 2 }])
-		assert.deepEqual(gqlQueryMock.mock.calls[2].arguments, [{ min: 3, max: 4 }])
+		/** MIN_MAX_DIFFERENCE === 0: AR.io queries one block; min/max both equal tip height */
+		assert.deepEqual(gqlQueryMock.mock.calls[0].arguments, [{ min: 1, max: 1 }])
+		assert.deepEqual(gqlQueryMock.mock.calls[1].arguments, [{ min: 2, max: 2 }])
+		assert.deepEqual(gqlQueryMock.mock.calls[2].arguments, [{ min: 4, max: 4 }])
 	})
 
 

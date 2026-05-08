@@ -1,11 +1,12 @@
-import 'dotenv/config'
-import { handler } from '../libFunctions/fnInitLists/index'
+import './_import-test-env-vars'
 import assert from "node:assert/strict";
 import { after, afterEach, beforeEach, describe, it, mock } from 'node:test'
 import { s3DeleteFolder, s3HeadObject } from '../libs/utils/s3-services'
+// import { handler } from '../libFunctions/fnInitLists/index'
 import { processAddonTable } from '../libFunctions/fnInitLists/table-processing'
 import pg from '../libs/utils/pgClient'
 import { ByteRange } from '../libs/s3-lists/merge-ranges';
+import { redis } from '../libs/utils/redis-state'
 
 
 describe('fnInitLists tests', () => {
@@ -15,6 +16,7 @@ describe('fnInitLists tests', () => {
 
 
 	it(`should test i/o to ${processAddonTable.name} function`, async () => {
+		console.debug('process.env.', process.env.LISTS_BUCKET)
 		await pg.query('CREATE TABLE test_txs (txid CHAR(43), flagged BOOLEAN, byte_start BIGINT, byte_end BIGINT)')
 		try {
 			const fakeIds = ['fake-id-1', 'fake-id-2'].map(s => s.padEnd(43, '_'))
@@ -42,6 +44,7 @@ describe('fnInitLists tests', () => {
 		await s3DeleteFolder(process.env.LISTS_BUCKET!, 'test/')
 		await pg.query('DROP TABLE IF EXISTS test_txs')
 		await pg.end()
+		redis.quit()
 	})
 
 })

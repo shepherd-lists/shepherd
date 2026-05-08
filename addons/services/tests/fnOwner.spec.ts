@@ -1,10 +1,11 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import { handler } from '../libFunctions/fnOwnerBlocking/index'
 import { ownerBlockingEvent, ownerBlockingEventOwners } from './assets/fnOwner-page-event'
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it, mock } from 'node:test'
 import { dropOwnerTables, createOwnerTable } from '../libs/block-owner/owner-table-utils'
 import pool from '../libs/utils/pgClient'
+import { redis } from '../libs/utils/redis-state'
 
 
 describe('fnOwnerBlocking tests', () => {
@@ -20,6 +21,7 @@ describe('fnOwnerBlocking tests', () => {
 			ownerBlockingEventOwners.map(o => dropOwnerTables(o))
 		)
 		await pool.end()
+		redis.quit()
 	})
 
 	it('should process a page of results', async () => {

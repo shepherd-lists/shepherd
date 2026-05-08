@@ -1,10 +1,11 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it } from 'node:test'
 import { addonHandler } from '../services/http-api/src/addonHandler'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import knexCreate from '../libs/utils/knexCreate';
 import { s3DeleteFolder } from '../libs/utils/s3-services';
+import { redis } from '../libs/utils/redis-state'
 
 const knex = knexCreate()
 
@@ -39,6 +40,7 @@ describe('addonHandler', () => {
 		await knex.raw(`DROP TABLE IF EXISTS ${addonPrefix}_txs`)
 		await knex.destroy()
 		await s3DeleteFolder(process.env.LISTS_BUCKET!, `${addonPrefix}/`)
+		await redis.quit().catch(console.error)
 	})
 
 	it('should invalidate incorrect input', async () => {

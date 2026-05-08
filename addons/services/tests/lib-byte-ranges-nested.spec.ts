@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import assert from "node:assert/strict";
 import { after, describe, it } from 'node:test'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'

@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import assert from 'node:assert/strict'
 import { afterEach } from 'node:test'
 import { UpdateItem, updateS3Lists } from '../libs/s3-lists/update-lists'
@@ -10,6 +10,7 @@ import { s3CheckFolderExists, s3DeleteFolder, s3GetObject, s3ListFolderObjects }
 import { Readable } from 'node:stream'
 import { createOwnerTable, dropOwnerTables, ownerToOwnerTablename } from '../libs/block-owner/owner-table-utils'
 import { initListBasic } from '../libs/s3-lists/initial-lists'
+import { redis } from '../libs/utils/redis-state'
 
 console.debug('LISTS_BUCKET', process.env.LISTS_BUCKET)
 const bucket = process.env.LISTS_BUCKET!
@@ -27,6 +28,7 @@ describe('s3 lists', () => {
 
 	after(async () => {
 		await pg.end()
+		await redis.quit()
 	})
 
 	it('should be able to update addresses (not currently testing anything apart from no errors)', async () => {

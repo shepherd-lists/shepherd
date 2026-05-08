@@ -1,5 +1,6 @@
 import 'dotenv/config'
-import { after, describe, it, skip } from 'node:test'
+import './_import-test-env-vars'
+import { after, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { destroyGatewayAgent, gatewayStream } from '../libs/chunkStreams/gatewayStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'

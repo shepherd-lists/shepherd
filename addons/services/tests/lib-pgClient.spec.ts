@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import assert from "node:assert/strict";
 import { after, afterEach, beforeEach, describe, it, mock } from 'node:test'
 import pg, { batchInsert, batchUpsertTxsWithRules } from '../libs/utils/pgClient'

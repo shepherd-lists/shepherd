@@ -1,9 +1,11 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import assert from "node:assert/strict"
 import { after, afterEach, beforeEach, describe, it } from 'node:test'
 import { initTxidsCache, initRangesCache, updateTxidsCache, updateRangesCache } from '../libs/s3-lists/read-lists'
 import { s3DeleteFolder } from '../libs/utils/s3-services'
 import { getLastModified, UpdateItem, updateS3Lists } from '../libs/s3-lists/update-lists'
+import { redis } from '../libs/utils/redis-state'
+import { idToBase32 } from '../libs/utils/id-to-base32'
 
 
 describe('read-lists tests', () => {
@@ -32,10 +34,19 @@ describe('read-lists tests', () => {
 	afterEach(async () => {
 		await s3DeleteFolder(process.env.LISTS_BUCKET!, listname)
 	})
+	after(async () => {
+		await redis.quit().catch(console.error)
+	})
 
 	it('should apply updates in order', async () => {
 		const resTxids = await initTxidsCache(listname)
-		assert.deepEqual(resTxids.txids.getTxids(), ['txid01', 'txid02', 'txid04', 'txid05', 'txid06'])
+		assert.deepStrictEqual(resTxids.txids.getTxids(), [
+			{ id: 'txid01', base32: idToBase32('txid01') },
+			{ id: 'txid02', base32: idToBase32('txid02') },
+			{ id: 'txid04', base32: idToBase32('txid04') },
+			{ id: 'txid05', base32: idToBase32('txid05') },
+			{ id: 'txid06', base32: idToBase32('txid06') },
+		])
 
 		const resRanges = await initRangesCache(listname)
 		assert.deepEqual(await resRanges.ranges.getRanges(), [[50, 150], [300, 500]])

@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import './_import-test-env-vars'
 import { describe, it, skip, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { chunkTxDataStream } from '../libs/chunkStreams/chunkTxDataStream'
