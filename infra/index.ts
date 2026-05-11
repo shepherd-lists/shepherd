@@ -1,6 +1,9 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
 import { InfraComponent } from './components/InfraComponent'
+import { protectStacksIfNeeded } from '../protect-stacks'
+
+protectStacksIfNeeded()
 
 const stackName = pulumi.getStack()
 const { config } = await import(`../config.${stackName}.ts`)

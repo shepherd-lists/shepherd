@@ -2,6 +2,9 @@ import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
 import { type Config } from '../../../Config'
 import { AddonComponent } from './components/AddonComponent'
+import { protectStacksIfNeeded } from '../../../protect-stacks'
+
+protectStacksIfNeeded()
 
 const stackName = pulumi.getStack()
 const { config } = await import(`../../../config.${stackName}.ts`) as { config: Config }
