@@ -1,6 +1,7 @@
 import * as pulumi from '@pulumi/pulumi'
 import * as docker from '@pulumi/docker'
 import * as path from 'path'
+import * as fs from 'fs'
 import { execSync } from 'child_process'
 
 /** resolve $HOME on the docker host — local if same machine, over ssh if remote */
@@ -202,12 +203,12 @@ export class InfraComponent extends pulumi.ComponentResource {
 
     /** nginx */
 
-    const nginxConfigPath = path.join(import.meta.dirname, '../nginx/nginx.conf')
+    const nginxConfig = fs.readFileSync(path.join(import.meta.dirname, '../nginx/nginx.conf'), 'utf-8')
     new docker.Container('nginx', {
       name: n('nginx'),
       image: 'nginx:stable-alpine',
       networksAdvanced: [{ name: network.name }],
-      uploads: [{ file: '/etc/nginx/nginx.conf', source: nginxConfigPath }],
+      uploads: [{ file: '/etc/nginx/nginx.conf', content: nginxConfig }],
       ports: [
         { internal: 80, external: 80 },
         // { internal: 443, external: 443 },
@@ -222,7 +223,7 @@ export class InfraComponent extends pulumi.ComponentResource {
     const lokiVolume = new docker.Volume('loki-data', { name: n('loki-data') }, volOpts)
     const grafanaVolume = new docker.Volume('grafana-data', { name: n('grafana-data') }, volOpts)
 
-    const lokiConfigPath = path.join(import.meta.dirname, '../loki/loki.yaml')
+    const lokiConfig = fs.readFileSync(path.join(import.meta.dirname, '../loki/loki.yaml'), 'utf-8')
 
     const lokiContainer = new docker.Container('loki', {
       name: n('loki'),
@@ -231,7 +232,7 @@ export class InfraComponent extends pulumi.ComponentResource {
       volumes: [
         { volumeName: lokiVolume.name, containerPath: '/loki' },
       ],
-      uploads: [{ file: '/etc/loki/loki.yaml', source: lokiConfigPath }],
+      uploads: [{ file: '/etc/loki/loki.yaml', content: lokiConfig }],
       command: ['-config.file=/etc/loki/loki.yaml'],
       ports: [{ internal: 3100, external: 3100, ip: '127.0.0.1' }],
       restart: 'unless-stopped',
