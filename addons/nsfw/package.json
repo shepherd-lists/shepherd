@@ -23,13 +23,13 @@
     "shelljs": "^0.9.2",
     "shepherd-plugin-interfaces": "^2.1.0",
     "systeminformation": "^5.12.6",
-    "tests-mock-shepherd-plugin": "file:tests/tests-mock-shepherd-plugin",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4"
   },
   "devDependencies": {
     "knex": "^3.1.0",
     "knex-utils": "^6.0.0",
-    "pg": "^8.14.0"
+    "pg": "^8.14.0",
+    "tests-mock-shepherd-plugin": "file:tests/tests-mock-shepherd-plugin"
   }
 }
