@@ -1,6 +1,7 @@
 import { execSync } from 'child_process'
 import { FilterPluginInterface } from 'shepherd-plugin-interfaces'
 import { logger } from './logger'
+import { slackLogger } from './slackLogger'
 
 const prefix = 'load-config'
 
@@ -34,9 +35,15 @@ const config = async (
 		//remove version detail
 		packageName = packageName.split('@')[0]
 
-		logger(prefix, `installing '${installString}' shepherd plugin...`)
-		execSync(`npm list ${packageName} || npm install ${installString}`, { stdio: 'inherit' })
-		logger(prefix, `installation of '${installString}' shepherd plugin complete.`)
+		logger(prefix, `checking '${installString}' shepherd plugin...`)
+		try {
+			execSync(`npm list ${packageName}`, { stdio: 'pipe' })
+			logger(prefix, `'${packageName}' already installed.`)
+		} catch {
+			logger(prefix, `installing '${installString}' shepherd plugin...`)
+			execSync(`npm install ${installString}`, { stdio: 'inherit' })
+			logger(prefix, `installation of '${installString}' shepherd plugin complete.`)
+		}
 
 		logger(prefix, 'installed version:')
 		execSync(`npm ls ${packageName}`, { stdio: 'inherit' })
@@ -50,6 +57,14 @@ const config = async (
 
 		//early model loading
 		plugin.init()
+			.catch(e => {
+				logger(prefix, `error running init() for '${packageName}' shepherd plugin:`, e)
+				slackLogger(prefix, `error running init() for '${packageName}' shepherd plugin:`, e)
+				throw e
+			})
+			.then(() => {
+				logger(prefix, `init() for '${packageName}' shepherd plugin complete.`)
+			})
 	}
 
 	_config = {
