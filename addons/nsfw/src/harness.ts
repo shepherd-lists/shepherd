@@ -9,6 +9,7 @@ import { processVids } from './rating/video/process-files'
 import { checkImageTxid } from './rating/filter-host'
 import { slackLogger } from './utils/slackLogger'
 import { filterPendingOnly } from './utils/promises'
+import { setIncomingExtra } from './utils/incoming-extra'
 
 const prefix = 'nsfw-main'
 
@@ -101,6 +102,15 @@ const releaseMessage = async (ReceiptHandle: string) => sqs.changeMessageVisibil
 export const harness = async () => {
 	console.log(prefix, 'main begins')
 
+	/* process downloaded videos on a fixed interval */
+	setInterval(() => {
+		processVids()
+
+		//monitor queues
+		logger(prefix, JSON.stringify({ numFiles: _currentFileTasks.length, _currentTotalSize: _currentTotalSize.toLocaleString(), vidsProcessing: _currentVideos.length(), imgsProcessing: Object.keys(_currentImageIds).length }))
+		logger(prefix, `vids: ${JSON.stringify(_currentVideos.listIds())}, imgs: ${JSON.stringify(_currentImageIds)}`)
+	}, 2000)
+
 	/* message consumer loop */
 	while (true) {
 
@@ -109,8 +119,6 @@ export const harness = async () => {
 		const numFiles = _currentFileTasks.length
 		console.log(JSON.stringify({ _currentFileTasks }))
 
-		logger(prefix, JSON.stringify({ numFiles, _currentTotalSize: _currentTotalSize.toLocaleString(), vidsProcessing: _currentVideos.length(), imgsProcessing: Object.keys(_currentImageIds).length }))
-		logger(prefix, `vids: ${JSON.stringify(_currentVideos.listIds())}, imgs: ${JSON.stringify(_currentImageIds)}`)
 
 		if (numFiles >= NUM_FILES || _currentTotalSize >= TOTAL_FILESIZE) {
 			logger(prefix, 'internal queue full. waiting 1s.')
@@ -120,8 +128,7 @@ export const harness = async () => {
 
 		const messages = await getMessages(Math.max(0, NUM_FILES - numFiles))
 		if (messages.length === 0) {
-			logger(prefix, 'no messages, calling processVids...')
-			await processVids()
+			logger(prefix, 'no messages. waiting 5s.')
 			await sleep(5000)
 			continue
 		}
@@ -134,7 +141,8 @@ export const harness = async () => {
 }
 
 const messageHandler = async (message: SQS.Message) => {
-	const s3event = JSON.parse(message.Body!) as S3Event
+	const parsed = JSON.parse(message.Body!)
+	const s3event = parsed as S3Event
 	/* check if it's an s3 event */
 	if (
 		s3event.Records
@@ -143,6 +151,7 @@ const messageHandler = async (message: SQS.Message) => {
 		&& typeof s3event.Records[0].s3?.bucket?.name === 'string'
 	) {
 		const key = s3event.Records[0].s3.object.key
+		setIncomingExtra(key, parsed.extra)
 		const receiptHandle = message.ReceiptHandle!
 
 		/* process s3 event */
@@ -185,9 +194,9 @@ const messageHandler = async (message: SQS.Message) => {
 		} else {
 			/* process image */
 			_currentImageIds[key] = 1
-			let res = false
+			let isProcessed = false
 			try {
-				res = await checkImageTxid(key, contentType)
+				isProcessed = await checkImageTxid(key, contentType)
 			} catch (err: unknown) {
 				const e = err as Error
 				if (['RequestTimeTooSkewed', 'NoSuchKey'].includes(e.name)) {
@@ -200,13 +209,15 @@ const messageHandler = async (message: SQS.Message) => {
 					slackLogger(key, '****** UNCAUGHT ERROR ********* in process image', e)
 				}
 			}
-			logger(key, 'checkImageTxid result:', res)
+			logger(key, 'checkImageTxid processed:', isProcessed)
 			delete _currentImageIds[key]
-			await cleanupAfterProcessing(receiptHandle, key, 0)
+			if (isProcessed) {
+				await cleanupAfterProcessing(receiptHandle, key, 0)
+			} else {
+				await releaseMessage(receiptHandle)
+			}
 		}
 
-		//process downloaded videos
-		await processVids()
 		//cleanup aborted/errored downloads
 		for (const item of _currentVideos) {
 			if (item.complete === 'ERROR') {
