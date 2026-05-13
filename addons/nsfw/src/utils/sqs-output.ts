@@ -3,6 +3,7 @@ import { logger } from './logger'
 import { slackLogger } from './slackLogger'
 import { sqs, AWS_INPUT_BUCKET, AWS_SQS_OUTPUT_QUEUE, AWS_SQS_SINK_QUEUE } from './aws-services'
 import { S3EventRecord } from 'aws-lambda'
+import { getAndDeleteIncomingExtra } from './incoming-extra'
 
 let count = 0
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -20,6 +21,20 @@ export const sendOutputMsg = async (txid: string, filterResult: Partial<FilterRe
 	const QueueUrl = (filterResult.flagged === true) ? AWS_SQS_OUTPUT_QUEUE : AWS_SQS_SINK_QUEUE
 
 	try {
+
+		if (filterResult.flagged === false) {
+			const previousExtra = getAndDeleteIncomingExtra(txid)
+			if (previousExtra) {
+				console.debug(sendOutputMsg.name, { txid, previousExtra })
+				const previousResult = previousExtra.filterResult
+				//this is a bit specific, change for other classifiers
+				if (['Hentai', 'Porn'].includes(previousResult.top_score_name || '')) {
+					filterResult.top_score_name = previousResult.top_score_name
+					filterResult.top_score_value = previousResult.top_score_value
+				}
+			}
+		}
+
 		// Create S3 ObjectCreate event message
 		const s3Event = {
 			Records: [{
