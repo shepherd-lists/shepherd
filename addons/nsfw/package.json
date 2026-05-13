@@ -4,19 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test:grep": "echo 'do not use' || mocha tests/**/*.spec.ts --grep",
-    "test": "echo 'do not use' || mocha tests/**/*.spec.ts"
+    "typecheck": "tsc --noEmit"
   },
-  "mocha": {
-    "node-option": [
-      "require=ts-node/register"
-    ],
-    "extension": [
-      "ts"
-    ]
-  },
-  "keywords": [],
+  "keywords": [ ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -38,16 +28,8 @@
     "typescript": "^5.0.4"
   },
   "devDependencies": {
-    "@types/chai": "^4.3.3",
-    "@types/chai-as-promised": "^7.1.5",
-    "@types/mocha": "^10.0.0",
-    "@types/sinon": "^10.0.13",
-    "chai": "^4.3.6",
-    "chai-as-promised": "^7.1.1",
     "knex": "^3.1.0",
     "knex-utils": "^6.0.0",
-    "mocha": "^10.0.0",
-    "pg": "^8.14.0",
-    "sinon": "^14.0.0"
+    "pg": "^8.14.0"
   }
 }
