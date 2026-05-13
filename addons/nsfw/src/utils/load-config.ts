@@ -10,14 +10,16 @@ interface Config {
 }
 let _config: Config
 
-const config = async () => {
+const config = async (
+	configFileName: string = 'shepherd.config.json' //dep injection for test
+) => {
 	if (_config) {
 		if (process.env.NODE_ENV === 'test') logger(prefix, 'returning cached config')
 		return _config
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-var-requires
-	const jsonConfig = require(`${__dirname}/` + '../../shepherd.config.json')
+	const jsonConfig = require(`${__dirname}/../../` + configFileName)
 	const plugins: FilterPluginInterface[] = []
 
 	for (const installString of jsonConfig.plugins as string[]) {
