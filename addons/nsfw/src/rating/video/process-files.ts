@@ -18,14 +18,14 @@ export const processVids = async () => {
 	// /* debug */ for (const item of downloads) items.push(item)
 	// /* debug */ console.log(processVids.name, { items })
 
-	logger('[processVids] called, checking downloads...')
+	logger(processVids.name, 'called, checking downloads...')
 	let foundCount = 0
 	for (const dl of downloads) {
-		logger(`[processVids] checking ${dl.txid}, complete: ${dl.complete}`)
+		logger(processVids.name, `checking ${dl.txid}, complete: ${dl.complete}`)
 		if (dl.complete === 'TRUE') {
 			foundCount++
 			dl.complete = 'FALSE' //stop processing from beginning again
-			logger(dl.txid, '[processVids] begin processing')
+			logger(processVids.name, dl.txid, 'begin processing')
 
 			//create screencaps & handle errors
 			let frames: string[] = []
@@ -36,7 +36,7 @@ export const processVids = async () => {
 			} catch (err: unknown) {
 				const e = err as FfmpegError
 				if (e.message === 'Output file #0 does not contain any stream') {
-					logger(dl.txid, 'ffmpeg: Output file #0 does not contain any stream')
+					logger(processVids.name, dl.txid, 'ffmpeg: Output file #0 does not contain any stream')
 					corruptDataConfirmed(dl.txid)
 					await downloads.cleanup(dl)
 					continue //dont checkFrames
@@ -52,7 +52,7 @@ export const processVids = async () => {
 						'ffout[1]:Error marking filters as finished',
 					].includes(e.message)
 				) {
-					logger(dl.txid, 'ffmpeg: corrupt maybe:', e.message)
+					logger(processVids.name, dl.txid, 'ffmpeg: corrupt maybe:', e.message)
 					await corruptDataMaybe(dl.txid)
 					await downloads.cleanup(dl)
 					continue //dont checkFrames
@@ -65,13 +65,13 @@ export const processVids = async () => {
 					 * using local retry on these errors is causing transactions to completely fill up the
 					 * internal queues. better to retry using the SQS queues.
 					 */
-					logger(dl.txid, `${e.name}:${e.message}. Cleaning up and releasing back to SQS queue.`)
+					logger(processVids.name, dl.txid, `${e.name}:${e.message}. Cleaning up and releasing back to SQS queue.`)
 					await downloads.cleanupNoDelMsg(dl)
 					await cleanupRelease(dl.receiptHandle, +dl.content_size)
 					continue //dont checkFrames
 				} else {
-					logger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
-					slackLogger(dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
+					logger(processVids.name, dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
+					slackLogger(processVids.name, dl.txid, 'ffmpeg: UNHANDLED error screencaps', e.message)
 					// throw e
 				}
 				//delete the temp files
@@ -80,8 +80,8 @@ export const processVids = async () => {
 
 			//let tfjs run through the screencaps & write to db
 			if (frames.length < 2) {
-				logger(dl.txid, dl.content_type, 'ERROR: NO FRAMES TO PROCESS!')
-				slackLogger(dl.txid, dl.content_type, 'No frames to process!')
+				logger(processVids.name, dl.txid, dl.content_type, 'ERROR: NO FRAMES TO PROCESS!')
+				slackLogger(processVids.name, dl.txid, dl.content_type, 'No frames to process!')
 			} else {
 				await checkFrames(frames, dl.txid)
 			}
@@ -90,6 +90,6 @@ export const processVids = async () => {
 			await downloads.cleanup(dl)
 		}
 	}
-	logger(`[processVids] finished, found ${foundCount} videos to process`)
+	logger(processVids.name, `finished, found ${foundCount} videos to process`)
 }
 
