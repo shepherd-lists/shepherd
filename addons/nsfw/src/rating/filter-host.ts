@@ -59,6 +59,8 @@ const checkImagePluginResults = async (pic: Buffer, mime: string, txid: string) 
 
 	const result = await checkImage(pic, mime, txid)
 
+	console.info(txid, 'checkImagePluginResults result:', JSON.stringify(result))
+
 	if (result.flagged !== undefined) {
 		/* hack, remove specific spam false positives */
 		if (
@@ -72,13 +74,8 @@ const checkImagePluginResults = async (pic: Buffer, mime: string, txid: string) 
 			result.flagged = false
 		}
 
-		await sendOutputMsg(txid, {
-			flagged: result.flagged,
-			...(result.top_score_name && {
-				top_score_name: result.top_score_name,
-				top_score_value: result.top_score_value
-			}),
-		})
+		await sendOutputMsg(txid, result)
+
 	} else {
 		switch (result.data_reason) {
 			case 'corrupt-maybe':
