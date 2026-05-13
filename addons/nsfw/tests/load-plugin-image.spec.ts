@@ -4,8 +4,8 @@ import { describe, it } from 'node:test'
 import fs from 'fs/promises'
 
 
-describe('load-config tests', () => {
-	it('tests that config gets loaded', async () => {
+describe('load-config and mock plugin tests', () => {
+	it('tests that config gets loaded and mock plugin is used', async () => {
 		const config = await loadConfig('shepherd.config.test.json')
 		assert(config.plugins.length > 0)
 		assert(typeof config.plugins[0].init === 'function')
@@ -16,4 +16,5 @@ describe('load-config tests', () => {
 		assert(res.flagged === false)
 
 	})
+
 })
