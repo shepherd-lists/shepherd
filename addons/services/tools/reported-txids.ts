@@ -57,37 +57,42 @@ const putIfChanged = async (key: string, text: string) => {
 	return true
 }
 
+/** Best-effort owner lookup; missing/failed GQL leaves txids out of the map. */
+const lookupOwners = async (gql: ReturnType<typeof arGql>, batch: string[]) => {
+	const owners = new Map<string, string | null>()
+	try {
+		const res = await gql.run(
+			`query($ids: [ID!]) {
+				transactions(ids: $ids, first: ${BATCH_SIZE}) {
+					edges { node { id owner { address } } }
+				}
+			}`,
+			{ ids: batch },
+		)
+		for (const { node } of res.data?.transactions?.edges ?? []) {
+			const addr = node.owner?.address
+			owners.set(node.id, addr ? addr.padEnd(43, ' ') : null)
+		}
+	} catch (e) {
+		console.warn('GQL lookup failed:', e)
+	}
+	return owners
+}
+
 const add = async (txids: string[]) => {
 	const gql = arGql({ endpointUrl: GQLUrls.goldsky, retries: 3 })
 	console.info(`Adding ${txids.length} txids using ${gql.endpointUrl} ...`)
 
 	for (let i = 0; i < txids.length; i += BATCH_SIZE) {
 		const batch = txids.slice(i, i + BATCH_SIZE)
+		const owners = await lookupOwners(gql, batch)
 
-		const query = `
-		query($ids: [ID!]) {
-			transactions(ids: $ids, first: ${BATCH_SIZE}) {
-				edges {
-					node {
-						id
-						owner { address }
-					}
-				}
-			}
-		}`
-		const res = await gql.run(query, { ids: batch })
-		const edges: { node: { id: string; owner: { address: string } } }[] = res.data.transactions.edges
-
-		const found = new Map(edges.map(e => [e.node.id, e.node.owner.address]))
-
-		const missing = batch.filter(id => !found.has(id))
-		if (missing.length) {
-			console.warn(`Warning: ${missing.length} txids not found in GQL:`, missing)
+		const noOwner = batch.filter(id => owners.get(id) == null)
+		if (noOwner.length) {
+			console.warn(`Warning: ${noOwner.length} txids without owner from GQL:`, noOwner)
 		}
 
-		if (!found.size) continue
-
-		const rows = [...found.entries()]
+		const rows = batch.map(txid => [txid, owners.get(txid) ?? null] as const)
 		let idx = 0
 		const values = rows.flat()
 		const placeholders = rows.map(() => `($${++idx}, $${++idx})`).join(', ')
@@ -106,8 +111,9 @@ const syncLists = async () => {
 
 	const allTxids: string[] = (await pool.query('SELECT txid FROM reported_txids ORDER BY txid'))
 		.rows.map((r: { txid: string }) => r.txid)
-	const allOwners: string[] = (await pool.query('SELECT DISTINCT owner FROM reported_txids ORDER BY owner'))
-		.rows.map((r: { owner: string }) => r.owner)
+	const allOwners: string[] = (await pool.query(
+		'SELECT DISTINCT owner FROM reported_txids WHERE owner IS NOT NULL ORDER BY owner',
+	)).rows.map((r: { owner: string }) => r.owner)
 
 	await putIfChanged('reported/txids.txt', allTxids.join('\n') + '\n')
 	await putIfChanged('reported/addresses.txt', allOwners.join('\n') + '\n')

@@ -170,7 +170,7 @@ const getOwnersTablenames = async () => {
 
 
 const populateReportedLists = async () => {
-	const { rows } = await pool.query<{ txid: string; owner: string }>(`
+	const { rows } = await pool.query<{ txid: string; owner: string | null }>(`
 		SELECT txid, owner FROM reported_txids
 	`)
 
@@ -178,7 +178,7 @@ const populateReportedLists = async () => {
 	const s3Addresses = s3UploadReadable(LISTS_BUCKET, 'reported/addresses.txt')
 	for await (const row of rows) {
 		s3Txids.write(`${row.txid}\n`)
-		s3Addresses.write(`${row.owner}\n`)
+		if (row.owner) s3Addresses.write(`${row.owner}\n`)
 	}
 	s3Txids.end()
 	s3Addresses.end()
