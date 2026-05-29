@@ -21,6 +21,7 @@ export type Config = {
 	slack_positive?: string
 	slack_probe?: string
 	slack_public?: string
+	slack_reported_ids?: string
 
 	/** per-addon external config, passed as env vars to cron containers */
 	externalConfig?: { [addonName: string]: Record<string, string> }
