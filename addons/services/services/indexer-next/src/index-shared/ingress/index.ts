@@ -63,9 +63,9 @@ export const handler = async (event: Inputs) => {
 		 * - size > 4k. 
 		 * while retrieving data:
 		 * - use network nodes to retrieve data (make this modular so we can switch to gateway streams also)
-		 * - fileType (16kb) is defined and starts with image/video/audio (sometimes detected as audio contains video) 
+		 * - MIME sniffed by `file`/libmagic (256kb sample) starts with image/video/audio (sometimes detected as audio contains video)
+		 *   - generic/unknown MIMEs (octet-stream, x-empty) are allowed through; other specific non-media types are rejected
 		 *   - [handle html/pdf/docs later]
-		 *   - SVG files (special case: allows application/xml when database expects image/svg+xml)
 		 * - partial data allowed
 		 * - actual data > 4kb again
 		 * - 404 is 404 if nodes tried as well as gateway
