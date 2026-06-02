@@ -3,7 +3,7 @@ import { gatewayStream } from '../../../../../libs/chunkStreams/gatewayStream'
 import { spawn } from 'node:child_process'
 import { Upload } from '@aws-sdk/lib-storage'
 import { S3Client } from '@aws-sdk/client-s3'
-import { ReadableStream } from 'node:stream/web'
+import { ReadableStream, ReadableStreamDefaultReader } from 'node:stream/web'
 import { slackLog } from '../../../../../libs/utils/slackLog'
 import { chunkTxDataStream } from '../../../../../libs/chunkStreams/chunkTxDataStream'
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler'
@@ -148,7 +148,7 @@ export const processRecord = async (
 
 	const key = record.txid
 	let inputStream: ReadableStream | null = null
-	let activeReader: ReturnType<ReadableStream['getReader']> | null = null //holds the lock during sampling + upload drain
+	let reader: ReadableStreamDefaultReader<Uint8Array> | null = null //holds the lock from sampling through upload drain; cancelled in catch
 	let upload: Upload | null = null
 
 	console.debug(`${record.txid} starting processRecord - size: ${record.content_size}`)
@@ -165,24 +165,20 @@ export const processRecord = async (
 		}
 		console.debug(`${record.txid} input stream obtained, sampling for MIME detection...`)
 
-		//read up to MIME_SAMPLE_SIZE bytes off the stream to sniff the MIME type with `file`/libmagic
-		const reader = inputStream.getReader()
-		activeReader = reader
+		//read up to MIME_SAMPLE_SIZE bytes off the stream to sniff the MIME type with `file`/libmagic.
+		//we keep this reader for the rest of the function (no releaseLock) so the upload stream below
+		//can continue draining the same reader after the sampled bytes - no second reader needed.
+		reader = inputStream.getReader()
 		const sampleChunks: Uint8Array[] = []
 		let sampledBytes = 0
-		try {
-			while (sampledBytes < MIME_SAMPLE_SIZE) {
-				if (abortSignal.aborted) throw new Error('aborted')
-				const { done, value } = await reader.read()
-				if (done) break
-				if (value) {
-					sampleChunks.push(value)
-					sampledBytes += value.byteLength
-				}
+		while (sampledBytes < MIME_SAMPLE_SIZE) {
+			if (abortSignal.aborted) throw new Error('aborted')
+			const { done, value } = await reader.read()
+			if (done) break
+			if (value) {
+				sampleChunks.push(value)
+				sampledBytes += value.byteLength
 			}
-		} finally {
-			reader.releaseLock()
-			activeReader = null
 		}
 		const sample = Buffer.concat(sampleChunks.map(c => Buffer.from(c)), sampledBytes)
 
@@ -200,7 +196,7 @@ export const processRecord = async (
 		} else {
 			try {
 				console.info(record.txid, `cancelling stream, detectedMime: "${detectedMime}", recordMime: "${recordMime}"`)
-				await inputStream.cancel('unsupported file type')
+				await reader.cancel('unsupported file type') //reader holds the lock, so cancel inputStream through it
 			} catch (e) {
 				slackLog(record.txid, 'error cancelling stream', e)
 			}
@@ -217,9 +213,8 @@ export const processRecord = async (
 			}
 		}
 
-		//reconstruct the full stream: re-prepend the sampled bytes, then drain the rest
-		const remainderReader = inputStream.getReader()
-		activeReader = remainderReader
+		//reconstruct the full stream: replay the sampled bytes, then keep draining the same reader
+		const lockedReader = reader // keep typescript happy
 		let sampleIndex = 0
 		const uploadStream = new ReadableStream<Uint8Array>({
 			async pull(controller) {
@@ -227,7 +222,7 @@ export const processRecord = async (
 					controller.enqueue(sampleChunks[sampleIndex++])
 					return
 				}
-				const { done, value } = await remainderReader.read()
+				const { done, value } = await lockedReader.read()
 				if (done) {
 					controller.close()
 					return
@@ -235,7 +230,7 @@ export const processRecord = async (
 				if (value) controller.enqueue(value)
 			},
 			cancel(reason) {
-				return remainderReader.cancel(reason)
+				return lockedReader.cancel(reason)
 			},
 		})
 
@@ -303,10 +298,10 @@ export const processRecord = async (
 			}
 		}
 
-		//cleanup streams on error - cancel via the active reader if one holds the lock, else cancel the stream directly
+		//cleanup streams on error - cancel via the reader if it holds the lock, else cancel the stream directly
 		try {
-			if (activeReader) {
-				await activeReader.cancel()
+			if (reader) {
+				await reader.cancel()
 			} else if (inputStream) {
 				await inputStream.cancel()
 			}
