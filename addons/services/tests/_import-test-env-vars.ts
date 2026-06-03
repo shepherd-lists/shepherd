@@ -15,8 +15,8 @@ process.env.GQL_URL_SECONDARY = 'https://arweave-search.goldsky.com/graphql'
 process.env.AWS_ENDPOINT_URL_S3 = 'http://127.0.0.1:9000'// #minio'
 process.env.AWS_ENDPOINT_URL_SQS = 'http://127.0.0.1:9324'// #elasticmq'
 process.env.REDIS_HOST = 'localhost'
-process.env.ingress_nodes = '[{"url":"http://tip-2.arweave.xyz:1984","name":"tip-2.arweave.xyz"},{"url":"http://tip-3.arweave.xyz:1984","name":"tip-3.arweave.xyz"},{"url":"http://tip-4.arweave.xyz:1984","name":"tip-4.arweave.xyz"}]'
-// process.env.http_api_nodes_url = 'https://arweave-shepherd-list.s3.amazonaws.com/a0793c62ec8d844819d6f3135a9e3790.json'
+process.env.ingress_nodes = JSON.stringify(config.ingress_nodes)
+// process.env.http_api_nodes_url = config.http_api_nodes_url
 
 
 // #used?
