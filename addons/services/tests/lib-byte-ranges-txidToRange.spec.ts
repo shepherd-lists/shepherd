@@ -87,6 +87,31 @@ describe('extra tests', () => {
 		assert.equal(bytes.start, chunkStart, 'should equal chunkStart')
 	})
 
+	it('tests a dataItem in the variably-split last-2-chunks of an L1 bundle', async () => {
+		/**
+		 * Regression: the last 2 chunks of a tx can be split into arbitrary sizes by the
+		 * uploader client (NOT a fixed protocol rebalance), with padding after the real data
+		 * out to the 256KB chunk boundary. /chunk(2) return only the real data, never the padding.
+		 *
+		 * `AcvSNJ...` is a 7424-byte image/png, the LAST dataItem (index 784/785) in L1
+		 * bundle `45MQ...` (size 3953832). The second-last chunk holds 141908 real bytes (the
+		 * uploader's choice), so this item's real data starts at bundle offset 3811924
+		 * (= 14 full chunks * 262144 + 141908) and the true skip into the fetched stream is 134311.
+		 *
+		 * The naive math (assuming every preceding chunk is a full 262144) gives dataStart=14075,
+		 * landing ~120236 bytes (the second-last chunk's padding) into garbage. We must READ the
+		 * second-last chunk's real size from the node — there is no formula for the split.
+		 */
+		const txid = 'AcvSNJGwVwp9MX_u8FMu4kUMhvKsY4wHbHQOVHIMrAw'
+		const parent = '45MQkIdAetkAEjgipwugitrNAOicM8oP_jsxqQ8Py_4'
+		const bytes = await txidToRange(txid, parent, undefined)
+
+		assert.equal(bytes.dataStart, 134311n, 'dataStart should skip past the second-last chunk\'s real data, not its padded grid distance')
+		assert.equal(bytes.dataSize, 7597n, 'dataSize should be the full dataItem size (header + payload)')
+		assert.equal(bytes.start, 387551298625782n, 'weaveStart should be the grid-aligned start of the last chunk\'s bucket')
+		assert.equal(bytes.end, 387551298887926n, 'weaveEnd should be the grid-aligned end of the bundle')
+	})
+
 })
 
 describe('stream ans104 header tests', () => {
