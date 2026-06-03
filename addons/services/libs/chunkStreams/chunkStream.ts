@@ -226,14 +226,22 @@ export const chunkStream = async (
 	}//end of startChunk
 
 
+	let begun = false
 	return new ReadableStream({
 		type: 'bytes',
 		start: (c) => {
 			controller = c
+		},
+		//begin on the first pull, not in start(). otherwise for small data the
+		//single fetch resolves, enqueues and close()s before the consumer ever reads,
+		//and the enqueued bytes are lost (stream resolves done with an empty queue).
+		pull: () => {
+			if (begun) return;
+			begun = true
 			//do not pre-load to maxParallel here (might not actually want the stream)
 			chunkBuffers[0].started = true
 			activeFetches++
-			startChunk(0, chunkBuffers[0]) //controller needs to be set. 
+			startChunk(0, chunkBuffers[0]) //controller needs to be set.
 		},
 		cancel: async () => {
 			isCancelled = true
