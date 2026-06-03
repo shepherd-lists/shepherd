@@ -200,8 +200,8 @@ export const chunkStream = async (
 					return;
 				} catch (e) {
 					if (e instanceof Error && e.name === 'AbortError') {
+						//the onAbort listener errors the controller; just stop here.
 						console.info(txid, `chunkStream aborted. reason: ${abortSignal?.reason ?? 'aborted'}`)
-						controller?.error(new Error(abortSignal?.reason ?? 'aborted'))
 						return;
 					}
 
@@ -219,24 +219,42 @@ export const chunkStream = async (
 				}
 			}
 		} catch (e) {
+			//non-abort failure (e.g. ran out of nodes); abort errors go via onAbort.
 			isCancelled = true
-			controller?.error(e)
-
+			if (!isStreamClosed) {
+				isStreamClosed = true
+				controller?.error(e)
+			}
 		}
 	}//end of startChunk
 
+
+	//single source of truth for "what an abort does": error the consumer and tear down
+	//in-flight requests. startChunk's abort-checks return silently and rely on this to
+	//error the controller, so a read() never hangs whichever window the abort lands in.
+	const onAbort = () => {
+		if (isStreamClosed) return; //already closed or errored elsewhere
+		isStreamClosed = true
+		isCancelled = true
+		controller?.error(new Error(abortSignal.reason ?? 'aborted'))
+		for (const info of chunkBuffers) {
+			info.req?.destroy()
+			info.res?.destroy()
+		}
+	}
 
 	let begun = false
 	return new ReadableStream({
 		type: 'bytes',
 		start: (c) => {
 			controller = c
+			abortSignal.addEventListener('abort', onAbort, { once: true })
 		},
 		//begin on the first pull, not in start(). otherwise for small data the
 		//single fetch resolves, enqueues and close()s before the consumer ever reads,
 		//and the enqueued bytes are lost (stream resolves done with an empty queue).
 		pull: () => {
-			if (begun) return;
+			if (begun || isCancelled) return;
 			begun = true
 			//do not pre-load to maxParallel here (might not actually want the stream)
 			chunkBuffers[0].started = true
@@ -245,6 +263,7 @@ export const chunkStream = async (
 		},
 		cancel: async () => {
 			isCancelled = true
+			abortSignal.removeEventListener('abort', onAbort)
 			await Promise.all(
 				chunkBuffers.map(info => {
 					info.req?.destroy()
