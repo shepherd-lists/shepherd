@@ -13,7 +13,7 @@
  */
 /** plan:
  * 1. get current ario height
- * 2. scan blocks for min/max heights to index, dispatch to worker lambdas 
+ * 2. scan blocks for min/max heights to index, dispatch to ingest batches
  *    - edit: separate min/max not required, only possible to query 1 block using ARio
  * 3. wait for next block height
  * 4. repeat

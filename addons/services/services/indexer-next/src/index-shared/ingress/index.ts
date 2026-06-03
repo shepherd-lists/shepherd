@@ -25,25 +25,10 @@ interface Inputs {
 	streamSourceName: 'gateway' | 'nodes'
 	downloadTimeout: number
 }
-/** the handler will receive 1 page of new items to index. */
-export const handler = async (event: Inputs) => {
+/** ingest 1 page (batch) of new items to index. */
+export const ingressHandler = async (inputs: Inputs) => {
+	const { metas, pageNumber, gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName, downloadTimeout } = inputs
 	try {
-		console.info('event', JSON.stringify(event))
-
-		/* check inputs */
-		const { metas, pageNumber, gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName, downloadTimeout } = event
-		if (
-			!Array.isArray(metas) || metas.length === 0
-			|| typeof pageNumber !== 'string'
-			|| typeof gqlUrl !== 'string' || !gqlUrl.match(/^https:\/\/[a-zA-Z0-9.-]+\/graphql/)
-			|| typeof gqlUrlBackup !== 'string' || !gqlUrlBackup.match(/^https:\/\/[a-zA-Z0-9.-]+\/graphql/)
-			|| typeof gqlProvider !== 'string'
-			|| typeof indexName !== 'string'
-			|| typeof streamSourceName !== 'string' || !['gateway', 'nodes'].includes(streamSourceName)
-			|| typeof downloadTimeout !== 'number'
-		) {
-			throw new Error('missing inputs. should have { metas: GQLEdgeInterface[], pageNumber: number, gqlUrl: string, gqlUrlBackup: string, gqlProvider: string, indexName: string, }')
-		}
 		console.info(indexName, `processing page ${pageNumber} of ${metas.length} records`)
 
 		const records = await buildRecords(
@@ -70,7 +55,7 @@ export const handler = async (event: Inputs) => {
 		 * - actual data > 4kb again
 		 * - 404 is 404 if nodes tried as well as gateway
 		 * - abort dead connections (partial?)
-		 * - connection and 4xx/5xx retrying <= do outside this lambda
+		 * - connection and 4xx/5xx retrying <= do outside this function
 		 */
 		let numQueued = 0
 		const updated: TxRecord[] = []
@@ -81,7 +66,7 @@ export const handler = async (event: Inputs) => {
 
 		const streamSource = streamSourceName === 'gateway' ? gatewayStream : chunkTxDataStream
 		console.debug(indexName, `starting downloadWithChecks for ${metaFiltered.unqueued.length} records`)
-		const queued = await downloadWithChecks(metaFiltered.unqueued, downloadTimeout, streamSource) //perhaps switch source according to lambda input?
+		const queued = await downloadWithChecks(metaFiltered.unqueued, downloadTimeout, streamSource)
 		console.debug(indexName, `downloadWithChecks completed for ${queued.length} records`)
 
 		//sort processed records
@@ -109,7 +94,7 @@ export const handler = async (event: Inputs) => {
 			last_update_date: r.last_update_date || new Date(),
 		}) as TxRecord), 'txs') ?? 0
 
-		console.info(indexName, `page ${pageNumber}, number of records ${records.length}, ${numQueued} queued in s3, ${numInserted}/${updated.length} inserts, ${errored.length} errored.`)
+		console.info(indexName, `page ${pageNumber}, number of records ${records.length}, ${numQueued} queued in S3, ${numInserted}/${updated.length} inserts, ${errored.length} errored.`)
 
 		return {
 			numQueued,
@@ -118,7 +103,7 @@ export const handler = async (event: Inputs) => {
 		}
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog('fnIngress.handler', `Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
+		await slackLog(indexName, 'ingressHandler', `Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
 		throw e
 	}
 }
