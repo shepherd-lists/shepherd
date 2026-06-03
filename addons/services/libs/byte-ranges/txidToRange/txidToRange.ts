@@ -6,6 +6,8 @@ import { arGql, ArGqlInterface } from 'ar-gql'
 import { slackLog } from '../../utils/slackLog'
 import { gqlTx } from '../gqlTx'
 import { Http_Api_Node, httpApiNodes } from '../../utils/update-range-nodes'
+import { fetchChunkData } from '../../chunkStreams/chunkFetch'
+import { ingressNodes } from '../../chunkStreams/ingress-nodes'
 
 
 if (!HOST_URL) throw new Error('Missing HOST_URL')
@@ -200,6 +202,34 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 
 	let weaveStart = weaveStartUnaligned - modStart
 	let weaveEnd = weaveEndUnaligned + addEnd
+	let dataStart = start - (weaveStart - L1WeaveStart)
+
+	/**
+	 * The last 2 chunks of a tx are split into arbitrary sizes by the uploader client (no fixed
+	 * rule), each padded out to its 256KB bucket. /chunk2 returns only the real data, not the
+	 * padding. The math above assumes every preceding chunk is a full CHUNK_SIZE, so for a
+	 * dataItem whose data starts within those last 2 chunks it over-skips by the second-last
+	 * chunk's padding. Correct it by reading the second-last chunk's real size from a node and
+	 * recomputing weaveStart (the item's bucket) and dataStart (skip into the real bytes).
+	 * Bundles always start on a chunk boundary, so L1WeaveStart is grid-aligned and the bucket
+	 * offsets below are too.
+	 */
+	// only relevant when the L1 spans >1 chunk and isn't a whole number of chunks (=> a split, padded tail)
+	const rebalanced = L1WeaveStart >= CHUNK_ALIGN_GENESIS && L1WeaveSize > CHUNK_SIZE && (L1WeaveSize % CHUNK_SIZE !== 0n)
+	const tailPrefix = (L1WeaveSize / CHUNK_SIZE - 1n) * CHUNK_SIZE // packed bundle offset where the 2nd-last chunk's real data begins
+	if (rebalanced && start >= tailPrefix) {
+		const secondLastSize = BigInt(await chunkSizeAt(L1WeaveStart + tailPrefix))
+		const lastDataStartPacked = tailPrefix + secondLastSize // packed bundle offset where the last chunk's real data begins
+		const inLastChunk = start >= lastDataStartPacked
+		const bucketPacked = inLastChunk ? tailPrefix + CHUNK_SIZE : tailPrefix
+		weaveStart = L1WeaveStart + bucketPacked
+		dataStart = start - (inLastChunk ? lastDataStartPacked : tailPrefix)
+		// cover the dataItem from this bucket; round up to a chunk boundary
+		const spanFromBucket = dataStart + size
+		const spanMod = spanFromBucket % CHUNK_SIZE
+		weaveEnd = weaveStart + spanFromBucket + (spanMod === 0n ? 0n : CHUNK_SIZE - spanMod)
+		if (process.env.NODE_ENV === 'test') console.info('rebalanced tail', { tailPrefix, secondLastSize, inLastChunk, weaveStart, dataStart, weaveEnd })
+	}
 
 	/* hack for older pre-aligned weave */
 
@@ -208,6 +238,7 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 		//clamp the byte range to bundle limits
 		if (weaveStart < L1WeaveStart) weaveStart = L1WeaveStart
 		if (weaveEnd > L1WeaveEnd) weaveEnd = L1WeaveEnd
+		dataStart = start - (weaveStart - L1WeaveStart)
 	}
 
 	/* final sanity checks */
@@ -218,10 +249,12 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 	if (weaveStart > weaveEnd) throw new Error('weaveStart cannot be greater than weaveEnd')
 	if ((weaveEnd - weaveStart) < BigInt(header0.diSizes[indexTxid])) throw new Error('byte range too small to contain dataItem')
 	if (weaveStart < L1WeaveStart) throw new Error('weaveStart out of range')
-	if (weaveEnd > (L1WeaveEnd + addEnd)) throw new Error('weaveEnd out of range') //not the cleanest test
+	// weaveEnd must not run past the grid-aligned end of the L1's last chunk (round L1WeaveEnd up to a chunk boundary)
+	const L1WeaveEndAligned = L1WeaveEnd + (CHUNK_SIZE - (L1WeaveEnd - CHUNK_ALIGN_GENESIS) % CHUNK_SIZE) % CHUNK_SIZE
+	if (weaveEnd > L1WeaveEndAligned) throw new Error('weaveEnd out of range')
+	if (dataStart < 0n) throw new Error('dataStart out of range')
 
 	/* final values */
-	const dataStart = start - (weaveStart - L1WeaveStart)
 	if (process.env.NODE_ENV === 'test') console.info('return', { weaveStart, weaveEnd, dataStart, size })
 	return {
 		start: weaveStart,
@@ -295,5 +328,31 @@ const fetchRetryOffset = moize(async (id: string) => {
 		}
 	}
 
+}, { maxSize: 1000, isPromise: true })
+
+/**
+ * Read the real (unpadded) size of the chunk at a given weave offset, via /chunk2.
+ * The last 2 chunks of a tx are split into arbitrary sizes by the uploader client, with
+ * padding after the real data out to the 256KB boundary - and there is no formula for the
+ * split, so we must ask a node. Reuses the /chunk2 fetch (`fetchChunkData`); the node sends
+ * the whole chunk regardless, but we resolve from the 3-byte size header and abort the rest.
+ * Memoized - tail chunks get re-requested for sibling dataItems in the same bundle.
+ */
+const chunkSizeAt = moize(async (weaveOffset: bigint): Promise<number> => {
+	const nodes = [...httpApiNodes(), ...ingressNodes()]
+	for (const node of nodes) {
+		const ac = new AbortController()
+		const url = `${node.url}/chunk2/${(weaveOffset + 1n).toString()}` // /chunk2 is 1-based
+		let size = -1
+		const onSize = (s: number) => { size = s; ac.abort() } // got the header, stop reading the body
+		try {
+			await fetchChunkData('chunkSizeAt', url, ac.signal, () => { }, onSize)
+		} catch {
+			//aborting in onSize rejects with AbortError - expected once we have the size
+		}
+		if (size >= 0) return size
+		console.error(chunkSizeAt.name, `no size from '${url}'. Trying next node.`)
+	}
+	throw new Error(`${chunkSizeAt.name}: could not read chunk size at weaveOffset=${weaveOffset}`)
 }, { maxSize: 1000, isPromise: true })
 
