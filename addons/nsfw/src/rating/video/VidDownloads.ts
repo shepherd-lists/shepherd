@@ -1,7 +1,7 @@
 import { rimraf } from 'rimraf'
 import { VID_TMPDIR } from '../../constants'
 import { logger } from '../../utils/logger'
-import { cleanupAfterProcessing } from '../../harness'
+import { cleanupAfterProcessing, cleanupRelease } from '../../harness'
 
 
 export interface VidDownloadRecord {
@@ -59,6 +59,22 @@ export class VidDownloads implements Iterable<VidDownloadRecord> {
 			logger(vdl.txid, 'Error deleting temp folder', e)
 		}
 		VidDownloads.array = VidDownloads.array.filter(d => d !== vdl)
+	}
+
+	/**
+	 * Aborted/errored download: don't delete the SQS message, release it back to the queue so a
+	 * later run can retry. Removes from the array first (synchronously) so the harness's
+	 * error-sweep loop can't fire this more than once for the same record.
+	 */
+	public cleanupReleaseMsg = async (vdl: VidDownloadRecord) => {
+		if (!VidDownloads.array.includes(vdl)) return //already being cleaned up
+		VidDownloads.array = VidDownloads.array.filter(d => d !== vdl)
+		try {
+			await rimraf(VID_TMPDIR + vdl.txid)
+		} catch (e) {
+			logger(vdl.txid, 'Error deleting temp folder', e)
+		}
+		await cleanupRelease(vdl.receiptHandle, +vdl.content_size)
 	}
 
 	public listIds = () => {
