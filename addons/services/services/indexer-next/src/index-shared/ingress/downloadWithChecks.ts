@@ -41,7 +41,11 @@ const detectMime = (sample: Buffer): Promise<string> => new Promise((resolve, re
 		if (code !== 0) return reject(new Error(`file exited ${code}: ${stderr.trim()}`))
 		resolve(stdout.trim())
 	})
-	proc.stdin.on('error', reject) // EPIPE if `file` closes stdin early
+	// EPIPE just means `file` exited before we finished writing the sample; the exit
+	// code (via 'close') is the real verdict, so swallow EPIPE, surface other errors.
+	proc.stdin.on('error', (err: NodeJS.ErrnoException) => {
+		if (err.code !== 'EPIPE') reject(err)
+	})
 	proc.stdin.end(sample)
 })
 
