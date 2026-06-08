@@ -3,12 +3,15 @@ import http from 'node:http'
 
 const agent = new http.Agent({
 	keepAlive: true,
-	maxSockets: 100,
+	maxSockets: 10_000,
 	maxFreeSockets: 5,
 	timeout: 30_000
 })
 
 export const destroyChunkStreamAgent = () => agent.destroy()
+
+//exported for perf/load instrumentation (read agent.sockets/requests/freeSockets)
+export const chunkStreamAgent = agent
 
 
 /**
