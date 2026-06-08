@@ -5,7 +5,7 @@ import moize from 'moize'
 import { arGql, ArGqlInterface } from 'ar-gql'
 import { slackLog } from '../../utils/slackLog'
 import { gqlTx } from '../gqlTx'
-import { Http_Api_Node, httpApiNodes } from '../../utils/update-range-nodes'
+import { httpApiNodes } from '../../utils/update-range-nodes'
 import { fetchChunkData } from '../../chunkStreams/chunkFetch'
 import { ingressNodes } from '../../chunkStreams/ingress-nodes'
 
@@ -264,9 +264,14 @@ const byteRange104 = async (txid: string, parent: string, parents: string[] | un
 	}
 }
 
-/* randomly splice node urls from the list */
-function* hostUrls() {
-	const nodes = [...httpApiNodes()] as Array<Http_Api_Node & { throttled?: EpochTimeStamp }>
+/* yield node urls for the /offset lookup: fast ingress_nodes first (already
+ * shuffled), then the slower http_api_nodes (random-spliced) */
+type OffsetNode = { url: string, name: string, throttled?: EpochTimeStamp }
+function* hostUrls(): Generator<OffsetNode> {
+	for (const node of ingressNodes() as OffsetNode[]) {
+		yield node
+	}
+	const nodes = [...httpApiNodes()] as OffsetNode[]
 	while (nodes.length) {
 		const iRnd = Math.floor(Math.random() * nodes.length)
 		yield nodes.splice(iRnd, 1)[0]
@@ -286,9 +291,14 @@ const fetchRetryOffset = moize(async (id: string) => {
 
 		const url = `${node.url}/tx/${id}/offset`
 		let res: Response | undefined
+		// per-fetch timeout: /offset is a trivial lookup; a node that doesn't answer
+		// quickly is treated as dead so we move on instead of blocking on a hung socket
+		// until the OS TCP timeout (which is what created the multi-minute stragglers).
+		const ac = new AbortController()
+		const timer = setTimeout(() => ac.abort(new Error('offset fetch timeout (5s)')), 10_000)
 		try {
 			console.info(fetchRetryOffset.name, `unmemoized fetch('${url}')`)
-			res = await fetch(url)
+			res = await fetch(url, { signal: ac.signal })
 
 			if (res.status === 429) {
 				node.throttled = Date.now() + 30_000
@@ -301,6 +311,7 @@ const fetchRetryOffset = moize(async (id: string) => {
 			const e = err as Error
 			console.error(fetchRetryOffset.name, `${e.name}:${e.message}, fetching byte-range data with '${url}}'. Will retry with another node.`, e.cause)
 		} finally {
+			clearTimeout(timer)
 			if (res?.body && !res.bodyUsed) {
 				res.body.cancel()
 			}
