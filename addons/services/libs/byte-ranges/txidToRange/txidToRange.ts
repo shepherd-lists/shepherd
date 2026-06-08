@@ -350,7 +350,7 @@ const fetchRetryOffset = moize(async (id: string) => {
  * Memoized - tail chunks get re-requested for sibling dataItems in the same bundle.
  */
 const chunkSizeAt = moize(async (weaveOffset: bigint): Promise<number> => {
-	const nodes = [...httpApiNodes(), ...ingressNodes()]
+	const nodes = [...ingressNodes(), ...httpApiNodes()]
 	for (const node of nodes) {
 		const ac = new AbortController()
 		const url = `${node.url}/chunk2/${(weaveOffset + 1n).toString()}` // /chunk2 is 1-based
