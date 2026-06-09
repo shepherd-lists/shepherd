@@ -1,6 +1,6 @@
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { gatewayStream } from '../../../../../libs/chunkStreams/gatewayStream'
-import { spawn } from 'node:child_process'
+import { detectMime } from './mimePool'
 import { Upload } from '@aws-sdk/lib-storage'
 import { S3Client } from '@aws-sdk/client-s3'
 import { ReadableStream, ReadableStreamDefaultReader } from 'node:stream/web'
@@ -9,7 +9,8 @@ import { chunkTxDataStream } from '../../../../../libs/chunkStreams/chunkTxDataS
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler'
 import { s3HeadObject } from '../../../../../libs/utils/s3-services'
 
-
+/** re-exported so tests/tools can tear down the worker pool in their cleanup hooks */
+export { destroyMimeWorkers } from './mimePool'
 
 const s3client = new S3Client({
 	requestHandler: new NodeHttpHandler({
@@ -28,26 +29,6 @@ const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET!
  * images, DICOM, legacy Office) are non-media and fall through as
  * application/octet-stream, which the allowlist passes on regardless. */
 const MIME_SAMPLE_SIZE = 64 * 1024 // 64 KB
-
-/** detect MIME via libmagic by piping a sample to `file` over stdin (no disk I/O, non-blocking) */
-const detectMime = (sample: Buffer): Promise<string> => new Promise((resolve, reject) => {
-	const proc = spawn('file', ['--mime-type', '-b', '-'])
-	let stdout = ''
-	let stderr = ''
-	proc.stdout.on('data', d => { stdout += d })
-	proc.stderr.on('data', d => { stderr += d })
-	proc.on('error', reject) // e.g. `file` not installed
-	proc.on('close', code => {
-		if (code !== 0) return reject(new Error(`file exited ${code}: ${stderr.trim()}`))
-		resolve(stdout.trim())
-	})
-	// EPIPE just means `file` exited before we finished writing the sample; the exit
-	// code (via 'close') is the real verdict, so swallow EPIPE, surface other errors.
-	proc.stdin.on('error', (err: NodeJS.ErrnoException) => {
-		if (err.code !== 'EPIPE') reject(err)
-	})
-	proc.stdin.end(sample)
-})
 
 
 type SourceStream = typeof chunkTxDataStream | typeof gatewayStream
