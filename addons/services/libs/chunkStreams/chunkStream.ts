@@ -81,7 +81,7 @@ export const chunkStream = async (
 		try {
 			if (abortSignal.aborted || isCancelled) return;
 
-			console.info(txid, `chunk ${index}, offset ${chunkInfo.offset} starting...`)
+			// console.info(txid, `chunk ${index}, offset ${chunkInfo.offset} starting...`)
 
 
 			const onSize = (size: number) => {
@@ -129,7 +129,7 @@ export const chunkStream = async (
 				if (index === activeWriteIndex) {
 					if (chunkInfo.bufferedData && chunkInfo.bufferedData.length > 0) {
 						const l = chunkInfo.bufferedData.reduce((acc, buf) => acc + buf.length, 0)
-						console.debug(txid, 'WRITING OUT BUFFERED DATA', l)
+						// console.debug(txid, 'WRITING OUT BUFFERED DATA', l)
 						controller.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData)))
 						delete chunkInfo.bufferedData
 						writePos += l
@@ -172,7 +172,7 @@ export const chunkStream = async (
 
 					//move to next chunk(s)
 					if (index === activeWriteIndex) {
-						console.info(txid, 'index=activeWriteIndex', { index, activeWriteIndex })
+						// console.info(txid, 'index=activeWriteIndex', { index, activeWriteIndex })
 						activeWriteIndex++
 						//next chunks might be fully buffered already
 						while (
@@ -182,7 +182,7 @@ export const chunkStream = async (
 							//enqueue buffer and dataPos+
 							const chunkInfo = chunkBuffers[activeWriteIndex]
 							const l = chunkInfo.bufferedData!.reduce((acc, buf) => acc + buf.length, 0)
-							console.debug(txid, 'WRITING OUT TOTAL BUFFERED DATA', activeWriteIndex, l)
+							// console.debug(txid, 'WRITING OUT TOTAL BUFFERED DATA', activeWriteIndex, l)
 							controller!.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData!)))
 							delete chunkInfo.bufferedData
 							writePos += l
