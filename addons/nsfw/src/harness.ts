@@ -218,10 +218,10 @@ const messageHandler = async (message: SQS.Message) => {
 			}
 		}
 
-		//cleanup aborted/errored downloads
+		//cleanup aborted/errored downloads: release back to SQS to retry later (don't delete)
 		for (const item of _currentVideos) {
 			if (item.complete === 'ERROR') {
-				_currentVideos.cleanup(item)
+				await _currentVideos.cleanupReleaseMsg(item)
 			}
 		}
 		return true
