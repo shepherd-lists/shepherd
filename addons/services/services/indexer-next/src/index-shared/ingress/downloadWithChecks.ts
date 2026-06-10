@@ -242,30 +242,42 @@ export const processRecord = async (
 		await upload.done()
 		console.debug(`${record.txid} S3 upload completed successfully`)
 
-		//verify the uploaded file size matches expected content size
-		try {
-			const head = await s3HeadObject(AWS_INPUT_BUCKET, key)
-
-			const uploadedSize = Number(head.ContentLength)
-			const expectedSize = Number(record.content_size)
-
-			if (uploadedSize !== expectedSize) {
-				console.error(`${record.txid} size mismatch: uploaded ${uploadedSize}, expected ${expectedSize}`)
-				throw new Error(`Upload size verification failed: ${uploadedSize} !== ${expectedSize} bytes`)
-			}
-
-			console.debug(`${record.txid} upload verification successful, uploaded===expected: ${uploadedSize}===${expectedSize} bytes`)
-		} catch (verifyErr) {
-			console.error(`${record.txid} upload verification failed:`, String(verifyErr))
-
+		//verify the uploaded object matches expected content size. upload.done() can
+		//resolve fractionally before a just-written object is HEAD-able under load, so a
+		//NotFound is retried with backoff before we treat it as a real failure. a size
+		//*mismatch* means a real corrupt upload (object exists, wrong size) — fail fast.
+		//note: no abort() here. the object either doesn't exist (nothing to abort; a
+		//completed single-part PUT can't be aborted anyway) or exists with the right size.
+		const VERIFY_ATTEMPTS = 4
+		let verified = false
+		for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt++) {
 			try {
-				await upload.abort()
-			} catch (abortError) {
-				console.warn(`${record.txid} failed to abort invalid upload:`, abortError)
-			}
+				const head = await s3HeadObject(AWS_INPUT_BUCKET, key)
 
-			throw verifyErr
+				const uploadedSize = Number(head.ContentLength)
+				const expectedSize = Number(record.content_size)
+
+				if (uploadedSize !== expectedSize) {
+					console.error(`${record.txid} size mismatch: uploaded ${uploadedSize}, expected ${expectedSize}`)
+					throw new Error(`Upload size verification failed: ${uploadedSize} !== ${expectedSize} bytes`)
+				}
+
+				console.debug(`${record.txid} upload verification successful, uploaded===expected: ${uploadedSize}===${expectedSize} bytes`)
+				verified = true
+				break
+			} catch (verifyErr) {
+				const notFound = (verifyErr as { name?: string }).name === 'NotFound'
+				if (notFound && attempt < VERIFY_ATTEMPTS) {
+					const backoff = 250 * 2 ** (attempt - 1) // 250, 500, 1000ms
+					console.warn(`${record.txid} verify HEAD NotFound (attempt ${attempt}/${VERIFY_ATTEMPTS}), retrying in ${backoff}ms`)
+					await new Promise(r => setTimeout(r, backoff))
+					continue
+				}
+				console.error(`${record.txid} upload verification failed:`, String(verifyErr))
+				throw verifyErr
+			}
 		}
+		if (!verified) throw new Error(`${record.txid} upload verification failed after ${VERIFY_ATTEMPTS} attempts`)
 
 		return {
 			queued: true,
