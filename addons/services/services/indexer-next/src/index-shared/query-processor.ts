@@ -8,7 +8,7 @@ import { batchUpsertTxsWithRules } from '../../../../libs/utils/pgClient'
 
 
 const ARIO_DELAY_MS = 500
-const MAX_INGRESS_CONCURRENCY = 10
+const MAX_INGRESS_CONCURRENCY = 20
 const limit = pLimit(MAX_INGRESS_CONCURRENCY)
 const MISSING_HEIGHT = 'MISSING_HEIGHT'
 const CHUNKS_BATCH_SIZE = 50
