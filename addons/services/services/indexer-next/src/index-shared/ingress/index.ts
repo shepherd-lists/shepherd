@@ -122,7 +122,6 @@ const getParent = moize(
 	},
 )
 
-/** exported for manual flagging tool */
 /** map a raw GQL meta to the record fields we store, without the parent-chain
  * walk. Shared by buildRecords (for big records) and the negligible path. */
 const metaToRecord = (item: GQLEdgeInterface) => ({
@@ -134,6 +133,7 @@ const metaToRecord = (item: GQLEdgeInterface) => ({
 	owner: item.node.owner.address.padEnd(43, ' '), //pad non-arweave addresses to 43 chars
 })
 
+/** exported for manual flagging tool */
 export const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: string, gqlProvider: string, gqlBackup: ArGqlInterface) => {
 
 	const records: TxRecord[] = []
