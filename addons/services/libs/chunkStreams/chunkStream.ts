@@ -77,6 +77,7 @@ export const chunkStream = async (
 			...ingressNodes(),
 		]
 		let nodeIndex = nodes.length - 1
+		let retriedThisNode = false //allow one same-node retry on a transient reset (stale keep-alive socket) before moving on
 
 		try {
 			if (abortSignal.aborted || isCancelled) return;
@@ -205,8 +206,22 @@ export const chunkStream = async (
 						return;
 					}
 
+					//nodes drop idle keep-alive sockets; a reused-stale socket surfaces as a
+					//transient reset *before any bytes arrive*. retry the SAME node once on a
+					//fresh socket (the failed socket is destroyed in finally) before moving on.
+					//only safe at 0 bytes processed: once onSegment has emitted/buffered any
+					//bytes, re-streaming the chunk would double-count, so fall through instead.
+					const isReset = (e as NodeJS.ErrnoException).code === 'ECONNRESET' || /socket hang up/i.test(String(e))
+					const noBytesYet = chunkPos === chunkInfo.offset
+					if (isReset && noBytesYet && !retriedThisNode) {
+						retriedThisNode = true
+						console.info(txid, url, `${String(e)}, ${chunkInfo.offset}/${dataEnd} bytes. retrying same node (fresh socket)`)
+						continue;
+					}
+
 					console.error(txid, url, `${String(e)}, ${chunkInfo.offset}/${dataEnd} bytes. trying next node`)
 					nodeIndex--
+					retriedThisNode = false //fresh node gets its own one retry
 
 					if (nodeIndex < 0) {
 						throw new Error(`${txid} chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, offset: chunkInfo.offset, lastErrorMsg: (e as Error).message })}`)
