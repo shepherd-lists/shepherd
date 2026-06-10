@@ -38,7 +38,7 @@ const execFileP = promisify(execFile)
 
 /** --- knobs (edit + re-run to sweep) --- */
 const FIXTURE_DIR = resolve('./fixtures/gql-pages')
-const MAX_PAGES = 50           // how many captured pages to replay this run
+const MAX_PAGES = 30           // how many captured pages to replay this run
 const BATCH_CONCURRENCY = 20   // matches MAX_INGRESS_CONCURRENCY in query-processor
 const BATCH_SIZE = 50          // matches CHUNKS_BATCH_SIZE for the 'nodes' source
 const DOWNLOAD_TIMEOUT = 90_000
@@ -93,11 +93,18 @@ const resetState = async (edges: GQLEdgeInterface[]) => {
 const agentSnapshot = (agent: typeof chunkStreamAgent) => {
 	const count = (m: Record<string, unknown[]> | undefined) =>
 		Object.values(m ?? {}).reduce((n, arr) => n + arr.length, 0)
+	// per-host in-flight sockets (actual requests per node), shortened key e.g. tip-1
+	const perHost = (m: Record<string, unknown[]> | undefined) =>
+		Object.entries(m ?? {})
+			.map(([host, arr]) => `${host.replace(/\.arweave\.xyz.*$/, '').replace(/:.*$/, '')}=${arr.length}`)
+			.join(',')
 	return {
 		inUse: count(agent.sockets as never),       // sockets actively assigned to a request
 		queued: count(agent.requests as never),     // requests waiting because maxSockets is hit
 		free: count(agent.freeSockets as never),    // idle keep-alive sockets
 		hosts: Object.keys(agent.sockets ?? {}).length,
+		perHostInUse: perHost(agent.sockets as never), // in-flight requests broken down per node
+		perHostQueued: perHost(agent.requests as never), // queued requests per node
 	}
 }
 
@@ -141,6 +148,8 @@ const main = async () => {
 		const line = [
 			`t=${elapsed}s`,
 			`agent[inUse=${a.inUse} queued=${a.queued} free=${a.free} hosts=${a.hosts}]`,
+			`perNode[${a.perHostInUse}]`,
+			...(a.perHostQueued ? [`perNodeQ[${a.perHostQueued}]`] : []),
 			`osTCP=${os}`,
 			`handles=${(process as any)._getActiveHandles().length}`,
 			`reqs=${(process as any)._getActiveRequests().length}`,
