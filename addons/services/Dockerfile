@@ -23,6 +23,8 @@ WORKDIR /app/libFunctions/fnTemp
 RUN npm ci --omit=dev
 
 FROM base AS indexer-next
+# `file`/libmagic for MIME sniffing in ingress (node:22-slim doesn't ship it)
+RUN apt-get update && apt-get install -y --no-install-recommends file && rm -rf /var/lib/apt/lists/*
 ARG targetArg # same value as target
 WORKDIR /app/services/${targetArg}
 # need same folder depth

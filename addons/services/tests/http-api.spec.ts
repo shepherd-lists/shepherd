@@ -8,7 +8,7 @@ import { dropOwnerTables, ownerToInfractionsTablename, ownerToOwnerTablename } f
 
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 // import { moveInboxToTxs } from '../services/http-api/src/service/move-records'
-import { redis } from '../libs/utils/redis-state'
+import { redis, updateBlockOwnerQueue } from '../libs/utils/redis-state'
 
 
 console.info(`using ${process.env.HTTP_API} for HTTP_API ip address`)
@@ -67,6 +67,7 @@ describe('http api', () => {
 		// await pool.query(`DROP TABLE IF EXISTS "${ownerToInfractionsTablename(mockOwner)}"`)
 		// await pool.query(`DROP TABLE $1`, [ownerToOwnerTablename(mockOwner)])
 		await dropOwnerTables(mockOwner) //this does both tables
+		await updateBlockOwnerQueue({ owner: mockOwner, method: 'auto' }, 'remove') //don't leak mock-owner into the redis queue
 	})
 	after(async () => {
 		await pool.end()

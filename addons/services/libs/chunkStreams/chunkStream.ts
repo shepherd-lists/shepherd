@@ -77,11 +77,12 @@ export const chunkStream = async (
 			...ingressNodes(),
 		]
 		let nodeIndex = nodes.length - 1
+		let retriedThisNode = false //allow one same-node retry on a transient reset (stale keep-alive socket) before moving on
 
 		try {
 			if (abortSignal.aborted || isCancelled) return;
 
-			console.info(txid, `chunk ${index}, offset ${chunkInfo.offset} starting...`)
+			// console.info(txid, `chunk ${index}, offset ${chunkInfo.offset} starting...`)
 
 
 			const onSize = (size: number) => {
@@ -129,7 +130,7 @@ export const chunkStream = async (
 				if (index === activeWriteIndex) {
 					if (chunkInfo.bufferedData && chunkInfo.bufferedData.length > 0) {
 						const l = chunkInfo.bufferedData.reduce((acc, buf) => acc + buf.length, 0)
-						console.debug(txid, 'WRITING OUT BUFFERED DATA', l)
+						// console.debug(txid, 'WRITING OUT BUFFERED DATA', l)
 						controller.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData)))
 						delete chunkInfo.bufferedData
 						writePos += l
@@ -172,7 +173,7 @@ export const chunkStream = async (
 
 					//move to next chunk(s)
 					if (index === activeWriteIndex) {
-						console.info(txid, 'index=activeWriteIndex', { index, activeWriteIndex })
+						// console.info(txid, 'index=activeWriteIndex', { index, activeWriteIndex })
 						activeWriteIndex++
 						//next chunks might be fully buffered already
 						while (
@@ -182,7 +183,7 @@ export const chunkStream = async (
 							//enqueue buffer and dataPos+
 							const chunkInfo = chunkBuffers[activeWriteIndex]
 							const l = chunkInfo.bufferedData!.reduce((acc, buf) => acc + buf.length, 0)
-							console.debug(txid, 'WRITING OUT TOTAL BUFFERED DATA', activeWriteIndex, l)
+							// console.debug(txid, 'WRITING OUT TOTAL BUFFERED DATA', activeWriteIndex, l)
 							controller!.enqueue(new Uint8Array(Buffer.concat(chunkInfo.bufferedData!)))
 							delete chunkInfo.bufferedData
 							writePos += l
@@ -200,13 +201,27 @@ export const chunkStream = async (
 					return;
 				} catch (e) {
 					if (e instanceof Error && e.name === 'AbortError') {
+						//the onAbort listener errors the controller; just stop here.
 						console.info(txid, `chunkStream aborted. reason: ${abortSignal?.reason ?? 'aborted'}`)
-						controller?.error(new Error(abortSignal?.reason ?? 'aborted'))
 						return;
+					}
+
+					//nodes drop idle keep-alive sockets; a reused-stale socket surfaces as a
+					//transient reset *before any bytes arrive*. retry the SAME node once on a
+					//fresh socket (the failed socket is destroyed in finally) before moving on.
+					//only safe at 0 bytes processed: once onSegment has emitted/buffered any
+					//bytes, re-streaming the chunk would double-count, so fall through instead.
+					const isReset = (e as NodeJS.ErrnoException).code === 'ECONNRESET' || /socket hang up/i.test(String(e))
+					const noBytesYet = chunkPos === chunkInfo.offset
+					if (isReset && noBytesYet && !retriedThisNode) {
+						retriedThisNode = true
+						console.info(txid, url, `${String(e)}, ${chunkInfo.offset}/${dataEnd} bytes. retrying same node (fresh socket)`)
+						continue;
 					}
 
 					console.error(txid, url, `${String(e)}, ${chunkInfo.offset}/${dataEnd} bytes. trying next node`)
 					nodeIndex--
+					retriedThisNode = false //fresh node gets its own one retry
 
 					if (nodeIndex < 0) {
 						throw new Error(`${txid} chunkStream: ran out of nodes to try, ${JSON.stringify({ chunkStart: chunkStart.toString(), dataEnd, offset: chunkInfo.offset, lastErrorMsg: (e as Error).message })}`)
@@ -219,24 +234,51 @@ export const chunkStream = async (
 				}
 			}
 		} catch (e) {
+			//non-abort failure (e.g. ran out of nodes); abort errors go via onAbort.
 			isCancelled = true
-			controller?.error(e)
-
+			if (!isStreamClosed) {
+				isStreamClosed = true
+				controller?.error(e)
+			}
 		}
 	}//end of startChunk
 
 
+	//single source of truth for "what an abort does": error the consumer and tear down
+	//in-flight requests. startChunk's abort-checks return silently and rely on this to
+	//error the controller, so a read() never hangs whichever window the abort lands in.
+	const onAbort = () => {
+		if (isStreamClosed) return; //already closed or errored elsewhere
+		isStreamClosed = true
+		isCancelled = true
+		controller?.error(new Error(abortSignal.reason ?? 'aborted'))
+		for (const info of chunkBuffers) {
+			info.req?.destroy()
+			info.res?.destroy()
+		}
+	}
+
+	let begun = false
 	return new ReadableStream({
 		type: 'bytes',
 		start: (c) => {
 			controller = c
+			abortSignal.addEventListener('abort', onAbort, { once: true })
+		},
+		//begin on the first pull, not in start(). otherwise for small data the
+		//single fetch resolves, enqueues and close()s before the consumer ever reads,
+		//and the enqueued bytes are lost (stream resolves done with an empty queue).
+		pull: () => {
+			if (begun || isCancelled) return;
+			begun = true
 			//do not pre-load to maxParallel here (might not actually want the stream)
 			chunkBuffers[0].started = true
 			activeFetches++
-			startChunk(0, chunkBuffers[0]) //controller needs to be set. 
+			startChunk(0, chunkBuffers[0]) //controller needs to be set.
 		},
 		cancel: async () => {
 			isCancelled = true
+			abortSignal.removeEventListener('abort', onAbort)
 			await Promise.all(
 				chunkBuffers.map(info => {
 					info.req?.destroy()

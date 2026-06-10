@@ -19,7 +19,10 @@ describe('chunkTxDataStream', () => {
 
 	it('should stream base tx data', async () => {
 
-		const stream = await chunkTxDataStream(baseTxid, null, undefined, (new AbortController()).signal)
+		const { stream, byteRange } = await chunkTxDataStream(baseTxid, null, undefined, (new AbortController()).signal)
+
+		assert(byteRange.start >= 0n, `expected a valid byteRange.start, got ${byteRange.start}`)
+		assert(byteRange.end > byteRange.start, `expected byteRange.end > start, got ${byteRange.end}`)
 
 		const data = new Uint8Array(baseTxidSize)
 		let offset = 0
@@ -40,7 +43,10 @@ describe('chunkTxDataStream', () => {
 
 	it('should stream data-item tx data', async () => {
 
-		const stream = await chunkTxDataStream(diId, diParent, undefined, (new AbortController()).signal)
+		const { stream, byteRange } = await chunkTxDataStream(diId, diParent, undefined, (new AbortController()).signal)
+
+		assert(byteRange.start >= 0n, `expected a valid byteRange.start, got ${byteRange.start}`)
+		assert(byteRange.end > byteRange.start, `expected byteRange.end > start, got ${byteRange.end}`)
 
 		const data = new Uint8Array(diSize)
 		let offset = 0
@@ -60,7 +66,7 @@ describe('chunkTxDataStream', () => {
 	})
 
 	it('should handle data-item stream cancellation gracefully', async () => {
-		const stream = await chunkTxDataStream(diId, diParent, undefined, (new AbortController()).signal)
+		const { stream } = await chunkTxDataStream(diId, diParent, undefined, (new AbortController()).signal)
 
 		let offset = 0
 		const data = new Uint8Array(diSize)
@@ -79,7 +85,7 @@ describe('chunkTxDataStream', () => {
 
 	it('should throw on data-item stream abort', async () => {
 		const abortController = new AbortController()
-		const stream = await chunkTxDataStream(diId, diParent, undefined, abortController.signal)
+		const { stream } = await chunkTxDataStream(diId, diParent, undefined, abortController.signal)
 
 		const reader = stream.getReader()
 		const readPromise = reader.read()
@@ -90,7 +96,7 @@ describe('chunkTxDataStream', () => {
 
 	it('should handle 404 errors for nonexistent data', async () => {
 		const noDataId = 'kbn9dYQayN0D7BNsblAnrnlQnQtbXOA6foVUkk5ZHgw' //13 byte
-		const stream = await chunkTxDataStream(noDataId, null, undefined, (new AbortController()).signal)
+		const { stream } = await chunkTxDataStream(noDataId, null, undefined, (new AbortController()).signal)
 
 		try {
 			for await (const chunk of stream) {
@@ -109,7 +115,7 @@ describe('chunkTxDataStream', () => {
 	skip('should download a 700mb file using concurrent chunks', async () => {
 		const t0 = Date.now()
 		const txid = 'izeI_QzFiIYWJYs66E--QL5oUFbN471aVUt1KHZD3OI' //700mb video/mp4
-		const stream = await chunkTxDataStream(txid, null, undefined, (new AbortController()).signal)
+		const { stream } = await chunkTxDataStream(txid, null, undefined, (new AbortController()).signal)
 
 
 		const data = new Uint8Array(695_557_456)

@@ -2,14 +2,14 @@ import pLimit from 'p-limit'
 import { slackLog } from '../../../../libs/utils/slackLog'
 import { arGql } from 'ar-gql'
 import GQLResultInterface, { GQLError, GQLEdgeInterface } from 'ar-gql/dist/faces'
-import { handler as fnIngressHandler } from './ingress/index'
+import { ingressHandler } from './ingress/index'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { batchUpsertTxsWithRules } from '../../../../libs/utils/pgClient'
 
 
 const ARIO_DELAY_MS = 500
-const MAX_INGRESS_LAMBDAS = 10
-const limit = pLimit(MAX_INGRESS_LAMBDAS)
+const MAX_INGRESS_CONCURRENCY = 20
+const limit = pLimit(MAX_INGRESS_CONCURRENCY)
 const MISSING_HEIGHT = 'MISSING_HEIGHT'
 const CHUNKS_BATCH_SIZE = 50
 const SHORT_DOWNLOAD_TIMEOUT = 90_000 //ms
@@ -19,14 +19,14 @@ const LARGE_DATA_SIZE = 500 * 1024 * 1024 //500MB
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-interface FnIngressReturn {
+interface IngestResult {
 	numQueued: number;
 	numUpdated: number;
 	errored: { queued: boolean; record: TxRecord; errorId?: string }[];
 }
 
 /* function to split ingress results into timeout-pending vs hard-errored records */
-const splitPendingErrored = (results: FnIngressReturn[]) => results.reduce((acc, result) => {
+const splitPendingErrored = (results: IngestResult[]) => results.reduce((acc, result) => {
 	result.errored.forEach(value => value.errorId === 'timeout' ? acc.pending.push(value.record) : acc.errored.push({ ...value.record, errorId: value.errorId } as TxRecord))
 	return acc
 }, { pending: [], errored: [] } as { pending: TxRecord[], errored: TxRecord[] })
@@ -54,7 +54,7 @@ export const gqlPages = async ({
 
 	let hasNextPage = true
 	let cursor = ''
-	const lambdaPromises: Promise<FnIngressReturn>[] = []
+	const ingestPromises: Promise<IngestResult>[] = []
 	const t0 = performance.now()
 	let pageCount = 0, itemCount = 0
 
@@ -129,7 +129,7 @@ export const gqlPages = async ({
 				console.info(indexName, `large files: ${large.length}`)
 			}
 
-			/* split page into batches to process in lambda */
+			/* split page into batches to ingest concurrently */
 			let batchCountTot = 0, batchSizesTot = []
 			if (small.length > 0) {
 				const { batchCount, batchSizes } = batchAndDispatchEdges(
@@ -140,7 +140,7 @@ export const gqlPages = async ({
 					gqlUrlBackup,
 					gqlProvider,
 					indexName,
-					lambdaPromises,
+					ingestPromises,
 					SHORT_DOWNLOAD_TIMEOUT, //this is what we are separating really
 				)
 				batchCountTot += batchCount
@@ -155,7 +155,7 @@ export const gqlPages = async ({
 					gqlUrlBackup,
 					gqlProvider,
 					indexName,
-					lambdaPromises,
+					ingestPromises,
 					LONG_DOWNLOAD_TIMEOUT,
 				)
 				batchCountTot += batchCount
@@ -185,8 +185,8 @@ export const gqlPages = async ({
 		hasNextPage = res.data.transactions.pageInfo.hasNextPage
 	}//end while(hasNextPage)
 
-	/** wait for all lambda invocations to complete */
-	const results = await Promise.all(lambdaPromises)
+	/** wait for all ingest batches to complete */
+	const results = await Promise.all(ingestPromises)
 
 	const { pending, errored } = splitPendingErrored(results)
 
@@ -199,7 +199,7 @@ export const gqlPages = async ({
 	/** retry the pending/errored records with a longer download timeout on HOST_URL gateway */
 
 	if (pending.length > 0 || errored.length > 0) {
-		const promisesRetries: Promise<FnIngressReturn>[] = []
+		const ingestPromisesRetries: Promise<IngestResult>[] = []
 		const toRetry = [...pending, ...errored].map(record => allEdges.get(record.txid)).filter(Boolean) as GQLEdgeInterface[]
 
 		const { batchCount, batchSizes } = batchAndDispatchEdges(
@@ -210,11 +210,11 @@ export const gqlPages = async ({
 			gqlUrlBackup,
 			gqlProvider,
 			indexName,
-			promisesRetries,
+			ingestPromisesRetries,
 			LONG_DOWNLOAD_TIMEOUT,
 		)
 
-		const resultsRetries = await Promise.all(promisesRetries)
+		const resultsRetries = await Promise.all(ingestPromisesRetries)
 		const retried = splitPendingErrored(resultsRetries)
 
 		console.info(`retried ${batchCount} batches [${batchSizes.join(', ')}] for pending/errored records using 'gateway' stream source`)
@@ -250,35 +250,6 @@ export const gqlPages = async ({
 	console.info(indexName, `finished ${pageCount} pages, ${numProgressed}/${itemCount} items progressed in ${(performance.now() - t0).toFixed(0)} ms`)
 }
 
-/** N.B. `inputs` must match fnIngress `event` */
-const fnIngressInvoker = async (inputs: {
-	metas: GQLEdgeInterface[],
-	pageNumber: string,
-	gqlUrl: string,
-	gqlUrlBackup: string,
-	gqlProvider: string,
-	indexName: string,
-	streamSourceName: 'gateway' | 'nodes',
-	downloadTimeout: number,
-}) => {
-	const { indexName, pageNumber, metas, streamSourceName } = inputs
-	console.log(`${indexName} fnIngressInvoker starting for page ${pageNumber}`)
-	while (true) {
-		try {
-			const processed: FnIngressReturn = await fnIngressHandler(inputs)
-
-			console.info(indexName, fnIngressInvoker.name, `page ${pageNumber}, total records ${metas.length}, ${processed.numQueued} queued in s3, ${processed.numUpdated} inserts, ${processed.errored.length} errored.`, streamSourceName)
-
-			return processed;
-		} catch (err: unknown) {
-			const e = err as Error
-			await slackLog(indexName, fnIngressInvoker.name, `HANDLER ERROR ${e.name}:${e.message}. retrying after 10 seconds...`, JSON.stringify(e))
-			await sleep(10_000)
-			continue;
-		}
-	}
-}
-
 const batchAndDispatchEdges = (
 	edges: GQLEdgeInterface[],
 	pageNumber: string,
@@ -287,7 +258,7 @@ const batchAndDispatchEdges = (
 	gqlUrlBackup: string,
 	gqlProvider: string,
 	indexName: string,
-	promises: Promise<FnIngressReturn>[],
+	promises: Promise<IngestResult>[],
 	downloadTimeout: number,
 ) => {
 	const batchSize = (streamSourceName === 'nodes') ? CHUNKS_BATCH_SIZE : 100
@@ -295,16 +266,21 @@ const batchAndDispatchEdges = (
 	let batchCount = 0
 	for (let i = 0; i < edges.length; i += batchSize) {
 		const batch = edges.slice(i, i + batchSize)
+		const batchPage = `${pageNumber}-${batchCount}`
 		batchSizes.push(batch.length)
-		promises.push(limit(fnIngressInvoker, {
-			metas: batch,
-			pageNumber: `${pageNumber}-${batchCount}`,
-			gqlUrl,
-			gqlUrlBackup,
-			gqlProvider,
-			indexName,
-			streamSourceName,
-			downloadTimeout,
+		promises.push(limit(async () => {
+			const processed = await ingressHandler({
+				metas: batch,
+				pageNumber: batchPage,
+				gqlUrl,
+				gqlUrlBackup,
+				gqlProvider,
+				indexName,
+				streamSourceName,
+				downloadTimeout,
+			})
+			console.info(indexName, `page ${batchPage}, total records ${batch.length}, ${processed.numQueued} queued in S3, ${processed.numUpdated} inserts, ${processed.errored.length} errored.`, streamSourceName)
+			return processed
 		}))
 		batchCount++
 	}

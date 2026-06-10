@@ -2,7 +2,7 @@
  * upload an image file to S3 with real TxRecord metadata
  * this is based on an unsaved unit test 'tricky-ids'
  */
-import 'dotenv/config'
+import '../tests/_import-test-env-vars'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { processRecord } from '../services/indexer-next/src/index-shared/ingress/downloadWithChecks';
 import { s3HeadObject } from '../libs/utils/s3-services';

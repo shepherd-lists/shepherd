@@ -25,63 +25,48 @@ interface Inputs {
 	streamSourceName: 'gateway' | 'nodes'
 	downloadTimeout: number
 }
-/** the handler will receive 1 page of new items to index. */
-export const handler = async (event: Inputs) => {
+/** ingest 1 page (batch) of new items to index. */
+export const ingressHandler = async (inputs: Inputs) => {
+	const { metas, pageNumber, gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName, downloadTimeout } = inputs
 	try {
-		console.info('event', JSON.stringify(event))
-
-		/* check inputs */
-		const { metas, pageNumber, gqlUrl, gqlUrlBackup, gqlProvider, indexName, streamSourceName, downloadTimeout } = event
-		if (
-			!Array.isArray(metas) || metas.length === 0
-			|| typeof pageNumber !== 'string'
-			|| typeof gqlUrl !== 'string' || !gqlUrl.match(/^https:\/\/[a-zA-Z0-9.-]+\/graphql/)
-			|| typeof gqlUrlBackup !== 'string' || !gqlUrlBackup.match(/^https:\/\/[a-zA-Z0-9.-]+\/graphql/)
-			|| typeof gqlProvider !== 'string'
-			|| typeof indexName !== 'string'
-			|| typeof streamSourceName !== 'string' || !['gateway', 'nodes'].includes(streamSourceName)
-			|| typeof downloadTimeout !== 'number'
-		) {
-			throw new Error('missing inputs. should have { metas: GQLEdgeInterface[], pageNumber: number, gqlUrl: string, gqlUrlBackup: string, gqlProvider: string, indexName: string, }')
-		}
 		console.info(indexName, `processing page ${pageNumber} of ${metas.length} records`)
 
+		/**
+		 * filter records:-
+		 * using metadata (in filterMetas, before the expensive buildRecords parent walk):
+		 * - already in the database with the same/older height, or already flagged => discarded
+		 * - size <= 4k => marked negligible-data and stored as-is (no download)
+		 * while retrieving data (downloadWithChecks):
+		 * - use network nodes to retrieve data (make this modular so we can switch to gateway streams also)
+		 * - MIME sniffed by `file`/libmagic (256kb sample) starts with image/video/audio (sometimes detected as audio contains video)
+		 *   - generic/unknown MIMEs (octet-stream, x-empty) are allowed through; other specific non-media types are rejected
+		 *   - [handle html/pdf/docs later]
+		 * - partial data allowed
+		 * - actual data > 4kb again
+		 * - 404 is 404 if nodes tried as well as gateway
+		 * - abort dead connections (partial?)
+		 * - connection and 4xx/5xx retrying <= do outside this function
+		 */
+		let numQueued = 0
+		const updated: TxRecord[] = []
+		const errored: { queued: boolean; record: TxRecord; errorId?: string }[] = []
+
+		//discard already-stored/flagged metas and split off negligible records *before* building
+		const { negligible, toBuild } = await filterMetas(metas, indexName, gqlProvider)
+		updated.push(...negligible)
+
+		//only build (incl. the parent-chain walk) the records we'll actually download
 		const records = await buildRecords(
-			metas,
+			toBuild,
 			arGql({ endpointUrl: gqlUrl }),
 			indexName,
 			gqlProvider,
 			arGql({ endpointUrl: gqlUrlBackup })
 		)
 
-
-		/**
-		 * filter records:-
-		 * using metadata:
-		 * - are already in the database and have the same height/parent/parents
-		 * - already flagged
-		 * - size > 4k. 
-		 * while retrieving data:
-		 * - use network nodes to retrieve data (make this modular so we can switch to gateway streams also)
-		 * - fileType (16kb) is defined and starts with image/video/audio (sometimes detected as audio contains video) 
-		 *   - [handle html/pdf/docs later]
-		 *   - SVG files (special case: allows application/xml when database expects image/svg+xml)
-		 * - partial data allowed
-		 * - actual data > 4kb again
-		 * - 404 is 404 if nodes tried as well as gateway
-		 * - abort dead connections (partial?)
-		 * - connection and 4xx/5xx retrying <= do outside this lambda
-		 */
-		let numQueued = 0
-		const updated: TxRecord[] = []
-		const errored: { queued: boolean; record: TxRecord; errorId?: string }[] = []
-
-		const metaFiltered = await metaFilteredRecords(records, indexName, gqlProvider)
-		updated.push(...metaFiltered.updated)
-
 		const streamSource = streamSourceName === 'gateway' ? gatewayStream : chunkTxDataStream
-		console.debug(indexName, `starting downloadWithChecks for ${metaFiltered.unqueued.length} records`)
-		const queued = await downloadWithChecks(metaFiltered.unqueued, downloadTimeout, streamSource) //perhaps switch source according to lambda input?
+		console.debug(indexName, `starting downloadWithChecks for ${records.length}/${metas.length} records`)
+		const queued = await downloadWithChecks(records, downloadTimeout, streamSource)
 		console.debug(indexName, `downloadWithChecks completed for ${queued.length} records`)
 
 		//sort processed records
@@ -106,10 +91,12 @@ export const handler = async (event: Inputs) => {
 			flagged: r.flagged,
 			valid_data: r.valid_data || null, //should be deprecating this field
 			data_reason: r.data_reason,
+			byte_start: r.byte_start ?? null, //present when the download discovered the byte-range (e.g. mimetype rejects)
+			byte_end: r.byte_end ?? null,
 			last_update_date: r.last_update_date || new Date(),
 		}) as TxRecord), 'txs') ?? 0
 
-		console.info(indexName, `page ${pageNumber}, number of records ${records.length}, ${numQueued} queued in s3, ${numInserted}/${updated.length} inserts, ${errored.length} errored.`)
+		console.info(indexName, `page ${pageNumber}, ${metas.length} metas (${records.length} built), ${numQueued} queued in S3, ${numInserted}/${updated.length} inserts, ${errored.length} errored.`)
 
 		return {
 			numQueued,
@@ -118,7 +105,7 @@ export const handler = async (event: Inputs) => {
 		}
 	} catch (err: unknown) {
 		const e = err as Error
-		await slackLog('fnIngress.handler', `Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
+		await slackLog(indexName, 'ingressHandler', `Fatal error ❌ ${e.name}:${e.message}`, JSON.stringify(e))
 		throw e
 	}
 }
@@ -137,24 +124,28 @@ const getParent = moize(
 	},
 )
 
+/** map a raw GQL meta to the record fields we store, without the parent-chain
+ * walk. Shared by buildRecords (for big records) and the negligible path. */
+const metaToRecord = (item: GQLEdgeInterface) => ({
+	txid: item.node.id,
+	content_type: item.node.data.type || item.node.tags.find(t => t.name === 'Content-Type')!.value,
+	content_size: item.node.data.size.toString(),
+	height: item.node.block.height, // missing height should not happen and cause `TypeError : Cannot read properties of null (reading 'height')`
+	parent: item.node.parent?.id || null, // the direct parent, if exists
+	owner: item.node.owner.address.padEnd(43, ' '), //pad non-arweave addresses to 43 chars
+})
+
 /** exported for manual flagging tool */
 export const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterface, indexName: string, gqlProvider: string, gqlBackup: ArGqlInterface) => {
 
 	const records: TxRecord[] = []
 
 	for (const item of metas) {
-		const txid = item.node.id
-		const content_type = item.node.data.type || item.node.tags.find(t => t.name === 'Content-Type')!.value
-		const content_size = item.node.data.size.toString()
-		const height = item.node.block.height // missing height should not happen and cause `TypeError : Cannot read properties of null (reading 'height')`
-		let parent = item.node.parent?.id || null // the direct parent, if exists
+		const { txid, content_type, content_size, height, parent: directParent, owner } = metaToRecord(item)
+		let parent = directParent
 		const parents: string[] = []
-		const owner = item.node.owner.address.padEnd(43, ' ') //pad non-arweave addresses to 43 chars
 
 		// loop to find all nested parents
-		if (+content_size < min_data_size) { //dont waste resources on small records
-			parent = null
-		}
 		if (parent) {
 			let p: string | null = parent
 			do {
@@ -207,50 +198,45 @@ export const buildRecords = async (metas: GQLEdgeInterface[], gql: ArGqlInterfac
 	return records;
 }
 
-const metaFilteredRecords = async (records: TxRecord[], indexName: string, gqlProvider: string): Promise<{ updated: TxRecord[]; unqueued: TxRecord[] }> => {
-
-	if (records.length === 0) return {
-		updated: [], unqueued: [],
-	}
-
+/**
+ * Filter raw GQL metas against the db *before* the expensive buildRecords
+ * parent-chain walk:
+ * - discard metas already stored unchanged (existing & not newer height, or flagged)
+ * - negligible survivors (<= min_data_size) are marked and returned for writing as-is
+ *   (no download, and buildRecords' parent walk is irrelevant for them)
+ * - big survivors are returned as metas to build + download
+ * Keys only on txid/height/size, all present in the raw meta.
+ */
+const filterMetas = async (metas: GQLEdgeInterface[], indexName: string, gqlProvider: string): Promise<{ negligible: TxRecord[]; toBuild: GQLEdgeInterface[] }> => {
+	if (metas.length === 0) return { negligible: [], toBuild: [] }
 
 	try {
+		const existing = (await pool.query(`SELECT txid, height, flagged FROM txs WHERE txid IN (${metas.map(m => `'${m.node.id}'`).join(',')})`)).rows as Pick<TxRecord, 'txid' | 'height' | 'flagged'>[]
+		const existingById = new Map(existing.map(e => [e.txid, e]))
 
-		// const recordsInTxs = await knex<TxRecord>('txs').whereIn('txid', records.map(r => r.txid)) //no inbox anymore
-		const existing = (await pool.query(`SELECT * FROM txs WHERE txid IN (${records.map(r => `'${r.txid}'`).join(',')})`)).rows as TxRecord[]
+		const negligible: TxRecord[] = []
+		const toBuild: GQLEdgeInterface[] = []
 
+		for (const m of metas) {
+			const exist = existingById.get(m.node.id)
+			// keep only genuinely new, or existing with newer height and not already flagged
+			if (exist && !(exist.flagged !== true && m.node.block.height > exist.height)) continue
 
-		/* step 1: update records with newer height */
-
-		/* filter out records already flagged && with <= existing height */
-		const eIds = existing.map(r => r.txid)
-		const newRecords = records.filter(r => !eIds.includes(r.txid))
-		const updateRecords = records.filter(r => existing.some(exist => (r.txid === exist.txid && exist.flagged !== true && r.height > exist.height)))
-		const allRecords = [...newRecords, ...updateRecords]
-
-		/** split records into 2 lists:
-		 * - records with size < 4k
-		 * - records with size >= 4k
-		 */
-		const [negligibleRecords, filteredRecords] = allRecords.reduce((acc, rec) => {
-			if (+rec.content_size <= min_data_size) {
-				acc[0].push({
-					...rec,
+			if (m.node.data.size <= min_data_size) {
+				negligible.push({
+					...metaToRecord(m),
+					parent: null, //negligible data is never fetched, so no parent chain is stored (matches prior behaviour)
 					flagged: false,
 					valid_data: false,
 					data_reason: 'negligible-data',
 					last_update_date: new Date(),
-				})
+				} as TxRecord)
 			} else {
-				acc[1].push(rec)
+				toBuild.push(m)
 			}
-			return acc;
-		}, [[], []] as TxRecord[][])
-
-		return {
-			updated: negligibleRecords,
-			unqueued: filteredRecords
 		}
+
+		return { negligible, toBuild }
 
 	} catch (err: unknown) {
 		const e = err as Error & { code?: string, detail: string }

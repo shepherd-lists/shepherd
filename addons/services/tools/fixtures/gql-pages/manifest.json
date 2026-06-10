@@ -1,0 +1,7 @@
+{
+	"capturedAt": "2026-06-03T21:55:43.786Z",
+	"endpoint": "https://arweave-search.goldsky.com/graphql?bypass=forwardresearch-cltl6gea2000008lahvopd7kz",
+	"query": "\nquery($cursor: String) {\n\ttransactions(\n\t\ttags: [\n\t\t\t{ name: \"Content-Type\", values: [\"video/*\", \"image/*\"], match: WILDCARD }\n\t\t]\n\t\tsort: HEIGHT_DESC\n\t\tafter: $cursor\n\t\tfirst: 100\n\t) {\n\t\tpageInfo { hasNextPage }\n\t\tedges {\n\t\t\tcursor\n\t\t\tnode {\n\t\t\t\tid\n\t\t\t\tdata { size type }\n\t\t\t\ttags { name value }\n\t\t\t\tblock { height }\n\t\t\t\tparent { id }\n\t\t\t\towner { address }\n\t\t\t\tingested_at\n\t\t\t}\n\t\t}\n\t}\n}",
+	"pages": 100,
+	"totalEdges": 10000
+}

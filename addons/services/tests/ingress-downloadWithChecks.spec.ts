@@ -4,7 +4,7 @@ import { after, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { destroyGatewayAgent, gatewayStream } from '../libs/chunkStreams/gatewayStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
-import { processRecord, downloadWithChecks } from '../services/indexer-next/src/index-shared/ingress/downloadWithChecks'
+import { processRecord, downloadWithChecks, destroyMimeWorkers } from '../services/indexer-next/src/index-shared/ingress/downloadWithChecks'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { s3HeadObject } from '../libs/utils/s3-services'
 import { chunkTxDataStream } from '../libs/chunkStreams/chunkTxDataStream'
@@ -19,6 +19,7 @@ describe('downloadWithChecks', () => {
 	after(async () => {
 		destroyGatewayAgent()
 		clearTimerHttpApiNodes()
+		await destroyMimeWorkers()
 	})
 
 	it('should upload an image file to S3 and check txrecord metadata', async () => {

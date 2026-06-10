@@ -5,10 +5,14 @@ const agent = new http.Agent({
 	keepAlive: true,
 	maxSockets: 100,
 	maxFreeSockets: 5,
-	timeout: 30_000
+	timeout: 30_000,
+	scheduling: 'fifo', //round-robin free sockets so none sits idle long enough for the node to drop it (lifo reuses the same one). pairs with the same-node fresh-socket retry in chunkStream
 })
 
 export const destroyChunkStreamAgent = () => agent.destroy()
+
+//exported for perf/load instrumentation (read agent.sockets/requests/freeSockets)
+export const chunkStreamAgent = agent
 
 
 /**

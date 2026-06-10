@@ -1,15 +1,16 @@
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { gatewayStream } from '../../../../../libs/chunkStreams/gatewayStream'
-import { fileTypeStream } from 'file-type'
+import { detectMime } from './mimePool'
 import { Upload } from '@aws-sdk/lib-storage'
 import { S3Client } from '@aws-sdk/client-s3'
-import { ReadableStream } from 'node:stream/web'
+import { ReadableStream, ReadableStreamDefaultReader } from 'node:stream/web'
 import { slackLog } from '../../../../../libs/utils/slackLog'
 import { chunkTxDataStream } from '../../../../../libs/chunkStreams/chunkTxDataStream'
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler'
 import { s3HeadObject } from '../../../../../libs/utils/s3-services'
 
-
+/** re-exported so tests/tools can tear down the worker pool in their cleanup hooks */
+export { destroyMimeWorkers } from './mimePool'
 
 const s3client = new S3Client({
 	requestHandler: new NodeHttpHandler({
@@ -21,6 +22,13 @@ const s3client = new S3Client({
 	forcePathStyle: true, // required for MinIO (path-style: endpoint/bucket/key instead of bucket.endpoint/key)
 })
 const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET!
+
+/** bytes read off the stream to feed `file`/libmagic for MIME sniffing.
+ * 64 KB is ample: the deepest offset any video/image/audio rule reads in
+ * libmagic 5.x is ~188 bytes (mp4/mov `ftyp`). Formats needing more (disk
+ * images, DICOM, legacy Office) are non-media and fall through as
+ * application/octet-stream, which the allowlist passes on regardless. */
+const MIME_SAMPLE_SIZE = 64 * 1024 // 64 KB
 
 
 type SourceStream = typeof chunkTxDataStream | typeof gatewayStream
@@ -125,6 +133,7 @@ export const processRecord = async (
 
 	const key = record.txid
 	let inputStream: ReadableStream | null = null
+	let reader: ReadableStreamDefaultReader<Uint8Array> | null = null //holds the lock from sampling through upload drain; cancelled in catch
 	let upload: Upload | null = null
 
 	console.debug(`${record.txid} starting processRecord - size: ${record.content_size}`)
@@ -137,30 +146,50 @@ export const processRecord = async (
 			inputStream = await (sourceStream as typeof gatewayStream)(record.txid, abortSignal)
 		} else {
 			console.debug(`${record.txid} calling chunkTxDataStream`)
-			inputStream = await (sourceStream as typeof chunkTxDataStream)(record.txid, record.parent || null, record.parents, abortSignal)
+			const res = await (sourceStream as typeof chunkTxDataStream)(record.txid, record.parent || null, record.parents, abortSignal)
+			if ('byteRange' in res) {
+				inputStream = res.stream
+				//stamp the byte-range discovered during download. it rides the queue pipeline in the
+				//s3 `txrecord` metadata, so sqsFinalHandler doesn't need to recompute it for flagged txs
+				record = { ...record, byte_start: res.byteRange.start.toString(), byte_end: res.byteRange.end.toString() }
+			} else {
+				inputStream = res //mock sourceStreams in tests return a bare stream
+			}
 		}
-		console.debug(`${record.txid} input stream obtained, creating file type detection...`)
+		console.debug(`${record.txid} input stream obtained, sampling for MIME detection...`)
 
-		//create file type detection stream
-		const fileTypeTransform = await fileTypeStream(inputStream, { sampleSize: 16_384 })
-		console.debug(`${record.txid} file type detection created`)
+		//read up to MIME_SAMPLE_SIZE bytes off the stream to sniff the MIME type with `file`/libmagic.
+		//we keep this reader for the rest of the function (no releaseLock) so the upload stream below
+		//can continue draining the same reader after the sampled bytes - no second reader needed.
+		reader = inputStream.getReader()
+		const sampleChunks: Uint8Array[] = []
+		let sampledBytes = 0
+		while (sampledBytes < MIME_SAMPLE_SIZE) {
+			if (abortSignal.aborted) throw new Error('aborted')
+			const { done, value } = await reader.read()
+			if (done) break
+			if (value) {
+				sampleChunks.push(value)
+				sampledBytes += value.byteLength
+			}
+		}
+		const sample = Buffer.concat(sampleChunks.map(c => Buffer.from(c)), sampledBytes)
 
-		//check file type before proceeding (fileType is available at this point)
-		const detectedMime = fileTypeTransform.fileType?.mime
+		//detect MIME via libmagic over stdin (no disk I/O); async so concurrent records don't block the event loop
+		const detectedMime = await detectMime(sample)
 		const recordMime = record.content_type
 
 		if (
-			(detectedMime === 'application/xml' && recordMime === 'image/svg+xml') //file-type quirk
-			|| detectedMime?.startsWith('image')
-			|| detectedMime?.startsWith('video')
-			|| detectedMime?.startsWith('audio')
-			|| detectedMime === undefined
+			detectedMime.startsWith('image')
+			|| detectedMime.startsWith('video')
+			|| detectedMime.startsWith('audio')
+			|| detectedMime.startsWith('application/octet-stream') //unknown mime allowed
 		) {
 			console.info(record.txid, `proceeding with stream, detectedMime: "${detectedMime}", recordMime: "${recordMime}"`)
 		} else {
 			try {
 				console.info(record.txid, `cancelling stream, detectedMime: "${detectedMime}", recordMime: "${recordMime}"`)
-				await fileTypeTransform.cancel('unsupported file type')
+				await reader.cancel('unsupported file type') //reader holds the lock, so cancel inputStream through it
 			} catch (e) {
 				slackLog(record.txid, 'error cancelling stream', e)
 			}
@@ -177,6 +206,27 @@ export const processRecord = async (
 			}
 		}
 
+		//reconstruct the full stream: replay the sampled bytes, then keep draining the same reader
+		const lockedReader = reader // keep typescript happy
+		let sampleIndex = 0
+		const uploadStream = new ReadableStream<Uint8Array>({
+			async pull(controller) {
+				if (sampleIndex < sampleChunks.length) {
+					controller.enqueue(sampleChunks[sampleIndex++])
+					return
+				}
+				const { done, value } = await lockedReader.read()
+				if (done) {
+					controller.close()
+					return
+				}
+				if (value) controller.enqueue(value)
+			},
+			cancel(reason) {
+				return lockedReader.cancel(reason)
+			},
+		})
+
 		//last update before upload
 		record = { ...record, valid_data: true, last_update_date: new Date() }
 
@@ -187,7 +237,7 @@ export const processRecord = async (
 			params: {
 				Bucket: AWS_INPUT_BUCKET,
 				Key: key,
-				Body: fileTypeTransform as globalThis.ReadableStream, //fussy types, we want the nodejs iterator version
+				Body: uploadStream as globalThis.ReadableStream, //fussy types, we want the nodejs iterator version
 				ContentType: (detectedMime || record.content_type || 'application/octet-stream').replace(/\r|\n/g, ''),
 				Metadata: { txrecord: JSON.stringify(record) } //only lowercase supported in key name!!
 			},
@@ -200,30 +250,42 @@ export const processRecord = async (
 		await upload.done()
 		console.debug(`${record.txid} S3 upload completed successfully`)
 
-		//verify the uploaded file size matches expected content size
-		try {
-			const head = await s3HeadObject(AWS_INPUT_BUCKET, key)
-
-			const uploadedSize = Number(head.ContentLength)
-			const expectedSize = Number(record.content_size)
-
-			if (uploadedSize !== expectedSize) {
-				console.error(`${record.txid} size mismatch: uploaded ${uploadedSize}, expected ${expectedSize}`)
-				throw new Error(`Upload size verification failed: ${uploadedSize} !== ${expectedSize} bytes`)
-			}
-
-			console.debug(`${record.txid} upload verification successful, uploaded===expected: ${uploadedSize}===${expectedSize} bytes`)
-		} catch (verifyErr) {
-			console.error(`${record.txid} upload verification failed:`, String(verifyErr))
-
+		//verify the uploaded object matches expected content size. upload.done() can
+		//resolve fractionally before a just-written object is HEAD-able under load, so a
+		//NotFound is retried with backoff before we treat it as a real failure. a size
+		//*mismatch* means a real corrupt upload (object exists, wrong size) — fail fast.
+		//note: no abort() here. the object either doesn't exist (nothing to abort; a
+		//completed single-part PUT can't be aborted anyway) or exists with the right size.
+		const VERIFY_ATTEMPTS = 4
+		let verified = false
+		for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt++) {
 			try {
-				await upload.abort()
-			} catch (abortError) {
-				console.warn(`${record.txid} failed to abort invalid upload:`, abortError)
-			}
+				const head = await s3HeadObject(AWS_INPUT_BUCKET, key)
 
-			throw verifyErr
+				const uploadedSize = Number(head.ContentLength)
+				const expectedSize = Number(record.content_size)
+
+				if (uploadedSize !== expectedSize) {
+					console.error(`${record.txid} size mismatch: uploaded ${uploadedSize}, expected ${expectedSize}`)
+					throw new Error(`Upload size verification failed: ${uploadedSize} !== ${expectedSize} bytes`)
+				}
+
+				console.debug(`${record.txid} upload verification successful, uploaded===expected: ${uploadedSize}===${expectedSize} bytes`)
+				verified = true
+				break
+			} catch (verifyErr) {
+				const notFound = (verifyErr as { name?: string }).name === 'NotFound'
+				if (notFound && attempt < VERIFY_ATTEMPTS) {
+					const backoff = 250 * 2 ** (attempt - 1) // 250, 500, 1000ms
+					console.warn(`${record.txid} verify HEAD NotFound (attempt ${attempt}/${VERIFY_ATTEMPTS}), retrying in ${backoff}ms`)
+					await new Promise(r => setTimeout(r, backoff))
+					continue
+				}
+				console.error(`${record.txid} upload verification failed:`, String(verifyErr))
+				throw verifyErr
+			}
 		}
+		if (!verified) throw new Error(`${record.txid} upload verification failed after ${VERIFY_ATTEMPTS} attempts`)
 
 		return {
 			queued: true,
@@ -241,9 +303,11 @@ export const processRecord = async (
 			}
 		}
 
-		//cleanup streams on error
+		//cleanup streams on error - cancel via the reader if it holds the lock, else cancel the stream directly
 		try {
-			if (inputStream) {
+			if (reader) {
+				await reader.cancel()
+			} else if (inputStream) {
 				await inputStream.cancel()
 			}
 		} catch (cleanupError) {
