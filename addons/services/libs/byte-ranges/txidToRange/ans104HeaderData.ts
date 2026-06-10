@@ -47,7 +47,7 @@ const concatByteArray = (a: Uint8Array, b: Uint8Array) => {
 const fetchHeader = async (bundleId: string, parent: string | null, parents: string[] | undefined) => {
 	const abortController = new AbortController()
 	try {
-		const stream = await chunkTxDataStream(bundleId, parent, parents, abortController.signal)
+		const { stream } = await chunkTxDataStream(bundleId, parent, parents, abortController.signal)
 		const reader = stream.getReader()
 
 		let header = new Uint8Array(0)

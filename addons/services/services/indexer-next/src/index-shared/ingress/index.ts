@@ -91,6 +91,8 @@ export const ingressHandler = async (inputs: Inputs) => {
 			flagged: r.flagged,
 			valid_data: r.valid_data || null, //should be deprecating this field
 			data_reason: r.data_reason,
+			byte_start: r.byte_start ?? null, //present when the download discovered the byte-range (e.g. mimetype rejects)
+			byte_end: r.byte_end ?? null,
 			last_update_date: r.last_update_date || new Date(),
 		}) as TxRecord), 'txs') ?? 0
 

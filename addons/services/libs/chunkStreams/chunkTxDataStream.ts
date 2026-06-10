@@ -1,4 +1,5 @@
 import { getByteRange } from '../byte-ranges/byteRanges'
+import { ByteRange } from '../byte-ranges/txidToRange/txidToRange'
 import { chunkStream } from './chunkStream'
 import { ReadableStream } from 'node:stream/web'
 import { SIG_CONFIG, SignatureConfig, byteArrayToLong } from './ANS-104-constants'
@@ -9,13 +10,14 @@ import { SIG_CONFIG, SignatureConfig, byteArrayToLong } from './ANS-104-constant
  * 2 cases:
  *  - base tx: no initial bytes to skip. pass chunkStream directly.
  *  - data-item tx: need to skip initial bytes (first chunk boundary before data-item) + ans104 data-item header.
+ * also returns the discovered byte-range so callers can persist it instead of recomputing later.
  */
 export const chunkTxDataStream = async (
 	txid: string,
 	parent: string | null,
 	parents: string[] | undefined,
 	abortSignal: AbortSignal,
-): Promise<ReadableStream<Uint8Array>> => {
+): Promise<{ stream: ReadableStream<Uint8Array>, byteRange: ByteRange }> => {
 	const offsets = await getByteRange(txid, parent, parents)
 	if (offsets.start === -1n) {
 		throw new Error(`${chunkTxDataStream.name}: undiscoverable byte-range for txid=${txid} parent=${parent ?? 'null'}`)
@@ -29,7 +31,8 @@ export const chunkTxDataStream = async (
 	//simple case, base tx: no initial bytes to skip.
 	if (parent === null) {
 		console.debug(`${txid} base tx - returning chunkStream directly`)
-		return chunkStream(chunkStart, dataEnd, txid, abortSignal)
+		//n.b. awaits the stream *handle* (factory setup), not the stream data
+		return { stream: await chunkStream(chunkStart, dataEnd, txid, abortSignal), byteRange: offsets }
 	}
 
 	//complex case, data-item: need to skip initial bytes + data-item header
@@ -42,7 +45,7 @@ export const chunkTxDataStream = async (
 	let headerParsed = false
 	let streamCompleted = false
 
-	return new ReadableStream({
+	const stream: ReadableStream<Uint8Array> = new ReadableStream({
 		type: 'bytes',
 		async start(controller) {
 			console.debug(`${txid} data-item stream starting`)
@@ -129,6 +132,8 @@ export const chunkTxDataStream = async (
 			}
 		}
 	})
+
+	return { stream, byteRange: offsets }
 }
 
 const parseDataItemHeader = (buffer: Uint8Array, txid: string): number | null => {

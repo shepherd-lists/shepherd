@@ -146,7 +146,15 @@ export const processRecord = async (
 			inputStream = await (sourceStream as typeof gatewayStream)(record.txid, abortSignal)
 		} else {
 			console.debug(`${record.txid} calling chunkTxDataStream`)
-			inputStream = await (sourceStream as typeof chunkTxDataStream)(record.txid, record.parent || null, record.parents, abortSignal)
+			const res = await (sourceStream as typeof chunkTxDataStream)(record.txid, record.parent || null, record.parents, abortSignal)
+			if ('byteRange' in res) {
+				inputStream = res.stream
+				//stamp the byte-range discovered during download. it rides the queue pipeline in the
+				//s3 `txrecord` metadata, so sqsFinalHandler doesn't need to recompute it for flagged txs
+				record = { ...record, byte_start: res.byteRange.start.toString(), byte_end: res.byteRange.end.toString() }
+			} else {
+				inputStream = res //mock sourceStreams in tests return a bare stream
+			}
 		}
 		console.debug(`${record.txid} input stream obtained, sampling for MIME detection...`)
 
