@@ -36,9 +36,11 @@ export class AddonComponent extends pulumi.ComponentResource {
 			`AWS_REGION=us-east-1`,
 		])
 
+		const addonsDir = path.join(import.meta.dirname, '../../../')
 		const image = new docker.Image(`image-${name}`, {
 			build: {
-				context: path.join(import.meta.dirname, '../../'),
+				context: addonsDir,
+				dockerfile: path.join(addonsDir, 'nsfw/Dockerfile'),
 				builderVersion: docker.BuilderVersion.BuilderBuildKit,
 				platform: config.buildPlatform,
 				target: name === 'nsfw' ? 'nsfw' : 'no-nsfw',
