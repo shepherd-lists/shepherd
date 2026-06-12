@@ -7,4 +7,6 @@
 !nsfw/**/*
 !services/
 !services/**/*
+!classifier-host/
+!classifier-host/**/*
 node_modules
