@@ -1,0 +1,72 @@
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { FilterErrorResult, FilterPluginInterface } from 'shepherd-plugin-interfaces'
+import { emitClassifierResult, EmitResultContext } from './emit-result'
+import { extractKeyframes, isRetryableFfmpegError } from './extract-frames'
+import { classifyFrames } from './plugin-chain'
+import { FatalS3AccessError, MissingObjectError, s3DownloadToFile } from './s3-read'
+import { RetryableJobError } from './types'
+
+const CORRUPT_MAYBE_MESSAGES = [
+  'Invalid data found when processing input',
+  'Error opening filters!',
+  'Conversion failed!',
+  'Error marking filters as finished',
+]
+
+const mapVideoErrorResult = (error: unknown): FilterErrorResult => {
+  const message = (error as Error).message ?? 'video processing error'
+
+  if (message.includes('Output file #0 does not contain any stream')) {
+    return { flagged: undefined, data_reason: 'corrupt', err_message: message }
+  }
+
+  if (CORRUPT_MAYBE_MESSAGES.some(entry => message.includes(entry))) {
+    return { flagged: undefined, data_reason: 'corrupt-maybe', err_message: message }
+  }
+
+  return { flagged: undefined, data_reason: 'corrupt-maybe', err_message: message }
+}
+
+const isRetryableVideoError = (error: unknown) => {
+  const message = (error as Error).message ?? ''
+  if (message.includes('ENOMEM') || message.includes('ECONNRESET')) return true
+  return isRetryableFfmpegError(error)
+}
+
+export interface ProcessVideoContext extends EmitResultContext {
+  plugins: FilterPluginInterface[]
+  txid: string
+  ffmpegPath: string
+  tmpRootDir: string
+}
+
+export const processVideo = async (context: ProcessVideoContext) => {
+  const tmpParentDir = context.tmpRootDir || os.tmpdir()
+  await mkdir(tmpParentDir, { recursive: true })
+  const tmpPrefix = path.join(tmpParentDir, `${context.txid}-`)
+  const workDir = await mkdtemp(tmpPrefix)
+  const videoPath = path.join(workDir, context.txid)
+
+  try {
+    await s3DownloadToFile(context.txid, videoPath)
+    const framePaths = await extractKeyframes(context.ffmpegPath, videoPath, workDir)
+    const filterResult = await classifyFrames(context.plugins, framePaths, context.txid)
+    await emitClassifierResult(context, context.txid, filterResult)
+  } catch (error) {
+    if (error instanceof MissingObjectError || error instanceof FatalS3AccessError) {
+      throw error
+    }
+
+    if (isRetryableVideoError(error)) {
+      throw new RetryableJobError(`Retryable video error for ${context.txid}: ${(error as Error).message}`, context.txid, error)
+    }
+
+    const filterResult = mapVideoErrorResult(error)
+    await emitClassifierResult(context, context.txid, filterResult)
+  } finally {
+    await rm(workDir, { recursive: true, force: true })
+  }
+}
+
