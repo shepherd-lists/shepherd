@@ -20,7 +20,6 @@ ENV TF_ENABLE_ONEDNN_OPTS=1
 COPY ./nsfw/package*.json ./
 COPY ./nsfw/tsconfig.json ./tsconfig.json
 COPY ./classifier-host ../classifier-host
-COPY ./services/libs ../services/libs
 RUN npm ci --omit=dev
 
 FROM builder AS nsfw

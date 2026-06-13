@@ -1,4 +1,4 @@
-import { slackLog } from '../../services/libs/utils/slackLog'
+import { slackLog } from '../../classifier-host/src/utils/slackLog'
 import { runClassifierHost } from '../../classifier-host/src/index'
 import { loadPlugins } from '../../classifier-host/src/load-plugins'
 

@@ -1,6 +1,6 @@
 import { Message, ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { FilterErrorResult } from 'shepherd-plugin-interfaces'
-import { slackLog } from '../../services/libs/utils/slackLog'
+import { slackLog } from './utils/slackLog'
 import { emitClassifierResult } from './emit-result'
 import { setIncomingExtra } from './incoming-extra'
 import { ackMessage, releaseMessage } from './message-lifecycle'
