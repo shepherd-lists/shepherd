@@ -7,7 +7,7 @@ import { queueBlockOwner } from '../../../libs/block-owner/owner-blocking'
 import { UpdateItem, updateS3Lists } from '../../../libs/s3-lists/update-lists'
 import { updateAddresses } from '../../../libs/s3-lists/update-addresses'
 import { OwnersListRecord } from '../../../types'
-import { mergeRulesObject } from './service/move-records'
+import { mergeRulesObject } from './utils/merge-rules-object'
 import { lambdaInvokerFnTemp } from '../../../libs/utils/lambda-invoker'
 
 
