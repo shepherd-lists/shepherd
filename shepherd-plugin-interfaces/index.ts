@@ -1,4 +1,3 @@
-import { Readable } from 'stream'
 import * as Types from './types'
 
 export interface FilterResult extends Types.TxFlaggedOptions {
@@ -14,14 +13,14 @@ export interface FilterResult extends Types.TxFlaggedOptions {
 export interface FilterErrorResult {
 	flagged: undefined
 	data_reason:
-		'oversized'       // oversized compressed png files that cannot be opened by most image libraries.
-		| 'partial'       // partial image that library cannnot open
-		| 'unsupported'   // unsupported file type (your plugin is expected to handle jpeg/png/gif at a minimum)
-		| 'corrupt'       // image data is corrupt
-		| 'corrupt-maybe' // image data is corrupt, but can be displayed by a browser
-		| 'noop'					// no operation
-		| 'retry'					// clean up and retry
-		| 'mimetype'			// mimetype mismatch
+	'oversized'       // oversized compressed png files that cannot be opened by most image libraries.
+	| 'partial'       // partial image that library cannnot open
+	| 'unsupported'   // unsupported file type (your plugin is expected to handle jpeg/png/gif at a minimum)
+	| 'corrupt'       // image data is corrupt
+	| 'corrupt-maybe' // image data is corrupt, but can be displayed by a browser
+	| 'noop'					// no operation
+	| 'retry'					// clean up and retry
+	| 'mimetype'			// mimetype mismatch
 	err_message?: string // optional error message
 }
 
@@ -38,12 +37,6 @@ export interface FilterPluginInterface {
 	 * @param txid - the Arweave txid, useful for debugging against the actual served data
 	 */
 	checkImage(buffer: Buffer, mimetype: string, txid: string): Promise<FilterResult | FilterErrorResult>
-}
-
-/** used for POST http-api:84/postupdate */
-export interface APIFilterResult {
-	txid: string
-	filterResult: FilterResult | FilterErrorResult
 }
 
 /** used for POST http-api:84/addon-update */
