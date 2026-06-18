@@ -108,7 +108,7 @@ const pollQueue = async (): Promise<void> => {
 				QueueUrl: AWS_SQS_SINK_QUEUE,
 				MaxNumberOfMessages: messagesToFetch,
 				WaitTimeSeconds: 20, // Long polling to reduce empty responses
-				VisibilityTimeout: 300, // 5 minutes to process the message
+				VisibilityTimeout: 900, // 15 minutes to process the message (matches queue default)
 			}))
 
 			if (response.Messages && response.Messages.length > 0) {
