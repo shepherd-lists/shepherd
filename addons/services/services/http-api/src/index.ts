@@ -2,7 +2,6 @@ import express from 'express'
 import { Socket } from 'net'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { network_EXXX_codes } from '../../../libs/constants'
-import { pluginResultHandler } from './pluginResultHandler'
 import { addonHandler } from './addonHandler'
 import './watch-sqs' //self starting
 
@@ -57,34 +56,6 @@ app.post('/addon-update', async (req, res) => {
 	}
 })
 
-
-app.post('/postupdate', async (req, res) => {
-	const body = req.body
-	try {
-
-		/** this is where it all happens */
-		const ref = await pluginResultHandler(body)
-
-		console.log(`${pluginResultHandler.name} returned ${ref}, responding 200 OK`)
-		res.sendStatus(200)
-	} catch (err: unknown) {
-		const e = err as Error & { code?: string }
-		console.error(prefix, body?.txid, 'Error. Request body:', JSON.stringify(req.body), 'Error:', e)
-		if (e instanceof TypeError) {
-			res.setHeader('Content-Type', 'text/plain')
-			res.status(400).send(e.message)
-			return
-		}
-		if (e.message === 'Could not update database') {
-			res.setHeader('Content-Type', 'text/plain')
-			res.status(406).send(e.message)
-			return
-		}
-		slackLog(prefix, body?.txid, 'UNHANDLED Error =>', `${e.name} (${e.code}) : ${e.message}`)
-		console.log(e)
-		res.sendStatus(500)
-	}
-})
 
 export const server = app.listen(port, () => {
 	/** we're getting "clientError"s */
