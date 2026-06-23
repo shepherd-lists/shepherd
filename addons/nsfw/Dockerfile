@@ -24,7 +24,7 @@ RUN npm ci --omit=dev
 
 FROM builder AS nsfw
 # install additional NSFW dependencies
-RUN npm i shepherd-plugin-nsfw
+RUN npm i shepherd-plugin-nsfw@latest
 RUN npm rebuild @tensorflow/tfjs-node --build-from-source
 COPY ./nsfw/src ./src
 COPY ./nsfw/shepherd.config.json ./shepherd.config.json
