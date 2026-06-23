@@ -7,7 +7,7 @@ import { queueBlockOwner } from '../../../libs/block-owner/owner-blocking'
 import { UpdateItem, updateS3Lists } from '../../../libs/s3-lists/update-lists'
 import { updateAddresses } from '../../../libs/s3-lists/update-addresses'
 import { OwnersListRecord } from '../../../types'
-import { mergeRulesObject } from './service/move-records'
+import { mergeRulesObject } from './utils/merge-rules-object'
 import { lambdaInvokerFnTemp } from '../../../libs/utils/lambda-invoker'
 
 
@@ -40,7 +40,6 @@ export const processFlagged = async (
 	/** steps (use a trx):
 	 * 1. item specific
 	 * - update tx in db
-	 * -- remove from inbox/inflights
 	 * -- insert to txs
 	 * 2. owner update
 	 * - update owners_list
@@ -56,13 +55,6 @@ export const processFlagged = async (
 	const trx = await knex.transaction()
 	try {
 		/** 1. item specific */
-		/** remove from inbox/inflights. N.B. DONT FORGET TO REMOVE THIS STEP LATER */
-		await trx('inflights')
-			.delete()
-			.where('txid', txid)
-		await trx<TxRecord>('inbox')
-			.delete()
-			.where('txid', txid)
 
 		/** insert to txs */
 		const resInsert = await trx('txs')
