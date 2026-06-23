@@ -81,6 +81,7 @@ const lookupOwners = async (gql: ReturnType<typeof arGql>, batch: string[]) => {
 
 const add = async (txids: string[]) => {
 	const gql = arGql({ endpointUrl: GQLUrls.goldsky, retries: 3 })
+	txids = [...new Set(txids)]
 	console.info(`Adding ${txids.length} txids using ${gql.endpointUrl} ...`)
 
 	for (let i = 0; i < txids.length; i += BATCH_SIZE) {
