@@ -83,6 +83,14 @@ export const runPluginChain = async (
   return toPluginResult(state)
 }
 
+const FRAME_BATCH_SIZE = 5
+
+const classifyFramePath = async (
+  plugins: FilterPluginInterface[],
+  framePath: string,
+  txid: string,
+) => runPluginChain(plugins, await readFile(framePath), 'image/png', txid)
+
 export const classifyFrames = async (
   plugins: FilterPluginInterface[],
   framePaths: string[],
@@ -93,11 +101,21 @@ export const classifyFrames = async (
     flagged: false,
   }
 
-  for (const framePath of framePaths) {
-    const frameBuffer = await readFile(framePath)
-    const frameResult = await runPluginChain(plugins, frameBuffer, 'image/png', txid)
-    mergeResults(state, frameResult)
-    if (state.flagged) break
+  const [firstFrame, ...remainingFrames] = framePaths
+
+  /* check the first frame alone: a plugin's first checkImage also seeds its md5 hash cache, so
+   * it must run before the rest are fired off in parallel below. */
+  if (firstFrame) {
+    mergeResults(state, await classifyFramePath(plugins, firstFrame, txid))
+  }
+
+  /* process remaining frames in parallel batches, breaking on the first flagged batch */
+  for (let i = 0; !state.flagged && i < remainingFrames.length; i += FRAME_BATCH_SIZE) {
+    const batch = remainingFrames.slice(i, i + FRAME_BATCH_SIZE)
+    const results = await Promise.all(batch.map(framePath => classifyFramePath(plugins, framePath, txid)))
+    for (const result of results) {
+      mergeResults(state, result)
+    }
   }
 
   return toPluginResult(state)
