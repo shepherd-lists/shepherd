@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
-import { FilterPluginInterface } from 'shepherd-plugin-interfaces'
+import { FilterPluginInterface, FilterResult } from 'shepherd-plugin-interfaces'
 import { classifyFrames, runPluginChain } from '../src/plugin-chain'
 
 test('runPluginChain executes all plugins for one buffer', async () => {
@@ -58,6 +58,67 @@ test('classifyFrames exits early after first flagged frame', async () => {
     const result = await classifyFrames(plugins, [frameA, frameB], 'txid-2')
     assert.equal(result.flagged, true)
     assert.equal(calls, 1)
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('classifyFrames checks the first frame alone before batching the rest', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'classifier-host-test-'))
+  try {
+    const framePaths: string[] = []
+    for (let i = 0; i < 8; i++) {
+      const framePath = path.join(dir, `frame-${i}.png`)
+      await writeFile(framePath, Buffer.from([i]))
+      framePaths.push(framePath)
+    }
+
+    /* track concurrency: the first frame must run alone, then remaining 7 run in batches of 5 */
+    let inflight = 0
+    let maxInflight = 0
+    const callOrder: number[] = []
+    const plugins: FilterPluginInterface[] = [{
+      init: async () => { },
+      checkImage: async (buffer: Buffer) => {
+        callOrder.push(buffer[0])
+        inflight++
+        maxInflight = Math.max(maxInflight, inflight)
+        await new Promise(resolve => setTimeout(resolve, 1))
+        inflight--
+        return { flagged: false, top_score_name: 'clean', top_score_value: 0.1 }
+      },
+    }]
+
+    const result = await classifyFrames(plugins, framePaths, 'txid-batch')
+    assert.equal(result.flagged, false)
+    assert.equal(callOrder.length, 8)
+    assert.equal(callOrder[0], 0) // first frame checked first
+    assert.equal(maxInflight, 5) // remaining frames batched 5-wide
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('classifyFrames flags a positive frame found inside a later batch', async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'classifier-host-test-'))
+  try {
+    const framePaths: string[] = []
+    for (let i = 0; i < 4; i++) {
+      const framePath = path.join(dir, `frame-${i}.png`)
+      await writeFile(framePath, Buffer.from([i]))
+      framePaths.push(framePath)
+    }
+
+    const plugins: FilterPluginInterface[] = [{
+      init: async () => { },
+      checkImage: async (buffer: Buffer) => buffer[0] === 2
+        ? { flagged: true, flag_type: 'matched', top_score_name: 'hit', top_score_value: 0.97 }
+        : { flagged: false, top_score_name: 'clean', top_score_value: 0.1 },
+    }]
+
+    const result = await classifyFrames(plugins, framePaths, 'txid-batch-hit') as FilterResult
+    assert.equal(result.flagged, true)
+    assert.equal(result.top_score_name, 'hit')
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
