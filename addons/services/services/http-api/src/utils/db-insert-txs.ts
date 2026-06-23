@@ -1,7 +1,7 @@
-import { InflightsRecord, TxRecord } from 'shepherd-plugin-interfaces/types'
+import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import getDbConnection from '../../../../libs/utils/knexCreate'
 import { slackLog } from '../../../../libs/utils/slackLog'
-import { mergeRulesObject } from '../service/move-records'
+import { mergeRulesObject } from './merge-rules-object'
 
 
 const knex = getDbConnection()

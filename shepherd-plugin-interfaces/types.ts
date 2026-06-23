@@ -16,20 +16,20 @@ export interface TxRecord extends TxScanned, TxFlaggedOptions {
 	flagged: boolean
 	valid_data: boolean
 	data_reason:
-		'oversized'
-		| 'partial'
-		| 'partial-seed' //these vids have never occurred?
-		| 'timeout'
-		| '404'
-		| 'corrupt'
-		| 'corrupt-maybe'
-		| 'unsupported'
-		| 'noop'
-		| 'mimetype'
-		| 'negligible-data'
-		| 'nodata'
-		| 'MalformedXML-data'
-		| 'unmined'
+	'oversized'
+	| 'partial'
+	| 'partial-seed' //these vids have never occurred?
+	| 'timeout'
+	| '404'
+	| 'corrupt'
+	| 'corrupt-maybe'
+	| 'unsupported'
+	| 'noop'
+	| 'mimetype'
+	| 'negligible-data'
+	| 'nodata'
+	| 'MalformedXML-data'
+	| 'unmined'
 
 	byte_start?: string	// convert to BigInt
 	byte_end?: string		// convert to BigInt
@@ -52,11 +52,6 @@ export interface HistoryRecord {
 	unflagged: string
 	indexer_pass1: number
 	gql_height: number
-}
-
-export interface InflightsRecord {
-	txid: string
-	created_at?: Date
 }
 
 /**
