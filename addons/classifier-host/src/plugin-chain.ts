@@ -13,35 +13,11 @@ interface MergeState {
   firstError?: FilterErrorResult
 }
 
-const FALSE_POSITIVE_PORN_SCORES = new Set([
-  0.903248131275177,
-  0.9651741981506348,
-  0.9032477140426636,
-  0.9885595440864563,
-])
-
 const flagTypePriority = (value: FilterResult['flag_type']) => {
   if (value === 'matched') return 3
   if (value === 'classified') return 2
   if (value === 'test') return 1
   return 0
-}
-
-const applyLegacyFalsePositiveFilter = (result: FilterResult): FilterResult => {
-  if (
-    result.flagged === true &&
-    result.top_score_name === 'Porn' &&
-    typeof result.top_score_value === 'number' &&
-    FALSE_POSITIVE_PORN_SCORES.has(result.top_score_value)
-  ) {
-    return {
-      ...result,
-      flagged: false,
-      top_score_name: undefined,
-      top_score_value: undefined,
-    }
-  }
-  return result
 }
 
 const mergeFlagType = (current: FlagType | undefined, incoming: FilterResult['flag_type']) => {
@@ -67,11 +43,10 @@ export const mergeResults = (state: MergeState, result: PluginResult): MergeStat
     return state
   }
 
-  const normalized = applyLegacyFalsePositiveFilter(result)
   state.sawBooleanResult = true
-  state.flagged = state.flagged || normalized.flagged
-  state.flag_type = mergeFlagType(state.flag_type, normalized.flag_type)
-  mergeScore(state, normalized)
+  state.flagged = state.flagged || result.flagged
+  state.flag_type = mergeFlagType(state.flag_type, result.flag_type)
+  mergeScore(state, result)
   return state
 }
 
