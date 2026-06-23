@@ -11,7 +11,9 @@ const shouldSendToNextClassifier = (
   sinkQueueUrl: string,
 ) => {
   if (outputQueueUrl === sinkQueueUrl) return false
-  return filterResult.data_reason === 'corrupt-maybe' || filterResult.data_reason === 'partial'
+  return filterResult.data_reason === 'corrupt-maybe'
+    || filterResult.data_reason === 'partial'
+    || filterResult.data_reason === 'oversized'
 }
 
 const mergeIncomingTopScore = (
