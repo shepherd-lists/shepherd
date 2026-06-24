@@ -1,6 +1,6 @@
 import { slackLog } from '../../classifier-host/src/utils/slackLog'
 import { runClassifierHost } from '../../classifier-host/src/index'
-import { loadPlugins } from '../../classifier-host/src/load-plugins'
+import { loadPlugins } from '../../classifier-host/src/0-init/load-plugins'
 
 const main = async () => {
   const plugins = await loadPlugins('shepherd.config.json')
