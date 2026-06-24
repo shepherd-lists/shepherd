@@ -14,6 +14,7 @@ process.env.GQL_URL = config.gql_url || 'https://arweave.net/graphql'
 process.env.GQL_URL_SECONDARY = config.gql_url_secondary || 'https://arweave-search.goldsky.com/graphql'
 process.env.AWS_ENDPOINT_URL_S3 = 'http://127.0.0.1:9000'// #minio'
 process.env.AWS_ENDPOINT_URL_SQS = 'http://127.0.0.1:9324'// #elasticmq'
+process.env.AWS_SQS_INPUT_QUEUE = 'http://127.0.0.1:9324/000000000000/shepherd2-input-q'
 process.env.REDIS_HOST = 'localhost'
 process.env.ingress_nodes = JSON.stringify(config.ingress_nodes)
 // process.env.http_api_nodes_url = config.http_api_nodes_url
