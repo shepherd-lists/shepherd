@@ -2,12 +2,12 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { FilterErrorResult, FilterPluginInterface } from 'shepherd-plugin-interfaces'
-import { emitClassifierResult, EmitResultContext } from './emit-result'
+import { emitClassifierResult, EmitResultContext } from '../3-output/emit-result'
 import { extractKeyframes, isRetryableFfmpegError } from './extract-frames'
 import { classifyFrames } from './plugin-chain'
-import { FatalS3AccessError, MissingObjectError, s3DownloadToFile } from './s3-read'
-import { resultSummary } from './result-summary'
-import { RetryableJobError } from './types'
+import { FatalS3AccessError, MissingObjectError, s3DownloadToFile } from '../1-incoming/s3-read'
+import { resultSummary } from '../utils/log-result-summary'
+import { RetryableJobError } from '../types'
 
 const CORRUPT_MAYBE_MESSAGES = [
   'Invalid data found when processing input',

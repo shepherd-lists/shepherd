@@ -1,8 +1,8 @@
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs'
 import { S3EventRecord } from 'aws-lambda'
-import { getAndDeleteIncomingExtra } from './incoming-extra'
-import { resultSummary } from './result-summary'
-import { PartialPluginResult, PluginResult } from './types'
+import { getAndDeleteIncomingExtra } from '../1-incoming/incoming-extra'
+import { resultSummary } from '../utils/log-result-summary'
+import { PartialPluginResult, PluginResult } from '../types'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 

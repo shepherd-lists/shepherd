@@ -1,13 +1,13 @@
 import { Message, ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { FilterErrorResult } from 'shepherd-plugin-interfaces'
-import { slackLog } from './utils/slackLog'
-import { emitClassifierResult } from './emit-result'
+import { slackLog } from '../utils/slackLog'
+import { emitClassifierResult } from '../3-output/emit-result'
 import { setIncomingExtra } from './incoming-extra'
 import { ackMessage, releaseMessage } from './message-lifecycle'
-import { processImage } from './process-image'
-import { processVideo } from './process-video'
+import { processImage } from '../2-processing/process-image'
+import { processVideo } from '../2-processing/process-video'
 import { FatalS3AccessError, MissingObjectError, s3HeadObject } from './s3-read'
-import { ClassifierHostRuntime, ParsedS3QueueMessage, RetryableJobError, S3EventLike } from './types'
+import { ClassifierHostRuntime, ParsedS3QueueMessage, RetryableJobError, S3EventLike } from '../types'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 

@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { FilterErrorResult, FilterPluginInterface, FilterResult } from 'shepherd-plugin-interfaces'
-import { PluginResult } from './types'
+import { PluginResult } from '../types'
 
 type FlagType = NonNullable<FilterResult['flag_type']>
 

@@ -1,4 +1,4 @@
-import { IncomingExtra } from './types'
+import { IncomingExtra } from '../types'
 
 const incomingExtras = new Map<string, IncomingExtra>()
 

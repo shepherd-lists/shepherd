@@ -1,4 +1,4 @@
-import { PartialPluginResult, PluginResult } from './types'
+import { PartialPluginResult, PluginResult } from '../types'
 
 /** one-word log summary of a classification result */
 export const resultSummary = (result: PluginResult): string => {

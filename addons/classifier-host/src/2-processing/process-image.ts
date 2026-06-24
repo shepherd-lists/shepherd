@@ -1,8 +1,8 @@
 import { FilterPluginInterface } from 'shepherd-plugin-interfaces'
-import { emitClassifierResult, EmitResultContext } from './emit-result'
+import { emitClassifierResult, EmitResultContext } from '../3-output/emit-result'
 import { runPluginChain } from './plugin-chain'
-import { s3GetBuffer } from './s3-read'
-import { resultSummary } from './result-summary'
+import { s3GetBuffer } from '../1-incoming/s3-read'
+import { resultSummary } from '../utils/log-result-summary'
 
 export interface ProcessImageContext extends EmitResultContext {
   plugins: FilterPluginInterface[]

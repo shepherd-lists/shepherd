@@ -1,6 +1,6 @@
 import { SQSClient } from '@aws-sdk/client-sqs'
 import { FilterPluginInterface } from 'shepherd-plugin-interfaces'
-import { startSqsConsumer } from './sqs-consumer'
+import { startSqsConsumer } from './1-incoming/sqs-consumer'
 import { ClassifierHostConfig, ClassifierHostRuntime } from './types'
 
 const gbToBytes = (value: number) => value * 1024 * 1024 * 1024
