@@ -5,7 +5,7 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { GetObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler'
-import { slackLog } from '../../services/libs/utils/slackLog'
+import { slackLog } from './utils/slackLog'
 import { HeadObjectInfo } from './types'
 
 const endpoint = process.env.AWS_ENDPOINT_URL_S3
