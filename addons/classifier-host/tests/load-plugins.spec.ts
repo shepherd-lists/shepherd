@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { loadPlugins } from '../src/load-plugins'
+import { loadPlugins } from '../src/0-init/load-plugins'
 
 const testDir = path.dirname(fileURLToPath(import.meta.url))
 const fixtureConfigPath = path.join(testDir, 'fixtures', 'shepherd.config.test.json')

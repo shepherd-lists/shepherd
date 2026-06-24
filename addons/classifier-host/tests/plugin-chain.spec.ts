@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { FilterPluginInterface, FilterResult } from 'shepherd-plugin-interfaces'
-import { classifyFrames, runPluginChain } from '../src/plugin-chain'
+import { classifyFrames, runPluginChain } from '../src/2-processing/plugin-chain'
 
 test('runPluginChain executes all plugins for one buffer', async () => {
   let calls = 0
