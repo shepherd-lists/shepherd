@@ -16,6 +16,6 @@ export const releaseMessage = async (
 ) => sqsClient.send(new ChangeMessageVisibilityCommand({
   QueueUrl: queueUrl,
   ReceiptHandle: receiptHandle,
-  VisibilityTimeout: 0,
+  VisibilityTimeout: 10, //10s backoff before retry
 }))
 
