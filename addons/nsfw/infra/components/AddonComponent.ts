@@ -43,7 +43,7 @@ export class AddonComponent extends pulumi.ComponentResource {
 				dockerfile: path.join(addonsDir, 'nsfw/Dockerfile'),
 				builderVersion: docker.BuilderVersion.BuilderBuildKit,
 				platform: config.buildPlatform,
-				target: name === 'nsfw' ? 'nsfw' : 'no-nsfw',
+				target: name,
 			},
 			imageName: n(name),
 			skipPush: true,
