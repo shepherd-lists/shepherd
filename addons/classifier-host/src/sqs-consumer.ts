@@ -11,6 +11,9 @@ import { ClassifierHostRuntime, ParsedS3QueueMessage, RetryableJobError, S3Event
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
+/** last path segment of an SQS URL, for readable logs */
+const queueShortName = (queueUrl: string) => queueUrl.split('/').filter(Boolean).pop() ?? queueUrl
+
 const parseMessage = (message: Message): ParsedS3QueueMessage => {
   if (!message.Body || !message.ReceiptHandle) {
     throw new Error(`Invalid SQS message: missing Body or ReceiptHandle (id=${message.MessageId})`)
@@ -67,12 +70,15 @@ const processMessageWorker = async (
 
   const { txid, receiptHandle, incomingExtra } = parsed
   if (state.activeTxids.has(txid)) {
+    console.info(txid, 'release: already in-flight')
     await releaseMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
     return
   }
 
   state.activeTxids.add(txid)
   let reservedVideoBytes = 0
+  const startedAt = Date.now()
+  console.info(txid, 'handler start')
 
   try {
     setIncomingExtra(txid, incomingExtra)
@@ -81,10 +87,12 @@ const processMessageWorker = async (
     const contentType = head.contentType || 'application/octet-stream'
     const isImage = contentType.startsWith('image/')
     const isVideo = contentType.startsWith('video/')
+    console.info(txid, 'head', contentType, head.contentLength, 'bytes')
 
     if (isVideo) {
       const reserved = reserveVideoBytes(state, runtime.config.totalFileSizeBytes, head.contentLength)
       if (reserved < 0) {
+        console.info(txid, 'release: video capacity full', head.contentLength, 'bytes')
         await releaseMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
         return
       }
@@ -124,9 +132,11 @@ const processMessageWorker = async (
       }, txid, { flagged: undefined, data_reason: 'unsupported' } as FilterErrorResult)
     }
 
+    console.info(txid, 'ack message...')
     await ackMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
   } catch (error) {
     if (error instanceof MissingObjectError) {
+      console.info(txid, 'ack message: object missing...')
       await ackMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
       return
     }
@@ -136,15 +146,17 @@ const processMessageWorker = async (
     }
 
     if (error instanceof RetryableJobError) {
+      console.info(txid, 'release message: retryable...', (error as Error).message)
       await releaseMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
       return
     }
 
-    await slackLog('classifier-host', txid, 'message worker error', (error as Error).name, (error as Error).message)
+    await slackLog('[classifier-host]', txid, 'releasing message: worker error', (error as Error).name, (error as Error).message)
     await releaseMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
   } finally {
     releaseVideoBytes(state, reservedVideoBytes)
     state.activeTxids.delete(txid)
+    console.info(txid, 'handler finish', `${Date.now() - startedAt}ms`)
   }
 }
 
@@ -154,6 +166,13 @@ export const startSqsConsumer = async (runtime: ClassifierHostRuntime): Promise<
     activeTxids: new Set<string>(),
     activeVideoBytes: 0,
   }
+
+  console.info('consumer start',
+    'input=' + queueShortName(runtime.config.inputQueueUrl),
+    'output=' + queueShortName(runtime.config.outputQueueUrl),
+    'sink=' + queueShortName(runtime.config.sinkQueueUrl),
+    'maxConcurrent=' + runtime.config.maxConcurrent,
+  )
 
   let fatalError: Error | undefined
   while (true) {
@@ -172,6 +191,7 @@ export const startSqsConsumer = async (runtime: ClassifierHostRuntime): Promise<
         MessageAttributeNames: ['All'],
       }))
 
+      console.info('received', response.Messages?.length ?? 0, 'message(s)')
       if (response.Messages?.length) {
         for (const message of response.Messages) {
           let workerPromise: Promise<void>

@@ -1,9 +1,15 @@
 import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs'
 import { S3EventRecord } from 'aws-lambda'
 import { getAndDeleteIncomingExtra } from './incoming-extra'
+import { resultSummary } from './result-summary'
 import { PartialPluginResult, PluginResult } from './types'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+let sendCounter = 0
+
+/** last path segment of an SQS URL, for readable logs */
+const queueShortName = (queueUrl: string) => queueUrl.split('/').filter(Boolean).pop() ?? queueUrl
 
 const shouldSendToNextClassifier = (
   filterResult: PartialPluginResult,
@@ -57,6 +63,7 @@ export const emitClassifierResult = async (
   const initialPartial = initialResult as PartialPluginResult
   const filterResult = mergeIncomingTopScore(initialPartial, previousExtra?.filterResult)
   const queueUrl = queueForResult(filterResult, context.outputQueueUrl, context.sinkQueueUrl)
+  const queueName = queueShortName(queueUrl)
 
   const s3Event = {
     Records: [{
@@ -82,6 +89,9 @@ export const emitClassifierResult = async (
     },
   }
 
+  const sendNum = ++sendCounter
+  console.info(txid, `sending ${sendNum} to SQS`, queueName, resultSummary(filterResult as PluginResult))
+
   let lastError: Error | undefined
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -89,9 +99,11 @@ export const emitClassifierResult = async (
         QueueUrl: queueUrl,
         MessageBody: JSON.stringify(s3Event),
       }))
+      console.info(txid, `sent ${sendNum} to SQS`, queueName, sendResult.MessageId)
       return sendResult.MessageId
     } catch (error) {
       lastError = error as Error
+      console.error(txid, `send ${sendNum} to SQS attempt ${attempt} failed`, queueName, lastError.name, lastError.message)
       if (attempt < 3) {
         await sleep(attempt * 1000)
         continue

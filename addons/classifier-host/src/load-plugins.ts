@@ -62,6 +62,7 @@ const importPlugin = async (specifier: string, configPath: string) => {
   }
 
   await plugin.init()
+  console.info('plugin ready:', specifier)
   return plugin
 }
 

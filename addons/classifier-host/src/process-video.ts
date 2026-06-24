@@ -6,6 +6,7 @@ import { emitClassifierResult, EmitResultContext } from './emit-result'
 import { extractKeyframes, isRetryableFfmpegError } from './extract-frames'
 import { classifyFrames } from './plugin-chain'
 import { FatalS3AccessError, MissingObjectError, s3DownloadToFile } from './s3-read'
+import { resultSummary } from './result-summary'
 import { RetryableJobError } from './types'
 
 const CORRUPT_MAYBE_MESSAGES = [
@@ -50,9 +51,12 @@ export const processVideo = async (context: ProcessVideoContext) => {
   const videoPath = path.join(workDir, context.txid)
 
   try {
+    console.info(context.txid, 'video classify start')
     await s3DownloadToFile(context.txid, videoPath)
     const framePaths = await extractKeyframes(context.ffmpegPath, videoPath, workDir)
+    console.info(context.txid, 'video frames extracted', framePaths.length)
     const filterResult = await classifyFrames(context.plugins, framePaths, context.txid)
+    console.info(context.txid, 'video classify result', resultSummary(filterResult))
     await emitClassifierResult(context, context.txid, filterResult)
   } catch (error) {
     if (error instanceof MissingObjectError || error instanceof FatalS3AccessError) {
@@ -64,6 +68,7 @@ export const processVideo = async (context: ProcessVideoContext) => {
     }
 
     const filterResult = mapVideoErrorResult(error)
+    console.info(context.txid, 'video classify error -> routing', filterResult.data_reason, (error as Error).message)
     await emitClassifierResult(context, context.txid, filterResult)
   } finally {
     await rm(workDir, { recursive: true, force: true })
