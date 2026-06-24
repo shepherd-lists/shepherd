@@ -42,5 +42,5 @@ COPY ./classifier-host/tsconfig.json /app/classifier-host/tsconfig.json
 COPY ./nsfw/src ./src
 COPY ./nsfw/shepherd.config.json ./shepherd.config.json
 COPY ./classifier-host/src /app/classifier-host/src
-RUN npx tsc --noEmit
+RUN ["npx", "tsc", "--noEmit"]
 ENTRYPOINT ["npx", "tsx", "src/index.ts"]
