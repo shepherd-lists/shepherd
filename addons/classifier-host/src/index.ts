@@ -64,16 +64,12 @@ const createSqsClient = () => {
 }
 
 export const runClassifierHost = async (
-  plugins: FilterPluginInterface[],
+  plugin: FilterPluginInterface,
   options: RunClassifierHostOptions = {},
 ) => {
-  if (plugins.length === 0) {
-    throw new Error('No plugins loaded')
-  }
-
   const runtime: ClassifierHostRuntime = {
     config: resolveConfig(options),
-    plugins,
+    plugin,
     sqsClient: createSqsClient(),
   }
 

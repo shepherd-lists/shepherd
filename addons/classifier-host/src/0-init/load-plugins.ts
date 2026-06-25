@@ -4,12 +4,12 @@ import { pathToFileURL } from 'node:url'
 import { FilterPluginInterface } from 'shepherd-plugin-interfaces'
 
 interface ShepherdAddonConfig {
-  plugins: string[]
+  plugin: string
   lowmem?: boolean
 }
 
 let cachedConfigPath: string | undefined
-let cachedPlugins: FilterPluginInterface[] | undefined
+let cachedPlugin: FilterPluginInterface | undefined
 
 const stripPinnedVersion = (specifier: string) => {
   if (specifier.startsWith('.') || specifier.startsWith('/') || specifier.startsWith('file:')) {
@@ -66,29 +66,25 @@ const importPlugin = async (specifier: string, configPath: string) => {
   return plugin
 }
 
-export const loadPlugins = async (configFileName = 'shepherd.config.json'): Promise<FilterPluginInterface[]> => {
+export const loadPlugin = async (configFileName = 'shepherd.config.json'): Promise<FilterPluginInterface> => {
   const configPath = path.isAbsolute(configFileName)
     ? configFileName
     : path.resolve(process.cwd(), configFileName)
 
-  if (cachedConfigPath === configPath && cachedPlugins) {
-    return cachedPlugins
+  if (cachedConfigPath === configPath && cachedPlugin) {
+    return cachedPlugin
   }
 
   const rawConfig = await readFile(configPath, 'utf8')
   const parsed = JSON.parse(rawConfig) as ShepherdAddonConfig
 
-  if (!Array.isArray(parsed.plugins) || parsed.plugins.length === 0) {
-    throw new Error(`Invalid plugin config at ${configPath}: 'plugins' must be a non-empty array`)
+  if (typeof parsed.plugin !== 'string' || parsed.plugin.length === 0) {
+    throw new Error(`Invalid plugin config at ${configPath}: 'plugin' must be a non-empty string`)
   }
 
-  const plugins: FilterPluginInterface[] = []
-  for (const pluginSpecifier of parsed.plugins) {
-    plugins.push(await importPlugin(pluginSpecifier, configPath))
-  }
+  const plugin = await importPlugin(parsed.plugin, configPath)
 
   cachedConfigPath = configPath
-  cachedPlugins = plugins
-  return plugins
+  cachedPlugin = plugin
+  return plugin
 }
-

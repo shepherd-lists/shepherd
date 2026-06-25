@@ -106,7 +106,7 @@ const processMessageWorker = async (
         outputQueueUrl: runtime.config.outputQueueUrl,
         sinkQueueUrl: runtime.config.sinkQueueUrl,
         addonName: runtime.config.addonName,
-        plugins: runtime.plugins,
+        plugin: runtime.plugin,
         txid,
         contentType,
       })
@@ -117,7 +117,7 @@ const processMessageWorker = async (
         outputQueueUrl: runtime.config.outputQueueUrl,
         sinkQueueUrl: runtime.config.sinkQueueUrl,
         addonName: runtime.config.addonName,
-        plugins: runtime.plugins,
+        plugin: runtime.plugin,
         txid,
         ffmpegPath: runtime.config.ffmpegPath,
         tmpRootDir: runtime.config.tmpDir,

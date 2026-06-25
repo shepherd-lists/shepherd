@@ -4,7 +4,7 @@ import path from 'node:path'
 import { FilterErrorResult, FilterPluginInterface } from 'shepherd-plugin-interfaces'
 import { emitClassifierResult, EmitResultContext } from '../3-output/emit-result'
 import { extractKeyframes, isRetryableFfmpegError } from './extract-frames'
-import { classifyFrames } from './plugin-chain'
+import { classifyFrames } from './classify'
 import { FatalS3AccessError, MissingObjectError, s3DownloadToFile } from '../1-incoming/s3-read'
 import { resultSummary } from '../utils/log-result-summary'
 import { RetryableJobError } from '../types'
@@ -37,7 +37,7 @@ const isRetryableVideoError = (error: unknown) => {
 }
 
 export interface ProcessVideoContext extends EmitResultContext {
-  plugins: FilterPluginInterface[]
+  plugin: FilterPluginInterface
   txid: string
   ffmpegPath: string
   tmpRootDir: string
@@ -55,7 +55,7 @@ export const processVideo = async (context: ProcessVideoContext) => {
     await s3DownloadToFile(context.txid, videoPath)
     const framePaths = await extractKeyframes(context.ffmpegPath, videoPath, workDir)
     console.info(context.txid, 'video frames extracted', framePaths.length)
-    const filterResult = await classifyFrames(context.plugins, framePaths, context.txid)
+    const filterResult = await classifyFrames(context.plugin, framePaths, context.txid)
     console.info(context.txid, 'video classify result', resultSummary(filterResult))
     await emitClassifierResult(context, context.txid, filterResult)
   } catch (error) {

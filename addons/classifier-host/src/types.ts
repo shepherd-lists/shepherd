@@ -37,7 +37,7 @@ export interface ClassifierHostConfig {
 
 export interface ClassifierHostRuntime {
   config: ClassifierHostConfig
-  plugins: FilterPluginInterface[]
+  plugin: FilterPluginInterface
   sqsClient: SQSClient
 }
 
