@@ -20,6 +20,7 @@ const shouldSendToNextClassifier = (
   return filterResult.data_reason === 'corrupt-maybe'
     || filterResult.data_reason === 'partial'
     || filterResult.data_reason === 'oversized'
+    || filterResult.data_reason === 'unsupported'
 }
 
 const mergeIncomingTopScore = (
