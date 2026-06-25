@@ -4,8 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { FilterPluginInterface } from 'shepherd-plugin-interfaces'
 
 interface ShepherdAddonConfig {
-  plugin: string
-  lowmem?: boolean
+  plugins: string[]
 }
 
 let cachedConfigPath: string | undefined
@@ -78,11 +77,12 @@ export const loadPlugin = async (configFileName = 'shepherd.config.json'): Promi
   const rawConfig = await readFile(configPath, 'utf8')
   const parsed = JSON.parse(rawConfig) as ShepherdAddonConfig
 
-  if (typeof parsed.plugin !== 'string' || parsed.plugin.length === 0) {
-    throw new Error(`Invalid plugin config at ${configPath}: 'plugin' must be a non-empty string`)
+  const specifier = parsed.plugins?.[0]
+  if (!Array.isArray(parsed.plugins) || typeof specifier !== 'string' || specifier.length === 0) {
+    throw new Error(`Invalid plugin config at ${configPath}: 'plugins' must be a non-empty array of strings`)
   }
 
-  const plugin = await importPlugin(parsed.plugin, configPath)
+  const plugin = await importPlugin(specifier, configPath)
 
   cachedConfigPath = configPath
   cachedPlugin = plugin

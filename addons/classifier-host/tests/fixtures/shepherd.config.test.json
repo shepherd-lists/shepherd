@@ -1,3 +1,5 @@
 {
-  "plugin": "./mock-plugin.mjs"
+  "plugins": [
+    "./mock-plugin.mjs"
+  ]
 }
