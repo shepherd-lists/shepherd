@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { FilterErrorResult, FilterPluginInterface } from 'shepherd-plugin-interfaces'
 import { emitClassifierResult, EmitResultContext } from '../3-output/emit-result'
-import { extractKeyframes, isRetryableFfmpegError } from './extract-frames'
+import { extractKeyframes, ffmpegErrorText, isRetryableFfmpegError } from './extract-frames'
 import { classifyFrames } from './classify'
 import { FatalS3AccessError, MissingObjectError, s3DownloadToFile } from '../1-incoming/s3-read'
 import { resultSummary } from '../utils/log-result-summary'
@@ -16,23 +16,24 @@ const CORRUPT_MAYBE_MESSAGES = [
   'Error marking filters as finished',
 ]
 
-const mapVideoErrorResult = (error: unknown): FilterErrorResult => {
-  const message = (error as Error).message ?? 'video processing error'
+export const mapVideoErrorResult = (error: unknown): FilterErrorResult => {
+  const text = ffmpegErrorText(error)
+  const err_message = (error as Error).message ?? 'video processing error'
 
-  if (message.includes('Output file #0 does not contain any stream')) {
-    return { flagged: undefined, data_reason: 'corrupt', err_message: message }
+  if (text.includes('does not contain any stream')) {
+    return { flagged: undefined, data_reason: 'corrupt', err_message }
   }
 
-  if (CORRUPT_MAYBE_MESSAGES.some(entry => message.includes(entry))) {
-    return { flagged: undefined, data_reason: 'corrupt-maybe', err_message: message }
+  if (CORRUPT_MAYBE_MESSAGES.some(entry => text.includes(entry))) {
+    return { flagged: undefined, data_reason: 'corrupt-maybe', err_message }
   }
 
-  return { flagged: undefined, data_reason: 'corrupt-maybe', err_message: message }
+  return { flagged: undefined, data_reason: 'corrupt-maybe', err_message }
 }
 
-const isRetryableVideoError = (error: unknown) => {
-  const message = (error as Error).message ?? ''
-  if (message.includes('ENOMEM') || message.includes('ECONNRESET')) return true
+export const isRetryableVideoError = (error: unknown) => {
+  const text = ffmpegErrorText(error)
+  if (text.includes('ENOMEM') || text.includes('ECONNRESET')) return true
   return isRetryableFfmpegError(error)
 }
 

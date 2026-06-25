@@ -15,7 +15,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 /** last path segment of an SQS URL, for readable logs */
 const queueShortName = (queueUrl: string) => queueUrl.split('/').filter(Boolean).pop() ?? queueUrl
 
-const parseMessage = (message: Message): ParsedS3QueueMessage => {
+export const parseMessage = (message: Message): ParsedS3QueueMessage => {
   if (!message.Body || !message.ReceiptHandle) {
     throw new Error(`Invalid SQS message: missing Body or ReceiptHandle (id=${message.MessageId})`)
   }

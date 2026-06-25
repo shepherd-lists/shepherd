@@ -3,7 +3,7 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 
 const NON_RETRYABLE_FFMPEG_ERRORS = [
-  'Output file #0 does not contain any stream',
+  'does not contain any stream', // ffmpeg dropped the "Output file #0" prefix after v5.x; match the stable tail
   'Invalid data found when processing input',
   'No such file or directory',
   'Conversion failed!',
@@ -26,10 +26,23 @@ const parseFfmpegErrorMessage = (stderr: string) => {
   return relevant
 }
 
+/**
+ * Full diagnostic text for classification. `parseFfmpegErrorMessage` only keeps the last stderr
+ * line, but the useful signature is often NOT on the last line (e.g. a no-stream failure ends with
+ * "Error opening output files: Invalid argument"). Classify against the parsed message AND the raw
+ * stderr so a corrupt video isn't misread as retryable and looped to the DLQ.
+ */
+export const ffmpegErrorText = (error: unknown): string => {
+  if (error instanceof FfmpegProcessingError) {
+    return [error.message, error.stderr].filter(Boolean).join('\n')
+  }
+  return (error as Error)?.message ?? ''
+}
+
 export const isRetryableFfmpegError = (error: unknown) => {
-  const message = (error as Error).message ?? ''
-  if (message.includes('ENOMEM')) return true
-  return !NON_RETRYABLE_FFMPEG_ERRORS.some(item => message.includes(item))
+  const text = ffmpegErrorText(error)
+  if (text.includes('ENOMEM')) return true
+  return !NON_RETRYABLE_FFMPEG_ERRORS.some(item => text.includes(item))
 }
 
 export const extractKeyframes = async (
