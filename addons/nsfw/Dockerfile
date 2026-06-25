@@ -29,7 +29,12 @@ FROM base AS host-build
 WORKDIR /app/classifier-host
 COPY ./classifier-host/package*.json ./
 RUN npm ci --omit=dev
-RUN npm i shepherd-plugin-nsfw@latest
+# Install the plugin declared in shepherd.config.json so the build and runtime
+# resolve the exact same specifier/version (no hardcoded @latest).
+COPY ./nsfw/shepherd.config.json ./shepherd.config.json
+RUN PLUGIN_SPEC="$(node -e 'const c=require("./shepherd.config.json");const s=Array.isArray(c.plugins)&&c.plugins[0];if(typeof s!=="string"||!s.length){console.error("shepherd.config.json: plugins[0] must be a non-empty string");process.exit(1)}process.stdout.write(s)')" \
+	&& echo "installing plugin from shepherd.config.json: $PLUGIN_SPEC" \
+	&& npm i "$PLUGIN_SPEC"
 RUN npm rebuild @tensorflow/tfjs-node --build-from-source
 
 # Volatile tail: a single continuous pipeline. classifier-host src changes
