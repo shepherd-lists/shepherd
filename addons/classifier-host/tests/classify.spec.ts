@@ -4,41 +4,25 @@ import os from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { FilterPluginInterface, FilterResult } from 'shepherd-plugin-interfaces'
-import { classifyFrames, runPluginChain } from '../src/2-processing/plugin-chain'
+import { classifyFrames, classifyImage } from '../src/2-processing/classify'
 
-test('runPluginChain executes all plugins for one buffer', async () => {
+test('classifyImage returns the plugin result for one buffer', async () => {
   let calls = 0
-  const plugins: FilterPluginInterface[] = [
-    {
-      init: async () => { },
-      checkImage: async () => {
-        calls++
-        return { flagged: false, top_score_name: 'first', top_score_value: 0.1, flag_type: 'classified' }
-      },
+  const plugin: FilterPluginInterface = {
+    init: async () => { },
+    checkImage: async () => {
+      calls++
+      return { flagged: true, top_score_name: 'hit', top_score_value: 0.8, flag_type: 'matched' }
     },
-    {
-      init: async () => { },
-      checkImage: async () => {
-        calls++
-        return { flagged: true, top_score_name: 'second', top_score_value: 0.8, flag_type: 'matched' }
-      },
-    },
-    {
-      init: async () => { },
-      checkImage: async () => {
-        calls++
-        return { flagged: false, top_score_name: 'third', top_score_value: 0.3 }
-      },
-    },
-  ]
+  }
 
-  const result = await runPluginChain(plugins, Buffer.from('abc'), 'image/png', 'txid-1')
-  assert.equal(calls, 3)
+  const result = await classifyImage(plugin, Buffer.from('abc'), 'image/png', 'txid-1') as FilterResult
+  assert.equal(calls, 1)
   assert.equal(result.flagged, true)
   assert.equal(result.flag_type, 'matched')
 })
 
-test('classifyFrames exits early after first flagged frame', async () => {
+test('classifyFrames stops at the first flagged frame', async () => {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'classifier-host-test-'))
   try {
     const frameA = path.join(dir, 'frame-a.png')
@@ -47,15 +31,15 @@ test('classifyFrames exits early after first flagged frame', async () => {
     await writeFile(frameB, Buffer.from([4, 5, 6]))
 
     let calls = 0
-    const plugins: FilterPluginInterface[] = [{
+    const plugin: FilterPluginInterface = {
       init: async () => { },
       checkImage: async () => {
         calls++
         return { flagged: true, flag_type: 'matched', top_score_name: 'frame-hit', top_score_value: 0.99 }
       },
-    }]
+    }
 
-    const result = await classifyFrames(plugins, [frameA, frameB], 'txid-2')
+    const result = await classifyFrames(plugin, [frameA, frameB], 'txid-2')
     assert.equal(result.flagged, true)
     assert.equal(calls, 1)
   } finally {
@@ -77,7 +61,7 @@ test('classifyFrames checks the first frame alone before batching the rest', asy
     let inflight = 0
     let maxInflight = 0
     const callOrder: number[] = []
-    const plugins: FilterPluginInterface[] = [{
+    const plugin: FilterPluginInterface = {
       init: async () => { },
       checkImage: async (buffer: Buffer) => {
         callOrder.push(buffer[0])
@@ -87,9 +71,9 @@ test('classifyFrames checks the first frame alone before batching the rest', asy
         inflight--
         return { flagged: false, top_score_name: 'clean', top_score_value: 0.1 }
       },
-    }]
+    }
 
-    const result = await classifyFrames(plugins, framePaths, 'txid-batch')
+    const result = await classifyFrames(plugin, framePaths, 'txid-batch')
     assert.equal(result.flagged, false)
     assert.equal(callOrder.length, 8)
     assert.equal(callOrder[0], 0) // first frame checked first
@@ -109,14 +93,14 @@ test('classifyFrames flags a positive frame found inside a later batch', async (
       framePaths.push(framePath)
     }
 
-    const plugins: FilterPluginInterface[] = [{
+    const plugin: FilterPluginInterface = {
       init: async () => { },
       checkImage: async (buffer: Buffer) => buffer[0] === 2
         ? { flagged: true, flag_type: 'matched', top_score_name: 'hit', top_score_value: 0.97 }
         : { flagged: false, top_score_name: 'clean', top_score_value: 0.1 },
-    }]
+    }
 
-    const result = await classifyFrames(plugins, framePaths, 'txid-batch-hit') as FilterResult
+    const result = await classifyFrames(plugin, framePaths, 'txid-batch-hit') as FilterResult
     assert.equal(result.flagged, true)
     assert.equal(result.top_score_name, 'hit')
   } finally {
