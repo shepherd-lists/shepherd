@@ -104,7 +104,6 @@ const processMessageWorker = async (
         addonName: runtime.config.addonName,
         plugin: runtime.plugin,
         txid,
-        ffmpegPath: runtime.config.ffmpegPath,
         tmpRootDir: runtime.config.tmpDir,
       }))
     } else {

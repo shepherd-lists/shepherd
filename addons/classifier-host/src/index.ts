@@ -3,6 +3,11 @@ import { FilterPluginInterface } from 'shepherd-plugin-interfaces'
 import { startSqsConsumer } from './1-incoming/sqs-consumer'
 import { ClassifierHostConfig, ClassifierHostRuntime } from './types'
 
+/* fixed tuning — not exposed as env vars */
+const WAIT_TIME_SECONDS = 20            // SQS long-poll wait (max 20)
+const VISIBILITY_TIMEOUT_SECONDS = 900  // MUST match the queue visibility (infra/elasticmq: 15 min); the heartbeat re-extends by this
+const TMP_DIR = './temp-screencaps/'
+
 const required = (value: string | undefined, name: string) => {
   if (!value) throw new Error(`${name} is not configured`)
   return value
@@ -14,36 +19,19 @@ const toPositiveInt = (value: string | undefined, fallback: number) => {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback
 }
 
-export interface RunClassifierHostOptions {
-  addonName?: string
-  inputBucket?: string
-  inputQueueUrl?: string
-  outputQueueUrl?: string
-  sinkQueueUrl?: string
-  maxConcurrent?: number
-  waitTimeSeconds?: number
-  visibilityTimeoutSeconds?: number
-  videoConcurrency?: number
-  tmpDir?: string
-  ffmpegPath?: string
-}
-
-const resolveConfig = (options: RunClassifierHostOptions): ClassifierHostConfig => {
-  const sinkQueueUrl = options.sinkQueueUrl ?? process.env.AWS_SQS_SINK_QUEUE
-  const outputQueueUrl = options.outputQueueUrl ?? process.env.AWS_SQS_OUTPUT_QUEUE ?? sinkQueueUrl
-
+/** config is supplied as env vars by the addon's pulumi component (see infra/components/AddonComponent.ts) */
+const resolveConfig = (): ClassifierHostConfig => {
   return {
-    addonName: options.addonName ?? process.env.ADDON_NAME ?? 'classifier-host',
-    inputBucket: options.inputBucket ?? required(process.env.AWS_INPUT_BUCKET, 'AWS_INPUT_BUCKET'),
-    inputQueueUrl: options.inputQueueUrl ?? required(process.env.AWS_SQS_INPUT_QUEUE, 'AWS_SQS_INPUT_QUEUE'),
-    outputQueueUrl: required(outputQueueUrl, 'AWS_SQS_OUTPUT_QUEUE'),
-    sinkQueueUrl: required(sinkQueueUrl, 'AWS_SQS_SINK_QUEUE'),
-    maxConcurrent: options.maxConcurrent ?? toPositiveInt(process.env.NUM_FILES, 50),
-    waitTimeSeconds: options.waitTimeSeconds ?? 20,
-    visibilityTimeoutSeconds: options.visibilityTimeoutSeconds ?? 900,
-    videoConcurrency: options.videoConcurrency ?? toPositiveInt(process.env.VIDEO_CONCURRENCY, 5),
-    tmpDir: options.tmpDir ?? './temp-screencaps/',
-    ffmpegPath: options.ffmpegPath ?? 'ffmpeg',
+    addonName: required(process.env.ADDON_NAME, 'ADDON_NAME'),
+    inputBucket: required(process.env.AWS_INPUT_BUCKET, 'AWS_INPUT_BUCKET'),
+    inputQueueUrl: required(process.env.AWS_SQS_INPUT_QUEUE, 'AWS_SQS_INPUT_QUEUE'),
+    outputQueueUrl: required(process.env.AWS_SQS_OUTPUT_QUEUE, 'AWS_SQS_OUTPUT_QUEUE'),
+    sinkQueueUrl: required(process.env.AWS_SQS_SINK_QUEUE, 'AWS_SQS_SINK_QUEUE'),
+    maxConcurrent: toPositiveInt(process.env.NUM_FILES, 50),
+    waitTimeSeconds: WAIT_TIME_SECONDS,
+    visibilityTimeoutSeconds: VISIBILITY_TIMEOUT_SECONDS,
+    videoConcurrency: toPositiveInt(process.env.VIDEO_CONCURRENCY, 5),
+    tmpDir: TMP_DIR,
   }
 }
 
@@ -55,16 +43,12 @@ const createSqsClient = () => {
   })
 }
 
-export const runClassifierHost = async (
-  plugin: FilterPluginInterface,
-  options: RunClassifierHostOptions = {},
-) => {
+export const runClassifierHost = async (plugin: FilterPluginInterface) => {
   const runtime: ClassifierHostRuntime = {
-    config: resolveConfig(options),
+    config: resolveConfig(),
     plugin,
     sqsClient: createSqsClient(),
   }
 
   return startSqsConsumer(runtime)
 }
-

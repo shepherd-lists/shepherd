@@ -46,7 +46,6 @@ export const isRetryableFfmpegError = (error: unknown) => {
 }
 
 export const extractKeyframes = async (
-  ffmpegPath: string,
   videoPath: string,
   outputDir: string,
 ): Promise<string[]> => {
@@ -68,7 +67,7 @@ export const extractKeyframes = async (
 
   const stderrChunks: string[] = []
   await new Promise<void>((resolve, reject) => {
-    const child = spawn(ffmpegPath, args, { stdio: ['ignore', 'ignore', 'pipe'] })
+    const child = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] })
 
     child.stderr.on('data', chunk => {
       stderrChunks.push(chunk.toString())

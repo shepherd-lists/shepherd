@@ -32,7 +32,6 @@ export interface ClassifierHostConfig {
   visibilityTimeoutSeconds: number
   videoConcurrency: number
   tmpDir: string
-  ffmpegPath: string
 }
 
 export interface ClassifierHostRuntime {

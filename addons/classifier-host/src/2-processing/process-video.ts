@@ -40,7 +40,6 @@ export const isRetryableVideoError = (error: unknown) => {
 export interface ProcessVideoContext extends EmitResultContext {
   plugin: FilterPluginInterface
   txid: string
-  ffmpegPath: string
   tmpRootDir: string
 }
 
@@ -54,7 +53,7 @@ export const processVideo = async (context: ProcessVideoContext) => {
   try {
     console.info(context.txid, 'video classify start')
     await s3DownloadToFile(context.txid, videoPath)
-    const framePaths = await extractKeyframes(context.ffmpegPath, videoPath, workDir)
+    const framePaths = await extractKeyframes(videoPath, workDir)
     console.info(context.txid, 'video frames extracted', framePaths.length)
     const filterResult = await classifyFrames(context.plugin, framePaths, context.txid)
     console.info(context.txid, 'video classify result', resultSummary(filterResult))
