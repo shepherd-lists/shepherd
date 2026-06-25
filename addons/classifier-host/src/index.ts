@@ -3,8 +3,6 @@ import { FilterPluginInterface } from 'shepherd-plugin-interfaces'
 import { startSqsConsumer } from './1-incoming/sqs-consumer'
 import { ClassifierHostConfig, ClassifierHostRuntime } from './types'
 
-const gbToBytes = (value: number) => value * 1024 * 1024 * 1024
-
 const required = (value: string | undefined, name: string) => {
   if (!value) throw new Error(`${name} is not configured`)
   return value
@@ -16,12 +14,6 @@ const toPositiveInt = (value: string | undefined, fallback: number) => {
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback
 }
 
-const toPositiveNumber = (value: string | undefined, fallback: number) => {
-  if (!value) return fallback
-  const parsed = Number(value)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
-}
-
 export interface RunClassifierHostOptions {
   addonName?: string
   inputBucket?: string
@@ -31,7 +23,7 @@ export interface RunClassifierHostOptions {
   maxConcurrent?: number
   waitTimeSeconds?: number
   visibilityTimeoutSeconds?: number
-  totalFileSizeBytes?: number
+  videoConcurrency?: number
   tmpDir?: string
   ffmpegPath?: string
 }
@@ -49,7 +41,7 @@ const resolveConfig = (options: RunClassifierHostOptions): ClassifierHostConfig 
     maxConcurrent: options.maxConcurrent ?? toPositiveInt(process.env.NUM_FILES, 50),
     waitTimeSeconds: options.waitTimeSeconds ?? 20,
     visibilityTimeoutSeconds: options.visibilityTimeoutSeconds ?? 900,
-    totalFileSizeBytes: options.totalFileSizeBytes ?? gbToBytes(toPositiveNumber(process.env.TOTAL_FILESIZE_GB, 10)),
+    videoConcurrency: options.videoConcurrency ?? toPositiveInt(process.env.VIDEO_CONCURRENCY, 5),
     tmpDir: options.tmpDir ?? './temp-screencaps/',
     ffmpegPath: options.ffmpegPath ?? 'ffmpeg',
   }

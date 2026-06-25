@@ -30,7 +30,7 @@ export interface ClassifierHostConfig {
   maxConcurrent: number
   waitTimeSeconds: number
   visibilityTimeoutSeconds: number
-  totalFileSizeBytes: number
+  videoConcurrency: number
   tmpDir: string
   ffmpegPath: string
 }

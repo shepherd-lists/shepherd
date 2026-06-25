@@ -1,9 +1,10 @@
 import { Message, ReceiveMessageCommand } from '@aws-sdk/client-sqs'
 import { FilterErrorResult } from 'shepherd-plugin-interfaces'
+import pLimit, { LimitFunction } from 'p-limit'
 import { slackLog } from '../utils/slackLog'
 import { emitClassifierResult } from '../3-output/emit-result'
-import { setIncomingExtra } from './incoming-extra'
-import { ackMessage, releaseMessage } from './message-lifecycle'
+import { setIncomingExtra, deleteIncomingExtra } from './incoming-extra'
+import { ackMessage, releaseMessage, startVisibilityHeartbeat } from './message-lifecycle'
 import { processImage } from '../2-processing/process-image'
 import { processVideo } from '../2-processing/process-video'
 import { FatalS3AccessError, MissingObjectError, s3HeadObject } from './s3-read'
@@ -34,21 +35,7 @@ const parseMessage = (message: Message): ParsedS3QueueMessage => {
 
 interface WorkerState {
   activeTxids: Set<string>
-  activeVideoBytes: number
-}
-
-const reserveVideoBytes = (state: WorkerState, maxBytes: number, bytes: number) => {
-  if (bytes <= 0) return 0
-  if ((state.activeVideoBytes + bytes) > maxBytes) {
-    return -1
-  }
-  state.activeVideoBytes += bytes
-  return bytes
-}
-
-const releaseVideoBytes = (state: WorkerState, reservedBytes: number) => {
-  if (reservedBytes <= 0) return
-  state.activeVideoBytes = Math.max(0, state.activeVideoBytes - reservedBytes)
+  videoLimit: LimitFunction
 }
 
 const processMessageWorker = async (
@@ -76,9 +63,16 @@ const processMessageWorker = async (
   }
 
   state.activeTxids.add(txid)
-  let reservedVideoBytes = 0
   const startedAt = Date.now()
   console.info(txid, 'handler start')
+
+  /* keep the message invisible while it waits for a video slot and/or processes */
+  const stopHeartbeat = startVisibilityHeartbeat(
+    runtime.sqsClient,
+    runtime.config.inputQueueUrl,
+    receiptHandle,
+    runtime.config.visibilityTimeoutSeconds,
+  )
 
   try {
     setIncomingExtra(txid, incomingExtra)
@@ -88,16 +82,6 @@ const processMessageWorker = async (
     const isImage = contentType.startsWith('image/')
     const isVideo = contentType.startsWith('video/')
     console.info(txid, 'head', contentType, head.contentLength, 'bytes')
-
-    if (isVideo) {
-      const reserved = reserveVideoBytes(state, runtime.config.totalFileSizeBytes, head.contentLength)
-      if (reserved < 0) {
-        console.info(txid, 'release: video capacity full', head.contentLength, 'bytes')
-        await releaseMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
-        return
-      }
-      reservedVideoBytes = reserved
-    }
 
     if (isImage) {
       await processImage({
@@ -111,7 +95,8 @@ const processMessageWorker = async (
         contentType,
       })
     } else if (isVideo) {
-      await processVideo({
+      /* bound concurrent videos; excess videos wait here in-process rather than bouncing to SQS */
+      await state.videoLimit(() => processVideo({
         sqsClient: runtime.sqsClient,
         inputBucket: runtime.config.inputBucket,
         outputQueueUrl: runtime.config.outputQueueUrl,
@@ -121,7 +106,7 @@ const processMessageWorker = async (
         txid,
         ffmpegPath: runtime.config.ffmpegPath,
         tmpRootDir: runtime.config.tmpDir,
-      })
+      }))
     } else {
       await emitClassifierResult({
         sqsClient: runtime.sqsClient,
@@ -154,7 +139,8 @@ const processMessageWorker = async (
     await slackLog('[classifier-host]', txid, 'releasing message: worker error', (error as Error).name, (error as Error).message)
     await releaseMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
   } finally {
-    releaseVideoBytes(state, reservedVideoBytes)
+    stopHeartbeat()
+    deleteIncomingExtra(txid)
     state.activeTxids.delete(txid)
     console.info(txid, 'handler finish', `${Date.now() - startedAt}ms`)
   }
@@ -164,7 +150,7 @@ export const startSqsConsumer = async (runtime: ClassifierHostRuntime): Promise<
   const activeWorkers = new Set<Promise<void>>()
   const state: WorkerState = {
     activeTxids: new Set<string>(),
-    activeVideoBytes: 0,
+    videoLimit: pLimit(runtime.config.videoConcurrency),
   }
 
   console.info('consumer start',

@@ -59,7 +59,7 @@ export class AddonComponent extends pulumi.ComponentResource {
 				`HOST_URL=${config.host_url || 'https://arweave.net'}`,
 				`ADDON_NAME=${name}`,
 				`NUM_FILES=50`,
-				`TOTAL_FILESIZE_GB=10`,
+				`VIDEO_CONCURRENCY=5`,
 				`AWS_INPUT_BUCKET=shepherd-input`,
 				`AWS_SQS_INPUT_QUEUE=${sqs}/000000000000/${ioQNames.input}`,
 				`AWS_SQS_OUTPUT_QUEUE=${sqs}/000000000000/${ioQNames.output}`,

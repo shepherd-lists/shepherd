@@ -12,3 +12,8 @@ export const getAndDeleteIncomingExtra = (txid: string) => {
   return extra
 }
 
+/** ensure no entry is left behind when a worker returns before emitting (e.g. missing object) */
+export const deleteIncomingExtra = (txid: string) => {
+  incomingExtras.delete(txid)
+}
+
