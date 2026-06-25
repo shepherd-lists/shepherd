@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import type { Message } from '@aws-sdk/client-sqs'
+
+/* sqs-consumer pulls in s3-read, which throws at module load unless AWS_INPUT_BUCKET is set. */
+process.env.AWS_INPUT_BUCKET ??= 'test-bucket'
+const { parseMessage } = await import('../src/1-incoming/sqs-consumer')
+
+const s3EventBody = (key: string, extra?: unknown) => JSON.stringify({
+  Records: [{ s3: { object: { key } } }],
+  ...(extra ? { extra } : {}),
+})
+
+test('parseMessage extracts txid, receiptHandle and incomingExtra', () => {
+  const extra = { addonName: 'prev', filterResult: { flagged: false } }
+  const parsed = parseMessage({ Body: s3EventBody('mytxid', extra), ReceiptHandle: 'rh', MessageId: 'm1' } as Message)
+  assert.equal(parsed.txid, 'mytxid')
+  assert.equal(parsed.receiptHandle, 'rh')
+  assert.deepEqual(parsed.incomingExtra, extra)
+})
+
+test('parseMessage throws when Body or ReceiptHandle is missing', () => {
+  assert.throws(() => parseMessage({ ReceiptHandle: 'rh' } as Message), /missing Body or ReceiptHandle/)
+  assert.throws(() => parseMessage({ Body: s3EventBody('x') } as Message), /missing Body or ReceiptHandle/)
+})
+
+test('parseMessage throws when the S3 object key (txid) is missing', () => {
+  const body = JSON.stringify({ Records: [{ s3: { object: {} } }] })
+  assert.throws(() => parseMessage({ Body: body, ReceiptHandle: 'rh', MessageId: 'm' } as Message), /missing txid/)
+})
