@@ -1,0 +1,22 @@
+# Per-build ignore for nsfw/Dockerfile. The build context is the addons/ folder
+# (see nsfw/infra/components/AddonComponent.ts), which is potentially GBs of unrelated
+# addons (iwf, noise-lists, services, ...). BuildKit prefers this
+# <dockerfile>.dockerignore over a context-root .dockerignore, so these rules
+# apply ONLY to the nsfw build and do not affect other addons.
+#
+# Strategy: ignore everything, then re-include only the two trees this image
+# copies from — nsfw/ and classifier-host/ — minus their deps/build artifacts
+# (the Dockerfile runs `npm ci` itself, so context node_modules is never used).
+
+# 1) ignore the whole addons/ context by default
+*
+
+# 2) re-include only what nsfw/Dockerfile COPYs from
+!nsfw
+!classifier-host
+
+# 3) drop deps/artifacts/junk from within the re-included trees
+nsfw/node_modules
+classifier-host/node_modules
+**/.git
+**/*.log
