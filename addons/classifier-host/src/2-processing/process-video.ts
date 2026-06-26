@@ -51,6 +51,7 @@ export const processVideo = async (
   try {
     console.info(txid, 'video classify start')
     await s3DownloadToFile(txid, videoPath)
+    console.info(txid, 'video downloaded')
     const framePaths = await extractKeyframes(videoPath, workDir)
     console.info(txid, 'video frames extracted', framePaths.length)
     const filterResult = await classifyFrames(plugin, framePaths, txid)
