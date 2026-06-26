@@ -93,7 +93,10 @@ const processMessageWorker = async (
     } else if (isVideo) {
       /* bound concurrent videos; excess videos wait here in-process rather than bouncing to SQS */
       console.info(txid, 'video queued', `running=${state.videoLimit.activeCount} waiting=${state.videoLimit.pendingCount}`)
-      await state.videoLimit(() => processVideo(plugin, txid))
+      await state.videoLimit(() => {
+        console.info(txid, 'video dequeued', `running=${state.videoLimit.activeCount} waiting=${state.videoLimit.pendingCount}`)
+        return processVideo(plugin, txid)
+      })
     } else {
       await emitClassifierResult(txid, { flagged: undefined, data_reason: 'unsupported' } as FilterErrorResult)
     }
