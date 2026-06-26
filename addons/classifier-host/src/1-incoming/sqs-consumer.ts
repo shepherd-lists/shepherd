@@ -92,6 +92,7 @@ const processMessageWorker = async (
       await processImage(plugin, txid, contentType)
     } else if (isVideo) {
       /* bound concurrent videos; excess videos wait here in-process rather than bouncing to SQS */
+      console.info(txid, 'video queued', `running=${state.videoLimit.activeCount} waiting=${state.videoLimit.pendingCount}`)
       await state.videoLimit(() => processVideo(plugin, txid))
     } else {
       await emitClassifierResult(txid, { flagged: undefined, data_reason: 'unsupported' } as FilterErrorResult)
@@ -139,6 +140,11 @@ export const startSqsConsumer = async (plugin: FilterPluginInterface): Promise<n
     'sink=' + queueShortName(SINK_QUEUE_URL),
     'maxConcurrent=' + MAX_CONCURRENT,
   )
+
+  /* periodic snapshot of the in-process video backlog (videos stuck waiting for a pLimit slot) */
+  setInterval(() => {
+    console.info('videos', `running=${state.videoLimit.activeCount} waiting=${state.videoLimit.pendingCount}`)
+  }, 15_000).unref()
 
   let fatalError: Error | undefined
   while (true) {
