@@ -1,6 +1,5 @@
-import { Message, SQSClient } from '@aws-sdk/client-sqs'
 import { S3EventRecord } from 'aws-lambda'
-import { FilterErrorResult, FilterPluginInterface, FilterResult } from 'shepherd-plugin-interfaces'
+import { FilterErrorResult, FilterResult } from 'shepherd-plugin-interfaces'
 
 export type PluginResult = FilterResult | FilterErrorResult
 export type PartialPluginResult = Partial<FilterResult> & Partial<FilterErrorResult>
@@ -19,29 +18,6 @@ export interface ParsedS3QueueMessage {
 export interface HeadObjectInfo {
   contentType: string
   contentLength: number
-}
-
-export interface ClassifierHostConfig {
-  addonName: string
-  inputBucket: string
-  inputQueueUrl: string
-  outputQueueUrl: string
-  sinkQueueUrl: string
-  maxConcurrent: number
-  waitTimeSeconds: number
-  visibilityTimeoutSeconds: number
-  videoConcurrency: number
-  tmpDir: string
-}
-
-export interface ClassifierHostRuntime {
-  config: ClassifierHostConfig
-  plugin: FilterPluginInterface
-  sqsClient: SQSClient
-}
-
-export interface MessageWorkerContext extends ClassifierHostRuntime {
-  message: Message
 }
 
 export interface S3EventLike {

@@ -6,6 +6,7 @@ import { pipeline } from 'node:stream/promises'
 import { GetObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler'
 import { slackLog } from '../utils/slackLog'
+import { INPUT_BUCKET } from '../constants'
 import { HeadObjectInfo } from '../types'
 
 const endpoint = process.env.AWS_ENDPOINT_URL_S3
@@ -19,12 +20,6 @@ const s3Client = new S3Client({
   maxAttempts: 3,
   forcePathStyle: true,
 })
-
-const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET as string
-
-if (!AWS_INPUT_BUCKET) {
-  throw new Error('AWS_INPUT_BUCKET is not configured')
-}
 
 export class MissingObjectError extends Error {
   constructor(public readonly txid: string, message = `Object not found: ${txid}`) {
@@ -106,7 +101,7 @@ const toNodeReadable = (body: unknown): Readable => {
 export const s3HeadObject = async (txid: string): Promise<HeadObjectInfo> => {
   try {
     const head = await s3Client.send(new HeadObjectCommand({
-      Bucket: AWS_INPUT_BUCKET,
+      Bucket: INPUT_BUCKET,
       Key: txid,
     }))
 
@@ -122,7 +117,7 @@ export const s3HeadObject = async (txid: string): Promise<HeadObjectInfo> => {
 export const s3GetBuffer = async (txid: string): Promise<Buffer> => {
   try {
     const output = await s3Client.send(new GetObjectCommand({
-      Bucket: AWS_INPUT_BUCKET,
+      Bucket: INPUT_BUCKET,
       Key: txid,
     }))
 
@@ -144,7 +139,7 @@ export const s3DownloadToFile = async (txid: string, targetPath: string): Promis
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const output = await s3Client.send(new GetObjectCommand({
-        Bucket: AWS_INPUT_BUCKET,
+        Bucket: INPUT_BUCKET,
         Key: txid,
       }))
 

@@ -1,14 +1,24 @@
 import { Message, ReceiveMessageCommand } from '@aws-sdk/client-sqs'
-import { FilterErrorResult } from 'shepherd-plugin-interfaces'
+import { FilterErrorResult, FilterPluginInterface } from 'shepherd-plugin-interfaces'
 import pLimit, { LimitFunction } from 'p-limit'
 import { slackLog } from '../utils/slackLog'
+import { sqsClient } from '../utils/sqs-client'
+import {
+  INPUT_QUEUE_URL,
+  OUTPUT_QUEUE_URL,
+  SINK_QUEUE_URL,
+  MAX_CONCURRENT,
+  VIDEO_CONCURRENCY,
+  WAIT_TIME_SECONDS,
+  VISIBILITY_TIMEOUT_SECONDS,
+} from '../constants'
 import { emitClassifierResult } from '../3-output/emit-result'
 import { setIncomingExtra, deleteIncomingExtra } from './incoming-extra'
 import { ackMessage, releaseMessage, startVisibilityHeartbeat } from './message-lifecycle'
 import { processImage } from '../2-processing/process-image'
 import { processVideo } from '../2-processing/process-video'
 import { FatalS3AccessError, MissingObjectError, s3HeadObject } from './s3-read'
-import { ClassifierHostRuntime, ParsedS3QueueMessage, RetryableJobError, S3EventLike } from '../types'
+import { ParsedS3QueueMessage, RetryableJobError, S3EventLike } from '../types'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -39,7 +49,7 @@ interface WorkerState {
 }
 
 const processMessageWorker = async (
-  runtime: ClassifierHostRuntime,
+  plugin: FilterPluginInterface,
   message: Message,
   state: WorkerState,
 ) => {
@@ -50,7 +60,7 @@ const processMessageWorker = async (
     const receipt = message.ReceiptHandle
     await slackLog('classifier-host', 'parseMessage', 'dropping malformed message', (error as Error).message)
     if (receipt) {
-      await ackMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receipt)
+      await ackMessage(receipt)
     }
     return
   }
@@ -58,7 +68,7 @@ const processMessageWorker = async (
   const { txid, receiptHandle, incomingExtra } = parsed
   if (state.activeTxids.has(txid)) {
     console.info(txid, 'release: already in-flight')
-    await releaseMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
+    await releaseMessage(receiptHandle)
     return
   }
 
@@ -67,12 +77,7 @@ const processMessageWorker = async (
   console.info(txid, 'handler start')
 
   /* keep the message invisible while it waits for a video slot and/or processes */
-  const stopHeartbeat = startVisibilityHeartbeat(
-    runtime.sqsClient,
-    runtime.config.inputQueueUrl,
-    receiptHandle,
-    runtime.config.visibilityTimeoutSeconds,
-  )
+  const stopHeartbeat = startVisibilityHeartbeat(receiptHandle)
 
   try {
     setIncomingExtra(txid, incomingExtra)
@@ -84,44 +89,20 @@ const processMessageWorker = async (
     console.info(txid, 'head', contentType, head.contentLength, 'bytes')
 
     if (isImage) {
-      await processImage({
-        sqsClient: runtime.sqsClient,
-        inputBucket: runtime.config.inputBucket,
-        outputQueueUrl: runtime.config.outputQueueUrl,
-        sinkQueueUrl: runtime.config.sinkQueueUrl,
-        addonName: runtime.config.addonName,
-        plugin: runtime.plugin,
-        txid,
-        contentType,
-      })
+      await processImage(plugin, txid, contentType)
     } else if (isVideo) {
       /* bound concurrent videos; excess videos wait here in-process rather than bouncing to SQS */
-      await state.videoLimit(() => processVideo({
-        sqsClient: runtime.sqsClient,
-        inputBucket: runtime.config.inputBucket,
-        outputQueueUrl: runtime.config.outputQueueUrl,
-        sinkQueueUrl: runtime.config.sinkQueueUrl,
-        addonName: runtime.config.addonName,
-        plugin: runtime.plugin,
-        txid,
-        tmpRootDir: runtime.config.tmpDir,
-      }))
+      await state.videoLimit(() => processVideo(plugin, txid))
     } else {
-      await emitClassifierResult({
-        sqsClient: runtime.sqsClient,
-        inputBucket: runtime.config.inputBucket,
-        outputQueueUrl: runtime.config.outputQueueUrl,
-        sinkQueueUrl: runtime.config.sinkQueueUrl,
-        addonName: runtime.config.addonName,
-      }, txid, { flagged: undefined, data_reason: 'unsupported' } as FilterErrorResult)
+      await emitClassifierResult(txid, { flagged: undefined, data_reason: 'unsupported' } as FilterErrorResult)
     }
 
     console.info(txid, 'ack message...')
-    await ackMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
+    await ackMessage(receiptHandle)
   } catch (error) {
     if (error instanceof MissingObjectError) {
       console.info(txid, 'ack message: object missing...')
-      await ackMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
+      await ackMessage(receiptHandle)
       return
     }
 
@@ -131,12 +112,12 @@ const processMessageWorker = async (
 
     if (error instanceof RetryableJobError) {
       console.info(txid, 'release message: retryable...', (error as Error).message)
-      await releaseMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
+      await releaseMessage(receiptHandle)
       return
     }
 
     await slackLog('[classifier-host]', txid, 'releasing message: worker error', (error as Error).name, (error as Error).message)
-    await releaseMessage(runtime.sqsClient, runtime.config.inputQueueUrl, receiptHandle)
+    await releaseMessage(receiptHandle)
   } finally {
     stopHeartbeat()
     deleteIncomingExtra(txid)
@@ -145,34 +126,34 @@ const processMessageWorker = async (
   }
 }
 
-export const startSqsConsumer = async (runtime: ClassifierHostRuntime): Promise<never> => {
+export const startSqsConsumer = async (plugin: FilterPluginInterface): Promise<never> => {
   const activeWorkers = new Set<Promise<void>>()
   const state: WorkerState = {
     activeTxids: new Set<string>(),
-    videoLimit: pLimit(runtime.config.videoConcurrency),
+    videoLimit: pLimit(VIDEO_CONCURRENCY),
   }
 
   console.info('consumer start',
-    'input=' + queueShortName(runtime.config.inputQueueUrl),
-    'output=' + queueShortName(runtime.config.outputQueueUrl),
-    'sink=' + queueShortName(runtime.config.sinkQueueUrl),
-    'maxConcurrent=' + runtime.config.maxConcurrent,
+    'input=' + queueShortName(INPUT_QUEUE_URL),
+    'output=' + queueShortName(OUTPUT_QUEUE_URL),
+    'sink=' + queueShortName(SINK_QUEUE_URL),
+    'maxConcurrent=' + MAX_CONCURRENT,
   )
 
   let fatalError: Error | undefined
   while (true) {
     try {
-      while (activeWorkers.size >= runtime.config.maxConcurrent) {
+      while (activeWorkers.size >= MAX_CONCURRENT) {
         await Promise.race(activeWorkers)
         if (fatalError) throw fatalError
       }
 
-      const availableSlots = Math.max(1, runtime.config.maxConcurrent - activeWorkers.size)
-      const response = await runtime.sqsClient.send(new ReceiveMessageCommand({
-        QueueUrl: runtime.config.inputQueueUrl,
+      const availableSlots = Math.max(1, MAX_CONCURRENT - activeWorkers.size)
+      const response = await sqsClient.send(new ReceiveMessageCommand({
+        QueueUrl: INPUT_QUEUE_URL,
         MaxNumberOfMessages: Math.min(availableSlots, 10),
-        WaitTimeSeconds: runtime.config.waitTimeSeconds,
-        VisibilityTimeout: runtime.config.visibilityTimeoutSeconds,
+        WaitTimeSeconds: WAIT_TIME_SECONDS,
+        VisibilityTimeout: VISIBILITY_TIMEOUT_SECONDS,
         MessageAttributeNames: ['All'],
       }))
 
@@ -180,7 +161,7 @@ export const startSqsConsumer = async (runtime: ClassifierHostRuntime): Promise<
       if (response.Messages?.length) {
         for (const message of response.Messages) {
           let workerPromise: Promise<void>
-          workerPromise = processMessageWorker(runtime, message, state)
+          workerPromise = processMessageWorker(plugin, message, state)
             .catch(error => {
               if (error instanceof FatalS3AccessError) {
                 fatalError = error
@@ -209,4 +190,3 @@ export const startSqsConsumer = async (runtime: ClassifierHostRuntime): Promise<
     }
   }
 }
-

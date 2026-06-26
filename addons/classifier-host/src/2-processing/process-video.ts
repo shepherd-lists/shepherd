@@ -2,11 +2,12 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { FilterErrorResult, FilterPluginInterface } from 'shepherd-plugin-interfaces'
-import { emitClassifierResult, EmitResultContext } from '../3-output/emit-result'
+import { emitClassifierResult } from '../3-output/emit-result'
 import { extractKeyframes, ffmpegErrorText, isRetryableFfmpegError } from './extract-frames'
 import { classifyFrames } from './classify'
 import { FatalS3AccessError, MissingObjectError, s3DownloadToFile } from '../1-incoming/s3-read'
 import { resultSummary } from '../utils/log-result-summary'
+import { TMP_DIR } from '../constants'
 import { RetryableJobError } from '../types'
 
 const CORRUPT_MAYBE_MESSAGES = [
@@ -37,39 +38,36 @@ export const isRetryableVideoError = (error: unknown) => {
   return isRetryableFfmpegError(error)
 }
 
-export interface ProcessVideoContext extends EmitResultContext {
-  plugin: FilterPluginInterface
-  txid: string
-  tmpRootDir: string
-}
-
-export const processVideo = async (context: ProcessVideoContext) => {
-  const tmpParentDir = context.tmpRootDir || os.tmpdir()
+export const processVideo = async (
+  plugin: FilterPluginInterface,
+  txid: string,
+) => {
+  const tmpParentDir = TMP_DIR || os.tmpdir()
   await mkdir(tmpParentDir, { recursive: true })
-  const tmpPrefix = path.join(tmpParentDir, `${context.txid}-`)
+  const tmpPrefix = path.join(tmpParentDir, `${txid}-`)
   const workDir = await mkdtemp(tmpPrefix)
-  const videoPath = path.join(workDir, context.txid)
+  const videoPath = path.join(workDir, txid)
 
   try {
-    console.info(context.txid, 'video classify start')
-    await s3DownloadToFile(context.txid, videoPath)
+    console.info(txid, 'video classify start')
+    await s3DownloadToFile(txid, videoPath)
     const framePaths = await extractKeyframes(videoPath, workDir)
-    console.info(context.txid, 'video frames extracted', framePaths.length)
-    const filterResult = await classifyFrames(context.plugin, framePaths, context.txid)
-    console.info(context.txid, 'video classify result', resultSummary(filterResult))
-    await emitClassifierResult(context, context.txid, filterResult)
+    console.info(txid, 'video frames extracted', framePaths.length)
+    const filterResult = await classifyFrames(plugin, framePaths, txid)
+    console.info(txid, 'video classify result', resultSummary(filterResult))
+    await emitClassifierResult(txid, filterResult)
   } catch (error) {
     if (error instanceof MissingObjectError || error instanceof FatalS3AccessError) {
       throw error
     }
 
     if (isRetryableVideoError(error)) {
-      throw new RetryableJobError(`Retryable video error for ${context.txid}: ${(error as Error).message}`, context.txid, error)
+      throw new RetryableJobError(`Retryable video error for ${txid}: ${(error as Error).message}`, txid, error)
     }
 
     const filterResult = mapVideoErrorResult(error)
-    console.info(context.txid, 'video classify error -> routing', filterResult.data_reason, (error as Error).message)
-    await emitClassifierResult(context, context.txid, filterResult)
+    console.info(txid, 'video classify error -> routing', filterResult.data_reason, (error as Error).message)
+    await emitClassifierResult(txid, filterResult)
   } finally {
     await rm(workDir, { recursive: true, force: true })
   }
