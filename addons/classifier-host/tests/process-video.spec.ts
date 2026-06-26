@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import './_import-test-env-vars'
 
-/* process-video imports s3-read, which throws at module load unless AWS_INPUT_BUCKET is set,
- * so set it then dynamic-import the module under test. */
-process.env.AWS_INPUT_BUCKET ??= 'test-bucket'
+/* process-video imports constants/s3-read, which throw at module load unless the required env vars
+ * are set (above), so set them then dynamic-import the module under test. */
 const { mapVideoErrorResult, isRetryableVideoError } = await import('../src/2-processing/process-video')
 const { FfmpegProcessingError } = await import('../src/2-processing/extract-frames')
 

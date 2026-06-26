@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Message } from '@aws-sdk/client-sqs'
+import './_import-test-env-vars'
 
-/* sqs-consumer pulls in s3-read, which throws at module load unless AWS_INPUT_BUCKET is set. */
-process.env.AWS_INPUT_BUCKET ??= 'test-bucket'
+/* sqs-consumer pulls in constants/s3-read, which throw at module load unless the required env vars
+ * are set (above), so set them then dynamic-import the module under test. */
 const { parseMessage } = await import('../src/1-incoming/sqs-consumer')
 
 const s3EventBody = (key: string, extra?: unknown) => JSON.stringify({
