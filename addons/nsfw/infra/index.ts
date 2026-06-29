@@ -15,6 +15,7 @@ const opts = { provider }
 const infraRef = new pulumi.StackReference(`${pulumi.getOrganization()}/shepherd-infra/${stackName}`)
 const networkName = infraRef.getOutput('networkName') as pulumi.Output<string>
 
-const addonName = new URL('..', import.meta.url).pathname.split('/').at(-2)!
+/* this addon is 'nsfw'; nsfw/Dockerfile only defines an `nsfw` target. a different addon needs its own infra + Dockerfile */
+const addonName = 'nsfw'
 
 new AddonComponent(addonName, { config, stackName, infraRef, networkName }, opts)
