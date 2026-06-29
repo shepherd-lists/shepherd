@@ -27,8 +27,8 @@ const mergeIncomingTopScore = (
   previous: PartialPluginResult | undefined,
 ) => {
   if (!previous || current.flagged !== false) return current
-  if (typeof previous.top_score_value !== 'number' || !previous.top_score_name) return current
-  if (typeof current.top_score_value === 'number' && current.top_score_value >= previous.top_score_value) return current
+  if (!previous.top_score_name) return current
+  if (current.top_score_name) return current
   return {
     ...current,
     top_score_name: previous.top_score_name,
