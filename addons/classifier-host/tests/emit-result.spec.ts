@@ -36,6 +36,7 @@ test('routes a flagged result to the output (next classifier) queue', async () =
 test('routes a clean result straight to the sink (final) queue, bypassing the chain', async () => {
   const sent = spySqs()
   await emitClassifierResult('txid-clean', { flagged: false } as PluginResult)
+  assert.equal(sent.length, 1)
   assert.equal(sent[0].QueueUrl, SINK_QUEUE_URL)
 })
 
@@ -62,26 +63,38 @@ test('when output===sink (last classifier) an uncertain result still goes to the
   assert.equal(queueUrl, final)
 })
 
-/* ---- merge ("latest wins", score preserved) ---- */
+/* ---- merge (verdict from current; previous score inherited only when current is clean and scoreless) ---- */
 
-test('carries a higher previous score onto a clean result but keeps the clean verdict', async () => {
+test('keeps the current score when the current clean result already has one', async () => {
   const sent = spySqs()
   setIncomingExtra('txid-m1', { addonName: 'prev', filterResult: { flagged: true, top_score_name: 'nsfw', top_score_value: 0.95 } as PartialPluginResult })
   await emitClassifierResult('txid-m1', { flagged: false, top_score_name: 'clean', top_score_value: 0.1 } as PluginResult)
   const body = JSON.parse(sent[0].MessageBody)
-  assert.equal(body.extra.filterResult.flagged, false)        // latest wins
-  assert.equal(body.extra.filterResult.top_score_name, 'nsfw') // higher score preserved
-  assert.equal(body.extra.filterResult.top_score_value, 0.95)
-  assert.equal(sent[0].QueueUrl, SINK_QUEUE_URL)              // clean -> sink
+  assert.equal(body.extra.filterResult.flagged, false)          // latest wins on verdict
+  assert.equal(body.extra.filterResult.top_score_name, 'clean') // current score kept
+  assert.equal(body.extra.filterResult.top_score_value, 0.1)
+  assert.equal(sent[0].QueueUrl, SINK_QUEUE_URL)
 })
 
-test('keeps the current score when it is higher than the previous', async () => {
+test('inherits the previous score when the current clean result has none', async () => {
   const sent = spySqs()
-  setIncomingExtra('txid-m2', { addonName: 'prev', filterResult: { flagged: false, top_score_name: 'prev', top_score_value: 0.2 } as PartialPluginResult })
-  await emitClassifierResult('txid-m2', { flagged: false, top_score_name: 'cur', top_score_value: 0.5 } as PluginResult)
+  setIncomingExtra('txid-m1b', { addonName: 'prev', filterResult: { flagged: true, top_score_name: 'nsfw', top_score_value: 0.95 } as PartialPluginResult })
+  await emitClassifierResult('txid-m1b', { flagged: false } as PluginResult)
   const body = JSON.parse(sent[0].MessageBody)
-  assert.equal(body.extra.filterResult.top_score_name, 'cur')
-  assert.equal(body.extra.filterResult.top_score_value, 0.5)
+  assert.equal(body.extra.filterResult.flagged, false)
+  assert.equal(body.extra.filterResult.top_score_name, 'nsfw')
+  assert.equal(body.extra.filterResult.top_score_value, 0.95)
+  assert.equal(sent[0].QueueUrl, SINK_QUEUE_URL)
+})
+
+test('does not inherit a previous score when the previous result has none', async () => {
+  const sent = spySqs()
+  setIncomingExtra('txid-m2', { addonName: 'prev', filterResult: { flagged: true } as PartialPluginResult })
+  await emitClassifierResult('txid-m2', { flagged: false } as PluginResult)
+  const body = JSON.parse(sent[0].MessageBody)
+  assert.equal(body.extra.filterResult.flagged, false)
+  assert.equal(body.extra.filterResult.top_score_name, undefined)
+  assert.equal(body.extra.filterResult.top_score_value, undefined)
 })
 
 test('does not merge a previous score when the current result is flagged', async () => {
@@ -91,6 +104,7 @@ test('does not merge a previous score when the current result is flagged', async
   const body = JSON.parse(sent[0].MessageBody)
   assert.equal(body.extra.filterResult.flagged, true)
   assert.equal(body.extra.filterResult.top_score_name, 'cur')
+  assert.equal(sent[0].QueueUrl, OUTPUT_QUEUE_URL)
 })
 
 test('does not resurrect a previous flag when the current result is an error', async () => {
@@ -101,6 +115,7 @@ test('does not resurrect a previous flag when the current result is an error', a
   assert.equal(body.extra.filterResult.flagged, undefined)
   assert.equal(body.extra.filterResult.data_reason, 'unsupported')
   assert.equal(body.extra.filterResult.top_score_name, undefined)
+  assert.equal(sent[0].QueueUrl, OUTPUT_QUEUE_URL)
 })
 
 /* ---- incoming-extra lifecycle ---- */
