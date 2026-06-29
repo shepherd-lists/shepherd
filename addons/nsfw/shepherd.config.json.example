@@ -1,5 +1,5 @@
 {
 	"plugins": [ 
-		"shepherd-plugin-nsfw"
+		"shepherd-plugin-nsfw@latest"
 	]
 }
