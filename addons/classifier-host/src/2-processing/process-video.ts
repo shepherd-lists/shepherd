@@ -38,6 +38,17 @@ export const isRetryableVideoError = (error: unknown) => {
   return isRetryableFfmpegError(error)
 }
 
+/**
+ * Wipe the video temp dir once at startup. The per-job `finally` below only runs on normal
+ * completion, so a crash/OOM/SIGKILL mid-extraction orphans a workdir; with `restart: unless-stopped`
+ * the container reuses the same filesystem and those orphans would accumulate until the disk fills.
+ */
+export const resetVideoTempDir = async () => {
+  if (!TMP_DIR) return
+  await rm(TMP_DIR, { recursive: true, force: true })
+  await mkdir(TMP_DIR, { recursive: true })
+}
+
 export const processVideo = async (
   plugin: FilterPluginInterface,
   txid: string,
