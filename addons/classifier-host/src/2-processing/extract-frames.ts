@@ -45,29 +45,14 @@ export const isRetryableFfmpegError = (error: unknown) => {
   return !NON_RETRYABLE_FFMPEG_ERRORS.some(item => text.includes(item))
 }
 
-export const extractKeyframes = async (
-  videoPath: string,
+/**
+ * Run ffmpeg with the given args, then collect the `frame-*.png` files it wrote into `outputDir`.
+ * Shared by video keyframe extraction and GIF full-frame extraction — only the args differ.
+ */
+const runFfmpegFrameExtraction = async (
+  args: string[],
   outputDir: string,
 ): Promise<string[]> => {
-  const outputPattern = path.join(outputDir, 'frame-%06d.png')
-  const args = [
-    '-hide_banner',
-    '-loglevel',
-    'error',
-    /* cap threads so concurrent extractions don't each fan out to all cores and thrash */
-    '-threads',
-    '10',
-    '-skip_frame',
-    'nokey',
-    '-i',
-    videoPath,
-    '-vsync',
-    'vfr',
-    '-frame_pts',
-    '1',
-    outputPattern,
-  ]
-
   const stderrChunks: string[] = []
   await new Promise<void>((resolve, reject) => {
     const child = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] })
@@ -99,4 +84,45 @@ export const extractKeyframes = async (
 
   return frames
 }
+
+export const extractKeyframes = async (
+  videoPath: string,
+  outputDir: string,
+): Promise<string[]> => runFfmpegFrameExtraction([
+  '-hide_banner',
+  '-loglevel',
+  'error',
+  /* cap threads so concurrent extractions don't each fan out to all cores and thrash */
+  '-threads',
+  '10',
+  '-skip_frame',
+  'nokey',
+  '-i',
+  videoPath,
+  '-vsync',
+  'vfr',
+  '-frame_pts',
+  '1',
+  path.join(outputDir, 'frame-%06d.png'),
+], outputDir)
+
+/**
+ * Extract *every* frame of a GIF as PNGs. Unlike video keyframe extraction there is no
+ * `-skip_frame nokey` — a plain decode dumps all frames in order, so an animated GIF is classified
+ * frame by frame rather than as a single still.
+ */
+export const extractGifFrames = async (
+  gifPath: string,
+  outputDir: string,
+): Promise<string[]> => runFfmpegFrameExtraction([
+  '-hide_banner',
+  '-loglevel',
+  'error',
+  /* cap threads so concurrent extractions don't each fan out to all cores and thrash */
+  '-threads',
+  '10',
+  '-i',
+  gifPath,
+  path.join(outputDir, 'frame-%06d.png'),
+], outputDir)
 

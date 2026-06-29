@@ -49,24 +49,34 @@ export const resetVideoTempDir = async () => {
   await mkdir(TMP_DIR, { recursive: true })
 }
 
-export const processVideo = async (
+type FrameExtractor = (inputPath: string, outputDir: string) => Promise<string[]>
+
+/**
+ * Download a txid to a temp workdir, extract its frames via `extractFrames`, classify them, and emit
+ * the result — cleaning up the workdir afterwards. Shared by video and GIF processing; only the
+ * extractor (keyframes vs every GIF frame) and the `label` in logs differ. The ffmpeg error mapping
+ * (`mapVideoErrorResult`/`isRetryableVideoError`) is generic and applies to both.
+ */
+export const processFileToFrames = async (
   plugin: FilterPluginInterface,
   txid: string,
+  extractFrames: FrameExtractor,
+  label: string,
 ) => {
   const tmpParentDir = TMP_DIR || os.tmpdir()
   await mkdir(tmpParentDir, { recursive: true })
   const tmpPrefix = path.join(tmpParentDir, `${txid}-`)
   const workDir = await mkdtemp(tmpPrefix)
-  const videoPath = path.join(workDir, txid)
+  const inputPath = path.join(workDir, txid)
 
   try {
-    console.info(txid, 'video classify start')
-    await s3DownloadToFile(txid, videoPath)
-    console.info(txid, 'video downloaded')
-    const framePaths = await extractKeyframes(videoPath, workDir)
-    console.info(txid, 'video frames extracted', framePaths.length)
+    console.info(txid, `${label} classify start`)
+    await s3DownloadToFile(txid, inputPath)
+    console.info(txid, `${label} downloaded`)
+    const framePaths = await extractFrames(inputPath, workDir)
+    console.info(txid, `${label} frames extracted`, framePaths.length)
     const filterResult = await classifyFrames(plugin, framePaths, txid)
-    console.info(txid, 'video classify result', resultSummary(filterResult))
+    console.info(txid, `${label} classify result`, resultSummary(filterResult))
     await emitClassifierResult(txid, filterResult)
   } catch (error) {
     if (error instanceof MissingObjectError || error instanceof FatalS3AccessError) {
@@ -74,14 +84,19 @@ export const processVideo = async (
     }
 
     if (isRetryableVideoError(error)) {
-      throw new RetryableJobError(`Retryable video error for ${txid}: ${(error as Error).message}`, txid, error)
+      throw new RetryableJobError(`Retryable ${label} error for ${txid}: ${(error as Error).message}`, txid, error)
     }
 
     const filterResult = mapVideoErrorResult(error)
-    console.info(txid, 'video classify error -> routing', filterResult.data_reason, (error as Error).message)
+    console.info(txid, `${label} classify error -> routing`, filterResult.data_reason, (error as Error).message)
     await emitClassifierResult(txid, filterResult)
   } finally {
     await rm(workDir, { recursive: true, force: true })
   }
 }
+
+export const processVideo = async (
+  plugin: FilterPluginInterface,
+  txid: string,
+) => processFileToFrames(plugin, txid, extractKeyframes, 'video')
 

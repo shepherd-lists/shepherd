@@ -17,6 +17,7 @@ import { setIncomingExtra, deleteIncomingExtra } from './incoming-extra'
 import { ackMessage, releaseMessage, startVisibilityHeartbeat } from './message-lifecycle'
 import { processImage } from '../2-processing/process-image'
 import { processVideo } from '../2-processing/process-video'
+import { processGif } from '../2-processing/process-gif'
 import { FatalS3AccessError, MissingObjectError, s3HeadObject } from './s3-read'
 import { ParsedS3QueueMessage, RetryableJobError, S3EventLike } from '../types'
 
@@ -84,21 +85,29 @@ const processMessageWorker = async (
 
     const head = await s3HeadObject(txid)
     const contentType = head.contentType || 'application/octet-stream'
+    const isGif = contentType === 'image/gif'
     const isImage = contentType.startsWith('image/')
     const isVideo = contentType.startsWith('video/')
     console.info(txid, 'head', contentType, head.contentLength, 'bytes')
 
-    if (isImage) {
+    /* GIFs and videos share the same ffmpeg-bound slot: excess wait here in-process rather than
+     * bouncing to SQS. GIF is checked before isImage since a GIF is also image/*. */
+    const runBounded = (label: string, fn: () => Promise<void>) => {
+      console.info(txid, `${label} queued`, `running=${state.videoLimit.activeCount} waiting=${state.videoLimit.pendingCount}`)
+      return state.videoLimit(() => {
+        console.info(txid, `${label} dequeued`, `running=${state.videoLimit.activeCount} waiting=${state.videoLimit.pendingCount}`)
+        return fn()
+      })
+    }
+
+    if (isGif) {
+      await runBounded('gif', () => processGif(plugin, txid))
+    } else if (isImage) {
       await processImage(plugin, txid, contentType)
     } else if (isVideo) {
-      /* bound concurrent videos; excess videos wait here in-process rather than bouncing to SQS */
-      console.info(txid, 'video queued', `running=${state.videoLimit.activeCount} waiting=${state.videoLimit.pendingCount}`)
-      await state.videoLimit(() => {
-        console.info(txid, 'video dequeued', `running=${state.videoLimit.activeCount} waiting=${state.videoLimit.pendingCount}`)
-        return processVideo(plugin, txid)
-      })
+      await runBounded('video', () => processVideo(plugin, txid))
     } else {
-      await emitClassifierResult(txid, { flagged: undefined, data_reason: 'unsupported' } as FilterErrorResult)
+      await emitClassifierResult(txid, { flagged: undefined, data_reason: 'mimetype' } as FilterErrorResult)
     }
 
     console.info(txid, 'ack message...')
