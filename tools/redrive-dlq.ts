@@ -6,11 +6,13 @@ import { createWriteStream } from 'fs'
 const wl = createWriteStream('redrive-logs.log', { encoding: 'utf-8', flags: 'a' })
 
 // Initialize AWS SQS client
-const sqsClient = new SQSClient();
+const sqsClient = new SQSClient({
+  endpoint: 'http://localhost:9324',
+});
 
 // Define the source and destination queue URLs
-const srcQueueUrl = process.env.src_url //e.g. `dlq-url`;
-const destQueueUrl = process.env.dest_url // e.g. `q-url`; 
+const srcQueueUrl = 'http://localhost:9324/000000000000/' + process.env.src_url //e.g. `dlq-url`;
+const destQueueUrl = 'http://localhost:9324/000000000000/' + process.env.dest_url // e.g. `q-url`; 
 
 if (!srcQueueUrl || !destQueueUrl) {
   console.error('src_url and dest_url are required');
@@ -66,22 +68,18 @@ async function receiveMessagesFromQueue(runOnce = true) {
 
 // Function to send a message to the destination queue
 async function sendMessageToQueue(messageBody: string) {
-  try {
-    const sendParams = {
-      QueueUrl: destQueueUrl,
-      MessageBody: messageBody
-    };
+  const sendParams = {
+    QueueUrl: destQueueUrl,
+    MessageBody: messageBody
+  };
 
-    const command = new SendMessageCommand(sendParams);
-    await sqsClient.send(command);
+  const command = new SendMessageCommand(sendParams);
+  await sqsClient.send(command);
 
-    const keys: string[] = []
-      ; (JSON.parse(messageBody) as { Records: [{ s3: { object: { key: string } } }] }).Records.map(rec => keys.push(rec.s3.object.key))
-    console.log('Message sent to the destination queue with keys:', keys);
-    wl.write(`${new Date()} sent ${JSON.stringify(keys)}\n`)
-  } catch (error) {
-    console.error('Error sending message to the queue:', error);
-  }
+  const keys: string[] = []
+    ; (JSON.parse(messageBody) as { Records: [{ s3: { object: { key: string } } }] }).Records.map(rec => keys.push(rec.s3.object.key))
+  console.log('Message sent to the destination queue with keys:', keys);
+  wl.write(`${new Date()} sent ${JSON.stringify(keys)}\n`)
 }
 
 // Function to delete a message from the source queue
