@@ -20,6 +20,15 @@ export class AddonComponent extends pulumi.ComponentResource {
 		const { config, stackName, infraRef, networkName } = args
 		const n = (s: string) => naming(stackName, s)
 
+		/* tfjs-node holds one process-wide native session (single-flight inference), so the only way
+		 * to use many cores is many processes. Each replica gets a slice of the host's cores via the
+		 * TF/oneDNN/libuv thread caps below; replicas * threadsPerReplica should stay <= host vCPUs to
+		 * avoid oversubscription. On the 64-vCPU prod host: 8 replicas * 8 threads = 64. */
+		/* tfjs-node is single-flight per process, so we run N identical replicas to use multiple cores.
+ * 8 replicas * 8 TF threads each = 64 vCPUs on the prod host (see AddonComponent threadsPerReplica). */
+		const replicas = 8
+		const threadsPerReplica = 8
+
 		const minioEndpoint = infraRef.getOutput('minioEndpoint') as pulumi.Output<string>
 		const sqsEndpoint = infraRef.getOutput('sqsEndpoint') as pulumi.Output<string>
 
@@ -49,26 +58,41 @@ export class AddonComponent extends pulumi.ComponentResource {
 			skipPush: true,
 		}, childOpts)
 
-		new docker.Container(name, {
-			name: n(name),
-			image: image.repoDigest,
-			networksAdvanced: [{ name: networkName }],
-			envs: pulumi.all([awsCompat, sqsEndpoint]).apply(([aws, sqs]) => [
-				...aws,
-				...(config.slack_webhook ? [`SLACK_WEBHOOK=${config.slack_webhook}`] : []),
-				`HOST_URL=${config.host_url || 'https://arweave.net'}`,
-				`ADDON_NAME=${name}`,
-				`NUM_FILES=50`,
-				`VIDEO_CONCURRENCY=5`,
-				`AWS_INPUT_BUCKET=shepherd-input`,
-				`AWS_SQS_INPUT_QUEUE=${sqs}/000000000000/${ioQNames.input}`,
-				`AWS_SQS_OUTPUT_QUEUE=${sqs}/000000000000/${ioQNames.output}`,
-				...(finalQName ? [`AWS_SQS_SINK_QUEUE=${sqs}/000000000000/${finalQName}`] : []),
-			]),
-			logDriver: lokiLogDriver,
-			logOpts: lokiLogOpts,
-			restart: 'unless-stopped',
-		}, { ...childOpts, dependsOn: [image] })
+		/* Cap each process's TF/oneDNN/libuv pools so N replicas don't each fan out to all 64 cores
+		 * and thrash. All replicas share the one input/output queue pair — ElasticMQ load-balances
+		 * messages across consumers, so no extra queues are needed. */
+		const threadEnvs = [
+			`OMP_NUM_THREADS=${threadsPerReplica}`,
+			`TF_NUM_INTRAOP_THREADS=${threadsPerReplica}`,
+			`TF_NUM_INTEROP_THREADS=1`,
+			`UV_THREADPOOL_SIZE=${threadsPerReplica}`,
+		]
+
+		for (let i = 0; i < replicas; i++) {
+			/* single replica keeps the original name for a clean diff against existing prod state */
+			const replicaName = replicas > 1 ? `${name}-${i + 1}` : name
+			new docker.Container(replicaName, {
+				name: n(replicaName),
+				image: image.repoDigest,
+				networksAdvanced: [{ name: networkName }],
+				envs: pulumi.all([awsCompat, sqsEndpoint]).apply(([aws, sqs]) => [
+					...aws,
+					...threadEnvs,
+					...(config.slack_webhook ? [`SLACK_WEBHOOK=${config.slack_webhook}`] : []),
+					`HOST_URL=${config.host_url || 'https://arweave.net'}`,
+					`ADDON_NAME=${name}`,
+					`NUM_FILES=50`,
+					`VIDEO_CONCURRENCY=3`,
+					`AWS_INPUT_BUCKET=shepherd-input`,
+					`AWS_SQS_INPUT_QUEUE=${sqs}/000000000000/${ioQNames.input}`,
+					`AWS_SQS_OUTPUT_QUEUE=${sqs}/000000000000/${ioQNames.output}`,
+					`AWS_SQS_SINK_QUEUE=${sqs}/000000000000/${finalQName}`,
+				]),
+				logDriver: lokiLogDriver,
+				logOpts: lokiLogOpts,
+				restart: 'unless-stopped',
+			}, { ...childOpts, dependsOn: [image] })
+		}
 
 		this.registerOutputs({})
 	}
