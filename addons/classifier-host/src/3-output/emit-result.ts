@@ -1,0 +1,110 @@
+import { SendMessageCommand } from '@aws-sdk/client-sqs'
+import { S3EventRecord } from 'aws-lambda'
+import { getAndDeleteIncomingExtra } from '../1-incoming/incoming-extra'
+import { resultSummary } from '../utils/log-result-summary'
+import { sqsClient } from '../utils/sqs-client'
+import { ADDON_NAME, INPUT_BUCKET, OUTPUT_QUEUE_URL, SINK_QUEUE_URL } from '../constants'
+import { PartialPluginResult, PluginResult } from '../types'
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+let sendCounter = 0
+
+/** last path segment of an SQS URL, for readable logs */
+const queueShortName = (queueUrl: string) => queueUrl.split('/').filter(Boolean).pop() ?? queueUrl
+
+const shouldSendToNextClassifier = (
+  filterResult: PartialPluginResult,
+  outputQueueUrl: string,
+  sinkQueueUrl: string,
+) => {
+  if (outputQueueUrl === sinkQueueUrl) return false
+  return filterResult.data_reason && ['corrupt-maybe', 'partial', 'oversized', 'unsupported'].includes(filterResult.data_reason)
+}
+
+const mergeIncomingTopScore = (
+  current: PartialPluginResult,
+  previous: PartialPluginResult | undefined,
+) => {
+  if (!previous || current.flagged !== false) return current
+  if (!previous.top_score_name) return current
+  if (current.top_score_name) return current
+  return {
+    ...current,
+    top_score_name: previous.top_score_name,
+    top_score_value: previous.top_score_value,
+  }
+}
+
+/**
+ * Pure routing decision. Takes the queue URLs explicitly so the output===sink edge case (last
+ * classifier in the chain) is unit-testable; production always passes the env-backed constants.
+ */
+export const queueForResult = (
+  filterResult: PartialPluginResult,
+  outputQueueUrl: string = OUTPUT_QUEUE_URL,
+  sinkQueueUrl: string = SINK_QUEUE_URL,
+) => {
+  if (filterResult.flagged === true) return outputQueueUrl
+  if (shouldSendToNextClassifier(filterResult, outputQueueUrl, sinkQueueUrl)) return outputQueueUrl
+  return sinkQueueUrl
+}
+
+export const emitClassifierResult = async (
+  txid: string,
+  initialResult: PluginResult,
+) => {
+  const previousExtra = getAndDeleteIncomingExtra(txid)
+  const initialPartial = initialResult as PartialPluginResult
+  const filterResult = mergeIncomingTopScore(initialPartial, previousExtra?.filterResult)
+  const queueUrl = queueForResult(filterResult, OUTPUT_QUEUE_URL, SINK_QUEUE_URL)
+  const queueName = queueShortName(queueUrl)
+
+  const s3Event = {
+    Records: [{
+      eventVersion: '2.1',
+      eventSource: 'aws:s3',
+      eventName: 'ObjectCreated:Put',
+      eventTime: new Date().toISOString(),
+      s3: {
+        s3SchemaVersion: '1.0',
+        bucket: {
+          name: INPUT_BUCKET,
+          arn: `arn:aws:s3:::${INPUT_BUCKET}`,
+        },
+        object: {
+          key: txid,
+          size: 0,
+        },
+      },
+    }] as S3EventRecord[],
+    extra: {
+      addonName: ADDON_NAME,
+      filterResult,
+    },
+  }
+
+  const sendNum = ++sendCounter
+  console.info(txid, `sending ${sendNum} to SQS`, queueName, resultSummary(filterResult as PluginResult))
+
+  let lastError: Error | undefined
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const sendResult = await sqsClient.send(new SendMessageCommand({
+        QueueUrl: queueUrl,
+        MessageBody: JSON.stringify(s3Event),
+      }))
+      console.info(txid, `sent ${sendNum} to SQS`, queueName, sendResult.MessageId)
+      return sendResult.MessageId
+    } catch (error) {
+      lastError = error as Error
+      console.error(txid, `send ${sendNum} to SQS attempt ${attempt} failed`, queueName, lastError.name, lastError.message)
+      if (attempt < 3) {
+        await sleep(attempt * 1000)
+        continue
+      }
+    }
+  }
+
+  throw lastError ?? new Error(`Failed to send classifier output for txid ${txid}`)
+}

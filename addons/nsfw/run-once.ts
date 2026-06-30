@@ -7,7 +7,6 @@ if (!existsSync(configFile)) {
 	console.log(`${configFile} not found. creating default...`)
 	writeFileSync(configFile, JSON.stringify({
 		plugins: ['shepherd-plugin-nsfw@latest'],
-		lowmem: false
 	}, null, 2) + '\n')
 } else {
 	console.info('shepherd.config.json found.')

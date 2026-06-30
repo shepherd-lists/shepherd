@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import '../tests/_import-test-env-vars'
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { SQSClient, ReceiveMessageCommand, SendMessageCommand } from "@aws-sdk/client-sqs";
 

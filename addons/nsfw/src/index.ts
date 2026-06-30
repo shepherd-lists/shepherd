@@ -1,32 +1,14 @@
-import { harness } from './harness'
-import si from 'systeminformation'
-import { logger } from './utils/logger'
-import { slackLogger } from './utils/slackLogger'
-import { rimraf } from 'rimraf'
-import { VID_TMPDIR } from './constants'
-import loadConfig from './utils/load-config'
-
-const prefix = 'harness'
+import { slackLog } from '../../classifier-host/src/utils/slackLog'
+import { runClassifierHost } from '../../classifier-host/src/index'
+import { loadPlugin } from '../../classifier-host/src/0-init/load-plugins'
 
 const main = async () => {
-	try {
-
-		//clean up tempdir from previous run
-		await rimraf(VID_TMPDIR + '*')
-
-		const config = await loadConfig() // this calls the init functions early
-
-		harness()
-
-	} catch (e) {
-		logger(prefix, await si.mem())
-		if (e instanceof Error) {
-			logger(prefix, `Unhandled error in ${main.name}!\t`, e.name, ':', e.message)
-			slackLogger(prefix, `Unhandled error in ${main.name}!\t`, e.name, ':', e.message)
-		} else {
-			logger(prefix, `Unhandled in ${main.name}!\t`, JSON.stringify(e))
-			slackLogger(prefix, `Unhandled in ${main.name}!\t`, JSON.stringify(e))
-		}
-	}
+  const plugin = await loadPlugin('shepherd.config.json')
+  await runClassifierHost(plugin)
 }
-main()
+
+main().catch(async error => {
+  const e = error as Error
+  await slackLog('nsfw-bootstrap', e.name, e.message)
+  throw e
+})

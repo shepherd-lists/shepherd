@@ -36,12 +36,14 @@ export class AddonComponent extends pulumi.ComponentResource {
 			`AWS_REGION=us-east-1`,
 		])
 
+		const addonsDir = path.join(import.meta.dirname, '../../../')
 		const image = new docker.Image(`image-${name}`, {
 			build: {
-				context: path.join(import.meta.dirname, '../../'),
+				context: addonsDir,
+				dockerfile: path.join(addonsDir, 'nsfw/Dockerfile'),
 				builderVersion: docker.BuilderVersion.BuilderBuildKit,
 				platform: config.buildPlatform,
-				target: name === 'nsfw' ? 'nsfw' : 'no-nsfw',
+				target: name,
 			},
 			imageName: n(name),
 			skipPush: true,
@@ -57,7 +59,7 @@ export class AddonComponent extends pulumi.ComponentResource {
 				`HOST_URL=${config.host_url || 'https://arweave.net'}`,
 				`ADDON_NAME=${name}`,
 				`NUM_FILES=50`,
-				`TOTAL_FILESIZE_GB=10`,
+				`VIDEO_CONCURRENCY=5`,
 				`AWS_INPUT_BUCKET=shepherd-input`,
 				`AWS_SQS_INPUT_QUEUE=${sqs}/000000000000/${ioQNames.input}`,
 				`AWS_SQS_OUTPUT_QUEUE=${sqs}/000000000000/${ioQNames.output}`,

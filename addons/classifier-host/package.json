@@ -1,0 +1,20 @@
+{
+  "name": "classifier-host",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/**/*.spec.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.953.0",
+    "@aws-sdk/client-sqs": "^3.953.0",
+    "@aws-sdk/node-http-handler": "^3.374.0",
+    "@types/aws-lambda": "^8.10.159",
+    "@types/node": "^22.13.10",
+    "p-limit": "^7.0.0",
+    "shepherd-plugin-interfaces": "^5.0.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.2"
+  }
+}

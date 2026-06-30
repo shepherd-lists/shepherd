@@ -2,12 +2,20 @@
   "compilerOptions": {
     "resolveJsonModule": true,
     "target": "ES2022",
-    "module": "commonjs",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
     "strict": true,
 
     "skipLibCheck": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "exclude": [ "node_modules", "infra" ]
+  "include": [
+    "src/**/*.ts",
+    "../classifier-host/src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "infra"
+  ]
 }
