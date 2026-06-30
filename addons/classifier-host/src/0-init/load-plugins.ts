@@ -1,7 +1,12 @@
+import { exec } from 'node:child_process'
 import { stat, readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { promisify } from 'node:util'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { FilterPluginInterface } from 'shepherd-plugin-interfaces'
+
+const execAsync = promisify(exec)
+const classifierHostRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 interface ShepherdAddonConfig {
   plugins: string[]
@@ -61,7 +66,22 @@ const importPlugin = async (specifier: string, configPath: string) => {
   }
 
   await plugin.init()
-  console.info('plugin ready:', specifier)
+
+  if (specifier.startsWith('.') || specifier.startsWith('/') || specifier.startsWith('file:')) {
+    console.info('plugin ready:', specifier)
+  } else {
+    const packageName = stripPinnedVersion(specifier)
+    try {
+      const { stdout } = await execAsync(
+        `npm ls ${specifier} 2>/dev/null | grep -F ${JSON.stringify(packageName)}`,
+        { cwd: classifierHostRoot },
+      )
+      console.info('plugin ready:', stdout.trim())
+    } catch (error) {
+      const e = error as NodeJS.ErrnoException & { stdout?: string }
+      console.info('plugin ready:', e.stdout?.trim() || specifier)
+    }
+  }
   return plugin
 }
 
