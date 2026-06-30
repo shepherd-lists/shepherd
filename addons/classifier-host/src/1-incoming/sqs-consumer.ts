@@ -7,7 +7,7 @@ import {
   INPUT_QUEUE_URL,
   OUTPUT_QUEUE_URL,
   SINK_QUEUE_URL,
-  MAX_CONCURRENT,
+  NUM_FILES,
   VIDEO_CONCURRENCY,
   WAIT_TIME_SECONDS,
   VISIBILITY_TIMEOUT_SECONDS,
@@ -150,7 +150,7 @@ export const startSqsConsumer = async (plugin: FilterPluginInterface): Promise<n
     'input=' + queueShortName(INPUT_QUEUE_URL),
     'output=' + queueShortName(OUTPUT_QUEUE_URL),
     'sink=' + queueShortName(SINK_QUEUE_URL),
-    'maxConcurrent=' + MAX_CONCURRENT,
+    'numFiles=' + NUM_FILES,
   )
 
   /* periodic snapshot of the in-process video backlog (videos stuck waiting for a pLimit slot) */
@@ -161,12 +161,12 @@ export const startSqsConsumer = async (plugin: FilterPluginInterface): Promise<n
   let fatalError: Error | undefined
   while (true) {
     try {
-      while (activeWorkers.size >= MAX_CONCURRENT) {
+      while (activeWorkers.size >= NUM_FILES) {
         await Promise.race(activeWorkers)
         if (fatalError) throw fatalError
       }
 
-      const availableSlots = Math.max(1, MAX_CONCURRENT - activeWorkers.size)
+      const availableSlots = Math.max(1, NUM_FILES - activeWorkers.size)
       const response = await sqsClient.send(new ReceiveMessageCommand({
         QueueUrl: INPUT_QUEUE_URL,
         MaxNumberOfMessages: Math.min(availableSlots, 10),
