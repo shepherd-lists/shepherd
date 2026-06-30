@@ -92,9 +92,6 @@ export const extractKeyframes = async (
   '-hide_banner',
   '-loglevel',
   'error',
-  /* cap threads so concurrent extractions don't each fan out to all cores and thrash */
-  '-threads',
-  '10',
   '-skip_frame',
   'nokey',
   '-i',
@@ -118,9 +115,6 @@ export const extractGifFrames = async (
   '-hide_banner',
   '-loglevel',
   'error',
-  /* cap threads so concurrent extractions don't each fan out to all cores and thrash */
-  '-threads',
-  '10',
   '-i',
   gifPath,
   path.join(outputDir, 'frame-%06d.png'),
