@@ -54,9 +54,11 @@ describe('isRetryableVideoError', () => {
 
 describe('resetVideoTempDir', () => {
   test('removes orphaned workdirs and leaves an empty temp dir', async () => {
-    /* simulate a workdir left behind by a previous crash (the per-job finally never ran) */
-    const orphan = path.join(TMP_DIR, 'sometxid-abc123')
+    /* simulate a per-txid workdir left behind by a crash (the per-job finally never ran) */
+    const txid = 'sometxid'
+    const orphan = TMP_DIR + txid
     await mkdir(orphan, { recursive: true })
+    await writeFile(path.join(orphan, txid), Buffer.from([0]))
     await writeFile(path.join(orphan, 'frame-000001.png'), Buffer.from([1]))
 
     try {
