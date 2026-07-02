@@ -1,6 +1,4 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
-import os from 'node:os'
-import path from 'node:path'
+import { mkdir, rm } from 'node:fs/promises'
 import { FilterErrorResult, FilterPluginInterface } from 'shepherd-plugin-interfaces'
 import { emitClassifierResult } from '../3-output/emit-result'
 import { extractKeyframes, ffmpegErrorText, isRetryableFfmpegError } from './extract-frames'
@@ -63,17 +61,14 @@ export const processFileToFrames = async (
   extractFrames: FrameExtractor,
   label: string,
 ) => {
-  const tmpParentDir = TMP_DIR || os.tmpdir()
-  await mkdir(tmpParentDir, { recursive: true })
-  const tmpPrefix = path.join(tmpParentDir, `${txid}-`)
-  const workDir = await mkdtemp(tmpPrefix)
-  const inputPath = path.join(workDir, txid)
+  const txidTempDir = TMP_DIR + txid
+  await mkdir(txidTempDir, { recursive: true })
 
   try {
     console.info(txid, `${label} classify start`)
-    await s3DownloadToFile(txid, inputPath)
+    await s3DownloadToFile(txid, `${txidTempDir}/${txid}`)
     console.info(txid, `${label} downloaded`)
-    const framePaths = await extractFrames(inputPath, workDir)
+    const framePaths = await extractFrames(`${txidTempDir}/${txid}`, txidTempDir)
     console.info(txid, `${label} frames extracted`, framePaths.length)
     const filterResult = await classifyFrames(plugin, framePaths, txid)
     console.info(txid, `${label} classify result`, resultSummary(filterResult))
@@ -91,7 +86,7 @@ export const processFileToFrames = async (
     console.info(txid, `${label} classify error -> routing`, filterResult.data_reason, (error as Error).message)
     await emitClassifierResult(txid, filterResult)
   } finally {
-    await rm(workDir, { recursive: true, force: true })
+    await rm(txidTempDir, { recursive: true, force: true })
   }
 }
 
