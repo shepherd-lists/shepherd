@@ -87,7 +87,7 @@ const processMessageWorker = async (
     const contentType = head.contentType || 'application/octet-stream'
     const isGif = contentType === 'image/gif'
     const isImage = contentType.startsWith('image/')
-    const isVideo = contentType.startsWith('video/')
+    const isVideo = contentType.startsWith('video/') || contentType.startsWith('audio/') //video occaisonally detected as audio
     console.info(txid, 'head', contentType, head.contentLength, 'bytes')
 
     /* GIFs and videos share the same ffmpeg-bound slot: excess wait here in-process rather than
