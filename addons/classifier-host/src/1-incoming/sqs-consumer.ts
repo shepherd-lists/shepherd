@@ -107,7 +107,7 @@ const processMessageWorker = async (
     } else if (isVideo) {
       await runBounded('video', () => processVideo(plugin, txid))
     } else {
-      await emitClassifierResult(txid, { flagged: undefined, data_reason: 'mimetype' } as FilterErrorResult)
+      await emitClassifierResult(txid, { flagged: undefined, data_reason: 'unsupported' } as FilterErrorResult)
     }
 
     console.info(txid, 'ack message...')
