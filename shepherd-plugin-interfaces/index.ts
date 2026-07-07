@@ -37,6 +37,17 @@ export interface FilterPluginInterface {
 	 * @param txid - the Arweave txid, useful for debugging against the actual served data
 	 */
 	checkImage(buffer: Buffer, mimetype: string, txid: string): Promise<FilterResult | FilterErrorResult>
+	/**
+	 * OPTIONAL. Classify a folder of already-extracted video/gif frames.
+	 * The plugin globs/reads the frame files itself and owns everything about how it
+	 * classifies them (batching, batch size, tensor lifecycle, early-exit). Hosts feature-detect
+	 * this method and fall back to per-frame `checkImage` when it is absent.
+	 * Same return contract as `checkImage`: first flagged frame wins, else an error result, else not-flagged.
+	 * @param framesDir - folder containing the extracted `frame-*.png` files
+	 * @param mimetype - the mime-type of the frames (`image/png`)
+	 * @param txid - the Arweave txid, useful for debugging against the actual served data
+	 */
+	checkImageDir?(framesDir: string, mimetype: string, txid: string): Promise<FilterResult | FilterErrorResult>
 }
 
 /** used for POST http-api:84/addon-update */
