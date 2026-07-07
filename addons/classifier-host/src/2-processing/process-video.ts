@@ -70,7 +70,7 @@ export const processFileToFrames = async (
     console.info(txid, `${label} downloaded`)
     const framePaths = await extractFrames(`${txidTempDir}/${txid}`, txidTempDir)
     console.info(txid, `${label} frames extracted`, framePaths.length)
-    const filterResult = await classifyFrames(plugin, framePaths, txid)
+    const filterResult = await classifyFrames(plugin, framePaths, txidTempDir, txid)
     console.info(txid, `${label} classify result`, resultSummary(filterResult))
     await emitClassifierResult(txid, filterResult)
   } catch (error) {

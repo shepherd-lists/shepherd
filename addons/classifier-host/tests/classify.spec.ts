@@ -42,7 +42,7 @@ describe('classifyFrames', () => {
         },
       }
 
-      const result = await classifyFrames(plugin, [frameA, frameB], 'txid-2')
+      const result = await classifyFrames(plugin, [frameA, frameB], dir, 'txid-2')
       assert.equal(result.flagged, true)
       assert.equal(calls, 1)
     } finally {
@@ -70,13 +70,14 @@ describe('classifyFrames', () => {
           callOrder.push(buffer[0])
           inflight++
           maxInflight = Math.max(maxInflight, inflight)
-          await new Promise(resolve => setTimeout(resolve, 1))
+          /* hold longer than any filesystem-read jitter so all frames in a batch reliably overlap */
+          await new Promise(resolve => setTimeout(resolve, 10))
           inflight--
           return { flagged: false, top_score_name: 'clean', top_score_value: 0.1 }
         },
       }
 
-      const result = await classifyFrames(plugin, framePaths, 'txid-batch')
+      const result = await classifyFrames(plugin, framePaths, dir, 'txid-batch')
       assert.equal(result.flagged, false)
       assert.equal(callOrder.length, 8)
       assert.equal(callOrder[0], 0) // first frame checked first
@@ -103,11 +104,39 @@ describe('classifyFrames', () => {
           : { flagged: false, top_score_name: 'clean', top_score_value: 0.1 },
       }
 
-      const result = await classifyFrames(plugin, framePaths, 'txid-batch-hit') as FilterResult
+      const result = await classifyFrames(plugin, framePaths, dir, 'txid-batch-hit') as FilterResult
       assert.equal(result.flagged, true)
       assert.equal(result.top_score_name, 'hit')
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
+  })
+
+  test('delegates the whole frame folder to a plugin that implements checkImageDir', async () => {
+    let dirCalls = 0
+    let checkImageCalls = 0
+    let receivedDir: string | undefined
+    let receivedMime: string | undefined
+    const plugin: FilterPluginInterface = {
+      init: async () => { },
+      checkImage: async () => {
+        checkImageCalls++
+        return { flagged: false, top_score_name: 'clean', top_score_value: 0.1 }
+      },
+      checkImageDir: async (framesDir, mimetype) => {
+        dirCalls++
+        receivedDir = framesDir
+        receivedMime = mimetype
+        return { flagged: true, flag_type: 'matched', top_score_name: 'dir-hit', top_score_value: 0.98 }
+      },
+    }
+
+    const result = await classifyFrames(plugin, ['/ignored/frame-a.png'], '/frames-dir', 'txid-dir') as FilterResult
+    assert.equal(result.flagged, true)
+    assert.equal(result.top_score_name, 'dir-hit')
+    assert.equal(dirCalls, 1)
+    assert.equal(checkImageCalls, 0) // per-frame path not used when checkImageDir exists
+    assert.equal(receivedDir, '/frames-dir')
+    assert.equal(receivedMime, 'image/png')
   })
 })
