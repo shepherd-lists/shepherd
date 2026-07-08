@@ -16,6 +16,8 @@ const sqsClient = new SQSClient({
 	// retryMode: 'adaptive',
 })
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 
 const AWS_SQS_SINK_QUEUE = process.env.AWS_SQS_SINK_QUEUE as string | undefined //undefined if no classifiers
 const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET as string
@@ -117,20 +119,20 @@ const pollQueue = async (): Promise<void> => {
 				// Process each message independently (fire-and-forget with tracking)
 				response.Messages.forEach(message => {
 					const processMessageWorker = async () => {
-						let txid
+						let txid: string | undefined
 						try {
-							txid = await processMessage(message)
+							txid = await processMessage(message) as string
 
 							// Delete message only after successful processing
 							await deleteMessage(message.ReceiptHandle!)
 							console.log(prefix, txid, `Deleted message ${message.MessageId}`)
 
-							try {
-								await s3DeleteObject(AWS_INPUT_BUCKET, txid!)
-							} catch (e) {
-								//object probably already deleted
-								console.error(prefix, txid, `Failed to delete object ${txid}:`, (e as Error).message)
-							}
+							sleep(5_000).then(() =>
+								s3DeleteObject(AWS_INPUT_BUCKET, txid!).catch(e => {
+									//object probably already deleted
+									console.error(prefix, txid, `Failed to delete object ${txid}:`, (e as Error).message)
+								})
+							)
 
 						} catch (err: unknown) {
 							const e = err as Error
