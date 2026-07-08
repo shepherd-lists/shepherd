@@ -35,25 +35,18 @@ try {
 		)
 
 		if (res.queued !== true) {
-			console.error(`${record.txid} should have queued the image file, got ${res.queued}`)
-			break;
+			throw new Error(`${record.txid} should have queued the image file, got ${res.queued}`)
 		}
 
-		try {
-			const data = await s3HeadObject(process.env.AWS_INPUT_BUCKET!, res.record.txid)
+		const data = await s3HeadObject(process.env.AWS_INPUT_BUCKET!, res.record.txid)
 
-			//this is not really necessary
-			const metadata = JSON.parse(data.Metadata?.txrecord || '{}')
-			if (!metadata) {
-				console.error(`${record.txid} should have metadata, got ${metadata}`)
-				break;
-			}
-
-
-		} catch (e) {
-			console.error(`${record.txid} should have found the object, got ${String(e)}`)
-			break;
+		//this is not really necessary
+		const metadata = JSON.parse(data.Metadata?.txrecord || '{}')
+		if (!metadata) {
+			throw new Error(`${record.txid} should have metadata, got ${metadata}`)
 		}
+
+
 	}
 	console.info('===== completed all processing successfuly ======')
 } finally {
