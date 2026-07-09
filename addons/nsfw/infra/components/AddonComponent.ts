@@ -19,6 +19,7 @@ export class AddonComponent extends pulumi.ComponentResource {
 		const childOpts = { ...opts, parent: this }
 		const { config, stackName, infraRef, networkName } = args
 		const n = (s: string) => naming(stackName, s)
+		const extConfig = config.externalConfig?.[name] ?? {}
 
 		/* Single container: the nsfw plugin owns TF threading and its own multi-process
 		 * parallelism/batching internally, so the host no longer fans out to N replicas to
@@ -73,8 +74,10 @@ export class AddonComponent extends pulumi.ComponentResource {
 				...(config.slack_webhook ? [`SLACK_WEBHOOK=${config.slack_webhook}`] : []),
 				`HOST_URL=${config.host_url || 'https://arweave.net'}`,
 				`ADDON_NAME=${name}`,
-				`NUM_FILES=50`,
-				`VIDEO_CONCURRENCY=3`,
+				`NUM_FILES=${extConfig.NUM_FILES ?? '50'}`,
+				`VIDEO_CONCURRENCY=${extConfig.VIDEO_CONCURRENCY ?? '3'}`,
+				`NSFW_BATCH_SIZE=${extConfig.NSFW_BATCH_SIZE ?? '16'}`,
+				`NSFW_BATCH_WAIT_MS=${extConfig.NSFW_BATCH_WAIT_MS ?? '500'}`,
 				`AWS_INPUT_BUCKET=shepherd-input`,
 				`AWS_SQS_INPUT_QUEUE=${sqs}/000000000000/${ioQNames.input}`,
 				`AWS_SQS_OUTPUT_QUEUE=${sqs}/000000000000/${ioQNames.output}`,
