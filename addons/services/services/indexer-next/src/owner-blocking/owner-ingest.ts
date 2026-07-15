@@ -146,6 +146,7 @@ export const blockOwnerIngest = async (loop: boolean = true) => {
 		try {
 			if (counts.inserts > 0) {
 				await lambdaInvokerFnTemp()
+				slackLog(blockOwnerIngest.name, `added ${counts.inserts} items from owners:`, JSON.stringify(ingestedOwners))
 			}
 		} catch (e) {
 			await slackLog(blockOwnerIngest.name, `ERROR in owner-ingest.ts fnTemp failed. :warning::warning: NOT RETRYING! :warning::warning: may need to run fnTemp manually.`, e)
