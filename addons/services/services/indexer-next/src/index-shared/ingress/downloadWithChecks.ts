@@ -30,6 +30,30 @@ const AWS_INPUT_BUCKET = process.env.AWS_INPUT_BUCKET!
  * application/octet-stream, which the allowlist passes on regardless. */
 const MIME_SAMPLE_SIZE = 64 * 1024 // 64 KB
 
+/** build a human-readable reason from any thrown value. recurses through
+ * AggregateError.errors and Error.cause so socket-level failures (which carry
+ * the real info on `.code`/`.cause`, not `.message`) surface instead of a bare
+ * "AggregateError". */
+export const describeError = (err: unknown, depth = 0): string => {
+	if (err instanceof AggregateError) {
+		const inner = err.errors
+			.slice(0, 5)
+			.map(e => describeError(e, depth + 1))
+			.filter(Boolean)
+			.join(' | ')
+		return `AggregateError[${err.errors.length}]${inner ? `: ${inner}` : ''}`
+	}
+	if (err instanceof Error) {
+		const code = (err as { code?: string }).code
+		const head = [err.name, code && `(${code})`].filter(Boolean).join(' ')
+		const base = err.message ? `${head}: ${err.message}` : head
+		const cause = (err as { cause?: unknown }).cause
+		if (cause && depth < 4) return `${base} <= ${describeError(cause, depth + 1)}`
+		return base
+	}
+	return String(err)
+}
+
 
 type SourceStream = typeof chunkTxDataStream | typeof gatewayStream
 
@@ -340,11 +364,12 @@ export const processRecord = async (
 					}
 				}
 			}
-			console.error(`Failed to process ${record.txid}: ${e}`)
+			const errorId = describeError(e)
+			console.error(`Failed to process ${record.txid}: ${errorId}`)
 			return {
 				queued: false,
 				record, //n.b. incomplete record
-				errorId: e.message, //should be retried
+				errorId, //should be retried
 			}
 		}
 
