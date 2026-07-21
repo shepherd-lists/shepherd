@@ -1,12 +1,13 @@
 import { mkdir, rm } from 'node:fs/promises'
 import { FilterErrorResult, FilterPluginInterface } from 'shepherd-plugin-interfaces'
 import { emitClassifierResult } from '../3-output/emit-result'
-import { extractKeyframes, ffmpegErrorText, isRetryableFfmpegError } from './extract-frames'
+import { extractKeyframes, ffmpegErrorText, isRetryableFfmpegError, NO_FRAMES_EXTRACTED } from './extract-frames'
 import { classifyFrames } from './classify'
 import { FatalS3AccessError, MissingObjectError, s3DownloadToFile } from '../1-incoming/s3-read'
 import { resultSummary } from '../utils/log-result-summary'
 import { TMP_DIR } from '../constants'
 import { RetryableJobError } from '../types'
+import { slackLog } from '../utils/slackLog'
 
 const CORRUPT_MAYBE_MESSAGES = [
   'Invalid data found when processing input',
@@ -17,17 +18,21 @@ const CORRUPT_MAYBE_MESSAGES = [
 
 export const mapVideoErrorResult = (error: unknown): FilterErrorResult => {
   const text = ffmpegErrorText(error)
-  const err_message = (error as Error).message ?? 'video processing error'
+  const err_message = (error as Error).message ?? 'some video processing error'
 
   if (text.includes('does not contain any stream')) {
     return { flagged: undefined, data_reason: 'corrupt', err_message }
   }
 
   if (CORRUPT_MAYBE_MESSAGES.some(entry => text.includes(entry))) {
-    return { flagged: undefined, data_reason: 'corrupt-maybe', err_message }
+    return { flagged: undefined, data_reason: 'corrupt-maybe' }
   }
 
-  return { flagged: undefined, data_reason: 'corrupt-maybe', err_message }
+  if (text.includes(NO_FRAMES_EXTRACTED)) {
+    return { flagged: undefined, data_reason: 'no-frames-extracted' as FilterErrorResult['data_reason'] }
+  }
+
+  return { flagged: undefined, data_reason: err_message as FilterErrorResult['data_reason'] }
 }
 
 export const isRetryableVideoError = (error: unknown) => {
@@ -82,9 +87,13 @@ export const processFileToFrames = async (
       throw new RetryableJobError(`Retryable ${label} error for ${txid}: ${(error as Error).message}`, txid, error)
     }
 
-    const filterResult = mapVideoErrorResult(error)
-    console.info(txid, `${label} classify error -> routing`, filterResult.data_reason, (error as Error).message)
-    await emitClassifierResult(txid, filterResult)
+    const errFilterResult = mapVideoErrorResult(error)
+    console.info(txid, `${label} classify error -> routing`, errFilterResult.data_reason, (error as Error).message)
+
+    if (error instanceof Error && error.message === NO_FRAMES_EXTRACTED) {
+      await slackLog('process-video', txid, `${label} no frames extracted`)
+    }
+    await emitClassifierResult(txid, errFilterResult)
   } finally {
     await rm(txidTempDir, { recursive: true, force: true })
   }

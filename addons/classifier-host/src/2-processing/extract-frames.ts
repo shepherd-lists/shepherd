@@ -10,6 +10,7 @@ const NON_RETRYABLE_FFMPEG_ERRORS = [
   'Error opening filters!',
   'Error marking filters as finished',
 ]
+export const NO_FRAMES_EXTRACTED = 'No frames extracted'
 
 export class FfmpegProcessingError extends Error {
   constructor(message: string, public readonly stderr: string) {
@@ -42,6 +43,7 @@ export const ffmpegErrorText = (error: unknown): string => {
 export const isRetryableFfmpegError = (error: unknown) => {
   const text = ffmpegErrorText(error)
   if (text.includes('ENOMEM')) return true
+  if (text.includes(NO_FRAMES_EXTRACTED)) return false
   return !NON_RETRYABLE_FFMPEG_ERRORS.some(item => text.includes(item))
 }
 
@@ -68,6 +70,7 @@ const runFfmpegFrameExtraction = async (
         return
       }
       const stderr = stderrChunks.join('')
+      console.error(stderr)
       reject(new FfmpegProcessingError(parseFfmpegErrorMessage(stderr), stderr))
     })
   })
@@ -79,7 +82,7 @@ const runFfmpegFrameExtraction = async (
     .map(file => path.join(outputDir, file))
 
   if (frames.length === 0) {
-    throw new FfmpegProcessingError('Output file #0 does not contain any stream', '')
+    throw new Error(NO_FRAMES_EXTRACTED)
   }
 
   return frames
