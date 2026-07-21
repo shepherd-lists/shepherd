@@ -7,7 +7,7 @@
  *
  * Required env vars: DB_HOST, LISTS_BUCKET, REDIS_HOST (+ AWS S3 credentials)
  */
-import 'dotenv/config'
+import '../tests/_import-test-env-vars'
 import { handler as fnInitLists } from '../libFunctions/fnInitLists/index'
 import { handler as fnTemp } from '../libFunctions/fnTemp/index'
 //make it stop
