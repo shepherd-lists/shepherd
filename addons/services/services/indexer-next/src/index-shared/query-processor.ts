@@ -198,6 +198,7 @@ export const gqlPages = async ({
 
 	/** retry the pending/errored records with a longer download timeout on HOST_URL gateway */
 
+	let failedCount = 0
 	if (pending.length > 0 || errored.length > 0) {
 		const ingestPromisesRetries: Promise<IngestResult>[] = []
 		const toRetry = [...pending, ...errored].map(record => allEdges.get(record.txid)).filter(Boolean) as GQLEdgeInterface[]
@@ -216,6 +217,7 @@ export const gqlPages = async ({
 
 		const resultsRetries = await Promise.all(ingestPromisesRetries)
 		const retried = splitPendingErrored(resultsRetries)
+		failedCount = retried.pending.length + retried.errored.length
 
 		console.info(`retried ${batchCount} batches [${batchSizes.join(', ')}] for pending/errored records using 'gateway' stream source`)
 
@@ -246,7 +248,13 @@ export const gqlPages = async ({
 
 	/** final log for current query processor run */
 
-	const numProgressed = results.reduce((acc, result) => acc + result.numQueued + result.numUpdated, 0)
+	const totalQueued = results.reduce((acc, result) => acc + result.numQueued, 0)
+	const totalInserts = results.reduce((acc, result) => acc + result.numUpdated, 0)
+	const numProgressed = totalQueued + totalInserts
+	console.info(`${indexName}_ingress_stats`,
+		`gql=${itemCount} queued=${totalQueued} inserts=${totalInserts} retry_extra_time=${pending.length} retry_gateway=${errored.length} failed=${failedCount}`
+	)
+
 	console.info(indexName, `finished ${pageCount} pages, ${numProgressed}/${itemCount} items progressed in ${(performance.now() - t0).toFixed(0)} ms`)
 }
 
