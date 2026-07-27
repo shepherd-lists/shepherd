@@ -4,7 +4,7 @@
  */
 import '../tests/_import-test-env-vars'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
-import { processRecord } from '../services/indexer-next/src/index-shared/ingress/downloadWithChecks';
+import { processRecord, destroyMimeWorkers } from '../services/indexer-next/src/index-shared/ingress/downloadWithChecks';
 import { s3HeadObject } from '../libs/utils/s3-services';
 import { destroyGatewayAgent } from '../libs/chunkStreams/gatewayStream';
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes';
@@ -53,4 +53,5 @@ try {
 	//cleanup
 	destroyGatewayAgent()
 	clearTimerHttpApiNodes()
+	await destroyMimeWorkers()
 }

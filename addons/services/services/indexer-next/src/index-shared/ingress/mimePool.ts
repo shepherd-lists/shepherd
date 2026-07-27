@@ -25,6 +25,15 @@ let nextWorker = 0
 let nextId = 0
 const pending = new Map<number, Pending>()
 
+/** The pool is ref'd only while requests are in flight: idle it never holds the
+ * process open, but an in-flight detectMime() can't be cut short by the process
+ * exiting out from under it (which an all-unref'd pool allows whenever nothing
+ * else refs the loop — e.g. tools/tests, leaving the await unsettled forever). */
+const syncPoolRef = () => {
+	if (!workers) return
+	for (const w of workers) pending.size > 0 ? w.ref() : w.unref()
+}
+
 const getWorkers = (): Worker[] => {
 	if (workers) return workers
 	workers = Array.from({ length: POOL_SIZE }, () => {
@@ -34,12 +43,14 @@ const getWorkers = (): Worker[] => {
 			const p = pending.get(id)
 			if (!p) return
 			pending.delete(id)
+			syncPoolRef()
 			if (error !== undefined) p.reject(new Error(error))
 			else p.resolve(mime!)
 		})
 		w.on('error', err => {
 			// a worker crash fails its in-flight requests rather than hanging them
 			for (const [id, p] of pending) { pending.delete(id); p.reject(err) }
+			syncPoolRef()
 		})
 		w.unref()
 		return w
@@ -57,6 +68,7 @@ export const detectMime = (sample: Buffer): Promise<string> => {
 	new Uint8Array(buffer).set(sample)
 	return new Promise<string>((resolve, reject) => {
 		pending.set(id, { resolve, reject })
+		syncPoolRef()
 		worker.postMessage({ id, buffer }, [buffer])
 	})
 }
