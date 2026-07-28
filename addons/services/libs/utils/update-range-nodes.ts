@@ -64,6 +64,14 @@ export const rangeAllowed = () => _rangeItems
 
 export const rangeAllowedIps = () => _rangeItemIps
 
+/** resolve a client IP to its ranges_whitelist / http_api_nodes name, if known */
+export const rangeNameForIp = (ip: string): string | undefined => {
+	if (ip.startsWith('::ffff:')) ip = ip.substring(7)
+	// first hop if comma-separated x-forwarded-for
+	ip = ip.split(',')[0]?.trim() ?? ip
+	return rangeAllowed().find(r => r.server === ip)?.name
+}
+
 /** use to exit tests */
 export const clearTimerHttpApiNodes = () => clearInterval(timer)
 

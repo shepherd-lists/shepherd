@@ -1,7 +1,5 @@
 console.log(`process.env.SLACK_WEBHOOK ${process.env.SLACK_WEBHOOK}`)
-console.log(`process.env.SLACK_PROBE ${process.env.SLACK_PROBE}`)
 
-// import './checkBlocking/index-cron'
 import express, { ErrorRequestHandler } from 'express'
 import { slackLog } from '../../../libs/utils/slackLog'
 import { ipAllowMiddleware } from './ipAllowLists'
@@ -10,6 +8,7 @@ import { Socket } from 'net'
 import { addonTxsTableNames } from '../../../libs/utils/addon-tablenames'
 import { GetListPath, getETag, getList, prefetchLists } from './lists'
 import { networkInterfaces } from 'os'
+import { rangeNameForIp } from '../../../libs/utils/update-range-nodes'
 
 
 const prefix = 'webserver'
@@ -236,9 +235,11 @@ server.on('clientError', (e: Error & { code: string }, socket: Socket) => {
 	const cnnIPs = connectionIPs.get(socket)
 	const alb = cnnIPs?.alb || socket.remoteAddress || 'unknown'
 	const forwarded = cnnIPs?.forwarded || 'unknown'
+	const clientName = rangeNameForIp(forwarded)
+	const realClient = clientName ? `${clientName} (${forwarded})` : forwarded
 
-	console.error(prefix, 'clientError', `ALB: ${alb} → Real Client: ${forwarded} → Webserver: ${targetIPs} - ${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
-	slackLog(prefix, 'clientError', `Real Client: ${forwarded} - (${e.code}) ${String(e)}. socket.writable=${socket.writable}`)
+	console.error(prefix, 'clientError', `ALB: ${alb} → Real Client: ${realClient} → Webserver: ${targetIPs} - ${e.name} (${e.code}) : ${e.message}. socket.writable=${socket.writable} \n${e.stack}`)
+	slackLog(prefix, 'clientError', `Real Client: ${realClient} - (${e.code}) ${String(e)}. socket.writable=${socket.writable}`)
 
 	//write object for CW querying
 	console.error(JSON.stringify({
@@ -246,6 +247,7 @@ server.on('clientError', (e: Error & { code: string }, socket: Socket) => {
 		timestamp: new Date().toISOString(),
 		alb,
 		forwarded,
+		clientName: clientName ?? null,
 		targetIPs,
 		code: e.code,
 		message: e.message,
