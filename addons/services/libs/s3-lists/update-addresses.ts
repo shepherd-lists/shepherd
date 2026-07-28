@@ -38,7 +38,7 @@ const ownersFromDb = async () => {
 		`SELECT owners_list.owner FROM owners_list
 			LEFT JOIN owners_whitelist ON owners_list.owner = owners_whitelist.owner
 			WHERE owners_whitelist IS NULL
-			AND (add_method = 'manual' OR add_method = 'blocked')
+			AND (add_method = 'manual' OR add_method = 'blocked' OR add_method = 'future')
 			ORDER BY owners_list.owner ASC`
 	)
 	const owners = rows.map((row: { owner: string }) => row.owner)

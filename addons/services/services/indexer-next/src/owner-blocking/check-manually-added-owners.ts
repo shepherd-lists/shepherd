@@ -1,6 +1,6 @@
 import { PassThrough, Transform } from 'node:stream'
 import { queueBlockOwner } from '../../../../libs/block-owner/owner-blocking'
-import { ownerToOwnerTablename } from '../../../../libs/block-owner/owner-table-utils'
+import { createOwnerTable, ownerToOwnerTablename } from '../../../../libs/block-owner/owner-table-utils'
 import { UpdateItem, updateS3Lists } from '../../../../libs/s3-lists/update-lists'
 import { updateAddresses } from '../../../../libs/s3-lists/update-addresses'
 import pool from '../../../../libs/utils/pgClient'
@@ -30,6 +30,27 @@ export async function checkForManuallyModifiedOwners() {
 	const res = await pool.query<{ owner: string }>(query)
 
 	const newOwners = res.rows.map((row) => row.owner)
+
+	/** Future-only owners: ensure empty owner_* table exists for ingest inserts,
+	 * but never queue full history backfill.
+	 */
+	const futureRes = await pool.query<{ owner: string }>(`
+		SELECT ol.owner
+		FROM owners_list ol
+		LEFT JOIN information_schema.tables it
+			ON it.table_name = 'owner_' || REPLACE(ol.owner, '-', '~')
+			AND it.table_schema = 'public'
+		WHERE ol.add_method = 'future'
+			AND it.table_name IS NULL
+			AND NOT EXISTS (
+				SELECT 1 FROM owners_whitelist
+				WHERE owners_whitelist.owner = ol.owner
+			)
+	`)
+	for (const { owner } of futureRes.rows) {
+		const tablename = await createOwnerTable(owner)
+		console.info(checkForManuallyModifiedOwners.name, `created empty table "${tablename}" for future-only owner`)
+	}
 
 	/** now check if whitelist was updated 
 	 * - we only need to check when there's a new whitelist, that has a previously blocked history
