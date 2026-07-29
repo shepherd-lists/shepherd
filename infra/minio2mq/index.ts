@@ -2,6 +2,9 @@
  * Listens to MinIO bucket notifications and forwards ObjectCreated events
  * to ElasticMQ (SQS-compatible) input queue, matching the AWS S3→SQS format.
  *
+ * Objects with user-metadata `shepherd-bypass-notify=1` are not forwarded
+ * (callers enqueue to a downstream queue themselves).
+ *
  * Also monitors the input queue age and posts to Slack if messages go unprocessed
  * for too long (mirrors the CloudWatch alarm from the AWS CDK stack).
  */
@@ -41,10 +44,27 @@ const sqs = new SQSClient({
   credentials: { accessKeyId: 'dummy', secretAccessKey: 'dummy' },
 })
 
+/** User-metadata key (lowercased by MinIO/S3). When set to "1" on PutObject,
+ * skip forwarding to the ingress queue so callers can enqueue elsewhere
+ */
+const BYPASS_NOTIFY_META = 'shepherd-bypass-notify'
+
 const listener = minio.listenBucketNotification(MINIO_BUCKET, '*', '*', ['s3:ObjectCreated:*'])
 
 listener.on('notification', async (record: S3EventRecord) => {
   const key = record.s3.object.key
+
+  try {
+    const stat = await minio.statObject(MINIO_BUCKET, key)
+    if (stat.metaData?.[BYPASS_NOTIFY_META] === '1') {
+      console.log(prefix, `skip notify (bypass meta): ${key}`)
+      return
+    }
+  } catch (err: any) {
+    // Fail open: if we can't read metadata, still forward so normal ingress is not dropped.
+    console.warn(prefix, `statObject failed for ${key}, forwarding anyway:`, err?.message ?? err)
+  }
+
   const s3event: S3Event = { Records: [record] }
   await sqs.send(new SendMessageCommand({
     QueueUrl: SQS_INPUT_QUEUE_URL,
