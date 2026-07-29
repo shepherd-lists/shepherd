@@ -4,6 +4,8 @@
 		"module": "ES2022",
 		"moduleResolution": "bundler",
 		"allowSyntheticDefaultImports": true,
+		"skipLibCheck": true,
+		"noEmit": true,
 	},
 	"exclude": [ "cdk.out*", "**/node_modules", "node_modules" ]
 }
