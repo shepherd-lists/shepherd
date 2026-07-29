@@ -172,7 +172,7 @@ export class InfraComponent extends pulumi.ComponentResource {
 
     new docker.Container('minio2mq', {
       name: n('minio2mq'),
-      image: minio2mqImage.imageName,
+      image: minio2mqImage.repoDigest,
       networksAdvanced: [{ name: network.name }],
       envs: [
         `MINIO_ENDPOINT=${n('minio')}`,
