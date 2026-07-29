@@ -148,11 +148,15 @@ export const downloadWithChecks = async (
 }
 
 
-/** exported for testing only */
+/** exported for test and tools use.
+ * `extraMetadata` is merged into the S3 object user-metadata alongside `txrecord`
+ * (keys must be lowercase). Used in rechecks to set `shepherd-bypass-notify=1`
+ * so minio2mq skips the input queue. */
 export const processRecord = async (
 	record: TxRecord,
 	abortSignal: AbortSignal, //abort signal for cancellation
 	sourceStream: SourceStream = chunkTxDataStream,
+	extraMetadata?: Record<string, string>,
 ): Promise<{ queued: boolean; record: TxRecord; errorId?: string }> => {
 
 	const key = record.txid
@@ -263,7 +267,7 @@ export const processRecord = async (
 				Key: key,
 				Body: uploadStream as globalThis.ReadableStream, //fussy types, we want the nodejs iterator version
 				ContentType: (detectedMime || record.content_type || 'application/octet-stream').replace(/\r|\n/g, ''),
-				Metadata: { txrecord: JSON.stringify(record) } //only lowercase supported in key name!!
+				Metadata: { ...extraMetadata, txrecord: JSON.stringify(record) } //only lowercase supported in key name!!
 			},
 			// partSize: default & minimum is 5MB
 			queueSize: 1, // that's queueSize * partSize per concurrent upload, up to 100
