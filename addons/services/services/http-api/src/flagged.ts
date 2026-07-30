@@ -72,18 +72,18 @@ export const processFlagged = async (
 		await updateS3Lists('list/', [s3Record])
 		await updateS3Lists('flagged/', [s3Record])
 
-		/** TEMPORARY UNTIL LIST MIGRATION IS COMPLETE */
-		try {
-			await lambdaInvokerFnTemp()
-		} catch (e) {
-			await slackLog(txid, `ERROR in flagged.ts fnTemp failed '${(e as Error).message}'. :warning::warning: NOT ROLLING BACK! :warning::warning: may need to run fnTemp manually.`, e)
-		}
-
 		await trx.commit()
 	} catch (err: unknown) {
 		await trx.rollback()
 		await slackLog(`FATAL ERROR ❌ in ${processFlagged.name} ROLLBACK flagged => ${txid}`)
 		throw err // this will cause service to fatally crash!
+	}
+
+	/** TEMPORARY UNTIL LIST MIGRATION IS COMPLETE */
+	try {
+		await lambdaInvokerFnTemp()
+	} catch (e) {
+		await slackLog(txid, `ERROR in flagged.ts fnTemp failed '${(e as Error).message}'. :warning::warning: NOT ROLLING BACK! :warning::warning: may need to run fnTemp manually.`, e)
 	}
 
 	/** 2. owner update */
