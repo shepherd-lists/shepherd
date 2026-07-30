@@ -21,7 +21,7 @@ export const mapVideoErrorResult = (error: unknown): FilterErrorResult => {
   const err_message = (error as Error).message ?? 'some video processing error'
 
   if (text.includes('does not contain any stream')) {
-    return { flagged: undefined, data_reason: 'corrupt', err_message }
+    return { flagged: undefined, data_reason: 'corrupt' }
   }
 
   if (CORRUPT_MAYBE_MESSAGES.some(entry => text.includes(entry))) {
