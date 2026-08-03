@@ -8,6 +8,7 @@ const wl = createWriteStream('redrive-logs.log', { encoding: 'utf-8', flags: 'a'
 // Initialize AWS SQS client
 const sqsClient = new SQSClient({
   endpoint: 'http://localhost:9324',
+  region: 'us-east-1',
 });
 
 // Define the source and destination queue URLs
