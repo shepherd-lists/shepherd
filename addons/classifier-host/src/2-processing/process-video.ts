@@ -29,7 +29,7 @@ export const mapVideoErrorResult = (error: unknown): FilterErrorResult => {
   }
 
   if (text.includes(NO_FRAMES_EXTRACTED)) {
-    return { flagged: undefined, data_reason: 'no-frames-extracted' as FilterErrorResult['data_reason'] }
+    return { flagged: undefined, data_reason: 'unsupported' } // slackLog will fire
   }
 
   return { flagged: undefined, data_reason: err_message as FilterErrorResult['data_reason'] }
