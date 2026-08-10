@@ -24,6 +24,7 @@ import { chunkTxDataStream } from '../libs/chunkStreams/chunkTxDataStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 import pool from '../libs/utils/pgClient'
 import type { OwnersListRecord } from '../types'
+import type { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { buildRecords } from '../services/indexer-next/src/index-shared/ingress/index'
 import { downloadWithChecks, destroyMimeWorkers } from '../services/indexer-next/src/index-shared/ingress/downloadWithChecks'
 
@@ -131,6 +132,70 @@ const bumpReason = (map: Record<string, number>, reason: string | undefined) => 
 	map[key] = (map[key] ?? 0) + 1
 }
 
+type PreparedPage = {
+	pageNumber: number
+	gqlCount: number
+	negligibleData: number
+	placeholderMime: number
+	candidates: number
+	records: TxRecord[]
+	nextCursor: string
+	hasNextPage: boolean
+}
+
+/** GQL fetch + filter + buildRecords for one page. Retries the same cursor on GQL errors. */
+const preparePage = async (cursor: string, pageNumber: number): Promise<PreparedPage> => {
+	while (true) {
+		let page: GQLEdgeInterface[] = []
+		let pageInfo = { hasNextPage: false }
+		try {
+			const res = (await gql.run(ownerQuery, {
+				owners: [ownerArg],
+				cursor,
+			})).data.transactions
+			page = res.edges
+			pageInfo = res.pageInfo
+		} catch (err: unknown) {
+			const e = err as Error
+			console.error(`GQL error ${e.name}:${e.message}; retrying in 10s`)
+			await sleep(10_000)
+			continue
+		}
+
+		let negligibleData = 0
+		let placeholderMime = 0
+		const candidates: GQLEdgeInterface[] = []
+
+		for (const edge of page) {
+			if (edge.node.data.size <= min_data_size) {
+				negligibleData++
+				continue
+			}
+			// placeholder so metaToRecord does not throw; libmagic decides the real MIME
+			if (!edge.node.data.type && !edge.node.tags.some(t => t.name.toLowerCase() === 'content-type')) {
+				placeholderMime++
+				edge.node.data.type = PLACEHOLDER_MIME
+			}
+			candidates.push(edge)
+		}
+
+		const records = candidates.length === 0
+			? []
+			: await buildRecords(candidates, gql, 'classify-owner', 'goldsky', gqlBackup)
+
+		return {
+			pageNumber,
+			gqlCount: page.length,
+			negligibleData,
+			placeholderMime,
+			candidates: candidates.length,
+			records,
+			nextCursor: page.length ? page[page.length - 1]!.cursor : cursor,
+			hasNextPage: pageInfo.hasNextPage,
+		}
+	}
+}
+
 const main = async () => {
 	try {
 		console.info(`owner: ${ownerArg}`)
@@ -177,77 +242,44 @@ const main = async () => {
 			placeholderMime: 0,
 		}
 
-		let hasNextPage = true
-		let cursor = ''
+		/** Pipeline: while downloading page N, prepare (GQL + buildRecords) page N+1. */
+		let pageNumber = 1
+		let prefetch: Promise<PreparedPage | null> = preparePage('', pageNumber).then(p => {
+			// empty first response with no next page → done
+			if (p.gqlCount === 0 && !p.hasNextPage) return null
+			return p
+		})
 
-		while (hasNextPage) {
-			let page: GQLEdgeInterface[] = []
-			let nextPage = { hasNextPage: false }
-			try {
-				const { edges, pageInfo } = (await gql.run(ownerQuery, {
-					owners: [ownerArg],
-					cursor,
-				})).data.transactions
-				page = edges
-				nextPage = pageInfo
-			} catch (err: unknown) {
-				const e = err as Error
-				console.error(`GQL error ${e.name}:${e.message}; retrying in 10s`)
-				await sleep(10_000)
-				continue
-			}
+		while (true) {
+			const page = await prefetch
+			if (!page) break
 
 			totals.pages++
-			totals.metas += page.length
-			if (page.length) {
-				cursor = page[page.length - 1]!.cursor
-			}
-			hasNextPage = nextPage.hasNextPage
+			totals.metas += page.gqlCount
+			totals.negligibleData += page.negligibleData
+			totals.placeholderMime += page.placeholderMime
+			totals.built += page.records.length
 
-			let pageNegligibleData = 0
-			let pagePlaceholder = 0
-			const candidates: GQLEdgeInterface[] = []
+			// kick off next page prepare while we download this one
+			prefetch = page.hasNextPage
+				? preparePage(page.nextCursor, ++pageNumber)
+				: Promise.resolve(null)
 
-			for (const edge of page) {
-				if (edge.node.data.size <= min_data_size) {
-					pageNegligibleData++
-					continue
-				}
-				// placeholder so metaToRecord does not throw; libmagic decides the real MIME
-				if (!edge.node.data.type && !edge.node.tags.some(t => t.name.toLowerCase() === 'content-type')) {
-					pagePlaceholder++
-					edge.node.data.type = PLACEHOLDER_MIME
-				}
-				candidates.push(edge)
-			}
-
-			totals.negligibleData += pageNegligibleData
-			totals.placeholderMime += pagePlaceholder
-
-			if (candidates.length === 0) {
+			if (page.records.length === 0) {
 				console.info(
-					`page ${totals.pages}: gql=${page.length} negligibleData=${pageNegligibleData} `
-					+ `placeholderMime=${pagePlaceholder} candidates=0 | totals queued=${totals.queued}/${total}`,
+					`page ${page.pageNumber}: gql=${page.gqlCount} negligibleData=${page.negligibleData} `
+					+ `placeholderMime=${page.placeholderMime} candidates=0 | totals queued=${totals.queued}/${total}`,
 				)
 				continue
 			}
-
-			const records = await buildRecords(
-				candidates,
-				gql,
-				'classify-owner',
-				'goldsky',
-				gqlBackup,
-			)
-			totals.built += records.length
 
 			let pageQueued = 0
 			let pageNotQueued = 0
 			let pageErrored = 0
 			const pageReasons: Record<string, number> = {}
 
-			for (let i = 0; i < records.length; i += DOWNLOAD_BATCH) {
-				const batch = records.slice(i, i + DOWNLOAD_BATCH)
+			for (let i = 0; i < page.records.length; i += DOWNLOAD_BATCH) {
+				const batch = page.records.slice(i, i + DOWNLOAD_BATCH)
 				const results = await downloadWithChecks(batch, DOWNLOAD_TIMEOUT, chunkTxDataStream)
 				for (const entry of results) {
 					if (entry.queued === true) {
@@ -267,8 +299,8 @@ const main = async () => {
 			totals.errored += pageErrored
 
 			console.info(
-				`page ${totals.pages}: gql=${page.length} negligibleData=${pageNegligibleData} `
-				+ `placeholderMime=${pagePlaceholder} candidates=${candidates.length} → built=${records.length} `
+				`page ${page.pageNumber}: gql=${page.gqlCount} negligibleData=${page.negligibleData} `
+				+ `placeholderMime=${page.placeholderMime} candidates=${page.candidates} → built=${page.records.length} `
 				+ `queued+${pageQueued} notQueued+${pageNotQueued} (${formatReasonMap(pageReasons)}) `
 				+ `errored+${pageErrored} | totals queued=${totals.queued}/${total}`,
 			)
