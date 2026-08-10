@@ -16,6 +16,7 @@ import * as readline from 'node:readline/promises'
 import { stdin as input, stdout as output } from 'node:process'
 import { arGql } from 'ar-gql'
 import type { GQLEdgeInterface } from 'ar-gql/dist/faces'
+import pLimit from 'p-limit'
 import { ownerTotalCount } from '../libs/block-owner/owner-totalCount'
 import { min_data_size } from '../libs/constants'
 import { destroyChunkStreamAgent } from '../libs/chunkStreams/chunkFetch'
@@ -28,10 +29,14 @@ import type { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { buildRecords } from '../services/indexer-next/src/index-shared/ingress/index'
 import { downloadWithChecks, destroyMimeWorkers } from '../services/indexer-next/src/index-shared/ingress/downloadWithChecks'
 
+/** Match indexer-next query-processor: CHUNKS_BATCH_SIZE / MAX_INGRESS_CONCURRENCY */
 const DOWNLOAD_TIMEOUT = 90_000
 const DOWNLOAD_BATCH = 50
+const DOWNLOAD_CONCURRENCY = 20
 const ABORT_METHODS = new Set(['manual', 'updating', 'blocked'])
 const PLACEHOLDER_MIME = 'application/octet-stream'
+
+const downloadLimit = pLimit(DOWNLOAD_CONCURRENCY)
 
 const ownerQuery = `
 query($cursor: String, $owners: [String!]) {
@@ -242,13 +247,17 @@ const main = async () => {
 			placeholderMime: 0,
 		}
 
-		/** Pipeline: while downloading page N, prepare (GQL + buildRecords) page N+1. */
+		/**
+		 * Pipeline: prepare page N+1 while downloads run; dispatch download batches
+		 * with p-limit(20) across pages (same as indexer MAX_INGRESS_CONCURRENCY).
+		 */
 		let pageNumber = 1
 		let prefetch: Promise<PreparedPage | null> = preparePage('', pageNumber).then(p => {
 			// empty first response with no next page → done
 			if (p.gqlCount === 0 && !p.hasNextPage) return null
 			return p
 		})
+		const inflightDownloads: Promise<void>[] = []
 
 		while (true) {
 			const page = await prefetch
@@ -260,7 +269,7 @@ const main = async () => {
 			totals.placeholderMime += page.placeholderMime
 			totals.built += page.records.length
 
-			// kick off next page prepare while we download this one
+			// kick off next page prepare while downloads are in flight
 			prefetch = page.hasNextPage
 				? preparePage(page.nextCursor, ++pageNumber)
 				: Promise.resolve(null)
@@ -273,38 +282,51 @@ const main = async () => {
 				continue
 			}
 
-			let pageQueued = 0
-			let pageNotQueued = 0
-			let pageErrored = 0
-			const pageReasons: Record<string, number> = {}
+			inflightDownloads.push((async () => {
+				const batches: TxRecord[][] = []
+				for (let i = 0; i < page.records.length; i += DOWNLOAD_BATCH) {
+					batches.push(page.records.slice(i, i + DOWNLOAD_BATCH))
+				}
 
-			for (let i = 0; i < page.records.length; i += DOWNLOAD_BATCH) {
-				const batch = page.records.slice(i, i + DOWNLOAD_BATCH)
-				const results = await downloadWithChecks(batch, DOWNLOAD_TIMEOUT, chunkTxDataStream)
-				for (const entry of results) {
-					if (entry.queued === true) {
-						pageQueued++
-					} else if (entry.errorId) {
-						pageErrored++
-					} else {
-						pageNotQueued++
-						bumpReason(pageReasons, entry.record.data_reason)
-						bumpReason(totals.notQueuedByReason, entry.record.data_reason)
+				const batchResults = await Promise.all(
+					batches.map(batch => downloadLimit(() =>
+						downloadWithChecks(batch, DOWNLOAD_TIMEOUT, chunkTxDataStream)
+					)),
+				)
+
+				let pageQueued = 0
+				let pageNotQueued = 0
+				let pageErrored = 0
+				const pageReasons: Record<string, number> = {}
+
+				for (const results of batchResults) {
+					for (const entry of results) {
+						if (entry.queued === true) {
+							pageQueued++
+						} else if (entry.errorId) {
+							pageErrored++
+						} else {
+							pageNotQueued++
+							bumpReason(pageReasons, entry.record.data_reason)
+							bumpReason(totals.notQueuedByReason, entry.record.data_reason)
+						}
 					}
 				}
-			}
 
-			totals.queued += pageQueued
-			totals.notQueued += pageNotQueued
-			totals.errored += pageErrored
+				totals.queued += pageQueued
+				totals.notQueued += pageNotQueued
+				totals.errored += pageErrored
 
-			console.info(
-				`page ${page.pageNumber}: gql=${page.gqlCount} negligibleData=${page.negligibleData} `
-				+ `placeholderMime=${page.placeholderMime} candidates=${page.candidates} → built=${page.records.length} `
-				+ `queued+${pageQueued} notQueued+${pageNotQueued} (${formatReasonMap(pageReasons)}) `
-				+ `errored+${pageErrored} | totals queued=${totals.queued}/${total}`,
-			)
+				console.info(
+					`page ${page.pageNumber}: gql=${page.gqlCount} negligibleData=${page.negligibleData} `
+					+ `placeholderMime=${page.placeholderMime} candidates=${page.candidates} → built=${page.records.length} `
+					+ `queued+${pageQueued} notQueued+${pageNotQueued} (${formatReasonMap(pageReasons)}) `
+					+ `errored+${pageErrored} | totals queued=${totals.queued}/${total}`,
+				)
+			})())
 		}
+
+		await Promise.all(inflightDownloads)
 
 		console.info('===== classify-owner complete =====')
 		console.info(JSON.stringify({
