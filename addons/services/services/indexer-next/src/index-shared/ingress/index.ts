@@ -65,9 +65,9 @@ export const ingressHandler = async (inputs: Inputs) => {
 		)
 
 		const streamSource = streamSourceName === 'gateway' ? gatewayStream : chunkTxDataStream
-		console.debug(indexName, `starting downloadWithChecks for ${records.length}/${metas.length} records`)
+		console.debug(indexName, `page ${pageNumber} starting downloadWithChecks for ${records.length}/${metas.length} records, source '${streamSourceName}', timeout ${downloadTimeout}ms. txids: ${records.map(r => r.txid).join(', ')}`)
 		const queued = await downloadWithChecks(records, downloadTimeout, streamSource)
-		console.debug(indexName, `downloadWithChecks completed for ${queued.length} records`)
+		console.debug(indexName, `page ${pageNumber} downloadWithChecks completed for ${queued.length} records, source '${streamSourceName}'`)
 
 		//sort processed records
 		for (const entry of queued) {

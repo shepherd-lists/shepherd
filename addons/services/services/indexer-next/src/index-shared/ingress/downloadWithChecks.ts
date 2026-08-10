@@ -62,7 +62,6 @@ export const downloadWithChecks = async (
 	downloadTimeout: number,
 	sourceStream?: SourceStream,
 ) => {
-	console.debug(`downloadWithChecks starting for ${records.length} records. Timeout: ${downloadTimeout}ms. downloadWithChecks txids: ${records.map(r => r.txid).join(', ')}`)
 
 	//track results to identify hanging txids
 	const promiseResults = new Map<string, { queued: boolean; record: TxRecord; errorId?: string }>()
