@@ -24,6 +24,7 @@ import { destroyGatewayAgent } from '../libs/chunkStreams/gatewayStream'
 import { chunkTxDataStream } from '../libs/chunkStreams/chunkTxDataStream'
 import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 import pool from '../libs/utils/pgClient'
+import { slackLog } from '../libs/utils/slackLog'
 import type { OwnersListRecord } from '../types'
 import type { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { buildRecords } from '../services/indexer-next/src/index-shared/ingress/index'
@@ -32,11 +33,13 @@ import { downloadWithChecks, destroyMimeWorkers } from '../services/indexer-next
 /** Match indexer-next query-processor: CHUNKS_BATCH_SIZE / MAX_INGRESS_CONCURRENCY */
 const DOWNLOAD_TIMEOUT = 90_000
 const DOWNLOAD_BATCH = 50
-const DOWNLOAD_CONCURRENCY = 20
+const MAX_INGRESS_CONCURRENCY = 20
+const RETRY_MS = 10_000
 const ABORT_METHODS = new Set(['manual', 'updating', 'blocked'])
 const PLACEHOLDER_MIME = 'application/octet-stream'
 
-const downloadLimit = pLimit(DOWNLOAD_CONCURRENCY)
+const buildLimit = pLimit(MAX_INGRESS_CONCURRENCY)
+const downloadLimit = pLimit(MAX_INGRESS_CONCURRENCY)
 
 const ownerQuery = `
 query($cursor: String, $owners: [String!]) {
@@ -71,12 +74,28 @@ if (!ownerArg) {
 }
 
 const owner = ownerArg.padEnd(43, ' ')
-const gqlPrimary = process.env.GQL_URL_SECONDARY || 'https://arweave-search.goldsky.com/graphql'
-const gqlFallback = process.env.GQL_URL || 'https://arweave.net/graphql'
+const gqlPrimary = process.env.GQL_URL_SECONDARY as string
+const gqlFallback = process.env.GQL_URL as string
 const gql = arGql({ endpointUrl: gqlPrimary, retries: 3 })
 const gqlBackup = arGql({ endpointUrl: gqlFallback, retries: 3 })
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+/** Keep retrying until fn succeeds. Long-running tool: everything works eventually. */
+const retryUntil = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
+	while (true) {
+		try {
+			return await fn()
+		} catch (err: unknown) {
+			const e = err as Error
+			await slackLog(
+				'classify-owner', ownerArg, label,
+				`${e.name}:${e.message}; retrying in ${RETRY_MS / 1000}s`,
+			)
+			await sleep(RETRY_MS)
+		}
+	}
+}
 
 const isOversizedAddMethod = (addMethod: string) => /^\d[\d,]*$/.test(addMethod.trim())
 
@@ -137,19 +156,15 @@ const bumpReason = (map: Record<string, number>, reason: string | undefined) => 
 	map[key] = (map[key] ?? 0) + 1
 }
 
-type PreparedPage = {
-	pageNumber: number
+/** GQL fetch + filter for one page (no buildRecords). Retries the same cursor on GQL errors. */
+const fetchPage = async (cursor: string): Promise<{
 	gqlCount: number
 	negligibleData: number
 	placeholderMime: number
-	candidates: number
-	records: TxRecord[]
+	candidates: GQLEdgeInterface[]
 	nextCursor: string
 	hasNextPage: boolean
-}
-
-/** GQL fetch + filter + buildRecords for one page. Retries the same cursor on GQL errors. */
-const preparePage = async (cursor: string, pageNumber: number): Promise<PreparedPage> => {
+}> => {
 	while (true) {
 		let page: GQLEdgeInterface[] = []
 		let pageInfo = { hasNextPage: false }
@@ -162,8 +177,11 @@ const preparePage = async (cursor: string, pageNumber: number): Promise<Prepared
 			pageInfo = res.pageInfo
 		} catch (err: unknown) {
 			const e = err as Error
-			console.error(`GQL error ${e.name}:${e.message}; retrying in 10s`)
-			await sleep(10_000)
+			await slackLog(
+				'classify-owner', ownerArg, 'gql-fetch',
+				`${e.name}:${e.message}; retrying in ${RETRY_MS / 1000}s`,
+			)
+			await sleep(RETRY_MS)
 			continue
 		}
 
@@ -184,17 +202,11 @@ const preparePage = async (cursor: string, pageNumber: number): Promise<Prepared
 			candidates.push(edge)
 		}
 
-		const records = candidates.length === 0
-			? []
-			: await buildRecords(candidates, gql, 'classify-owner', 'goldsky', gqlBackup)
-
 		return {
-			pageNumber,
 			gqlCount: page.length,
 			negligibleData,
 			placeholderMime,
-			candidates: candidates.length,
-			records,
+			candidates,
 			nextCursor: page.length ? page[page.length - 1]!.cursor : cursor,
 			hasNextPage: pageInfo.hasNextPage,
 		}
@@ -248,84 +260,92 @@ const main = async () => {
 		}
 
 		/**
-		 * Pipeline: prepare page N+1 while downloads run; dispatch download batches
-		 * with p-limit(20) across pages (same as indexer MAX_INGRESS_CONCURRENCY).
+		 * Overlapping pipeline: fetch schedules buildLimit(page); each build schedules
+		 * downloadLimit(batches). Stages run concurrently under the two pLimits.
 		 */
-		let pageNumber = 1
-		let prefetch: Promise<PreparedPage | null> = preparePage('', pageNumber).then(p => {
-			// empty first response with no next page → done
-			if (p.gqlCount === 0 && !p.hasNextPage) return null
-			return p
-		})
+		const inflightBuilds: Promise<void>[] = []
 		const inflightDownloads: Promise<void>[] = []
+		let cursor = ''
+		let pageNumber = 0
 
 		while (true) {
-			const page = await prefetch
-			if (!page) break
-
+			pageNumber++
+			const page = await fetchPage(cursor)
 			totals.pages++
 			totals.metas += page.gqlCount
 			totals.negligibleData += page.negligibleData
 			totals.placeholderMime += page.placeholderMime
-			totals.built += page.records.length
 
-			// kick off next page prepare while downloads are in flight
-			prefetch = page.hasNextPage
-				? preparePage(page.nextCursor, ++pageNumber)
-				: Promise.resolve(null)
+			console.info(
+				`fetch page ${pageNumber}: gql=${page.gqlCount} negligibleData=${page.negligibleData} `
+				+ `placeholderMime=${page.placeholderMime} candidates=${page.candidates.length} `
+				+ `| builds=${inflightBuilds.length} downloads=${inflightDownloads.length}`,
+			)
 
-			if (page.records.length === 0) {
-				console.info(
-					`page ${page.pageNumber}: gql=${page.gqlCount} negligibleData=${page.negligibleData} `
-					+ `placeholderMime=${page.placeholderMime} candidates=0 | totals queued=${totals.queued}/${total}`,
-				)
-				continue
+			if (page.candidates.length > 0) {
+				const pageCandidates = page.candidates
+				const builtPageNumber = pageNumber
+				inflightBuilds.push(buildLimit(async () => {
+					const records = await retryUntil(`build page ${builtPageNumber}`, () =>
+						buildRecords(pageCandidates, gql, 'classify-owner', 'goldsky', gqlBackup),
+					)
+					totals.built += records.length
+					console.info(
+						`built page ${builtPageNumber}: records=${records.length} | totals built=${totals.built}`,
+					)
+
+					for (let i = 0; i < records.length; i += DOWNLOAD_BATCH) {
+						const batch = records.slice(i, i + DOWNLOAD_BATCH)
+						inflightDownloads.push(downloadLimit(async () => {
+							let pending: TxRecord[] = batch
+							let queued = 0
+							let notQueued = 0
+							const reasons: Record<string, number> = {}
+
+							while (pending.length > 0) {
+								const results = await retryUntil(
+									`download page ${builtPageNumber} batch(${pending.length})`,
+									() => downloadWithChecks(pending, DOWNLOAD_TIMEOUT, chunkTxDataStream),
+								)
+								const retry: TxRecord[] = []
+								for (const entry of results) {
+									if (entry.queued === true) {
+										queued++
+									} else if (entry.errorId) {
+										retry.push(entry.record)
+									} else {
+										notQueued++
+										bumpReason(reasons, entry.record.data_reason)
+										bumpReason(totals.notQueuedByReason, entry.record.data_reason)
+									}
+								}
+								if (retry.length === 0) break
+								await slackLog(
+									'classify-owner', ownerArg,
+									`download page ${builtPageNumber}`,
+									`${retry.length}/${pending.length} errored; retrying in ${RETRY_MS / 1000}s`,
+								)
+								await sleep(RETRY_MS)
+								pending = retry
+							}
+
+							totals.queued += queued
+							totals.notQueued += notQueued
+							console.info(
+								`download page ${builtPageNumber} batch: size=${batch.length} `
+								+ `queued+${queued} notQueued+${notQueued} (${formatReasonMap(reasons)}) `
+								+ `| totals queued=${totals.queued}/${total}`,
+							)
+						}))
+					}
+				}))
 			}
 
-			inflightDownloads.push((async () => {
-				const batches: TxRecord[][] = []
-				for (let i = 0; i < page.records.length; i += DOWNLOAD_BATCH) {
-					batches.push(page.records.slice(i, i + DOWNLOAD_BATCH))
-				}
-
-				const batchResults = await Promise.all(
-					batches.map(batch => downloadLimit(() =>
-						downloadWithChecks(batch, DOWNLOAD_TIMEOUT, chunkTxDataStream)
-					)),
-				)
-
-				let pageQueued = 0
-				let pageNotQueued = 0
-				let pageErrored = 0
-				const pageReasons: Record<string, number> = {}
-
-				for (const results of batchResults) {
-					for (const entry of results) {
-						if (entry.queued === true) {
-							pageQueued++
-						} else if (entry.errorId) {
-							pageErrored++
-						} else {
-							pageNotQueued++
-							bumpReason(pageReasons, entry.record.data_reason)
-							bumpReason(totals.notQueuedByReason, entry.record.data_reason)
-						}
-					}
-				}
-
-				totals.queued += pageQueued
-				totals.notQueued += pageNotQueued
-				totals.errored += pageErrored
-
-				console.info(
-					`page ${page.pageNumber}: gql=${page.gqlCount} negligibleData=${page.negligibleData} `
-					+ `placeholderMime=${page.placeholderMime} candidates=${page.candidates} → built=${page.records.length} `
-					+ `queued+${pageQueued} notQueued+${pageNotQueued} (${formatReasonMap(pageReasons)}) `
-					+ `errored+${pageErrored} | totals queued=${totals.queued}/${total}`,
-				)
-			})())
+			if (!page.hasNextPage || page.gqlCount === 0) break
+			cursor = page.nextCursor
 		}
 
+		await Promise.all(inflightBuilds)
 		await Promise.all(inflightDownloads)
 
 		console.info('===== classify-owner complete =====')
