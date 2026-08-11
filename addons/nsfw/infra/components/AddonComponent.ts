@@ -61,7 +61,7 @@ export class AddonComponent extends pulumi.ComponentResource {
 			// `OMP_NUM_THREADS=8`,
 			// `TF_NUM_INTRAOP_THREADS=8`,
 			// `TF_NUM_INTEROP_THREADS=1`,
-			// `UV_THREADPOOL_SIZE=8`,
+			`UV_THREADPOOL_SIZE=64`,
 		]
 
 		new docker.Container(name, {
