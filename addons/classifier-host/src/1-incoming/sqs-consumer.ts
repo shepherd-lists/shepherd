@@ -11,6 +11,8 @@ import {
   VIDEO_CONCURRENCY,
   WAIT_TIME_SECONDS,
   VISIBILITY_TIMEOUT_SECONDS,
+  STALL_AFTER_MS,
+  STALL_LOG_LIMIT,
 } from '../constants'
 import { emitClassifierResult } from '../3-output/emit-result'
 import { setIncomingExtra, deleteIncomingExtra } from './incoming-extra'
@@ -44,8 +46,13 @@ export const parseMessage = (message: Message): ParsedS3QueueMessage => {
   }
 }
 
+interface ActiveWorker {
+  startedAt: number
+  contentType?: string //only known once the s3 head returns
+}
+
 interface WorkerState {
-  activeTxids: Set<string>
+  activeTxids: Map<string, ActiveWorker>
   videoLimit: LimitFunction
 }
 
@@ -73,8 +80,8 @@ const processMessageWorker = async (
     return
   }
 
-  state.activeTxids.add(txid)
   const startedAt = Date.now()
+  state.activeTxids.set(txid, { startedAt })
   console.info(txid, 'handler start')
 
   /* keep the message invisible while it waits for a video slot and/or processes */
@@ -89,6 +96,11 @@ const processMessageWorker = async (
     const isImage = contentType.startsWith('image/')
     const isVideo = contentType.startsWith('video/') || contentType.startsWith('audio/') //video occaisonally detected as audio
     console.info(txid, 'head', contentType, head.contentLength, 'bytes')
+
+    /* record the type so a stalled worker can be reported by format — the decode path a txid
+     * takes is format-dependent, so it's the first thing worth knowing when things wedge. */
+    const active = state.activeTxids.get(txid)
+    if (active) active.contentType = contentType
 
     /* GIFs and videos share the same ffmpeg-bound slot: excess wait here in-process rather than
      * bouncing to SQS. GIF is checked before isImage since a GIF is also image/*. */
@@ -142,7 +154,7 @@ const processMessageWorker = async (
 export const startSqsConsumer = async (plugin: FilterPluginInterface): Promise<never> => {
   const activeWorkers = new Set<Promise<void>>()
   const state: WorkerState = {
-    activeTxids: new Set<string>(),
+    activeTxids: new Map<string, ActiveWorker>(),
     videoLimit: pLimit(VIDEO_CONCURRENCY),
   }
 
@@ -153,9 +165,29 @@ export const startSqsConsumer = async (plugin: FilterPluginInterface): Promise<n
     'numFiles=' + NUM_FILES,
   )
 
-  /* periodic snapshot of the in-process video backlog (videos stuck waiting for a pLimit slot) */
+  /* Liveness snapshot. videoLimit only covers gif/video, so it reads running=0 waiting=0 during
+   * an image stall — hence the worker count, and naming any image stuck past STALL_AFTER_MS. */
+  let alerted = false
   setInterval(() => {
-    console.info('videos', `running=${state.videoLimit.activeCount} waiting=${state.videoLimit.pendingCount}`)
+    const now = Date.now()
+    const stalled = [...state.activeTxids]
+      .filter(([, worker]) => now - worker.startedAt > STALL_AFTER_MS //gif/video wait on videoLimit by design
+        && worker.contentType !== 'image/gif' && !worker.contentType?.startsWith('video/') && !worker.contentType?.startsWith('audio/'))
+      .map(([txid, worker]) => `${txid} ${worker.contentType ?? 'unknown'} ${Math.round((now - worker.startedAt) / 1000)}s`)
+
+    console.info('workers', `active=${state.activeTxids.size}/${NUM_FILES}`,
+      'videos', `running=${state.videoLimit.activeCount} waiting=${state.videoLimit.pendingCount}`)
+
+    if (stalled.length === 0) {
+      alerted = false
+      return
+    }
+    const detail = stalled.slice(0, STALL_LOG_LIMIT).join(' | ')
+    console.info('stalled', stalled.length, detail)
+    if (!alerted) {
+      alerted = true
+      slackLog('classifier-host', `${stalled.length} stalled workers`, detail)
+    }
   }, 15_000).unref()
 
   let fatalError: Error | undefined

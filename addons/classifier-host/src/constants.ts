@@ -34,3 +34,6 @@ export const TMP_DIR = './temp-screencaps/'
 // alone can hold every socket; queued requests then wait unbounded (requestTimeout doesn't cover
 // socket acquisition). Keep well above NUM_FILES.
 export const MAX_SOCKETS = 256
+// an image in flight longer than this is named in the heartbeat (normal is under 2s)
+export const STALL_AFTER_MS = 120_000
+export const STALL_LOG_LIMIT = 10              // max named per tick; the count is always logged
