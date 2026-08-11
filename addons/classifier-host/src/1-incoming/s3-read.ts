@@ -1,12 +1,14 @@
 import { createWriteStream } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
+import { Agent as HttpAgent } from 'node:http'
+import { Agent as HttpsAgent } from 'node:https'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { GetObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { NodeHttpHandler } from '@aws-sdk/node-http-handler'
 import { slackLog } from '../utils/slackLog'
-import { INPUT_BUCKET } from '../constants'
+import { INPUT_BUCKET, MAX_SOCKETS } from '../constants'
 import { HeadObjectInfo } from '../types'
 
 const endpoint = process.env.AWS_ENDPOINT_URL_S3
@@ -16,6 +18,8 @@ const s3Client = new S3Client({
   requestHandler: new NodeHttpHandler({
     connectionTimeout: 30_000,
     requestTimeout: 600_000,
+    httpAgent: new HttpAgent({ keepAlive: true, maxSockets: MAX_SOCKETS }),
+    httpsAgent: new HttpsAgent({ keepAlive: true, maxSockets: MAX_SOCKETS }),
   }),
   maxAttempts: 3,
   forcePathStyle: true,

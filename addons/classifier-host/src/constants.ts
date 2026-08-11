@@ -30,3 +30,7 @@ export const VIDEO_CONCURRENCY = requiredInt(process.env.VIDEO_CONCURRENCY, 'VID
 export const WAIT_TIME_SECONDS = 20            // SQS long-poll wait (max 20)
 export const VISIBILITY_TIMEOUT_SECONDS = 900  // MUST match the queue visibility (infra/elasticmq: 15 min); the heartbeat re-extends by this
 export const TMP_DIR = './temp-screencaps/'
+// per-origin socket pool for the aws sdk clients. sdk default is 50 == NUM_FILES, so the workers
+// alone can hold every socket; queued requests then wait unbounded (requestTimeout doesn't cover
+// socket acquisition). Keep well above NUM_FILES.
+export const MAX_SOCKETS = 256
