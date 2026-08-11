@@ -1,4 +1,7 @@
-FROM node:22-slim AS base
+# trixie (Debian 13) for ffmpeg 7.x - bookworm ships 5.1, which predates still-image
+# HEIC demuxing and reliable AVIF parsing, and bookworm-backports has no ffmpeg at all.
+# ffmpeg is the only image decoder in this image now, so its version sets format coverage.
+FROM node:22-trixie-slim AS base
 # turn off the nuisance nodejs update message
 ARG NO_UPDATE_NOTIFIER=true
 ENV NO_UPDATE_NOTIFIER=true
