@@ -5,7 +5,9 @@ import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it, mock } from 'node:test'
 import { dropOwnerTables, createOwnerTable } from '../libs/block-owner/owner-table-utils'
 import pool from '../libs/utils/pgClient'
+import fnOwnerPool from '../libFunctions/fnOwnerBlocking/utils/pgClient'
 import { redis } from '../libs/utils/redis-state'
+import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 
 
 describe('fnOwnerBlocking tests', () => {
@@ -20,8 +22,10 @@ describe('fnOwnerBlocking tests', () => {
 		await Promise.all(
 			ownerBlockingEventOwners.map(o => dropOwnerTables(o))
 		)
+		await fnOwnerPool.end()
 		await pool.end()
-		redis.quit()
+		await redis.quit().catch(console.error)
+		clearTimerHttpApiNodes()
 	})
 
 	it('should process a page of results', async () => {

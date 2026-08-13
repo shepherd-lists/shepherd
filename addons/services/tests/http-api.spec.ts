@@ -63,7 +63,6 @@ describe('http api', () => {
 
 	afterEach(async () => {
 		await pool.query(`DELETE FROM txs WHERE txid in ($1, $2, $3, $4)`, [mockId1, mockId2, mockIdClassified, mockIdClassified2])
-		await pool.query('DELETE FROM inbox WHERE txid in ($1, $2)', [mockIdClassified, mockIdClassified2])
 		// await pool.query(`DROP TABLE IF EXISTS "${ownerToInfractionsTablename(mockOwner)}"`)
 		// await pool.query(`DROP TABLE $1`, [ownerToOwnerTablename(mockOwner)])
 		await dropOwnerTables(mockOwner) //this does both tables
@@ -113,7 +112,7 @@ describe('http api', () => {
 
 
 	it('should log appropriate detail when an owner breaches infractions', async () => {
-		/* load up inbox, then call `processFlagged` `infraction_limit` times  */
+		/* load up txs, then call `processFlagged` `infraction_limit` times  */
 		//make variable names the same
 		const owner = mockOwner
 		const infractionsTablename = ownerToInfractionsTablename(owner)

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { after, afterEach, beforeEach, describe, it } from 'node:test'
 
 import { txidToRange } from '../libs/byte-ranges/txidToRange/txidToRange'
-import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE } from '../libs/byte-ranges/txidToRange/constants-byteRange'
+import { CHUNK_ALIGN_GENESIS, CHUNK_SIZE, GQL_URL, GQL_URL_SECONDARY } from '../libs/byte-ranges/txidToRange/constants-byteRange'
 import { ans104HeaderData } from '../libs/byte-ranges/txidToRange/ans104HeaderData'
 import { byteRange102 } from '../libs/byte-ranges/txidToRange/byteRange102'
 
@@ -200,7 +200,7 @@ describe('txidToRange tests', () => {
 				 * we will create suitable responses based on future data received.
 				 * unfortunately using today's data i've found errors in both current gql endpoints.
 				 * */
-				assert.equal(e.message, `Parent ${badParent} not found using https://arweave.net/graphql or https://arweave-search.goldsky.com/graphql. id CagF6yAfaqIUYi0IHJ1FwmkdMqBxjVJBntyD1X1QF1U`)
+				assert.equal(e.message, `Parent ${badParent} not found using ${GQL_URL} or ${GQL_URL_SECONDARY}. id CagF6yAfaqIUYi0IHJ1FwmkdMqBxjVJBntyD1X1QF1U`)
 			}
 		})
 	})
