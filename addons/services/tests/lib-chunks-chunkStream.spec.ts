@@ -315,4 +315,133 @@ describe('chunkStream', () => {
 		})
 
 	})//end subsection
+
+	describe('node failover part-way through a chunk', () => {
+		const CHUNK = 256 * 1024
+		/** 4 chunks => chunks 0 & 1 are static, 2 & 3 dynamic. keeping the failing chunk in the
+		 * static range isolates this from the duplicate-chunkInfo-on-retry issue in onSize. */
+		const failoverDataEnd = CHUNK * 4
+
+		/** deterministic weave-like content: the byte at absolute position p is always p % 251.
+		 * 251 is prime, so any duplicated or dropped prefix shifts every following byte. */
+		const source = Uint8Array.from({ length: failoverDataEnd }, (_, p) => p % 251)
+
+		/** mock fetch where the first node serving `failOffset` sends `partial` bytes and then
+		 * the socket times out mid-chunk. every later attempt serves the whole chunk, exactly as
+		 * a fresh /chunk2 request does - i.e. from byte 0 of the chunk. */
+		const createFailoverFetch = (failOffset: number, partial: number) => {
+			const attempts = new Map<number, number>()
+			const fetch = async (
+				txid: string,
+				url: string,
+				abortSignal: AbortSignal,
+				onSegment: (segment: Uint8Array) => void,
+				onSize: (size: number) => void,
+			): Promise<number> => {
+				const offset = Number(url.match(/chunk2\/(\d+)/)![1]) - Number(chunkStart)
+				const attempt = (attempts.get(offset) ?? 0) + 1
+				attempts.set(offset, attempt)
+
+				onSize(CHUNK)
+
+				const sendUpTo = (offset === failOffset && attempt === 1) ? partial : CHUNK
+				const segmentSize = 8192
+				for (let i = 0; i < sendUpTo; i += segmentSize) {
+					await new Promise(resolve => setImmediate(resolve))
+					if (abortSignal.aborted) throw new Error('AbortError')
+					onSegment(source.subarray(offset + i, offset + Math.min(i + segmentSize, sendUpTo)))
+				}
+
+				//died mid-chunk, after handing `partial` bytes to the consumer
+				if (sendUpTo < CHUNK) throw new Error(`${txid} Response timeout after 30s: ${url}`)
+
+				return CHUNK
+			}
+			return { fetch, attempts }
+		}
+
+		it('should not re-deliver bytes already emitted when a node dies mid-chunk', async () => {
+			const partial = 100 * 1024 // bytes the first node delivered before timing out
+			const { fetch, attempts } = createFailoverFetch(0, partial)
+
+			const stream = await chunkStream(
+				chunkStart,
+				failoverDataEnd,
+				txid,
+				(new AbortController()).signal,
+				10,
+				fetch,
+			)
+
+			const received: Uint8Array[] = []
+			let total = 0
+			for await (const buf of stream) {
+				received.push(buf)
+				total += buf.length
+				//can't wait for close: when bytes are double-delivered writePos overshoots
+				//dataEnd, so the `writePos === dataEnd` completion check never fires
+				if (total >= failoverDataEnd) break;
+			}
+			const data = Buffer.concat(received)
+
+			assert.equal(attempts.get(0), 2, 'chunk 0 should have been retried on another node')
+
+			let firstMismatch = -1
+			for (let p = 0; p < Math.min(data.length, source.length); p++) {
+				if (data[p] !== source[p]) { firstMismatch = p; break }
+			}
+			assert.equal(firstMismatch, -1, `assembled stream diverges from the source data at byte ${firstMismatch}`)
+			assert.equal(total, failoverDataEnd, 'stream should deliver exactly dataEnd bytes')
+		})
+
+		it('should not lose a chunk when a node dies mid-chunk while it is buffering', async () => {
+			//same failure, but on chunk 2 - created and started inside chunk 1's onSize, so it
+			//streams in parallel while chunk 1 still holds the write index, and buffers instead
+			//of writing straight out. the retry appends a second copy, so bufferedSize overshoots
+			//size, the `bufferedSize === size` flush test can never match, and the buffered chunk
+			//is never written: the stream stalls (or silently skips it).
+			const partial = 100 * 1024
+			const { fetch, attempts } = createFailoverFetch(CHUNK * 2, partial)
+
+			const stream = await chunkStream(
+				chunkStart,
+				failoverDataEnd,
+				txid,
+				(new AbortController()).signal,
+				10,
+				fetch,
+			)
+
+			const received: Uint8Array[] = []
+			let total = 0
+			const stalled = Symbol('stalled')
+			const reader = stream.getReader()
+			try {
+				while (total < failoverDataEnd) {
+					const next = await Promise.race([
+						reader.read(),
+						new Promise<typeof stalled>(resolve => setTimeout(() => resolve(stalled), 5_000)),
+					])
+					assert.notEqual(next, stalled, `stream stalled after ${total}/${failoverDataEnd} bytes`)
+					const { done, value } = next as ReadableStreamReadResult<Uint8Array>
+					if (done) break;
+					received.push(value!)
+					total += value!.length
+				}
+			} finally {
+				await reader.cancel('test done')
+			}
+			const data = Buffer.concat(received)
+
+			assert.equal(attempts.get(CHUNK * 2), 2, 'chunk 2 should have been retried on another node')
+
+			let firstMismatch = -1
+			for (let p = 0; p < Math.min(data.length, source.length); p++) {
+				if (data[p] !== source[p]) { firstMismatch = p; break }
+			}
+			assert.equal(firstMismatch, -1, `assembled stream diverges from the source data at byte ${firstMismatch}`)
+			assert.equal(total, failoverDataEnd, 'stream should deliver exactly dataEnd bytes')
+		})
+
+	})//end subsection
 })
