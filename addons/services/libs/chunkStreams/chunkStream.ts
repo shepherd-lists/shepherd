@@ -85,8 +85,12 @@ export const chunkStream = async (
 			// console.info(txid, `chunk ${index}, offset ${chunkInfo.offset} starting...`)
 
 
+			let sizeApplied = false
+
 			const onSize = (size: number) => {
 				if (isCancelled || abortSignal.aborted) return; //we may be cancelling
+				if (sizeApplied) return; //a retry re-reports the same size; don't create the successor twice
+				sizeApplied = true
 
 				//update current chunk size
 				const remaining = dataEnd - chunkInfo.offset
@@ -118,10 +122,21 @@ export const chunkStream = async (
 
 
 			let chunkPos = chunkInfo.offset
+			//a retry re-streams the chunk from byte 0. skip what a previous attempt already delivered.
+			let skipBytes = 0
 
 			const onSegment = (segment: Uint8Array) => {
 				if (abortSignal.aborted || isCancelled) return;
 				if (!controller) throw new Error('controller not found!')
+
+				if (skipBytes > 0) {
+					if (skipBytes >= segment.length) {
+						skipBytes -= segment.length
+						return;
+					}
+					segment = segment.subarray(skipBytes)
+					skipBytes = 0
+				}
 
 				const remaining = dataEnd - chunkPos
 				if (remaining <= 0) return;
@@ -206,20 +221,19 @@ export const chunkStream = async (
 						return;
 					}
 
+					skipBytes = chunkPos - chunkInfo.offset //don't re-deliver this attempt's bytes
+
 					//nodes drop idle keep-alive sockets; a reused-stale socket surfaces as a
-					//transient reset *before any bytes arrive*. retry the SAME node once on a
-					//fresh socket (the failed socket is destroyed in finally) before moving on.
-					//only safe at 0 bytes processed: once onSegment has emitted/buffered any
-					//bytes, re-streaming the chunk would double-count, so fall through instead.
+					//transient reset. retry the SAME node once on a fresh socket (the failed
+					//socket is destroyed in finally) before moving on.
 					const isReset = (e as NodeJS.ErrnoException).code === 'ECONNRESET' || /socket hang up/i.test(String(e))
-					const noBytesYet = chunkPos === chunkInfo.offset
-					if (isReset && noBytesYet && !retriedThisNode) {
+					if (isReset && !retriedThisNode) {
 						retriedThisNode = true
-						console.info(txid, url, `${String(e)}, ${chunkInfo.offset}/${dataEnd} bytes. retrying same node (fresh socket)`)
+						console.info(txid, url, `${String(e)}, ${skipBytes} chunk bytes done. retrying same node (fresh socket)`)
 						continue;
 					}
 
-					console.error(txid, url, `${String(e)}, ${chunkInfo.offset}/${dataEnd} bytes. trying next node`)
+					console.error(txid, url, `${String(e)}, ${skipBytes} chunk bytes done, chunk offset ${chunkInfo.offset}/${dataEnd}. trying next node`)
 					nodeIndex--
 					retriedThisNode = false //fresh node gets its own one retry
 
