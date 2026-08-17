@@ -107,7 +107,7 @@ app.get('/rangelist.txt', ipAllowMiddleware('ranges'), async (req, res) => {
 	}
 })
 
-/* reported txids, addresses also watched by fnOwner */
+/* reported txids */
 app.head('/reported/txids.txt', ipAllowMiddleware('txids'), async (req, res) => {
 	res.setHeader('eTag', await getETag(req.path as GetListPath))
 	res.sendStatus(200)

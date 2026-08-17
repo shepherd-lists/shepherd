@@ -175,17 +175,11 @@ const populateReportedLists = async () => {
 	`)
 
 	const s3Txids = s3UploadReadable(LISTS_BUCKET, 'reported/txids.txt')
-	const s3Addresses = s3UploadReadable(LISTS_BUCKET, 'reported/addresses.txt')
 	for await (const row of rows) {
 		s3Txids.write(`${row.txid}\n`)
-		if (row.owner) s3Addresses.write(`${row.owner}\n`)
 	}
 	s3Txids.end()
-	s3Addresses.end()
-	await Promise.all([
-		s3Txids.promise,
-		s3Addresses.promise,
-	])
+	await s3Txids.promise
 
-	console.info('reported lists populated')
+	console.info('reported txids populated')
 }

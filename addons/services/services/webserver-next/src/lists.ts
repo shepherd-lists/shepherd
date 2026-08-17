@@ -116,7 +116,7 @@ export const getList = async (response: Writable, path: GetListPath) => {
 
 export const prefetchLists = async () => {
 	console.info('prefetching lists...')
-	const routes = ['/addresses.txt', '/blacklist.txt', '/rangelist.txt', '/reported/txids.txt', '/reported/addresses.txt']
+	const routes = ['/addresses.txt', '/blacklist.txt', '/rangelist.txt', '/reported/txids.txt']
 	const addonPaths = (await addonTxsTableNames()).map(tablename => tablename.replace('_txs', ''))
 	addonPaths.map(addonPath => {
 		routes.push(`/${addonPath}/txids.txt`)
