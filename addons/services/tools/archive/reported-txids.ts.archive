@@ -9,8 +9,8 @@
  */
 import 'dotenv/config'
 import { arGql, GQLUrls } from 'ar-gql'
-import pool from '../libs/utils/pgClient'
-import { s3PutObject, s3ObjectTagging } from '../libs/utils/s3-services'
+import pool from '../../libs/utils/pgClient'
+import { s3PutObject, s3ObjectTagging } from '../../libs/utils/s3-services'
 
 const [, , command, ...args] = process.argv
 
