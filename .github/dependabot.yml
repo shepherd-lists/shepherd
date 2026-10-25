@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: docker
+    directories:
+      - /addons/services
+      - /addons/nsfw
+      - /infra/minio2mq
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major

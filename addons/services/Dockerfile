@@ -1,4 +1,4 @@
-FROM node:22-slim AS base
+FROM node:22.23.4-slim AS base
 
 # turn off the nuisance nodejs update message 
 ARG NO_UPDATE_NOTIFIER=true
