@@ -2,14 +2,24 @@ import { createHash, createPublicKey, verify, constants } from 'node:crypto'
 import { IncomingHttpHeaders } from 'node:http'
 
 
-/** `keyid` prefix of an Arweave key's `did:pkh` committer, followed by its address */
-const ARWEAVE_COMMITTER = 'did:pkh:arweave:7wIU:'
+/** `keyid` prefix of an Arweave key's `did:pkh` committer (v0.11 rc nodes), followed by its address */
+const DID_PKH_ARWEAVE = 'did:pkh:arweave:7wIU:'
+const DID_AR = 'uri-did-ar-'
+
+/**
+ * `keyid` of an Arweave address's `did-ar@1.0` committer: the address as a host label of no key type (`hb_committer:encode/2`).
+ * the address in lowercase with `_` as `-`, then 9 base36 digits: one bit per character (1 for a capital or `_`), then 3 type bits.
+ */
+export const didArKeyid = (address: string) => {
+	const bits = [...address].reduce((acc, c) => acc << 1n | BigInt(/[A-Z_]/.test(c)), 0n) << 3n
+	return `${DID_AR}${address.toLowerCase().replaceAll('_', '-')}${bits.toString(36).padStart(9, '0')}`
+}
 
 /**
  * verify a HyperBEAM `httpsig@1.0` (RFC 9421) signed report.
  * returns the signer's address, or throws.
  * only `rsa-pss-sha512` signatures over non-derived components, covering `content-digest`.
- * the key is the `public-key` param and `keyid` is its committer. older nodes send `keyid="publickey:<key>"`.
+ * the key is the `public-key` param and `keyid` is its `did-ar` or `did:pkh` committer. older nodes send `keyid="publickey:<key>"`.
  */
 export const verifyReport = (headers: IncomingHttpHeaders, body: Buffer) => {
 	const header = (name: string) => {
@@ -31,7 +41,8 @@ export const verifyReport = (headers: IncomingHttpHeaders, body: Buffer) => {
 		const signature = signatures.get(label)
 
 		const legacy = params.keyid?.startsWith('publickey:')
-		const encodedKey = legacy ? params.keyid.slice('publickey:'.length) : params.keyid?.startsWith(ARWEAVE_COMMITTER) ? params['public-key'] : undefined
+		const committer = params.keyid?.startsWith(DID_AR) || params.keyid?.startsWith(DID_PKH_ARWEAVE)
+		const encodedKey = legacy ? params.keyid.slice('publickey:'.length) : committer ? params['public-key'] : undefined
 
 		if (params.alg !== 'rsa-pss-sha512' || !encodedKey || !signature) continue
 		if (!components.includes('content-digest') || components.some(c => c.startsWith('@'))) continue
@@ -41,7 +52,9 @@ export const verifyReport = (headers: IncomingHttpHeaders, body: Buffer) => {
 		const key = createPublicKey({ key: { kty: 'RSA', n: n.toString('base64url'), e: 'AQAB' }, format: 'jwk' })
 		const address = createHash('sha256').update(n).digest('base64url')
 
-		if (!legacy && params.keyid !== ARWEAVE_COMMITTER + address) throw new Error('keyid is not the committer of public-key')
+		if (committer && params.keyid !== didArKeyid(address) && params.keyid !== DID_PKH_ARWEAVE + address) {
+			throw new Error('keyid is not the committer of public-key')
+		}
 		if (!verify('sha512', Buffer.from(base), { key, padding: constants.RSA_PKCS1_PSS_PADDING, saltLength: 64 }, signature)) {
 			throw new Error('invalid signature')
 		}

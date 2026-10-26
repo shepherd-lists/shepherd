@@ -9,7 +9,7 @@ import { clearTimerHttpApiNodes } from '../libs/utils/update-range-nodes'
 import { destroyGatewayAgent } from '../libs/chunkStreams/gatewayStream'
 import { destroyMimeWorkers } from '../services/indexer-next/src/index-shared/ingress/downloadWithChecks'
 import { ingressHandler } from '../services/indexer-next/src/index-shared/ingress/index'
-import { verifyReport } from '../services/indexer-next/src/feed/verify'
+import { didArKeyid, verifyReport } from '../services/indexer-next/src/feed/verify'
 
 type GQLEdgeInterface = Parameters<typeof ingressHandler>[0]['metas'][number]
 
@@ -24,13 +24,17 @@ const capturedItemId = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
 const capturedDidPkh = JSON.parse(readFileSync(new URL('./assets/feed-report-did-pkh.json', import.meta.url), 'utf8'))
 const capturedDidPkhSigner = 'nbzdy5BxsiSUrzb1oK476Pr5RVYomr2H_qktvY7qPAI'
 
-/** sign a report as HyperBEAM's httpsig@1.0 does. `keyid` defaults to the node's `did:pkh` committer */
+/** the same body, signed by a `did-ar` HyperBEAM node: `keyid="uri-did-ar-<label>";public-key="<key>"` */
+const capturedDidAr = JSON.parse(readFileSync(new URL('./assets/feed-report-did-ar.json', import.meta.url), 'utf8'))
+const capturedDidArSigner = 'fPmDyhrlhy2AnV-kYjEEh3EvdfY64mJJEjtMKuQGegc'
+
+/** sign a report as HyperBEAM's httpsig@1.0 does. `keyid` defaults to the node's `did-ar` committer */
 const testNode = () => {
 	const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 	const n = Buffer.from(publicKey.export({ format: 'jwk' }).n!, 'base64url')
 	return { privateKey, address: createHash('sha256').update(n).digest('base64url'), n }
 }
-const signReport = (body: string, { privateKey, n, address }: { privateKey: KeyObject, n: Buffer, address: string }, keyid = `did:pkh:arweave:7wIU:${address}`) => {
+const signReport = (body: string, { privateKey, n, address }: { privateKey: KeyObject, n: Buffer, address: string }, keyid = didArKeyid(address)) => {
 	const digest = `sha-256=:${createHash('sha256').update(body).digest('base64')}:`
 	const params = `("content-digest" "content-type");alg="rsa-pss-sha512";keyid="${keyid}";public-key="${n.toString('base64url')}"`
 	const base = `"content-digest": ${digest}\n"content-type": application/json\n"@signature-params": ${params}`
@@ -62,11 +66,23 @@ describe('feed verify', () => {
 		assert.equal(verifyReport(capturedDidPkh.headers, Buffer.from(capturedDidPkh.body, 'base64')), capturedDidPkhSigner)
 	})
 
-	it('should reject a did:pkh keyid that is not the committer of public-key', () => {
+	it('should verify a real did-ar HyperBEAM report and return its signer', () => {
+		assert.equal(verifyReport(capturedDidAr.headers, Buffer.from(capturedDidAr.body, 'base64')), capturedDidArSigner)
+	})
+
+	it('should give the did-ar keyid of an address as HyperBEAM does', () => {
+		assert.equal(didArKeyid('kY9RAgTJEImkBpiKgVeXrsGV02T-D4dI3ZvSpnn7HSk'), 'uri-did-ar-ky9ragtjeimkbpikgvexrsgv02t-d4di3zvspnn7hsk8xyj2kegg') //hb_committer doc
+		assert.equal(didArKeyid('-r-OiFD1vOJMcltGY9QFCvCA6w3i3STZCzwe3Q_fD70'), 'uri-did-ar--r-oifd1vojmcltgy9qfcvca6w3i3stzczwe3q-fd7026q742gtc') //captured
+	})
+
+	it('should reject a did-ar or did:pkh keyid that is not the committer of public-key', () => {
 		const body = JSON.stringify({ items: [] })
 		const [node, other] = [testNode(), testNode()]
 		assert.equal(verifyReport(signReport(body, node), Buffer.from(body)), node.address)
-		assert.throws(() => verifyReport(signReport(body, node, `did:pkh:arweave:7wIU:${other.address}`), Buffer.from(body)), /keyid is not the committer/)
+		assert.equal(verifyReport(signReport(body, node, `did:pkh:arweave:7wIU:${node.address}`), Buffer.from(body)), node.address)
+		for (const keyid of [didArKeyid(other.address), `did:pkh:arweave:7wIU:${other.address}`]) {
+			assert.throws(() => verifyReport(signReport(body, node, keyid), Buffer.from(body)), /keyid is not the committer/)
+		}
 	})
 
 	it('should reject a report with one body byte changed', () => {
