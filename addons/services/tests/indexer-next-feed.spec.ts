@@ -14,19 +14,12 @@ import { didArKeyid, verifyReport } from '../services/indexer-next/src/feed/veri
 type GQLEdgeInterface = Parameters<typeof ingressHandler>[0]['metas'][number]
 
 
-/** a real report, signed by a HyperBEAM node (throwaway wallet) and captured on the wire. legacy `keyid="publickey:<key>"` */
-const captured = JSON.parse(readFileSync(new URL('./assets/feed-report.json', import.meta.url), 'utf8'))
+/** a real report, signed by a HyperBEAM node (throwaway wallet) and captured on the wire: `keyid="uri-did-ar-<label>";public-key="<key>"` */
+const captured = JSON.parse(readFileSync(new URL('./assets/feed-report-did-ar.json', import.meta.url), 'utf8'))
 const capturedBody = Buffer.from(captured.body, 'base64')
-const capturedSigner = 'JcqPhOP1dNWcgISI-Y62vZz3kt2FKIN6_D7FUmWWFGA'
+const capturedSigner = 'fPmDyhrlhy2AnV-kYjEEh3EvdfY64mJJEjtMKuQGegc'
 const capturedItemId = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-
-/** the same body, signed by a newer HyperBEAM node: `keyid="did:pkh:arweave:7wIU:<address>";public-key="<key>"` */
-const capturedDidPkh = JSON.parse(readFileSync(new URL('./assets/feed-report-did-pkh.json', import.meta.url), 'utf8'))
-const capturedDidPkhSigner = 'nbzdy5BxsiSUrzb1oK476Pr5RVYomr2H_qktvY7qPAI'
-
-/** the same body, signed by a `did-ar` HyperBEAM node: `keyid="uri-did-ar-<label>";public-key="<key>"` */
-const capturedDidAr = JSON.parse(readFileSync(new URL('./assets/feed-report-did-ar.json', import.meta.url), 'utf8'))
-const capturedDidArSigner = 'fPmDyhrlhy2AnV-kYjEEh3EvdfY64mJJEjtMKuQGegc'
+const capturedItemOwner = 'JcqPhOP1dNWcgISI-Y62vZz3kt2FKIN6_D7FUmWWFGA'
 
 /** sign a report as HyperBEAM's httpsig@1.0 does. `keyid` defaults to the node's `did-ar` committer */
 const testNode = () => {
@@ -62,26 +55,18 @@ describe('feed verify', () => {
 		assert.equal(verifyReport(captured.headers, capturedBody), capturedSigner)
 	})
 
-	it('should verify a real did:pkh HyperBEAM report and return its signer', () => {
-		assert.equal(verifyReport(capturedDidPkh.headers, Buffer.from(capturedDidPkh.body, 'base64')), capturedDidPkhSigner)
-	})
-
-	it('should verify a real did-ar HyperBEAM report and return its signer', () => {
-		assert.equal(verifyReport(capturedDidAr.headers, Buffer.from(capturedDidAr.body, 'base64')), capturedDidArSigner)
-	})
-
 	it('should give the did-ar keyid of an address as HyperBEAM does', () => {
 		assert.equal(didArKeyid('kY9RAgTJEImkBpiKgVeXrsGV02T-D4dI3ZvSpnn7HSk'), 'uri-did-ar-ky9ragtjeimkbpikgvexrsgv02t-d4di3zvspnn7hsk8xyj2kegg') //hb_committer doc
 		assert.equal(didArKeyid('-r-OiFD1vOJMcltGY9QFCvCA6w3i3STZCzwe3Q_fD70'), 'uri-did-ar--r-oifd1vojmcltgy9qfcvca6w3i3stzczwe3q-fd7026q742gtc') //captured
 	})
 
-	it('should reject a did-ar or did:pkh keyid that is not the committer of public-key', () => {
+	it('should reject a keyid that is not the did-ar committer of public-key', () => {
 		const body = JSON.stringify({ items: [] })
 		const [node, other] = [testNode(), testNode()]
 		assert.equal(verifyReport(signReport(body, node), Buffer.from(body)), node.address)
-		assert.equal(verifyReport(signReport(body, node, `did:pkh:arweave:7wIU:${node.address}`), Buffer.from(body)), node.address)
-		for (const keyid of [didArKeyid(other.address), `did:pkh:arweave:7wIU:${other.address}`]) {
-			assert.throws(() => verifyReport(signReport(body, node, keyid), Buffer.from(body)), /keyid is not the committer/)
+		assert.throws(() => verifyReport(signReport(body, node, didArKeyid(other.address)), Buffer.from(body)), /keyid is not the committer/)
+		for (const keyid of [`did:pkh:arweave:7wIU:${node.address}`, `publickey:${node.n.toString('base64')}`]) {
+			assert.throws(() => verifyReport(signReport(body, node, keyid), Buffer.from(body)), /no rsa-pss-sha512 signature/)
 		}
 	})
 
@@ -149,7 +134,7 @@ describe('feed server', () => {
 		}
 		assert.ok(row, 'should have stored the item')
 		assert.equal(row.height, null)
-		assert.equal(row.owner, capturedSigner) //the item's owner is the node's own wallet
+		assert.equal(row.owner, capturedItemOwner)
 		assert.equal(row.data_reason, 'negligible-data')
 	})
 })
