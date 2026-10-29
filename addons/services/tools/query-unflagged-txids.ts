@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import '../tests/_import-test-env-vars'
 
 if (!process.env.DB_HOST) throw new Error('DB_HOST env var not set')
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env -S npx tsx
-import 'dotenv/config'
+import '../addons/services/tests/_import-test-env-vars'
 import { SQSClient, ReceiveMessageCommand, SendMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
 import { createWriteStream } from 'fs'
 

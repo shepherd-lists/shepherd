@@ -10,7 +10,7 @@
  *   cd addons/services
  *   npx tsx tools/insert-inbox-records-to-s3.ts
  */
-import 'dotenv/config'
+import '../tests/_import-test-env-vars'
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import pLimit from 'p-limit'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'

@@ -1,4 +1,4 @@
-import 'dotenv/config'
+import '../../tests/_import-test-env-vars'
 import { getByteRange } from '../../libs/byte-ranges/byteRanges'
 import { httpApiNodes, clearTimerHttpApiNodes } from '../../libs/utils/update-range-nodes'
 import { writeFileSync } from 'node:fs'

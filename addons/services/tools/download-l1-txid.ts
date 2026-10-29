@@ -2,15 +2,12 @@
  * Stream the full raw data of an L1 (top-level) Arweave transaction to a local file.
  * Uses /tx/{id}/offset plus /chunk2 on http_api nodes — suitable for large ANS-104 bundles.
  *
- * Env (same as other chunk tooling — see addons/services/.env):
+ * Env:
  *   HOST_URL — gateway fallback for /tx/.../offset when chunk nodes fail
  *   http_api_nodes — JSON array of { name, server } OR http_api_nodes_url — JSON URL for that list
  *   ingress_nodes — optional JSON array of chunk gateways { url, name }
  *
- * Run from addons/services so dotenv picks up .env:
- *   cd addons/services && npx tsx tools/download-l1-txid.ts <txid> [outputPath]
  */
-// import 'dotenv/config'
 import '../tests/_import-test-env-vars'
 import { createWriteStream } from 'node:fs'
 import { Readable } from 'node:stream'

@@ -1,7 +1,7 @@
 /* 
  * upload files into s3 with faked TxRecord metadata for testing 
  */
-import 'dotenv/config'
+import '../tests/_import-test-env-vars'
 import { TxRecord } from 'shepherd-plugin-interfaces/types'
 import { readFileSync } from 'node:fs'
 import { Upload } from '@aws-sdk/lib-storage'

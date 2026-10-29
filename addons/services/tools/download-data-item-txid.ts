@@ -10,10 +10,7 @@
  *   http_api_nodes — JSON array of { name, server } OR http_api_nodes_url — JSON URL for that list
  *   ingress_nodes — optional JSON array of chunk gateways { url, name }
  *
- * Run from addons/services so dotenv picks up .env:
- *   cd addons/services && npx tsx tools/download-data-item-txid.ts <txid>
  */
-// import 'dotenv/config'
 import '../tests/_import-test-env-vars'
 import { createWriteStream } from 'node:fs'
 import { Readable } from 'node:stream'
