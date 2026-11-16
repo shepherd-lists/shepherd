@@ -127,8 +127,8 @@ const hbRawHead = moize(async (id: string) => {
 
 	const offset = res.headers.get('offset')
 	const headerLength = res.headers.get('header-length')
-	const contentLength = res.headers.get('content-length')
-	if (!offset || !headerLength || !contentLength) throw new Error(`missing offset/header-length/content-length headers for ${url}`)
+	const contentLength = res.headers.get('data-length') ?? res.headers.get('content-length')
+	if (!offset || !headerLength || !contentLength) throw new Error(`missing offset/header-length/data-length headers for ${url}`)
 
 	return {
 		offset: BigInt(offset),
