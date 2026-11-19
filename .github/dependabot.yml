@@ -5,8 +5,11 @@ updates:
       - /addons/services
       - /addons/nsfw
       - /infra/minio2mq
+      - /infra/nginx
     schedule:
       interval: weekly
+    assignees:
+      - rosmcmahon
     ignore:
       - dependency-name: node
         update-types:

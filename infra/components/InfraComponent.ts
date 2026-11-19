@@ -204,9 +204,18 @@ export class InfraComponent extends pulumi.ComponentResource {
     /** nginx */
 
     const nginxConfig = fs.readFileSync(path.join(import.meta.dirname, '../nginx/nginx.conf'), 'utf-8')
+    const nginxImage = new docker.Image('nginx', {
+      build: {
+        context: path.join(import.meta.dirname, '../nginx'),
+        builderVersion: docker.BuilderVersion.BuilderV1,
+        platform: config.buildPlatform,
+      },
+      imageName: n('nginx'),
+      skipPush: true,
+    }, childOpts)
     new docker.Container('nginx', {
       name: n('nginx'),
-      image: 'nginx:stable-alpine',
+      image: nginxImage.repoDigest,
       networksAdvanced: [{ name: network.name }],
       uploads: [{ file: '/etc/nginx/nginx.conf', content: nginxConfig }],
       ports: [
