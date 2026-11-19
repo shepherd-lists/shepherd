@@ -49,7 +49,7 @@ const getWorkers = (): Worker[] => {
 		})
 		w.on('error', err => {
 			// a worker crash fails its in-flight requests rather than hanging them
-			for (const [id, p] of pending) { pending.delete(id); p.reject(err) }
+			for (const [id, p] of pending) { pending.delete(id); p.reject(err instanceof Error ? err : new Error(String(err))) }
 			syncPoolRef()
 		})
 		w.unref()

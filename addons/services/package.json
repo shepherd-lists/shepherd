@@ -13,7 +13,7 @@
   "devDependencies": {
     "@aws-sdk/client-s3": "^3.873.0",
     "@aws-sdk/lib-storage": "^3.873.0",
-    "@types/node": "^22.13.10",
+    "@types/node": "^26.6.6",
     "dotenv": "^16.4.5",
     "esbuild": "^0.25.1",
     "husky": "^9.0.10",

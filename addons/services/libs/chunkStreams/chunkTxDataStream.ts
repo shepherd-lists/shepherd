@@ -100,7 +100,7 @@ export const chunkTxDataStream = async (
 							}
 						}
 					} else {
-						controller.enqueue(data)
+						controller.enqueue(data as Uint8Array<ArrayBuffer>) //byte-stream chunks are never SharedArrayBuffer-backed
 						return // Let consumer process this chunk
 					}
 				}
